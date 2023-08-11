@@ -172,7 +172,7 @@ The `ln:` parameter can have 3 values: `true`, `false`, `number`
 
 ## Commands
 
-There are thre commands available in the command palette. You can:
+There are three commands available in the command palette. You can:
 - fold all code blocks in the current document,
 - unfold all code blocks in the current document,
 - restore original state of code blocks
