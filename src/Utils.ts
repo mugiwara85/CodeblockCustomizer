@@ -1,4 +1,7 @@
+import { setIcon } from "obsidian";
+
 import { Languages, manualLang, Icons } from "./Const";
+import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
 
 export function getCurrentMode() {
   const body = document.querySelector('body');
@@ -9,12 +12,12 @@ export function getCurrentMode() {
       return "dark";
     }
   } else {
-    console.log('Error - getCurrentTheme')
+    //console.log('Error - getCurrentTheme');
   }
-  return '';
+  return 'dark'; // fall back to dark
 }// getCurrentTheme
 
-export function splitAndTrimString(str) {
+export function splitAndTrimString(str: string) {
   if (!str) {
     return [];
   }
@@ -29,79 +32,112 @@ export function splitAndTrimString(str) {
   return str.split(",").map(s => s.trim());
 }// splitAndTrimString
 
-export function searchString(str, searchTerm) {
+function extractValue(str: string, searchTerm: string) {
   const originalStr = str;
   str = str.toLowerCase();
-  searchTerm = searchTerm.toLowerCase();
-  if (searchTerm === "file:") {
-    if (str.includes(searchTerm)) {
-      const startIndex = str.indexOf(searchTerm) + searchTerm.length;
-      let result = "";
-      if (str[startIndex] === "\"") {
-        const endIndex = str.indexOf("\"", startIndex + 1);
-        if (endIndex !== -1) {
-          result = originalStr.substring(startIndex + 1, endIndex);
-        } else {
-          result = originalStr.substring(startIndex + 1);
-        }
+  
+  if (str.includes(searchTerm)) {
+    const startIndex = str.indexOf(searchTerm) + searchTerm.length;
+    let result = "";
+    if (str[startIndex] === "\"") {
+      const endIndex = str.indexOf("\"", startIndex + 1);
+      if (endIndex !== -1) {
+        result = originalStr.substring(startIndex + 1, endIndex);
       } else {
-        const endIndex = str.indexOf(" ", startIndex);
-        if (endIndex !== -1) {
-          result = originalStr.substring(startIndex, endIndex);
-        } else {
-          result = originalStr.substring(startIndex);
-        }
+        result = originalStr.substring(startIndex + 1);
       }
-      return result.trim();
-    }
-  } else if (searchTerm === "```") {
-    if (str.startsWith(searchTerm)) {
-      const startIndex = searchTerm.length;
-      const endIndex = str.indexOf(" ", startIndex);
-      let word = "";
-      if (endIndex !==-1) {
-        word = originalStr.substring(startIndex, endIndex);
-      } else {
-        word = originalStr.substring(startIndex);
-      }
-      if (!word.includes(":")) {
-        if (word.toLowerCase() === "fold") 
-          return null;
-        else
-          return word;
-      }
-    }
-  } else if (searchTerm === 'fold') {
-    if (str.includes(" fold ")) {
-      return true;
-    }
-    const index = str.indexOf(searchTerm);
-    if (index !== -1 && index === str.length - searchTerm.length && str[index - 1] === " ") {
-      return true;
-    }
-    if (str.includes("```fold ")) {
-      return true;
-    }
-    if (str.includes("```fold") && str.indexOf("```fold") + "```fold".length === str.length) {
-      return true;
-    }
-      return false;
     } else {
-    if (str.includes(searchTerm)) {
-      const startIndex = str.indexOf(searchTerm) + searchTerm.length;
       const endIndex = str.indexOf(" ", startIndex);
       if (endIndex !== -1) {
-        return originalStr.substring(startIndex, endIndex).trim();
+        result = originalStr.substring(startIndex, endIndex);
       } else {
-        return originalStr.substring(startIndex).trim();
+        result = originalStr.substring(startIndex);
       }
     }
+    return result.trim();
   }
   
   return null;
-}//searchString
+}// extractValue
 
-export function getHighlightedLines(params: string): number[] {
+export function extractFileTitle(str: string): string | null {
+  const file =  extractValue(str, "file:");
+  const title =  extractValue(str, "title:");
+
+  if (file && title)
+    return file;
+  else if (file && !title)
+    return file;
+  else if (!file && title)
+    return title;
+  else
+    return null;
+}// extractFileTitle
+
+export function getCodeBlockLanguage(str: string): string | null {
+  const searchTerm = "```";
+  const originalStr = str;
+  str = str.toLowerCase();
+
+  if (str.startsWith(searchTerm)) {
+    const startIndex = searchTerm.length;
+    const endIndex = str.indexOf(" ", startIndex);
+    let word = "";
+    if (endIndex !== -1) {
+      word = originalStr.substring(startIndex, endIndex);
+    } else {
+      word = originalStr.substring(startIndex);
+    }
+    if (!word.includes(":")) {
+      if (word.toLowerCase() === "fold") 
+        return null;
+      else
+        return word;
+    }
+  }
+  return null;
+}// getCodeBlockLanguage
+
+export function isFolded(str: string): boolean {
+  const searchTerm = 'fold';
+  str = str.toLowerCase();
+  //searchTerm = searchTerm.toLowerCase();
+
+  if (str.includes(" fold ")) {
+    return true;
+  }
+  const index = str.indexOf(searchTerm);
+  if (index !== -1 && index === str.length - searchTerm.length && str[index - 1] === " ") {
+    return true;
+  }
+  if (str.includes("```fold ")) {
+    return true;
+  }
+  if (str.includes("```fold") && str.indexOf("```fold") + "```fold".length === str.length) {
+    return true;
+  }
+  return false;
+}// isFolded
+
+export function extractParameter(str: string, searchTerm: string): string | null {
+  const originalStr = str;
+  str = str.toLowerCase();
+  searchTerm = searchTerm.toLowerCase();
+
+  if (str.includes(searchTerm)) {
+    const startIndex = str.indexOf(searchTerm) + searchTerm.length;
+    const endIndex = str.indexOf(" ", startIndex);
+    if (endIndex !== -1) {
+      return originalStr.substring(startIndex, endIndex).trim();
+    } else {
+      return originalStr.substring(startIndex).trim();
+    }
+  }
+
+  return null;
+}// extractParameter
+
+export function getHighlightedLines(params: string | null): number[] {
   if (!params) {
     return [];
   }
@@ -120,8 +156,8 @@ export function getHighlightedLines(params: string): number[] {
   }).flat();
 }// getHighlightedLines
 
-export function isExcluded(lineText: string, excludeLangs: string[]) : boolean {
-  const codeBlockLang = searchString(lineText, "```");
+export function isExcluded(lineText: string, excludeLangs: string) : boolean {
+  const codeBlockLang = getCodeBlockLanguage(lineText);
   const regexLangs = splitAndTrimString(excludeLangs).map(lang => new RegExp(`^${lang.replace(/\*/g, '.*')}$`, 'i'));
   
   for (const regexLang of regexLangs) {
@@ -133,7 +169,7 @@ export function isExcluded(lineText: string, excludeLangs: string[]) : boolean {
   return false;
 }// isExcluded
 
-export function getLanguageIcon(DisplayName) {
+export function getLanguageIcon(DisplayName: string) {
   if (!DisplayName)
     return "";
     
@@ -144,7 +180,7 @@ export function getLanguageIcon(DisplayName) {
   return null;
 }// getLanguageIcon
 
-export function getLanguageName(code) {
+export function getDisplayLanguageName(code: string | null) {
   if (!code)
     return "";
   
@@ -159,7 +195,7 @@ export function getLanguageName(code) {
   }
   
   return "";
-}// getLanguageName
+}// getDisplayLanguageName
 
 export const BLOBS: Record<string, string> = {};
 export function loadIcons(){
@@ -169,16 +205,23 @@ export function loadIcons(){
 }// loadIcons
 
 // Functions for displaying header BEGIN
-export function createContainer(specific: boolean) {
+export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean) {
   const container = document.createElement("div");
-  container.classList.add(`codeblock-customizer-header-container${specific?'-specific':''}`);
+  container.classList.add(`codeblock-customizer-header-container${specific ? '-specific' : ''}`);
+  
+  if (languageName)
+    container.classList.add(`codeblock-customizer-language-${languageName.toLowerCase()}`);
+
+  if (hasLangBorderColor)
+    container.classList.add(`hasLangBorderColor`);
+
   return container;
 }// createContainer
 
 export function createCodeblockLang(lang: string) {
   const codeblockLang = document.createElement("div");
-  codeblockLang.innerText = lang;
-  codeblockLang.classList.add(`codeblock-customizer-header-language-tag-${getLanguageName(lang).toLowerCase()}`);
+  codeblockLang.innerText = getDisplayLanguageName(lang);
+  codeblockLang.classList.add(`codeblock-customizer-header-language-tag-${lang.toLowerCase()}`);
   return codeblockLang;
 }// createCodeblockLang
 
@@ -194,6 +237,18 @@ export function createCodeblockIcon(displayLang: string) {
   return div;
 }// createCodeblockIcon
 
+export function createCodeblockCollapse(defaultFold: boolean) {
+  const collapse = document.createElement("div");
+  //collapse.innerText = defaultFold ? "+" : "-";
+  if (defaultFold)
+    setIcon(collapse, "chevrons-down-up");
+  else
+    setIcon(collapse, "chevrons-up-down");
+    
+  collapse.classList.add(`codeblock-customizer-header-collapse`);
+  return collapse;
+}// createCodeblockLang
+
 export function createFileName(text: string) {
   const fileName = document.createElement("div");
   fileName.innerText = text;
@@ -201,154 +256,359 @@ export function createFileName(text: string) {
   return fileName;
 }// createFileName
 
-// Functions for displaying header END
+export function getBorderColorByLanguage(languageName: string, languageBorderColors: Record<string, string>): string {
+  const lowercaseLanguageName = languageName.toLowerCase();
 
-const stylesDict = {
-  activeCodeBlockLineColor: 'codeblock-active-line-color',
-  activeLineColor: 'editor-active-line-color',
-  backgroundColor: 'codeblock-background-color',
-  highlightColor: 'highlight-color',
-  headerColor: 'header-background-color',
-  headerTextColor: 'header-text-color',
-  headerLineColor: 'header-line-color',
-  gutterTextColor: 'gutter-text-color',
-  gutterBackgroundColor: 'gutter-background-color',
-  codeBlockLangColor: 'language-tag-text-color',
-  codeBlockLangBackgroundColor: 'language-tag-background-color',
+  for (const key in languageBorderColors) {
+    if (key.toLowerCase() === lowercaseLanguageName) {
+      return languageBorderColors[key];
+    }
+  }
+
+  return "";
+}// getBorderColorByLanguage
+
+// Functions for displaying header END
+interface StylesDict {
+  [key: string]: string;
 }
 
+const stylesDict: StylesDict = {
+  "codeblock.activeLineColor": 'codeblock-active-line-color',
+  "editorActiveLineColor": 'editor-active-line-color',
+  "codeblock.backgroundColor": 'codeblock-background-color',
+  "codeblock.highlightColor": 'codeblock-highlight-color',
+  "header.backgroundColor": 'header-background-color',
+  "header.textColor": 'header-text-color',
+  "header.lineColor": 'header-line-color',
+  "gutter.textColor": 'gutter-text-color',
+  "gutter.backgroundColor": 'gutter-background-color',
+  "header.codeBlockLangTextColor": 'header-language-tag-text-color',
+  "header.codeBlockLangBackgroundColor": 'header-language-tag-background-color',
+  "gutter.activeLineNrColor": 'gutter-active-linenr-color',
+  "inlineCode.backgroundColor": 'inline-code-background-color',
+  "inlineCode.textColor": 'inline-code-text-color',
+}// stylesDict
+
 export function updateSettingStyles(settings: CodeblockCustomizerSettings) {
-  let colorThemes = settings.colorThemes;
-  let styleId = 'codeblock-customizer-styles'
+  const styleId = 'codeblock-customizer-styles';
   let styleTag = document.getElementById(styleId);
   if (typeof(styleTag) == 'undefined' || styleTag == null) {
     styleTag = document.createElement('style');
     styleTag.id = styleId;
     document.getElementsByTagName('head')[0].appendChild(styleTag);
   }
-  let currentMode = getCurrentMode()
-  let defaultColors = settings.colorThemes.find((theme) => {return theme['name'] == `${currentMode.charAt(0).toUpperCase()+currentMode.slice(1)} Theme`})['colors'];
-  let themeColors = settings.colorThemes.find((theme) => {return theme['name'] == settings.SelectedTheme})['colors'];
-  let currentTheme = {name: 'current', colors: {}};
-  for (const key of Object.keys(stylesDict)) {
-    let defaultValue = accessSetting(key,defaultColors).toLowerCase();
-    let themeValue = accessSetting(key,themeColors).toLowerCase();
-    let settingsValue = accessSetting(key,settings).toLowerCase();
-    if (defaultValue !== settingsValue) {
-      currentTheme['colors'][key] = settingsValue;
-    } else if (defaultValue !== themeValue) {
-      currentTheme['colors'][key] = themeValue;
+  const currentMode = getCurrentMode();
+
+  const altHighlightStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {}).reduce((styling, [colorName, hexValue]) => {
+    return styling + `
+      .codeblock-customizer-line-highlighted-${colorName.replace(/\s+/g, '-').toLowerCase()} {
+        background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
+      }
+    `;
+  }, '');
+
+  const borderLangColorStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.languageBorderColors || {}).reduce((styling, [colorName, hexValue]) => {
+    return styling + `
+    .codeblock-customizer-language-${colorName.toLowerCase()} {
+      --border-color: ${hexValue};
     }
-  }
-  let altHighlightStyling = settings.alternateColors.reduce((styling,altHighlight) => {return styling + `
-    .codeblock-customizer-line-highlighted-${altHighlight['name'].replace(/\s+/g, '-').toLowerCase()} {
-      background-color: var(--codeblock-customiser-highlight-${altHighlight['name'].replace(/\s+/g, '-').toLowerCase()}-color) !important;
-    }
-  `},'');
-  let textSettingsStyles = `
+    `;
+  }, '');
+
+  const textSettingsStyles = `
     body.codeblock-customizer [class^="codeblock-customizer-header-language-tag"] {
-      --codeblock-customizer-language-tag-text-bold: ${settings.header.bCodeblockLangBold?'bold':'normal'};
-      --codeblock-customizer-language-tag-text-italic: ${settings.header.bCodeblockLangItalic?'italic':'normal'};
+      --codeblock-customizer-language-tag-text-bold: ${settings.SelectedTheme.settings.header.codeblockLangBoldText ? 'bold' : 'normal'};
+      --codeblock-customizer-language-tag-text-italic: ${settings.SelectedTheme.settings.header.codeblockLangItalicText ? 'italic' : 'normal'};
     }
     body.codeblock-customizer .codeblock-customizer-header-text {
-      --codeblock-customizer-header-text-bold: ${settings.header.bHeaderBold?'bold':'normal'};
-      --codeblock-customizer-header-text-italic: ${settings.header.bHeaderItalic?'italic':'normal'};
+      --codeblock-customizer-header-text-bold: ${settings.SelectedTheme.settings.header.boldText ? 'bold' : 'normal'};
+      --codeblock-customizer-header-text-italic: ${settings.SelectedTheme.settings.header.italicText ? 'italic' : 'normal'};
     }
   `;
-  styleTag.innerText = colorThemes.reduce((styles,theme) => {
-    return styles + formatStyles(theme,settings.alternateColors);
-  },formatStyles(currentTheme,settings.alternateColors)+altHighlightStyling+textSettingsStyles).trim().replace(/[\r\n\s]+/g, ' ');
-  updateSettingClasses(settings);
-}// setStyles
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + textSettingsStyles).trim().replace(/[\r\n\s]+/g, ' ');
+  
+  updateSettingClasses(settings.SelectedTheme.settings);
+}// updateSettingStyles
 
-function updateSettingClasses(settings) {
-  document.body.classList.remove("codeblock-customizer-active-line-highlight","codeblock-customizer-active-line-highlight-codeblock","codeblock-customizer-active-line-highlight-editor")
-  if (settings.bActiveLineHighlight && settings.bActiveCodeblockLineHighlight) {
+function updateSettingClasses(settings: ThemeSettings) {
+  document.body.classList.remove("codeblock-customizer-active-line-highlight", "codeblock-customizer-active-line-highlight-codeblock", "codeblock-customizer-active-line-highlight-editor")
+  if (settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
     // Inside and outside of codeblocks with different colors
     document.body.classList.add("codeblock-customizer-active-line-highlight");
-  } else if (settings.bActiveLineHighlight && !settings.bActiveCodeblockLineHighlight) {
+  } else if (settings.enableEditorActiveLineHighlight && !settings.codeblock.enableActiveLineHighlight) {
     // Only outside codeblocks
     document.body.classList.add("codeblock-customizer-active-line-highlight-editor");
-  } else if (!settings.bActiveLineHighlight && settings.bActiveCodeblockLineHighlight) {
+  } else if (!settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
     // Only inside codeblocks
     document.body.classList.add("codeblock-customizer-active-line-highlight-codeblock");
   }
   
-  if (settings.bEnableLineNumbers) {
+  if (settings.codeblock.enableLineNumbers) {
     document.body.classList.add("codeblock-customizer-show-line-numbers");
   } else {
     document.body.classList.remove("codeblock-customizer-show-line-numbers");
   }
 
   document.body.classList.remove("codeblock-customizer-show-langnames","codeblock-customizer-show-langnames-always");
-  if (settings.header.bAlwaysDisplayCodeblockLang && settings.bDisplayCodeBlockLanguage) {
+  if (settings.header.alwaysDisplayCodeblockLang && settings.header.displayCodeBlockLanguage) {
     document.body.classList.add("codeblock-customizer-show-langnames-always");
-  } else if (settings.bDisplayCodeBlockLanguage) {
+  } else if (settings.header.displayCodeBlockLanguage) {
     document.body.classList.add("codeblock-customizer-show-langnames");
   }
 
   document.body.classList.remove("codeblock-customizer-show-langicons","codeblock-customizer-show-langicons-always");
-  if (settings.header.bAlwaysDisplayCodeblockIcon && settings.bDisplayCodeBlockIcon) {
+  if (settings.header.alwaysDisplayCodeblockIcon && settings.header.displayCodeBlockIcon) {
     document.body.classList.add("codeblock-customizer-show-langicons-always");
-  } else if (settings.bDisplayCodeBlockIcon) {
+  } else if (settings.header.displayCodeBlockIcon) {
     document.body.classList.add("codeblock-customizer-show-langicons");
   }
 
-  if (settings.bGutterHighlight) {
+  if (settings.gutter.enableHighlight) {
     document.body.classList.add('codeblock-customizer-gutter-highlight');
   } else {
     document.body.classList.remove('codeblock-customizer-gutter-highlight');
   }
+  
+  if (settings.gutter.highlightActiveLineNr)
+		document.body.classList.add('codeblock-customizer-gutter-active-line');
+	else
+		document.body.classList.remove('codeblock-customizer-gutter-active-line');
+
+  if (settings.header.collapseIconPosition === "hide") {
+      document.body.classList.add('codeblock-customizer-collapseIconNone');
+      document.body.classList.remove('codeblock-customizer-collapseIconMiddle');
+      document.body.classList.remove('codeblock-customizer-collapseIconRight');
+  } else if (settings.header.collapseIconPosition === "middle") {
+    document.body.classList.remove('codeblock-customizer-collapseIconNone');
+    document.body.classList.remove('codeblock-customizer-collapseIconRight');
+    document.body.classList.add('codeblock-customizer-collapseIconMiddle');
+  } else if (settings.header.collapseIconPosition === "right") {
+    document.body.classList.remove('codeblock-customizer-collapseIconNone');
+    document.body.classList.remove('codeblock-customizer-collapseIconMiddle');
+    document.body.classList.add('codeblock-customizer-collapseIconRight');
+  }
+
+  if (settings.codeblock.enableDeleteCodeButton)
+    document.body.classList.add('codeblock-customizer-show-delete-code-button');
+	else
+		document.body.classList.remove('codeblock-customizer-show-delete-code-button');
+
+  if (settings.inlineCode.enableInlineCodeStyling){
+    document.body.classList.add('codeblock-customizer-style-inline-code');
+  } else{
+    document.body.classList.remove('codeblock-customizer-style-inline-code');
+  }
+
+  if (settings.codeblock.codeBlockBorderStylingPosition === "disable") {
+    document.body.classList.remove('codeblock-customizer-style-codeblock-border-left');
+    document.body.classList.remove('codeblock-customizer-style-codeblock-border-right');
+  } else if (settings.codeblock.codeBlockBorderStylingPosition === "left") {
+    document.body.classList.remove('codeblock-customizer-style-codeblock-border-right');
+    document.body.classList.add('codeblock-customizer-style-codeblock-border-left');
+  } else if (settings.codeblock.codeBlockBorderStylingPosition === "right") {
+    document.body.classList.remove('codeblock-customizer-style-codeblock-border-left');
+    document.body.classList.add('codeblock-customizer-style-codeblock-border-right');
+  }
+
 }// updateSettingStyles
 
-function formatStyles(theme: {name: string, colors: CodeblockCustomizerColors},alternateColors) { //TODO (@mayurankv) Add type hint for alternateColors
-  let current = theme['name'] == "current";
-  let themeClass = ''
-  let altHighlightStyles = ''
-  if (theme['name'] == 'Light Theme') {
-    themeClass = '.theme-light';
-    altHighlightStyles = addAltHighlightColors(alternateColors,true);
-  } else if (theme['name'] == 'Dark Theme') {
-    themeClass = '.theme-dark';
-    altHighlightStyles = addAltHighlightColors(alternateColors,false);
-  } else if (theme['name'] != 'current') {
-    return '';
-    // themeClass = theme['name'].replace(/\s+/g, '-').toLowerCase();
-  }
+function formatStyles(colors: ThemeColors, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {
   return `
-    body.codeblock-customizer${current ?'':themeClass} {
-      ${Object.keys(stylesDict).reduce((variables,key)=>{
-        let cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
-        let cssValue = accessSetting(key,theme['colors']);
-        let cssImportant = (current?' !important':'');
+    body.codeblock-customizer.theme-light {
+      ${Object.keys(stylesDict).reduce((variables, key) => {
+        const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
+        let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.light);
+
+        if (cssValue.toString().startsWith("--"))
+          cssValue = "var(" + cssValue + ")";
+
         if (cssValue != null) {
-          return variables + `${cssVariable}: ${cssValue + cssImportant};`;
+          return variables + `${cssVariable}: ${cssValue};`;
         } else {
           return variables;
         }
-      },altHighlightStyles)}
+      },addAltHighlightColors(alternateColors, true))}
+    } 
+    body.codeblock-customizer.theme-dark {
+      ${Object.keys(stylesDict).reduce((variables, key) => {
+        const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
+        let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.dark);
+
+        if (cssValue.toString().startsWith("--"))
+          cssValue = "var(" + cssValue + ")";
+
+        if (cssValue != null) {
+          return variables + `${cssVariable}: ${cssValue};`;
+        } else {
+          return variables;
+        }
+      },addAltHighlightColors(alternateColors, false))}
     }
   `;
 }// formatStyles
 
-function addAltHighlightColors(alternateColors, lightTheme: boolean) { //TODO (@mayurankv) Add type hint for alternateColors
-  let key = lightTheme?'lightColor':'darkColor';
-  return alternateColors.reduce((altHighlightStyles,altHighlight) => {return altHighlightStyles + `--codeblock-customiser-highlight-${altHighlight['name'].replace(/\s+/g, '-').toLowerCase()}-color: ${altHighlight[key]};`},'')
-}
+export function getColorOfCssVariable(cssVariable: string) {
+  const body = document.body;
+  const computedStyle = getComputedStyle(body);
+  const colorValue = computedStyle.getPropertyValue(cssVariable).trim();
+  
+  if (colorValue.startsWith("rgb"))
+    return rgbOrRgbaToHex(colorValue);
+  if (colorValue.startsWith("hsl"))
+    return hslOrHslaToHex(colorValue);
+  if (colorValue.startsWith("#"))
+    return colorValue;
+  else 
+    return "";
+}// getColorOfCssVariable
 
-function accessSetting(key: string, settings: CodeblockCustomizerSettings) {
-  if (key in settings) {
-    return settings[key];
-  } else if ('header' in settings) {
-    if (key in settings['header']) {
-      return settings['header'][key];
-    } else {
-      let alt_key = key.charAt(6).toLowerCase()+key.slice(7);
-      if (alt_key in settings['header']) {
-        return settings['header'][alt_key];
-      } 
+function rgbOrRgbaToHex(color: string): string {
+  const matchRGBA = color.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*\.?\d+)\s*\)$/);
+  const matchRGB = color.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+
+  if (matchRGBA) {
+    const red = Number(matchRGBA[1]);
+    const green = Number(matchRGBA[2]);
+    const blue = Number(matchRGBA[3]);
+    const alpha = parseFloat(matchRGBA[4]); // Convert alpha to float
+
+    if (isNaN(alpha) || alpha < 0 || alpha > 1) {
+      throw new Error('Invalid alpha value in rgba format.');
     }
+
+    const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+    return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}${alphaHex}`;
+  } else if (matchRGB) {
+    const red = Number(matchRGB[1]);
+    const green = Number(matchRGB[2]);
+    const blue = Number(matchRGB[3]);
+
+    return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
   } else {
-    return null;
+    //throw new Error('Invalid color format. Use "rgba(r, g, b, a)" or "rgb(r, g, b)".');
+    return "";
   }
-}
+}// rgbOrRgbaToHex
+
+function hslOrHslaToHex(hslColor: string): string {
+  const matchHSLA = hslColor.match(/^hsla?\((\d+),\s*(\d+)%,\s*(\d+)%,?\s*(\d*\.?\d+)?\)$/i);
+
+  if (!matchHSLA) {
+    //throw new Error('Invalid HSL or HSLA color format. Use "hsl(h, s%, l%)" or "hsla(h, s%, l%, a)".');
+    return "";
+  }
+
+  const h = Number(matchHSLA[1]);
+  const s = Number(matchHSLA[2]);
+  const l = Number(matchHSLA[3]);
+  const a = matchHSLA[4] !== undefined ? Number(matchHSLA[4]) : 1;
+
+  // Convert HSLA to HSL (remove alpha component)
+  const hsl = `hsl(${h}, ${s}%, ${l}%)`;
+
+  // Convert HSL to hex
+  const hexColor = hslToHex(hsl, a);
+
+  // Append the alpha value to the hex string if it's not fully opaque
+  if (a < 1) {
+    const alphaHex = Math.round(a * 255).toString(16).padStart(2, '0');
+    return `${hexColor}${alphaHex}`;
+  }
+
+  return hexColor;
+}//hslOrHslaToHex
+
+function hslToHex(hslColor: string, alpha: number): string {
+  const matchHSL = hslColor.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/i);
+
+  if (!matchHSL) {
+    //throw new Error('Invalid HSL color format. Use "hsl(h, s%, l%)".');
+    return "";
+  }
+
+  const h = Number(matchHSL[1]);
+  const s = Number(matchHSL[2]);
+  const l = Number(matchHSL[3]);
+
+  // Convert the hue to a value between 0 and 360
+  const hue = (h % 360 + 360) % 360;
+
+  // Ensure the saturation and lightness values are within the valid range [0, 100]
+  const saturation = Math.max(0, Math.min(100, s));
+  const lightness = Math.max(0, Math.min(100, l));
+
+  // Convert the saturation and lightness values to the range [0, 1]
+  const normalizedSaturation = saturation / 100;
+  const normalizedLightness = lightness / 100;
+
+  // Calculate the chroma and intermediate values
+  const chroma = (1 - Math.abs(2 * normalizedLightness - 1)) * normalizedSaturation;
+  const hPrime = hue / 60;
+  const x = chroma * (1 - Math.abs((hPrime % 2) - 1));
+
+  // Calculate RGB values based on the hue value
+  let r, g, b;
+  if (0 <= hPrime && hPrime < 1) {
+    [r, g, b] = [chroma, x, 0];
+  } else if (1 <= hPrime && hPrime < 2) {
+    [r, g, b] = [x, chroma, 0];
+  } else if (2 <= hPrime && hPrime < 3) {
+    [r, g, b] = [0, chroma, x];
+  } else if (3 <= hPrime && hPrime < 4) {
+    [r, g, b] = [0, x, chroma];
+  } else if (4 <= hPrime && hPrime < 5) {
+    [r, g, b] = [x, 0, chroma];
+  } else {
+    [r, g, b] = [chroma, 0, x];
+  }
+
+  // Calculate m (brightness adjustment)
+  const m = normalizedLightness - chroma / 2;
+
+  // Scale the RGB values and convert them to the range [0, 255]
+  const red = Math.round((r + m) * 255);
+  const green = Math.round((g + m) * 255);
+  const blue = Math.round((b + m) * 255);
+
+  // Convert the RGB values to hexadecimal
+  const hexColor = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+
+  // Append the alpha value to the hex string if it's not fully opaque
+  if (alpha < 1) {
+    const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+    return `${hexColor}${alphaHex}`;
+  }
+
+  return hexColor;
+}// hslToHex
+
+function addAltHighlightColors(alternateColors: Record<string, string>, lightTheme: boolean) {
+  const altHighlightStyles = Object.entries(alternateColors).reduce((altHighlightStyles, [colorName, hexValue]) => {
+    return altHighlightStyles + `--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color: ${hexValue};`;
+  }, '');
+
+  return altHighlightStyles;
+}// addAltHighlightColors
+
+function accessSetting(key: string, settings: Colors) {
+  const keys = key.split('.');
+  let value: any = settings;
+  for (const k of keys) {
+    if (value && k in value) {
+      value = value[k];
+    } else {
+      return null;
+    }
+  }
+  return value;
+}// accessSetting
+
+export function removeCharFromStart(input: string, charToRemove: string): string {
+  let startIndex = 0;
+  while (startIndex < input.length && (input[startIndex] === charToRemove || input[startIndex] === ' ')) {
+      startIndex++;
+  }
+  
+  return input.slice(startIndex);
+}// removeCharFromStart

@@ -2,14 +2,14 @@
 :root {
   --line-number-gutter-width: 32px;
   --line-number-gutter-padding: 16px;
-  --border-radius: 10px;
+  --border-radius: 5px;
   --code-padding: 8px;
   --header-padding: 0px;
   --header-spacing: 15px;
-  --language-icon-size: 28px;
+  --language-icon-size: 32px;
 }
 
-/* Codeblock background colours */
+/* Codeblock background colors */
 .codeblock-customizer .markdown-rendered pre.codeblock-customizer-pre,
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock.codeblock-customizer-line {
   background-color: var(--codeblock-customizer-codeblock-background-color);
@@ -17,7 +17,7 @@
 
 /* Highlighting */
 .codeblock-customizer-line-highlighted {
-  background-color: var(--codeblock-customizer-highlight-color) !important;
+  background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
 }
 .codeblock-customizer-active-line-highlight .cm-active,
 .codeblock-customizer-active-line-highlight-editor .cm-active {
@@ -28,22 +28,107 @@
   background-color: var(--codeblock-customizer-codeblock-active-line-color) !important;
 }
 
+/* Active gutter line number highlight */
+.codeblock-customizer-gutter-active-line .cm-active [class^='codeblock-customizer-line-number'] {
+  color: var(--codeblock-customizer-gutter-active-linenr-color)
+}
+
+/* Inline code editor */
+.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code {
+  color: var(--codeblock-customizer-inline-code-text-color);
+  font-size: var(--code-size);
+  background-color: var(--codeblock-customizer-inline-code-background-color);
+  vertical-align: baseline;
+}
+
+/* Inline code reading view */
+.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre) > code {
+  color: var(--codeblock-customizer-inline-code-text-color);
+  font-family: var(--font-monospace);
+  background-color: var(--codeblock-customizer-inline-code-background-color);
+  border-radius: var(--radius-s);
+  font-size: var(--code-size);
+  padding: 0.1em 0.25em;
+}
+
+/* Codeblock border styling */
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-first {
+  border-top-left-radius: 0px !important;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-first {
+  border-top-right-radius: 0px !important;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-last {
+  border-bottom-left-radius: 0px !important;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-last {
+  border-bottom-right-radius: 0px !important;
+}
+
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .HyperMD-codeblock[class*="codeblock-customizer-line"][class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-][class*="hasLangBorderColor"] {
+  border-left-color: var(--border-color);
+  border-left-width: 5px;
+  border-left-style: solid;
+}
+
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .HyperMD-codeblock[class*="codeblock-customizer-line"][class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"], 
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-][class*="hasLangBorderColor"] {
+  border-right-color: var(--border-color);
+  border-right-width: 5px;
+  border-right-style: solid;
+}
+.codeblock-customizer-header-container, 
+.codeblock-customizer-header-container-specific {
+  padding-bottom: 2px;
+  background: linear-gradient(var(--codeblock-customizer-header-line-color), var(--codeblock-customizer-header-line-color)) bottom / 100% 2px no-repeat;
+  font-family: var(--font-text);
+  /*border-bottom: 2px groove var(--codeblock-customizer-header-line-color);*/
+}
+
+/* remove top left and bottom left radius if language tag is displayed but icon is not */
+body.codeblock-customizer-style-codeblock-border-left:not([class*="codeblock-customizer-show-langicons"]) .codeblock-customizer-header-container-specific [class^="codeblock-customizer-header-language-tag"], 
+body.codeblock-customizer-style-codeblock-border-left:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container [class^="codeblock-customizer-header-language-tag"], 
+body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-header-container-specific:not(:has(div > img.codeblock-customizer-icon)) [class^="codeblock-customizer-header-language-tag"] {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+/* Codeblock border styling end */
+
+/* Copy code button adjustment */
+.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container ~ .copy-code-button,
+.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container ~ .copy-code-button,
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container ~ .copy-code-button {
+  margin-top: calc(var(--language-icon-size) + 6px) !important;
+}
+.codeblock-customizer-header-container-specific ~ .copy-code-button {
+  margin-top: calc(var(--language-icon-size) + 6px) !important;
+}
+
 /* Line number gutter styling */
 .codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .codeblock-customizer-line-number,
 .codeblock-customizer-line-number-hide {
   display: none;
 }
-.markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number { /* Maintain gutter color when padded */
+.markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
   box-shadow: 0px calc(-1 * var(--code-padding)) var(--codeblock-customizer-gutter-background-color);
 }
-.markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number { /* Maintain gutter color when padded */
+.markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
   box-shadow: 0px var(--code-padding) var(--codeblock-customizer-gutter-background-color);
 }
-.markdown-rendered .codeblock-customizer-pre > code > div:only-child > .codeblock-customizer-line-number { /* Maintain gutter color when padded */
+.markdown-rendered .codeblock-customizer-pre > code > div:only-child > .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-pre > code > div:only-child > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
   box-shadow: 0px calc(-1 * var(--code-padding)) var(--codeblock-customizer-gutter-background-color),0px var(--code-padding) var(--codeblock-customizer-gutter-background-color);
 }
 .codeblock-customizer-line-number,
 .codeblock-customizer-line-number-specific {
+  padding-top: 2px;
   padding-left: 4px;
   padding-right: 8px;
   text-align: right;
@@ -53,29 +138,56 @@
   font-family: var(--font-monospace);
   color: var(--codeblock-customizer-gutter-text-color);
   user-select: none;
+  /*display:inline-block;
+  height: 100%;
+  position: absolute;*/
+  position: sticky;
+  left: 0;
+  z-index: 1;
 }
-.markdown-source-view .codeblock-customizer-line-number {
+.markdown-source-view .codeblock-customizer-line-number,
+.markdown-source-view .codeblock-customizer-line-number-specific {
   position: absolute;
   display: inline-block;
   height: 100%;
-  width: var(--line-number-gutter-width);
+  /*width: var(--line-number-gutter-width);*/
   overflow-x: auto;
-  direction: rtl;
+  /*direction: rtl;*/
   left: 0;
 }
-.markdown-source-view .codeblock-customizer-line-number::-webkit-scrollbar {
+.markdown-source-view .codeblock-customizer-line-number {
+  width: var(--line-number-gutter-width);
+}
+
+.codeblock-customizer-line-number-first.codeblock-customizer-line-number-specific-number,
+.codeblock-customizer-line-number-last.codeblock-customizer-line-number-specific-number {
+  width: var(--gutter-width);
+}
+
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific-number) {
+  --gutter-width: var(--line-number-gutter-width);
+  padding-left: calc(var(--gutter-width) + var(--line-number-gutter-padding)) !important;
+}
+
+.markdown-source-view .codeblock-customizer-line-number::-webkit-scrollbar,
+.markdown-source-view .codeblock-customizer-line-number-hide::-webkit-scrollbar {
   display: none;
 }
-.markdown-rendered .codeblock-customizer-line-number {
+.markdown-rendered .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-line-number-specific {
   flex-shrink: 0;
   flex-grow: 1;
 }
 .codeblock-customizer-active-line-highlight.codeblock-customizer-gutter-highlight .markdown-source-view [class*="codeblock-customizer-line"].cm-active .codeblock-customizer-line-number,
+.codeblock-customizer-active-line-highlight.codeblock-customizer-gutter-highlight .markdown-source-view [class*="codeblock-customizer-line"].cm-active .codeblock-customizer-line-number-specific,
 .codeblock-customizer-active-line-highlight-codeblock.codeblock-customizer-gutter-highlight .markdown-source-view [class*="codeblock-customizer-line"].cm-active .codeblock-customizer-line-number,
-.codeblock-customizer-gutter-highlight [class*="codeblock-customizer-line-highlighted"] .codeblock-customizer-line-number {
+.codeblock-customizer-active-line-highlight-codeblock.codeblock-customizer-gutter-highlight .markdown-source-view [class*="codeblock-customizer-line"].cm-active .codeblock-customizer-line-number-specific,
+.codeblock-customizer-gutter-highlight [class*="codeblock-customizer-line-highlighted"] .codeblock-customizer-line-number,
+.codeblock-customizer-gutter-highlight [class*="codeblock-customizer-line-highlighted"] .codeblock-customizer-line-number-specific {
   background-color: rgba(0,0,0,0);
 }
-.codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number){
+.codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number),
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) {
   padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
 }
 
@@ -88,13 +200,41 @@ body:not([class*='codeblock-customizer-show-langnames']) .codeblock-customizer-h
 body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container [class^="codeblock-customizer-header-language-tag"] {
   display: none;
 }
-body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container,
-body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) {
+
+body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always):not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container,
+body:not(.codeblock-customizer-show-langnames-always):not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container:not(:has(img.codeblock-customizer-icon)) {
   display: none !important;
 }
-body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) {
+
+body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container:not(:has(img.codeblock-customizer-icon)) {
   display: none !important;
 }
+
+/* delete code styling */
+.codeblock-customizer-show-delete-code-button .codeblock-customizer-delete-code {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  z-index: 1;
+  display: inline-block;
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  cursor: var(--cursor);
+}
+.codeblock-customizer-delete-code {
+  display: none;
+}
+.codeblock-customizer-delete-code:hover {
+  background-color: var(--color-red);
+  color: white;
+}
+.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .code-block-flair {
+  right: 40px;
+}
+
 .codeblock-customizer-header-container,
 .codeblock-customizer-header-container-specific {
   user-select: none;
@@ -103,27 +243,58 @@ body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-i
   border-top-left-radius: var(--border-radius);
   border-top-right-radius: var(--border-radius);
   background-color: var(--codeblock-customizer-header-background-color);
-  border-bottom: 2px groove var(--codeblock-customizer-header-line-color);
+  /*border-bottom: 2px groove var(--codeblock-customizer-header-line-color);*/
   font-size: 14px;
-  margin-top: 16px !important;           /* originalVal: none, set it to 16px, so the header gets the marginTop, which was removed from the first line of the codeblock */    
   display: flex !important;
   overflow: visible;
+  position: relative;
 }
-.markdown-source-view.mod-cm6 .cm-content .codeblock-customizer-header-container,
-.markdown-source-view.mod-cm6 .cm-content .codeblock-customizer-header-container-specific {
-  margin-top: 16px !important;           /* originalVal: none, set it to 16px, so the header gets the marginTop, which was removed from the first line of the codeblock */    
+
+/* changes begin */
+.codeblock-customizer pre.codeblock-customizer-pre {
+  border-radius: var(--border-radius) !important;
 }
+/* changes end */
+
+.codeblock-customizer-header-collapse {
+  position: absolute;
+  color: var(--codeblock-customizer-header-text-color);
+  top: 50%;
+  font-size: large;
+  font-weight: bold;
+  padding-top: 0.3em;
+  /*width: 20px;*/
+}
+.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collapse  {
+  /* display the collapse icon on the right side */
+  right: 15px;
+  transform: translate(0, -50%);
+}
+.codeblock-customizer-collapseIconMiddle .codeblock-customizer-header-collapse {
+  /* display the collapse icon centered */
+  left: 50%;  
+  transform: translate(-50%, -50%);
+}
+.codeblock-customizer-collapseIconNone .codeblock-customizer-header-collapse {
+  display: none
+}
+
+/* Temporary fix for nested codeblock inside a list */
+li.codeblock-customizer-pre-parent code {
+  display: block !important;
+}
+
 .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)),
 .markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)),
 .markdown-rendered .codeblock-customizer-header-container:has( + .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed),
 .markdown-rendered .codeblock-customizer-header-container-specific:has( + .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed) {
-  padding-bottom: var(--header-padding);
+/*  padding-bottom: var(--header-padding);*/
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
-  border-bottom: none;
+  /*border-bottom: none;*/ /* must be removed, because it causes the icon to expand and shrink vertically on collapse/uncollapse. */
 }
 .markdown-source-view .codeblock-customizer-header-container,
-.markdown-source-view .codeblock-customizer-header-container-specific { /* Fix for incorrectly displaying header when usin "minimal" theme */
+.markdown-source-view .codeblock-customizer-header-container-specific { /* Fix for incorrectly displaying header when using "minimal" theme */
   width: calc(var(--line-width-adaptive) - var(--folding-offset));
   margin-left: max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/2), calc(50% + var(--folding-offset) - var(--max-width)/2)) !important;
 }
@@ -137,8 +308,8 @@ body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-i
   padding-bottom: 0.3em;
   font-size: inherit;
   border-radius: var(--border-radius) var(--border-radius) 0px 0px;
-  background-color: var(--codeblock-customizer-language-tag-background-color);
-  color: var(--codeblock-customizer-language-tag-text-color);
+  background-color: var(--codeblock-customizer-header-language-tag-background-color);
+  color: var(--codeblock-customizer-header-language-tag-text-color);
   font-weight: var(--codeblock-customizer-language-tag-text-bold, normal);
   font-style: var(--codeblock-customizer-language-tag-text-italic, normal);
 }
@@ -172,25 +343,25 @@ div:has(> img.codeblock-customizer-icon) {
 }
 
 /* Pre element styling */
-.codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed {
-  display: none;
+.codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed code {
+  display: none !important;
 }
-.codeblock-customizer-pre-parent{
-  margin-bottom: 16px;
-}
+
 .markdown-rendered pre.codeblock-customizer-pre {
-  margin-top: 0px;     /* originalVal: 16px, set it to 0, so the header is displayed above the codeblock */
   border-top-left-radius: 0px;
   border-top-right-radius: 0px;
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
-  padding-top: 0px;    /* padding-top and bottom must be set at the pre code element*/
+  padding-top: 0px;           /* padding-top and bottom must be set at the pre code element*/
   padding-bottom: 0px;
-  padding-right: 0px;  /* originalVal: 16px, disable it, so the lines are fully highlighted */
-  padding-left: 0px;   /* originalVal: 16px, disable it, so the lines are fully highlighted */
+  padding-right: 0px;         /* originalVal: 16px, disable it, so the lines are fully highlighted */
+  padding-left: 0px;          /* originalVal: 16px, disable it, so the lines are fully highlighted */
+  min-height: auto;
+  margin-top: 16px;           /* originalVal: none, set it to 16px, so the header gets the marginTop, which was removed from the first line of the codeblock */
 }
 .markdown-rendered pre.codeblock-customizer-pre code {
-  display: block;
+  display: grid;/*block;*/  /* Fix for highlighting the whole line, when a vertical scrollbar is displayed */
+  overflow: auto;           /* Fix for "Copy" button moving when vertical scrollbar is displayed */
   padding-top: var(--code-padding);
   padding-bottom: var(--code-padding);
   padding-left: 0px;
@@ -209,6 +380,7 @@ div:has(> img.codeblock-customizer-icon) {
 /* Reading mode text styling */
 .markdown-rendered div:has(> .codeblock-customizer-line-text) {
   display: flex;
+  /*position: relative;*/
 }
 .markdown-rendered .codeblock-customizer-line-text {
   flex-basis: 100%;
@@ -216,7 +388,6 @@ div:has(> img.codeblock-customizer-icon) {
 }
 
 /* Border radius styling */
-/* :not([class^="codeblock-customizer-header-container"])*/
 .codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-begin {
   border-top-left-radius: 0px;
   border-top-right-radius: 0px;
@@ -225,7 +396,8 @@ div:has(> img.codeblock-customizer-icon) {
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
 }
-.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end .codeblock-customizer-line-number {
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end .codeblock-customizer-line-number,
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end .codeblock-customizer-line-number-specific {
   border-bottom-left-radius: var(--border-radius);
 }
 body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always) .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin,
@@ -234,11 +406,16 @@ body .markdown-source-view .codeblock-customizer-header-container:not(:has( img.
   border-top-left-radius: var(--border-radius);
   border-top-right-radius: var(--border-radius);
 }
+
 body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-line-number,
+body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-line-number-specific,
 body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .HyperMD-codeblock-begin .codeblock-customizer-line-number,
-body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .HyperMD-codeblock-begin .codeblock-customizer-line-number {
+body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .HyperMD-codeblock-begin .codeblock-customizer-line-number-specific,
+body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .HyperMD-codeblock-begin .codeblock-customizer-line-number,
+body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .HyperMD-codeblock-begin .codeblock-customizer-line-number-specific {
   border-top-left-radius: var(--border-radius);
 }
+
 body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container + .codeblock-customizer-pre,
 body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .codeblock-customizer-pre,
 body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-icon)) + .codeblock-customizer-pre {
@@ -259,5 +436,5 @@ body .codeblock-customizer-header-container:not(:has( img.codeblock-customizer-i
 }
 
 /*! Pickr 1.8.2 MIT | https://github.com/Simonwep/pickr */
-.pickr {position: relative;overflow: visible;transform: translateY(0)}  .pickr * {box-sizing: border-box;outline: none;border: none;-webkit-appearance: none}  .pickr .pcr-button {position: relative;height: 2em;width: 2em;padding: 0.5em;cursor: pointer;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;border-radius: .15em;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" stroke="%2342445A" stroke-width="5px" stroke-linecap="round"><path d="M45,45L5,5"></path><path d="M45,5L5,45"></path></svg>') no-repeat center;background-size: 0;transition: all 0.3s}  .pickr .pcr-button::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: .5em;border-radius: .15em;z-index: -1}  .pickr .pcr-button::before {z-index: initial}  .pickr .pcr-button::after {position: absolute;content: '';top: 0;left: 0;height: 100%;width: 100%;transition: background 0.3s;background: var(--pcr-color);border-radius: .15em}  .pickr .pcr-button.clear {background-size: 70%}  .pickr .pcr-button.clear::before {opacity: 0}  .pickr .pcr-button.clear:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px var(--pcr-color)}  .pickr .pcr-button.disabled {cursor: not-allowed}  .pickr *, .pcr-app * {box-sizing: border-box;outline: none;border: none;-webkit-appearance: none}  .pickr input:focus, .pickr input.pcr-active, .pickr button:focus, .pickr button.pcr-active, .pcr-app input:focus, .pcr-app input.pcr-active, .pcr-app button:focus, .pcr-app button.pcr-active {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px var(--pcr-color)}  .pickr .pcr-palette, .pickr .pcr-slider, .pcr-app .pcr-palette, .pcr-app .pcr-slider {transition: box-shadow 0.3s}  .pickr .pcr-palette:focus, .pickr .pcr-slider:focus, .pcr-app .pcr-palette:focus, .pcr-app .pcr-slider:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px rgba(0, 0, 0, 0.25)}  .pcr-app {position: fixed;display: flex;flex-direction: column;z-index: 10000;border-radius: 0.1em;background: #fff;opacity: 0;visibility: hidden;transition: opacity 0.3s, visibility 0s 0.3s;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;box-shadow: 0 0.15em 1.5em 0 rgba(0, 0, 0, 0.1), 0 0 1em 0 rgba(0, 0, 0, 0.03);left: 0;top: 0}  .pcr-app.visible {transition: opacity 0.3s;visibility: visible;opacity: 1}  .pcr-app .pcr-swatches {display: flex;flex-wrap: wrap;margin-top: 0.75em}  .pcr-app .pcr-swatches.pcr-last {margin: 0}  @supports (display: grid) {  .pcr-app .pcr-swatches {display: grid;align-items: center;grid-template-columns: repeat(auto-fit, 1.75em)}  }  .pcr-app .pcr-swatches > button {font-size: 1em;position: relative;width: calc(1.75em - 10px);height: calc(1.75em - 10px);border-radius: 0.15em;cursor: pointer;margin: 2.5px;flex-shrink: 0;justify-self: center;transition: all 0.15s;overflow: hidden;background: transparent;z-index: 1}  .pcr-app .pcr-swatches > button::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: 6px;border-radius: .15em;z-index: -1}  .pcr-app .pcr-swatches > button::after {content: '';position: absolute;top: 0;left: 0;width: 100%;height: 100%;background: var(--pcr-color);border: 1px solid rgba(0, 0, 0, 0.05);border-radius: 0.15em;box-sizing: border-box}  .pcr-app .pcr-swatches > button:hover {filter: brightness(1.05)}  .pcr-app .pcr-swatches > button:not(.pcr-active) {box-shadow: none}  .pcr-app .pcr-interaction {display: flex;flex-wrap: wrap;align-items: center;margin: 0 -0.2em 0 -0.2em}  .pcr-app .pcr-interaction > * {margin: 0 0.2em}  .pcr-app .pcr-interaction input {letter-spacing: 0.07em;font-size: 0.75em;text-align: center;cursor: pointer;color: #75797e;background: #f1f3f4;border-radius: .15em;transition: all 0.15s;padding: 0.45em 0.5em;margin-top: 0.75em}  .pcr-app .pcr-interaction input:hover {filter: brightness(0.975)}  .pcr-app .pcr-interaction input:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px rgba(66, 133, 244, 0.75)}  .pcr-app .pcr-interaction .pcr-result {color: #75797e;text-align: left;flex: 1 1 8em;min-width: 8em;transition: all 0.2s;border-radius: .15em;background: #f1f3f4;cursor: text}  .pcr-app .pcr-interaction .pcr-result::-moz-selection {background: #4285f4;color: #fff}  .pcr-app .pcr-interaction .pcr-result::selection {background: #4285f4;color: #fff}  .pcr-app .pcr-interaction .pcr-type.active {color: #fff;background: #4285f4}  .pcr-app .pcr-interaction .pcr-save, .pcr-app .pcr-interaction .pcr-cancel, .pcr-app .pcr-interaction .pcr-clear {color: #fff;width: auto}  .pcr-app .pcr-interaction .pcr-save, .pcr-app .pcr-interaction .pcr-cancel, .pcr-app .pcr-interaction .pcr-clear {color: #fff}  .pcr-app .pcr-interaction .pcr-save:hover, .pcr-app .pcr-interaction .pcr-cancel:hover, .pcr-app .pcr-interaction .pcr-clear:hover {filter: brightness(0.925)}  .pcr-app .pcr-interaction .pcr-save {background: #4285f4}  .pcr-app .pcr-interaction .pcr-clear, .pcr-app .pcr-interaction .pcr-cancel {background: #f44250}  .pcr-app .pcr-interaction .pcr-clear:focus, .pcr-app .pcr-interaction .pcr-cancel:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px rgba(244, 66, 80, 0.75)}  .pcr-app .pcr-selection .pcr-picker {position: absolute;height: 18px;width: 18px;border: 2px solid #fff;border-radius: 100%;-webkit-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none}  .pcr-app .pcr-selection .pcr-color-palette, .pcr-app .pcr-selection .pcr-color-chooser, .pcr-app .pcr-selection .pcr-color-opacity {position: relative;-webkit-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;display: flex;flex-direction: column;cursor: grab;cursor: -webkit-grab}  .pcr-app .pcr-selection .pcr-color-palette:active, .pcr-app .pcr-selection .pcr-color-chooser:active, .pcr-app .pcr-selection .pcr-color-opacity:active {cursor: grabbing;cursor: -webkit-grabbing}  .pcr-app[data-theme='nano'] {width: 14.25em;max-width: 95vw}  .pcr-app[data-theme='nano'] .pcr-swatches {margin-top: .6em;padding: 0 .6em}  .pcr-app[data-theme='nano'] .pcr-interaction {padding: 0 .6em .6em .6em}  .pcr-app[data-theme='nano'] .pcr-selection {display: grid;grid-gap: .6em;grid-template-columns: 1fr 4fr;grid-template-rows: 5fr auto auto;align-items: center;height: 10.5em;width: 100%;align-self: flex-start}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview {grid-area: 2 / 1 / 4 / 1;height: 100%;width: 100%;display: flex;flex-direction: row;justify-content: center;margin-left: .6em}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview .pcr-last-color {display: none}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview .pcr-current-color {position: relative;background: var(--pcr-color);width: 2em;height: 2em;border-radius: 50em;overflow: hidden}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview .pcr-current-color::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: .5em;border-radius: .15em;z-index: -1}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-palette {grid-area: 1 / 1 / 2 / 3;width: 100%;height: 100%;z-index: 1}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-palette .pcr-palette {border-radius: .15em;width: 100%;height: 100%}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-palette .pcr-palette::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: .5em;border-radius: .15em;z-index: -1}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser {grid-area: 2 / 2 / 2 / 2}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity {grid-area: 3 / 2 / 3 / 2}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser, .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity {height: 0.5em;margin: 0 .6em}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser .pcr-picker, .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity .pcr-picker {top: 50%;transform: translateY(-50%)}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser .pcr-slider, .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity .pcr-slider {flex-grow: 1;border-radius: 50em}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser .pcr-slider {background: linear-gradient(to right, red, #ff0, lime, cyan, blue, #f0f, red)}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity .pcr-slider {background: linear-gradient(to right, transparent, black), url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: 100%, 0.25em}
+.pickr {position: relative;overflow: visible;transform: translateY(0)}  .pickr * {box-sizing: border-box;outline: none;border: none;appearance: none;-webkit-appearance: none}  .pickr .pcr-button {position: relative;height: 2em;width: 2em;padding: 0.5em;cursor: pointer;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;border-radius: .15em;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" stroke="%2342445A" stroke-width="5px" stroke-linecap="round"><path d="M45,45L5,5"></path><path d="M45,5L5,45"></path></svg>') no-repeat center;background-size: 0;transition: all 0.3s}  .pickr .pcr-button::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: .5em;border-radius: .15em;z-index: -1}  .pickr .pcr-button::before {z-index: initial}  .pickr .pcr-button::after {position: absolute;content: '';top: 0;left: 0;height: 100%;width: 100%;transition: background 0.3s;background: var(--pcr-color);border-radius: .15em}  .pickr .pcr-button.clear {background-size: 70%}  .pickr .pcr-button.clear::before {opacity: 0}  .pickr .pcr-button.clear:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px var(--pcr-color)}  .pickr .pcr-button.disabled {cursor: not-allowed}  .pickr *, .pcr-app * {box-sizing: border-box;outline: none;border: none;appearance: none;-webkit-appearance: none}  .pickr input:focus, .pickr input.pcr-active, .pickr button:focus, .pickr button.pcr-active, .pcr-app input:focus, .pcr-app input.pcr-active, .pcr-app button:focus, .pcr-app button.pcr-active {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px var(--pcr-color)}  .pickr .pcr-palette, .pickr .pcr-slider, .pcr-app .pcr-palette, .pcr-app .pcr-slider {transition: box-shadow 0.3s}  .pickr .pcr-palette:focus, .pickr .pcr-slider:focus, .pcr-app .pcr-palette:focus, .pcr-app .pcr-slider:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px rgba(0, 0, 0, 0.25)}  .pcr-app {position: fixed;display: flex;flex-direction: column;z-index: 10000;border-radius: 0.1em;background: #fff;opacity: 0;visibility: hidden;transition: opacity 0.3s, visibility 0s 0.3s;font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;box-shadow: 0 0.15em 1.5em 0 rgba(0, 0, 0, 0.1), 0 0 1em 0 rgba(0, 0, 0, 0.03);left: 0;top: 0}  .pcr-app.visible {transition: opacity 0.3s;visibility: visible;opacity: 1}  .pcr-app .pcr-swatches {display: flex;flex-wrap: wrap;margin-top: 0.75em}  .pcr-app .pcr-swatches.pcr-last {margin: 0}  @supports (display: grid) {  .pcr-app .pcr-swatches {display: grid;align-items: center;grid-template-columns: repeat(auto-fit, 1.75em)}  }  .pcr-app .pcr-swatches > button {font-size: 1em;position: relative;width: calc(1.75em - 10px);height: calc(1.75em - 10px);border-radius: 0.15em;cursor: pointer;margin: 2.5px;flex-shrink: 0;justify-self: center;transition: all 0.15s;overflow: hidden;background: transparent;z-index: 1}  .pcr-app .pcr-swatches > button::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: 6px;border-radius: .15em;z-index: -1}  .pcr-app .pcr-swatches > button::after {content: '';position: absolute;top: 0;left: 0;width: 100%;height: 100%;background: var(--pcr-color);border: 1px solid rgba(0, 0, 0, 0.05);border-radius: 0.15em;box-sizing: border-box}  .pcr-app .pcr-swatches > button:hover {filter: brightness(1.05)}  .pcr-app .pcr-swatches > button:not(.pcr-active) {box-shadow: none}  .pcr-app .pcr-interaction {display: flex;flex-wrap: wrap;align-items: center;margin: 0 -0.2em 0 -0.2em}  .pcr-app .pcr-interaction > * {margin: 0 0.2em}  .pcr-app .pcr-interaction input {letter-spacing: 0.07em;font-size: 0.75em;text-align: center;cursor: pointer;color: #75797e;background: #f1f3f4;border-radius: .15em;transition: all 0.15s;padding: 0.45em 0.5em;margin-top: 0.75em}  .pcr-app .pcr-interaction input:hover {filter: brightness(0.975)}  .pcr-app .pcr-interaction input:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px rgba(66, 133, 244, 0.75)}  .pcr-app .pcr-interaction .pcr-result {color: #75797e;text-align: left;flex: 1 1 8em;min-width: 8em;transition: all 0.2s;border-radius: .15em;background: #f1f3f4;cursor: text}  .pcr-app .pcr-interaction .pcr-result::-moz-selection {background: #4285f4;color: #fff}  .pcr-app .pcr-interaction .pcr-result::selection {background: #4285f4;color: #fff}  .pcr-app .pcr-interaction .pcr-type.active {color: #fff;background: #4285f4}  .pcr-app .pcr-interaction .pcr-save, .pcr-app .pcr-interaction .pcr-cancel, .pcr-app .pcr-interaction .pcr-clear {color: #fff;width: auto}  .pcr-app .pcr-interaction .pcr-save, .pcr-app .pcr-interaction .pcr-cancel, .pcr-app .pcr-interaction .pcr-clear {color: #fff}  .pcr-app .pcr-interaction .pcr-save:hover, .pcr-app .pcr-interaction .pcr-cancel:hover, .pcr-app .pcr-interaction .pcr-clear:hover {filter: brightness(0.925)}  .pcr-app .pcr-interaction .pcr-save {background: #4285f4}  .pcr-app .pcr-interaction .pcr-clear, .pcr-app .pcr-interaction .pcr-cancel {background: #f44250}  .pcr-app .pcr-interaction .pcr-clear:focus, .pcr-app .pcr-interaction .pcr-cancel:focus {box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 0 3px rgba(244, 66, 80, 0.75)}  .pcr-app .pcr-selection .pcr-picker {position: absolute;height: 18px;width: 18px;border: 2px solid #fff;border-radius: 100%;-webkit-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none}  .pcr-app .pcr-selection .pcr-color-palette, .pcr-app .pcr-selection .pcr-color-chooser, .pcr-app .pcr-selection .pcr-color-opacity {position: relative;-webkit-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;display: flex;flex-direction: column;cursor: grab;cursor: -webkit-grab}  .pcr-app .pcr-selection .pcr-color-palette:active, .pcr-app .pcr-selection .pcr-color-chooser:active, .pcr-app .pcr-selection .pcr-color-opacity:active {cursor: grabbing;cursor: -webkit-grabbing}  .pcr-app[data-theme='nano'] {width: 14.25em;max-width: 95vw}  .pcr-app[data-theme='nano'] .pcr-swatches {margin-top: .6em;padding: 0 .6em}  .pcr-app[data-theme='nano'] .pcr-interaction {padding: 0 .6em .6em .6em}  .pcr-app[data-theme='nano'] .pcr-selection {display: grid;grid-gap: .6em;grid-template-columns: 1fr 4fr;grid-template-rows: 5fr auto auto;align-items: center;height: 10.5em;width: 100%;align-self: flex-start}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview {grid-area: 2 / 1 / 4 / 1;height: 100%;width: 100%;display: flex;flex-direction: row;justify-content: center;margin-left: .6em}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview .pcr-last-color {display: none}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview .pcr-current-color {position: relative;background: var(--pcr-color);width: 2em;height: 2em;border-radius: 50em;overflow: hidden}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-preview .pcr-current-color::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: .5em;border-radius: .15em;z-index: -1}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-palette {grid-area: 1 / 1 / 2 / 3;width: 100%;height: 100%;z-index: 1}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-palette .pcr-palette {border-radius: .15em;width: 100%;height: 100%}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-palette .pcr-palette::before {position: absolute;content: '';top: 0;left: 0;width: 100%;height: 100%;background: url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: .5em;border-radius: .15em;z-index: -1}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser {grid-area: 2 / 2 / 2 / 2}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity {grid-area: 3 / 2 / 3 / 2}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser, .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity {height: 0.5em;margin: 0 .6em}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser .pcr-picker, .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity .pcr-picker {top: 50%;transform: translateY(-50%)}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser .pcr-slider, .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity .pcr-slider {flex-grow: 1;border-radius: 50em}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-chooser .pcr-slider {background: linear-gradient(to right, red, #ff0, lime, cyan, blue, #f0f, red)}  .pcr-app[data-theme='nano'] .pcr-selection .pcr-color-opacity .pcr-slider {background: linear-gradient(to right, transparent, black), url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');background-size: 100%, 0.25em}
 /* pickr end */
