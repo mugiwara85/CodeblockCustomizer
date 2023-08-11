@@ -170,6 +170,17 @@ The `ln:` parameter can have 3 values: `true`, `false`, `number`
 
 ![Pasted_image_20230811140306.png](attachments/Pasted_image_20230811140306.png)
 
+## Commands
+
+There are thre commands available in the command palette. You can:
+- fold all code blocks in the current document,
+- unfold all code blocks in the current document,
+- restore original state of code blocks
+
+If you collapsed/uncollapsed all code blocks there is no need to restore them to their original state. When you switch documents they are automatically restored to their original state.
+
+![Commands.png](attachments/Commands.png)
+
 ## Inline code
 
 If you want to style inline code, you have to enable it first. After that you can set the background color and the text color for inline code.
