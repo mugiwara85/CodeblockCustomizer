@@ -128,7 +128,7 @@ Example:
 ### Semi-fold
 
 You can enable semi-folding in settings tab: 
-![[Pasted image 20230831132418.png]]
+![Pasted_image_20230831132418.png](attachments/Pasted_image_20230831132418.png)
 After enabling it, you have to select the count of the visible lines (default is 5). Optionally you can also enable an additional uncollapse button, which will be displayed in the last line.
 Semi-fold works just like the normal fold with the following differences:
 - If your code block doesn't have minimum required lines, then it will fold as until now.
@@ -141,13 +141,13 @@ Example: You set the count of visible lines to 5, and you have a code block with
 >There is a slight difference between editing mode and reading mode. In editing mode the first line of the code block (where you define the language and the parameters) also counts, in reading mode not, since it doesn't exist. This will probably change in the next release so it is the same between editing and reading mode.
 
 Example semi-folded code block (light theme):
-![[Pasted image 20230831134504.png]]
+![Pasted_image_20230831134504.png](attachments/Pasted_image_20230831134504.png)
 
 Example semi-folded code block (dark theme):
-![[Pasted image 20230831134431.png]]
+![Pasted_image_20230831134431.png](attachments/Pasted_image_20230831134431.png)
 
 Example semi-folded code block with additional uncollapse button:
-![[Pasted image 20230831134601.png]]
+![Pasted_image_20230831134601.png](attachments/Pasted_image_20230831134601.png)
 
 
 ## Icon
