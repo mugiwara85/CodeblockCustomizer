@@ -1,6 +1,8 @@
 // Prism Languages
 // https://prismjs.com/plugins/show-language/
 
+export const fadeOutLineCount = 4;
+
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",
   "plain": "Plain text",

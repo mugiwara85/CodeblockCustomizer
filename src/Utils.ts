@@ -1,4 +1,5 @@
-import { setIcon } from "obsidian";
+import { setIcon, editorLivePreviewField } from "obsidian";
+import { EditorState } from "@codemirror/state";
 
 import { Languages, manualLang, Icons } from "./Const";
 import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
@@ -79,6 +80,14 @@ export function getCodeBlockLanguage(str: string): string | null {
   const originalStr = str;
   str = str.toLowerCase();
 
+  function removeLeadingBackticks(input: string): string {
+    let cleanedInput = input;
+    while (cleanedInput.startsWith("`")) {
+      cleanedInput = cleanedInput.substring(1);
+    }
+    return cleanedInput;
+  }
+
   if (str.startsWith(searchTerm)) {
     const startIndex = searchTerm.length;
     const endIndex = str.indexOf(" ", startIndex);
@@ -88,17 +97,18 @@ export function getCodeBlockLanguage(str: string): string | null {
     } else {
       word = originalStr.substring(startIndex);
     }
+
     if (!word.includes(":")) {
       if (word.toLowerCase() === "fold") 
         return null;
       else
-        return word;
+        return removeLeadingBackticks(word);
     }
   }
   return null;
 }// getCodeBlockLanguage
 
-export function isFolded(str: string): boolean {
+export function isFoldDefined(str: string): boolean {
   const searchTerm = 'fold';
   str = str.toLowerCase();
   //searchTerm = searchTerm.toLowerCase();
@@ -256,6 +266,15 @@ export function createFileName(text: string) {
   return fileName;
 }// createFileName
 
+export function createUncollapseCodeButton() {
+  const uncollapseCodeButton = document.createElement("span");
+  uncollapseCodeButton.classList.add("codeblock-customizer-uncollapse-code");
+  uncollapseCodeButton.setAttribute("aria-label", "Uncollapse code block");
+  setIcon(uncollapseCodeButton, "chevron-down");
+
+  return uncollapseCodeButton;
+}// createUncollapseCodeButton
+
 export function getBorderColorByLanguage(languageName: string, languageBorderColors: Record<string, string>): string {
   const lowercaseLanguageName = languageName.toLowerCase();
 
@@ -409,6 +428,18 @@ function updateSettingClasses(settings: ThemeSettings) {
   } else if (settings.codeblock.codeBlockBorderStylingPosition === "right") {
     document.body.classList.remove('codeblock-customizer-style-codeblock-border-left');
     document.body.classList.add('codeblock-customizer-style-codeblock-border-right');
+  }
+
+  if (settings.semiFold.enableSemiFold) {
+    document.body.classList.add('codeblock-customizer-use-semifold');
+  } else{
+    document.body.classList.remove('codeblock-customizer-use-semifold');
+  }
+
+  if (settings.semiFold.showAdditionalUncollapseButon) {
+    document.body.classList.add('codeblock-customizer-show-uncollapse-code-button');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-uncollapse-code-button');
   }
 
 }// updateSettingStyles
@@ -612,3 +643,9 @@ export function removeCharFromStart(input: string, charToRemove: string): string
   
   return input.slice(startIndex);
 }// removeCharFromStart
+
+export function isSourceMode(state: EditorState): boolean {
+  if (!state.field(editorLivePreviewField))
+    return true;
+  return false;
+}// isSourceMode

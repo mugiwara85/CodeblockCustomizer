@@ -1,8 +1,9 @@
-import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation } from "obsidian";
+import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderChild } from "obsidian";
 
-import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFolded, getBorderColorByLanguage, removeCharFromStart } from "./Utils";
+import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton } from "./Utils";
 import CodeblockCustomizerPlugin from "./main";
-import { CodeblockCustomizerSettings } from "./Settings";
+import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
+import { fadeOutLineCount } from "./Const";
 
 interface CodeBlockDetails {
   codeBlockLang: string;
@@ -22,18 +23,31 @@ interface OpenTag {
 
 export async function ReadingView(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
   const codeElm: HTMLElement | null = codeBlockElement.querySelector('pre > code');
-
   if (!codeElm) 
     return;
   
+  /*if (Array.from(codeElm.classList).some(className => /^language-\S+/.test(className)))
+    while(!codeElm.classList.contains("is-loaded"))
+      await sleep(2);*/
+
   const preElements: Array<HTMLElement> = Array.from(codeBlockElement.querySelectorAll('pre:not(.frontmatter)'));
   if (!preElements)
     return;
 
   const codeBlockSectionInfo = context.getSectionInfo(codeElm);
   if (!codeBlockSectionInfo) {
-    // PDF export and callout render in editing view!
-    handlePDFExportAndCallouts(codeElm, preElements, context, plugin);
+    // PDF export
+    let id: string | null = null;
+    if (codeBlockElement.parentElement?.classList.contains("internal-embed")) {
+      const src = codeBlockElement.parentElement?.getAttribute("src");
+      if (src) {
+        const indexOfCaret = src.indexOf("^");
+        if (indexOfCaret !== -1) {
+          id = src.substring(indexOfCaret + 1);
+        }
+      }
+    }
+    handlePDFExport(preElements, context, plugin, id);
   }
 
   const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(preElements[0]);
@@ -41,14 +55,46 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
     return;
 
   const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
-  const codeblockFirstLines = getCodeBlocksFirstLines(codeblockLines);
+  const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
 
-  if (preElements.length !== codeblockFirstLines.length)
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, plugin);
+}// ReadingView
+
+export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
+  await sleep(50); // need to find a better way instead of this...
+
+  /*if (Array.from(codeBlockElement.classList).some(className => /^language-\S+/.test(className)))
+  while(!codeBlockElement.classList.contains("is-loaded"))
+    await sleep(2);*/
+
+  const callouts: HTMLElement | null = codeBlockElement.querySelector('.callout');
+  if (!callouts) 
     return;
 
-  for (const [key, preElement] of preElements.entries()) {
-    const codeBlockFirstLine = codeblockFirstLines[key];
-    const preCodeElm = preElement.querySelector('pre > code');
+  const calloutPreElements: Array<HTMLElement> = Array.from(callouts.querySelectorAll('pre:not(.frontmatter)'));
+  if (!calloutPreElements)
+    return;
+
+  const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+  const viewMode = markdownView?.getMode();
+
+  if (viewMode === "source") {
+    // @ts-ignore
+    const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
+    let codeBlockFirstLines: string[] = [];
+    codeBlockFirstLines = getCallouts(calloutText);
+
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, plugin);
+  }
+}// calloutPostProcessor
+
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], plugin: CodeblockCustomizerPlugin ) {
+  if (preElements.length !== codeBlockFirstLines.length)
+  return;
+
+  for (let [key, preElement] of preElements.entries()) {
+    let codeBlockFirstLine = codeBlockFirstLines[key];
+    let preCodeElm = preElement.querySelector('pre > code');
 
     if (!preCodeElm)
       return;
@@ -63,151 +109,7 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
 
     await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement);
   }
-}// ReadingView
-
-export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
-
-  const calloutPreElements: Array<HTMLElement> = Array.from(codeBlockElement.querySelectorAll('.callout-content pre'));
-  if (!calloutPreElements)
-    return;
-
-  const calloutElements: HTMLElement | null = codeBlockElement.querySelector('.callout');
-  //console.log(calloutElements);
-  if (!calloutElements)
-    return;
-   /* const preElements: Array<HTMLElement> = Array.from(codeBlockElement.querySelectorAll('pre:not(.frontmatter)'));
-    if (!preElements)
-      return;*/
-
-  const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-  //const codeBlockSectionInfo = context.getSectionInfo(calloutElements);
-  
-  if (!markdownView) {
-    //console.log(calloutPreElements);
-    const file = plugin.app.vault.getAbstractFileByPath(context.sourcePath);
-    if (!file) {
-      console.error(`File not found: ${context.sourcePath}`);
-      return;
-    }
-    const cache = plugin.app.metadataCache.getCache(context.sourcePath);
-    const fileContent = await plugin.app.vault.cachedRead(<TFile> file).catch((error) => {
-      console.error(`Error reading file: ${error.message}`);
-      return '';
-    });
-  
-    const fileContentLines = fileContent.split(/\n/g);
-    let codeBlockFirstLines: string[] = [];
-    let temp: string[] = [];
-    
-    if (cache?.sections) {
-      for (const element of cache.sections) {
-        //console.log(element);
-       
-        if (element.type === 'callout') {
-          //console.log(element);
-          //if (codeBlockElement?.parentElement?.parentElement?.classList.contains("callout-content")) {
-            //console.log(element);
-            const lineStart = element.position.start.line;
-            const lineEnd = element.position.end.line + 1;
-            temp = getCodeBlocksFirstLines(fileContentLines.slice(lineStart, lineEnd));
-            //console.log(temp);
-            //console.log(lineStart + " - " + lineEnd);
-            //console.log(codeBlockFirstLines);
-            const codeblockDetails = getCodeBlockDetails(temp.toString(), plugin.settings);
-            //console.log(codeblockDetails);
-            //if (codeblockDetails.isCodeBlockExcluded)
-              //return;
-              calloutElements.setAttribute("args",temp.toString());
-            codeBlockFirstLines = temp;
-            //const args = calloutElements?.getAttribute("args") ||"";
-            //console.log("args = "  +args);
-          //if (calloutElements.hasAttribute("args") && !calloutElements.hasAttribute("processed")){
-            //const args = calloutElements?.getAttribute("args") ||"";
-            //console.log("args = "  +args);
-            //const codeblockDetails = getCodeBlockDetails(args, plugin.settings);
-            //await addClasses(calloutElements, codeblockDetails, plugin, calloutPreElements[0] as HTMLElement);
-           // calloutElements?.setAttribute("processed", "yes");
-          //}
-          /*}
-          else
-            codeBlockFirstLines = getCodeBlocksFirstLines(fileContentLines);*/
-        }
-        //codeBlockFirstLines = getCodeBlocksFirstLines(fileContentLines.slice(lineStart, lineEnd));
-      }
-      
-    }
-
-    /*const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(calloutElements);
-    console.log(sectionInfo);
-    if (!sectionInfo)
-      return;
-  
-    const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
-    const codeblockFirstLines = getCodeBlocksFirstLines(codeblockLines);*/
-  //console.log(calloutPreElements);
-  console.log(codeBlockFirstLines);
-    if (calloutPreElements.length !== codeBlockFirstLines.length)
-      return;
-  
-    for (let [key, preElement] of calloutPreElements.entries()) {
-      let codeBlockFirstLine = codeBlockFirstLines[key];
-      let preCodeElm = preElement.querySelector('pre > code');
-  
-      if (!preCodeElm)
-        return;
-  
-      if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className)))
-        while(!preCodeElm.classList.contains("is-loaded"))
-          await sleep(2);
-  
-      const codeblockDetails = getCodeBlockDetails(codeBlockFirstLine, plugin.settings);
-      if (codeblockDetails.isCodeBlockExcluded)
-        continue;
-  
-      await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement);
-    }
-    /*if (cache?.sections) {
-      for (const element of cache.sections) {
-        console.log(element);
-        if (element.type === 'callout') {
-          //console.log(element);
-          if (codeBlockElement?.parentElement?.parentElement?.classList.contains("callout-content")) {
-            console.log(element);
-            const lineStart = element.position.start.line;
-            const lineEnd = element.position.end.line + 1;
-            temp = getCodeBlocksFirstLines(fileContentLines.slice(lineStart, lineEnd));
-            console.log(lineStart + " - " + lineEnd);
-            //console.log(codeBlockFirstLines);
-            const codeblockDetails = getCodeBlockDetails(temp.toString(), plugin.settings);
-            console.log(codeblockDetails.codeBlockLang);
-            //if (codeblockDetails.isCodeBlockExcluded)
-              //return;
-  
-            codeBlockFirstLines = temp;
-          }
-          else
-            codeBlockFirstLines = getCodeBlocksFirstLines(fileContentLines);
-        }
-
-      }
-    } else {
-      console.error(`Metadata cache not found for file: ${context.sourcePath}`);
-      return;
-    }*/
-
-    /*if (calloutPreElements.length !== codeBlockFirstLines.length)
-      return;*/
-
-  /*try {
-    if (plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling)
-      await PDFExport(calloutPreElements, plugin, codeBlockFirstLines);
-  } catch (error) {
-    console.error(`Error exporting to PDF: ${error.message}`);
-    return;
-  }*/
-  return;
-  }
-}// calloutPostProcessor
+}// processCodeBlockFirstLines
 
 async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement) {
   preElement.classList.add(`codeblock-customizer-pre`);
@@ -221,26 +123,46 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
   let specificHeader = true;
   let fileName = codeblockDetails.fileName;
   if (codeblockDetails.fileName === null || codeblockDetails.fileName === "") {
-    fileName = plugin.settings.SelectedTheme.settings.header.collapsedCodeText || "Collapsed Code";
-    if (!codeblockDetails.Fold) {
+    if (codeblockDetails.Fold) {
+      fileName = plugin.settings.SelectedTheme.settings.header.collapsedCodeText || "Collapsed Code";
+    } else {
+      if (plugin.settings.foldAllCommand)
+        fileName = plugin.settings.SelectedTheme.settings.header.collapsedCodeText || "Collapsed Code";
+      else
+        fileName = '';
       specificHeader = false;
     }
   }
 
-  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold);
+  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines );
   preElement.insertBefore(header, preElement.childNodes[0]);
 	
-  if (codeblockDetails.Fold)
-    preElement.classList.add("codeblock-customizer-collapsed");
+  const lines = Array.from(preCodeElm.innerHTML.split('\n')) || 0;
+  if (codeblockDetails.Fold) {
+    toggleFoldClasses(preElement as HTMLPreElement, lines.length - 1, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
+  }/* else {
+    isFoldable(preElement as HTMLPreElement, lines.length - 1, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
+  }*/
 	
   const borderColor = getBorderColorByLanguage(codeblockDetails.codeBlockLang, plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors);
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-  highlightLines(preCodeElm, codeblockDetails);
+  highlightLines(preCodeElm, codeblockDetails, plugin.settings.SelectedTheme.settings);
 }// addClasses
 
-async function handlePDFExportAndCallouts(codeElm: HTMLElement, preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
+function isFoldable(preElement: HTMLPreElement, linesLen: number, enableSemiFold: boolean, visibleLines: number) {
+  if (enableSemiFold) {
+    if (linesLen >= visibleLines + fadeOutLineCount) {
+      preElement?.classList.add('codeblock-customizer-codeblock-semi-collapseable');
+    } else
+      preElement?.classList.add('codeblock-customizer-codeblock-collapseable');
+  }
+  else
+    preElement?.classList.add('codeblock-customizer-codeblock-collapseable');
+}// isFoldable
+
+async function handlePDFExport(preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin, id: string | null) {
   const file = plugin.app.vault.getAbstractFileByPath(context.sourcePath);
   if (!file) {
     console.error(`File not found: ${context.sourcePath}`);
@@ -254,9 +176,10 @@ async function handlePDFExportAndCallouts(codeElm: HTMLElement, preElements: Arr
 
   const fileContentLines = fileContent.split(/\n/g);
   let codeBlockFirstLines: string[] = [];
-
-  if (cache?.sections) {
+  if (cache?.sections && !id) {
     codeBlockFirstLines = getCodeBlocksFirstLines(fileContentLines);
+  } else if (cache?.blocks && id) { 
+    codeBlockFirstLines = getCodeBlocksFirstLines(fileContentLines.slice(cache.blocks[id].position.start.line, cache.blocks[id].position.end.line));
   } else {
       console.error(`Metadata cache not found for file: ${context.sourcePath}`);
       return;
@@ -273,12 +196,12 @@ async function handlePDFExportAndCallouts(codeElm: HTMLElement, preElements: Arr
     return;
   }
   return;
-}// handlePDFExportAndCallouts
+}// handlePDFExport
 
-function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean) {
+function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number) {
   const parent = preElements.parentNode;
 
-  const container = createContainer(specificHeader, languageName, false); // hasLangBorderColor must be always false in reading modebecause how the doc is generated
+  const container = createContainer(specificHeader, languageName, false); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
   if (displayLanguageName){
     const Icon = getLanguageIcon(displayLanguageName)
     if (Icon) {
@@ -295,19 +218,56 @@ function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specif
   // Add event listener to the widget element
   container.addEventListener("click", function() {
     //collapseEl.innerText = preElements.classList.contains(`codeblock-customizer-codeblock-collapsed`) ? "-" : "+";
-    if (preElements.classList.contains(`codeblock-customizer-codeblock-collapsed`))
-      setIcon(collapseEl, "chevrons-up-down");
-    else
-      setIcon(collapseEl, "chevrons-down-up");
-    // Toggle the "collapsed" class on the codeblock element
-    preElements.classList.toggle(`codeblock-customizer-codeblock-collapsed`);
+    if (semiFold) {
+      const codeElements = preElements.getElementsByTagName("CODE");
+      const lines = convertHTMLCollectionToArray(codeElements);
+      if (lines.length >= visibleLines + fadeOutLineCount) {
+        toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-semi-collapsed`, codeElements, true, visibleLines);
+      } else
+        toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-collapsed`);
+    } else {
+      toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-collapsed`);
+    }
   });
   
   if (Collapse) {
-    preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
+    if (semiFold) {
+      const codeElements = preElements.getElementsByTagName("CODE");
+      const lines = convertHTMLCollectionToArray(codeElements);
+      if (lines.length >= visibleLines + fadeOutLineCount) {
+        preElements.classList.add(`codeblock-customizer-codeblock-semi-collapsed`);
+      } else 
+        preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
+    }
+    else
+      preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
     preElements.classList.add(`codeblock-customizer-codeblock-default-collapse`);
   }
   
+  /*const mutationCallback = (mutationsList, observer) => {
+    for (const mutation of mutationsList) {
+      if (mutation.target.classList.contains('codeblock-customizer-header-collapse-command')) {
+        console.log("Specific class was added to body.");
+        // Do something when the specific class is added to the body
+      } else {
+        console.log("Specific class was removed from body.");
+        // Do something when the specific class is removed from the body
+      }
+    }
+  };
+
+  // Create a MutationObserver instance
+  const bodyObserver = new MutationObserver(mutationCallback);
+
+  // Options for the MutationObserver
+  const observerOptions = {
+    attributes: true,
+    attributeFilter: ['class'],
+  };
+
+  // Start observing the body element with the specified options
+  bodyObserver.observe(document.body, observerOptions);*/
+
   return container
 }// HeaderWidget
 
@@ -319,8 +279,14 @@ function createLineNumberElement(lineNumber: number, showNumbers: string) {
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number-hide`);
   else 
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number`);
-  lineNumberWrapper.setText(lineNumber.toString());
+
+  const lineNumberElement = document.createElement("span");
+  lineNumberElement.classList.add(`codeblock-customizer-line-number-element`);
+  lineNumberElement.setText(lineNumber.toString());
   
+  lineNumberWrapper.appendChild(lineNumberElement);
+  //lineNumberWrapper.setText(lineNumber.toString());
+
   return lineNumberWrapper;
 }// createLineNumberElement
 
@@ -332,7 +298,7 @@ function createLineTextElement(line: string) {
   return lineContentWrapper;
 }// createLineTextElement
 
-function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails) {
+function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings) {
   if (!preCodeElm)
     return;
 
@@ -340,6 +306,13 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
   if (codeblockLines.length == 1)
     codeblockLines = ['',''];
 
+  const codeblockLen = codeblockLines.length - 1;
+  let useSemiFold = false;
+  if (codeblockLen >= settings.semiFold.visibleLines + fadeOutLineCount) {
+    useSemiFold = true;
+  }
+
+  let fadeOutLineIndex = 0;
   preCodeElm.innerHTML = "";
   const openTagsStack: OpenTag[] = [];
   codeblockLines.forEach((line, index) => {
@@ -362,6 +335,19 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
     else if (altHLMatch.length > 0) {
       lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${altHLMatch[0].name.replace(/\s+/g, '-').toLowerCase()}`);
     }
+    
+    if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
+      lineWrapper.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
+      fadeOutLineIndex++;
+      if (fadeOutLineIndex === fadeOutLineCount - 1){
+        const uncollapseCodeButton = createUncollapseCodeButton();
+        uncollapseCodeButton.addEventListener("click", handleUncollapseClick);
+        lineWrapper.appendChild(uncollapseCodeButton);
+      }
+    }
+    if (useSemiFold && lineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
+      lineWrapper.classList.add(`codeblock-customizer-fade-out-line-hide`);
+    }
     preCodeElm.appendChild(lineWrapper);
 
     // create line number element
@@ -374,6 +360,102 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
     lineWrapper.appendChild(lineTextEl);
 	});
 }// highlightLines
+
+function handleUncollapseClick(event: Event) {
+  const button = event.target as HTMLElement;
+  const codeElement = button.parentElement?.parentElement;
+  const header = button.parentElement?.parentElement?.previousSibling as HTMLElement;
+  const pre = button.parentElement?.parentElement?.previousSibling?.parentElement;
+
+  if (!codeElement)
+    return;
+    
+  removeFadeEffect(codeElement.children, false);
+
+  if (header) {
+    const collapseIcon = header.querySelector(".codeblock-customizer-header-collapse") as HTMLElement;
+    if (collapseIcon && pre) {
+      toggleFold(pre, collapseIcon, `codeblock-customizer-codeblock-semi-collapsed`, codeElement.children, false, null);
+    }
+  }
+}// handleUncollapseClick
+
+function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string, codeElements: HTMLCollection | null = null, convert: boolean | null = null, visibleLines: number | null = null) {
+  if (pre?.classList.contains(toggleClass)) {
+    if (codeElements && (convert !== null))
+      removeFadeEffect(codeElements, convert);
+    setIcon(collapseIcon, "chevrons-up-down");
+  } else {
+    if (codeElements && visibleLines)
+      addFadeEffect(codeElements, visibleLines);
+    setIcon(collapseIcon, "chevrons-down-up");
+  }
+  pre?.classList.toggle(toggleClass);
+}// toggleFold
+
+export function convertHTMLCollectionToArray(elements: HTMLCollection) {
+  let result: Element[] = [];
+  for (let i = 0; i < elements.length;i++ ){
+    result.push(...Array.from(elements[i].children));
+  }
+  return result;
+}// convertHTMLCollectionToArray
+
+function removeFadeEffect(lines: HTMLCollection, convert: boolean) {
+  let result: Element[] = [];
+
+  if (convert) {
+    result = convertHTMLCollectionToArray(lines);
+  } else {
+    result = Array.from(lines);
+  }
+
+  for (let i = 0; i < result.length; i++) {
+    const line = result[i];
+    if (line.classList.contains("codeblock-customizer-fade-out-line0"))
+      line.classList.remove("codeblock-customizer-fade-out-line0");
+    if (line.classList.contains("codeblock-customizer-fade-out-line1"))
+      line.classList.remove("codeblock-customizer-fade-out-line1");
+    if (line.classList.contains("codeblock-customizer-fade-out-line2"))
+      line.classList.remove("codeblock-customizer-fade-out-line2");
+    if (line.classList.contains("codeblock-customizer-fade-out-line3"))
+      line.classList.remove("codeblock-customizer-fade-out-line3");
+    if (line.classList.contains("codeblock-customizer-fade-out-line-hide"))
+      line.classList.remove("codeblock-customizer-fade-out-line-hide");
+  }
+}// removeFadeEffect
+
+function addFadeEffect(lines: HTMLCollection, visibleLines: number) {
+  const codeElements = Array.from(lines).filter(element => element.tagName === "CODE");
+
+  for (let i = 0; i < codeElements.length; i++) {
+    const codeElement = codeElements[i];
+    const codeblockLen = codeElement.children.length;
+
+    let useSemiFold = false;
+    if (codeblockLen >= visibleLines + fadeOutLineCount) {
+      useSemiFold = true;
+    }
+    if (!useSemiFold)
+      continue;
+    
+    let fadeOutLineIndex = 0
+    for (let j = 0; j < codeblockLen; j++) {
+      const line = codeElement.children[j];
+      if (useSemiFold && j >= visibleLines && fadeOutLineIndex < fadeOutLineCount) {
+        line.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
+        fadeOutLineIndex++;
+        if (fadeOutLineIndex === fadeOutLineCount - 1){
+          const uncollapseCodeButton = createUncollapseCodeButton();
+          uncollapseCodeButton.addEventListener("click", handleUncollapseClick);
+        }
+      }
+      if (useSemiFold && j >= visibleLines + fadeOutLineCount) {
+        line.classList.add(`codeblock-customizer-fade-out-line-hide`);
+      }
+    }
+  }
+}// addFadeEffect
 
 function processHTMLtags(openTagsStack: OpenTag[], lineTextEl: HTMLDivElement, line: string) {
   // Apply class of open HTML tag to subsequent lines until closing tag is found
@@ -481,7 +563,7 @@ function getCodeBlockDetails(codeBlockFirstLine: string, pluginSettings: Codeblo
   const highlightedLinesParams = extractParameter(codeBlockFirstLine, "hl:");
   const linesToHighlight = getHighlightedLines(highlightedLinesParams);
   const fileName = (extractFileTitle(codeBlockFirstLine) || "").toString().trim();
-  const Fold = isFolded(codeBlockFirstLine);
+  const Fold = isFoldDefined(codeBlockFirstLine);
   let lineNumberOffset = -1;
   let showNumbers = "";
 
@@ -523,35 +605,67 @@ function getCodeBlockDetails(codeBlockFirstLine: string, pluginSettings: Codeblo
   };
 }// getCodeBlockDetails
 
-export function foldAllReadingView(fold: boolean) {
+export function foldAllReadingView(fold: boolean, settings: CodeblockCustomizerSettings) {
   const preParents = document.querySelectorAll('.codeblock-customizer-pre-parent');
   preParents.forEach((preParent) => {
     const preElement = preParent.querySelector('.codeblock-customizer-pre');
-    if (fold)
-      preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
-    else
-      preElement?.classList.remove('codeblock-customizer-codeblock-collapsed');
+    const headerTextElement = preElement?.querySelector('.codeblock-customizer-header-container .codeblock-customizer-header-text');
+    
+    let lines: Element[] = [];
+    if (preElement){
+      const codeElements = preElement?.getElementsByTagName("CODE");
+      lines = convertHTMLCollectionToArray(codeElements);
+    }
+
+    toggleFoldClasses(preElement as HTMLPreElement, lines.length, fold, settings.SelectedTheme.settings.semiFold.enableSemiFold, settings.SelectedTheme.settings.semiFold.visibleLines, settings.SelectedTheme.settings.header.collapsedCodeText || 'Collapsed Code', headerTextElement as HTMLElement);
   });
 }//foldAllreadingView
 
+export function toggleFoldClasses(preElement: HTMLPreElement, linesLength: number, fold: boolean, enableSemiFold: boolean, visibleLines: number, collapsedCodeText: string | null = null, headerTextElement: HTMLElement | null = null) {
+  if (fold) {
+    if (enableSemiFold) {
+      if (linesLength >= visibleLines + fadeOutLineCount) {
+        preElement?.classList.add('codeblock-customizer-codeblock-semi-collapsed');
+      } else
+        preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
+    }
+    else
+      preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
+    if (collapsedCodeText)
+      headerTextElement?.setText(collapsedCodeText);
+  }
+  else {
+    if (enableSemiFold) {
+      if (linesLength >= visibleLines + fadeOutLineCount) {
+        preElement?.classList.remove('codeblock-customizer-codeblock-semi-collapsed');
+      } else
+        preElement?.classList.remove('codeblock-customizer-codeblock-collapsed');
+    } else
+      preElement?.classList.remove('codeblock-customizer-codeblock-collapsed');
+  }
+}// toggleFoldClasses
+
 function getCodeBlocksFirstLines(array: string[]): string[] {
   const codeBlocks: string[] = [];
-  let currentBlock: string[] = [];
+  let inCodeBlock = false;
+  let openingBackticks = 0;
 
   for (let i = 0; i < array.length; i++) {
     let line = array[i].trim();
     line = removeCharFromStart(line.trim(), ">");
 
-    if (line.startsWith("```")) {
-      if (currentBlock.length > 0) {
-          const firstLineOfBlock = currentBlock[0];
-          codeBlocks.push(firstLineOfBlock);
-          currentBlock = [];
-      } else {
-        currentBlock.push(line);
+    const backtickMatch = line.match(/^`+(?!.*`)/);
+    if (backtickMatch) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        openingBackticks = backtickMatch[0].length;
+        codeBlocks.push(line);
+      } else { 
+        if (backtickMatch[0].length === openingBackticks) {
+          inCodeBlock = false;
+          openingBackticks = 0;
+        }
       }
-    } else if (currentBlock.length > 0) {
-      currentBlock.push(line);
     }
   }
 
@@ -563,3 +677,24 @@ function getCodeBlocksFirstLines(array: string[]): string[] {
 
   return [];
 }// getCodeBlocksFirstLine
+
+function getCallouts(array: string[]): string[] {
+  if (!array)
+    return [];
+
+  const arrowBlocks: string[] = [];
+  
+  for (let i = 0; i < array.length; i++) {
+    let line = array[i].trim();
+    if (line.startsWith(">")) {
+      arrowBlocks.push(line);
+    }
+  }
+
+  const arrowBlocksResult: string[] = getCodeBlocksFirstLines(arrowBlocks);
+
+  if (arrowBlocksResult.length > 0)
+    return arrowBlocksResult
+  else
+    return [];
+}// getCallouts

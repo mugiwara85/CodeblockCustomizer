@@ -44,7 +44,7 @@ The plugin lets you customize the code blocks in the following way:
     - By default the language tag is only displayed, if the header is displayed, and a if a language is defined for a code block. You can however force, to always display the code block language, even if the header would not be displayed.
 - Display code block language icon (if available for the specified language) in the header.
 - Add line numbers to code blocks
-    - Customize if the linenumber should also be highlighted, if a line is highlighted
+    - Customize if the line number should also be highlighted, if a line is highlighted
     - Customize background color, and color of the line numbers
 - and much more...
 
@@ -65,6 +65,8 @@ How the themes work:
 - You can't modify or delete the default themes.
 - When you switch themes, all unsaved changes are lost. Therefore it is recommended to create your own theme (unless you are happy with the default settings and will never change the theme), and always save your changes. If you made a change, and did not save it, the theme will not include it! 
 - Each theme has its own light and dark colors. To customize the light/dark colors, just switch Obsidian to light/dark mode, and you can change the colors for that mode.
+- When creating a new theme the currently selected theme will be taken as a template for the new theme.
+- After saving changes in a theme, these become the new default values. Example: You select a color (red) and save the theme. Now, this color is the default value. This means, that if you click the "restore default color" icon next to the color picker the color red will be restored.
 
 ## Highlighting
 
@@ -115,12 +117,39 @@ Example:
 
 ## Folding
 
+### Default fold
+
 To specify an initial fold state when the document is opened, specify `fold` in the first line of the code block. If `fold` is defined in a code block, then when you open the document, the code block will be automatically collapsed, and only the header will be displayed. You can unfold the code block by clicking on the header.
 
 Example:
 ` ```cpp fold`
 
 ![Pasted_image_20230125230928.png](attachments/Pasted_image_20230125230928.png)
+### Semi-fold
+
+You can enable semi-folding in settings tab: 
+![[Pasted image 20230831132418.png]]
+After enabling it, you have to select the count of the visible lines (default is 5). Optionally you can also enable an additional uncollapse button, which will be displayed in the last line.
+Semi-fold works just like the normal fold with the following differences:
+- If your code block doesn't have minimum required lines, then it will fold as until now.
+- If your code block does have the minimum required line (count of visible lines + 4 for fading effect), then it will semi-fold.
+
+The number of the "fade" lines is constant, and cannot be changed. 
+Example: You set the count of visible lines to 5, and you have a code block with 10 lines. In this case semi-fold will be used. The first 5 lines remain visible, and the next 4 lines will "fade away". 
+
+>[!note]
+>There is a slight difference between editing mode and reading mode. In editing mode the first line of the code block (where you define the language and the parameters) also counts, in reading mode not, since it doesn't exist. This will probably change in the next release so it is the same between editing and reading mode.
+
+Example semi-folded code block (light theme):
+![[Pasted image 20230831134504.png]]
+
+Example semi-folded code block (dark theme):
+![[Pasted image 20230831134431.png]]
+
+Example semi-folded code block with additional uncollapse button:
+![[Pasted image 20230831134601.png]]
+
+
 ## Icon
 
 Version `1.1.0` introduces a new feature. It is possible from now on, to display an icon for the code blocks. There are currently around 170 icons available for different languages. You can enable the option in the settings page to display icons in the header. If you enable this option, and if the language specified in the code block has an icon, and the header is displayed, then the icon will be displayed. You can also force to always display the icon (which also means that the header will be also displayed) even if the header is not displayed, because the `file` parameter is not defined.

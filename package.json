@@ -12,6 +12,7 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/lodash": "^4.14.197",
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
@@ -25,6 +26,7 @@
 		"@codemirror/language": "^6.8.0",
 		"@simonwep/pickr": "^1.8.2",
 		"eslint": "^8.39.0",
-		"lezer-tree": "^0.13.2"
+		"lezer-tree": "^0.13.2",
+		"lodash": "^4.17.21"
 	}
 }

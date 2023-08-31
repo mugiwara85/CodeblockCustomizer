@@ -1,4 +1,4 @@
-import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent } from "obsidian";
+import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent } from "obsidian";
 import Pickr from "@simonwep/pickr";
 
 import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
@@ -46,7 +46,7 @@ export class SettingsTab extends PluginSettingTab {
             new Notice('You cannot update the default themes');
           }	else {
             this.plugin.settings.Themes[this.plugin.settings.ThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-            new Notice(`Theme ${this.plugin.settings.ThemeName} updated successfully!`);
+            new Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
             (async () => {await this.plugin.saveSettings()})();
           }
         });
@@ -167,18 +167,64 @@ export class SettingsTab extends PluginSettingTab {
     this.createPickrSetting(containerEl, 'Highlight color (used by the "hl" parameter)', '', "codeblock.highlightColor");
 
     new Setting(containerEl)
-    .setName('Show delete code button')
-    .setDesc('If enabled an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings);
-      })
-    );
+      .setName('Show delete code button')
+      .setDesc('If enabled an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings);
+        })
+      );
 
-    containerEl.createEl('h3', {text: 'Codeblock border settings '});
+    containerEl.createEl('h4', {text: 'Semi-fold settings'});
+
+    let enableSemiFoldToggle: ToggleComponent;
+    let semiFoldLinesDropDown: DropdownComponent;
+    let semiFoldShowButton: ToggleComponent;
+
+    const updateDependentSettings = () => {
+      const value = enableSemiFoldToggle.getValue();
+      semiFoldLinesDropDown.setDisabled(!value);
+      semiFoldShowButton.setDisabled(!value);
+    };
+    
+    new Setting(containerEl)
+      .setName('Enable semi-fold')
+      .setDesc('If enabled folding will use semi-fold method. This means, that the first X lines will be visible only. Select the number of visisble lines. You can also enable an additional uncollapse button. Please refer to the README for more information.')
+      .addToggle(toggle => enableSemiFoldToggle = toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings);
+          updateDependentSettings();
+        })
+      )
+      .addDropdown((dropdown) => { semiFoldLinesDropDown = dropdown
+        dropdown.selectEl.empty();
+        dropdown.addOptions(Object.fromEntries([...Array(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
+        dropdown.setValue(this.plugin.settings.SelectedTheme.settings.semiFold.visibleLines.toString())
+        dropdown.onChange(async (value) => {
+          const number = parseInt(value);
+          this.plugin.settings.SelectedTheme.settings.semiFold.visibleLines = number;
+          await this.plugin.saveSettings();
+        })
+      })
+      .addToggle(toggle => semiFoldShowButton = toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.semiFold.showAdditionalUncollapseButon)
+        .setTooltip('Show additional uncollapse button')
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.semiFold.showAdditionalUncollapseButon = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings);
+        })
+      );
+    console.log(this.plugin.settings.SelectedTheme.settings.semiFold.visibleLines.toString());
+    updateDependentSettings();
+
+    containerEl.createEl('h3', {text: 'Codeblock border settings'});
 
     new Setting(containerEl)
     .setName('Codeblock border styling position')

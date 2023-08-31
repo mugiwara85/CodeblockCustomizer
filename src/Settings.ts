@@ -37,6 +37,11 @@ export interface ThemeSettings {
     enableDeleteCodeButton: boolean;
     codeBlockBorderStylingPosition: string;
   },
+  semiFold: {
+    enableSemiFold: boolean;
+    visibleLines: number;
+    showAdditionalUncollapseButon: boolean;
+  },
   header: {
     boldText: boolean;
     italicText: boolean;
@@ -76,6 +81,7 @@ export interface CodeblockCustomizerSettings {
   newThemeName: string;
   alternateHighlightColorName: string;
   languageBorderColorName: string;
+  foldAllCommand: boolean;
 }
 
 // dark
@@ -117,6 +123,11 @@ const Solarized: Theme = {
       enableActiveLineHighlight: true,
       enableDeleteCodeButton: false,
       codeBlockBorderStylingPosition: 'disable',
+    },
+    semiFold: {
+      enableSemiFold: false,
+      visibleLines: 5,
+      showAdditionalUncollapseButon: false,
     },
     header: {
       boldText: false,
@@ -206,6 +217,11 @@ const Obsidian: Theme = {
       enableActiveLineHighlight: true,
       enableDeleteCodeButton: false,
       codeBlockBorderStylingPosition: 'disable',
+    },
+    semiFold: {
+      enableSemiFold: false,
+      visibleLines: 5,
+      showAdditionalUncollapseButon: false,
     },
     header: {
       boldText: false,
@@ -299,4 +315,5 @@ export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
   newThemeName: "",
   alternateHighlightColorName: "",
   languageBorderColorName: "",
+  foldAllCommand: false,
 }

@@ -1,10 +1,10 @@
 import { Plugin, MarkdownView } from "obsidian";
 import { Extension } from "@codemirror/state";
-
+import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { codeblockHighlight } from "./CodeBlockHighlight";
 import { codeblockHeader, collapseField, foldAll } from "./Header";
-import { ReadingView, foldAllReadingView } from "./ReadingView";
+import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles } from "./Utils";
 
@@ -20,7 +20,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     
     await this.loadSettings();
     this.extensions = [];
-
     // npm install eslint@8.39.0
     // eslint main.ts
     
@@ -39,11 +38,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           // @ts-ignore
           const mode = markdownView.currentMode.type;
           document.body.classList.add('codeblock-customizer-header-collapse-command');
+          this.settings.foldAllCommand = true;
           if (mode === "source") {
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, true, false);
           } else if (mode === "preview") {
-            foldAllReadingView(true);
+            foldAllReadingView(true, this.settings);
           }
         }
       }
@@ -59,11 +59,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           // @ts-ignore
           const mode = markdownView.currentMode.type;
           document.body.classList.add('codeblock-customizer-header-collapse-command');
+          this.settings.foldAllCommand = true;
           if (mode === "source") {
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, false, false);
           } else if (mode === "preview") {
-            foldAllReadingView(false);
+            foldAllReadingView(false, this.settings);
           }
         }
       }
@@ -79,16 +80,21 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           // @ts-ignore
           const mode = markdownView.currentMode.type;
           document.body.classList.remove('codeblock-customizer-header-collapse-command');
+          this.settings.foldAllCommand = false;
           if (mode === "source") {
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, true, false);
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, false, true);
           } else if (mode === "preview") {
-            foldAllReadingView(false);
+            foldAllReadingView(false, this.settings);
             const preElements = document.querySelectorAll('.codeblock-customizer-pre.codeblock-customizer-codeblock-default-collapse');
             preElements.forEach((preElement) => {
-              preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
+              //preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
+              let lines: Element[] = [];
+              const codeElements = preElement?.getElementsByTagName("CODE");
+              lines = convertHTMLCollectionToArray(codeElements);              
+              toggleFoldClasses(preElement as HTMLPreElement, lines.length, true, this.settings.SelectedTheme.settings.semiFold.enableSemiFold, this.settings.SelectedTheme.settings.semiFold.visibleLines);
             });
           }
         }
@@ -101,9 +107,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     codeblockHeader.settings = this.settings;
     this.extensions.push(codeblockHeader);
     
+    // @ts-ignore
     collapseField.pluginSettings = this.settings;
     this.extensions.push(collapseField);
-
+        
     this.extensions.push(codeblockHighlight(this.settings));
 
     this.registerEditorExtension(this.extensions);
@@ -123,9 +130,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       await ReadingView(el, ctx, this)
     });
     
-    /*this.registerMarkdownPostProcessor(async (el, ctx) => {
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
       await calloutPostProcessor(el, ctx, this)
-    });*/
+    });
 
     console.log("loading CodeBlock Customizer plugin");
   }// onload
@@ -148,7 +155,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// onunload
   
   async loadSettings() {
-    this.settings = Object.assign({}, structuredClone(DEFAULT_SETTINGS), await this.loadData());
+    //this.settings = Object.assign({}, structuredClone(DEFAULT_SETTINGS), await this.loadData());
+    const loadedData = await this.loadData();
+    this.settings = _.merge({}, DEFAULT_SETTINGS, loadedData);
   }
 
   async saveSettings() {

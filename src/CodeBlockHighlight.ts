@@ -3,7 +3,7 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
@@ -98,10 +98,10 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
         const languageBorderColors = settings.SelectedTheme.colors[currentMode].codeblock.languageBorderColors || {};
         const decorations: Array<Range<Decoration>> = [];
 
-        if (!view.visibleRanges || view.visibleRanges.length === 0) {
+        if (!view.visibleRanges || view.visibleRanges.length === 0 || isSourceMode(view.state)) {
           return RangeSet.empty;
         }
-          
+
         // Find all code blocks in the document
         const codeblocks = findCodeblocks(view.state);
         // Find code blocks that intersect with the visible range
@@ -114,10 +114,15 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
             enter(node) {
               const line = view.state.doc.lineAt(node.from);
               const lineText = view.state.sliceDoc(line.from, line.to).toString().trim();
-              const lang = getCodeBlockLanguage(lineText);
+              //const lang = getCodeBlockLanguage(lineText);
+              let lang = null;
               const startLine = node.type.name.includes("HyperMD-codeblock-begin");
+              if (startLine)
+                lang = getCodeBlockLanguage(lineText);
               const endLine = node.type.name.includes("HyperMD-codeblock-end");
+
               if (lang) {
+                //console.log(lineText);
                 bExclude = isExcluded(lineText, settings.ExcludeLangs);
                 codeblockLanguageClass = "codeblock-customizer-language-" + lang.toLowerCase();
                 borderColor = getBorderColorByLanguage(lang, languageBorderColors);
@@ -277,8 +282,7 @@ class LineNumberWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const container = document.createElement("span");
-
+    const container = document.createElement("span");    
     if (this.spanClass !== "")
         container.classList.add(this.spanClass);
 
@@ -292,13 +296,22 @@ class LineNumberWidget extends WidgetType {
       container.classList.add("codeblock-customizer-line-number");
     }
 
-    container.innerText = `${this.lineNumber}`;
+    //container.innerText = `${this.lineNumber}`;
+    const lineNumber = document.createElement("span");
+    lineNumber.classList.add("codeblock-customizer-line-number-element");
+    lineNumber.innerText = `${this.lineNumber}`;
+    container.appendChild(lineNumber);
 
     requestAnimationFrame(() => {
       this.updateWidth(view);
     });
 
     return container;
+  }
+  
+  updateDOM(dom: HTMLElement, view: EditorView) {
+    view.requestMeasure();
+    return false;
   }
   
 }// LineNumberWidget
@@ -315,7 +328,7 @@ class deleteCodeWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const container = document.createElement("span");
     container.classList.add("codeblock-customizer-delete-code");
-    container.setAttribute("aria-label", "Delete codeblock content");
+    container.setAttribute("aria-label", "Delete code block content");
     setIcon(container, "trash-2");
     
     container.addEventListener("mousedown", event => {

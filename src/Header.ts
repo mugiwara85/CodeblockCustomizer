@@ -1,31 +1,62 @@
-import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, Text } from "@codemirror/state";
+import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Text, Line } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 
-import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFolded, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode } from "./Utils";
+import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { setIcon } from "obsidian";
+import { fadeOutLineCount } from "./Const";
 
-function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, callback: (start: number, end: number, lineText: string, fold: boolean) => void) {
-  let CollapseStart: number | null = null;
-  let CollapseEnd: number | null = null;
+type Ranges = {
+  replaceStart: Line;
+  replaceEnd: Line;
+  fadeOutStart: Line;
+  fadeOutEnd: Line;
+};
+
+interface RangeWithDecoration {
+  from: number;
+  to: number;
+  decoration: Decoration;
+}
+
+function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, callback: (start: Line, end: Line, lineText: string, fold: boolean) => void) {
+  let CollapseStart: Line | null = null;
+  let CollapseEnd: Line | null = null;
   let blockFound = false;
   let bExclude = false;
   let isDefaultFold = false;
-
-  for (let i = 1; i < doc.lines; i++) {
+  let inCodeBlock = false;
+  let openingBackticks = 0;
+  
+  for (let i = 1; i <= doc.lines; i++) {
     const lineText = doc.line(i).text.toString().trim();
     const line = doc.line(i);
     bExclude = isExcluded(lineText, settings.ExcludeLangs);
-    if (lineText.startsWith('```') && lineText.indexOf('```', 3) === -1) {
-      if (bExclude)
-        continue;
-      if (CollapseStart === null) {
-        isDefaultFold = isFolded(lineText);
-        CollapseStart = line.from;
+    const backtickMatch = lineText.match(/^`+(?!.*`)/);
+    if (backtickMatch) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        openingBackticks = backtickMatch[0].length;
+        if (bExclude)
+          continue;
+        if (CollapseStart === null) {
+          isDefaultFold = isFoldDefined(lineText);
+          CollapseStart = line;
+        }
       } else {
-        blockFound = true;
-        CollapseEnd = line.to;
+        if (backtickMatch[0].length === openingBackticks) {
+          inCodeBlock = false;
+          openingBackticks = 0; // Reset the opening backticks count
+          blockFound = true;
+          CollapseEnd = line;
+        } else {
+          // Nested code block with different number of backticks
+        }
       }
+    } else if (inCodeBlock) {
+      // Lines inside the code block
+    } else {
+      // Lines outside the code block
     }
 
     if (blockFound) {
@@ -42,11 +73,24 @@ function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, cal
 
 export function defaultFold(state: EditorState, settings: CodeblockCustomizerSettings) {
   const builder = new RangeSetBuilder<Decoration>();
-
   processCodeBlocks(state.doc, settings, (start, end, lineText, fold) => {
     if (fold) {
-      const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start, end)), block: true, side: -1 });
-      builder.add(start, end, decoration);
+      if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
+        const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
+        if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+          const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
+          const decorations = addFadeOutEffect(state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
+          for (const { from, to, decoration } of decorations || []) {
+            builder.add(from, to, decoration);
+          }
+        } else {
+          const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
+          builder.add(start.from, end.to, decoration);
+        }
+      } else {
+        const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
+        builder.add(start.from, end.to, decoration);
+      }
     }
   });
 
@@ -56,58 +100,101 @@ export function defaultFold(state: EditorState, settings: CodeblockCustomizerSet
 export function foldAll(view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) {
   processCodeBlocks(view.state.doc, settings, (start, end, lineText, isDefaultFold) => {
     if (fold) {
-      view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start, end)) });
+      if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
+        const lineCount = end.number - start.number + 1;
+        if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+          const ranges = getRanges(view.state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
+          addFadeOutEffect(view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
+        } else {
+          view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
+          view.requestMeasure();
+        }
+      } else {
+        view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
+        view.requestMeasure();
+      }
     }
     else {
-      if (!isDefaultFold || !defaultState){
+      if (!isDefaultFold || !defaultState) {
+        if (settings.SelectedTheme.settings.semiFold.enableSemiFold)
+          clearFadeEffect(view, start.from, end.to);
+
         // @ts-ignore
-        view.dispatch({ effects: UnCollapse.of((from: number, to: number) => to <= start || from >= end) });
+        view.dispatch({ effects: UnCollapse.of((from: number, to: number) => to <= start.from || from >= end.to) });
+        view.requestMeasure();
       }
     }
   });
 }// foldAll
 
-
 let settings: CodeblockCustomizerSettings;
 export const codeblockHeader = StateField.define<DecorationSet>({
   create(state): DecorationSet {
     document.body.classList.remove('codeblock-customizer-header-collapse-command');
+    // @ts-ignore
+    codeblockHeader.settings.foldAllCommand = false;
     return Decoration.none;    
   },
   update(oldState: DecorationSet, transaction: Transaction): DecorationSet {
+    if (isSourceMode(transaction.state))
+      return Decoration.none;
+
     const builder = new RangeSetBuilder<Decoration>();
     let WidgetStart = null;
     let Fold = false;
     let fileName = null;
+    let specificHeader = true;
+    let numBackticks = 0;
+    let inCodeBlock = false;
     let bExclude = false;
-    let specificHeader = true;     
     for (let i = 1; i < transaction.state.doc.lines; i++) {
       const lineText = transaction.state.doc.line(i).text.toString().trim();
       const line = transaction.state.doc.line(i);
-      const lang = getCodeBlockLanguage(lineText);      
+      const lang = getCodeBlockLanguage(lineText);
       bExclude = isExcluded(lineText, this.settings.ExcludeLangs);
       specificHeader = true;
-      if (lineText.startsWith('```') && lineText.indexOf('```', 3) === -1) {
-        if (WidgetStart === null) {
+
+      const backtickMatch = lineText.match(/^`+(?!.*`)/);
+      if (backtickMatch) {
+        if (!inCodeBlock) {
+          inCodeBlock = true;
+          numBackticks = backtickMatch[0].length;
           WidgetStart = line;
           fileName = extractFileTitle(lineText);
-          Fold = isFolded(lineText);
+          Fold = isFoldDefined(lineText);
+
           if (!bExclude) {
             if (fileName === null || fileName === "") {
-              fileName = this.settings.SelectedTheme.settings.header.collapsedCodeText || 'Collapsed Code';
-              if (!Fold) {
+              if (Fold) {
+                fileName = this.settings.SelectedTheme.settings.header.collapsedCodeText || 'Collapsed Code';
+              } else {
+                if (this.settings.foldAllCommand)
+                  fileName = this.settings.SelectedTheme.settings.header.collapsedCodeText || 'Collapsed Code';
+                else
+                  fileName = '';
                 specificHeader = false;
               }
             }
             const hasLangBorderColor = getBorderColorByLanguage(lang || "", this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).length > 0 ? true : false;
-            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor));
+            // @ts-ignore
+            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings));
             //EditorView.requestMeasure;
           }
         } else {
-          WidgetStart = null;
-          Fold = false;
-          fileName = null;
+          if (backtickMatch[0].length === numBackticks) {
+            inCodeBlock = false;
+            numBackticks = 0;
+            WidgetStart = null;
+            Fold = false;
+            fileName = null;
+          } else {
+            // Nested code block with different number of backticks
+          }
         }
+      } else if (inCodeBlock) {
+        // Lines inside the code block
+      } else {
+        // Lines outside the code block
       }
     }
   
@@ -118,26 +205,35 @@ export const codeblockHeader = StateField.define<DecorationSet>({
   },
 });// codeblockHeader
 
-function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean) {
-  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor), block: true });
+function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings) {
+  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings), block: true });
 }// createDecorationWidget
 
 const Collapse = StateEffect.define<Range<Decoration>>();
 const UnCollapse = StateEffect.define<{ filter: number; filterFrom: number; filterTo: number }>();
+const semiCollapse = StateEffect.define<Range<Decoration>>();
+const semiUnCollapse = StateEffect.define<{ filter: number; filterFrom: number; filterTo: number }>();
+const semiFade = StateEffect.define<Range<Decoration>>();
+const semiUnFade = StateEffect.define<{ filter: number; filterFrom: number; filterTo: number }>();
 
 let pluginSettings: CodeblockCustomizerSettings;
-// @ts-ignore
-export const collapseField = StateField.define({  
-  create(state) {
+export const collapseField = StateField.define<RangeSet<Decoration>>({  
+  create(state): RangeSet<Decoration> {
+    if (isSourceMode(state))
+      return Decoration.none;
+    // @ts-ignore
     return defaultFold(state, collapseField.pluginSettings);
     //return Decoration.none;
   },
   update(value, tr) {
+    if (isSourceMode(tr.state))
+      return Decoration.none;
+
     value = value.map(tr.changes)
     for (const effect of tr.effects) {
-      if (effect.is(Collapse))
+      if (effect.is(Collapse) || effect.is(semiCollapse) || effect.is(semiFade))
         value = value.update({add: [effect.value], sort: true});
-      else if (effect.is(UnCollapse)) {
+      else if (effect.is(UnCollapse) || effect.is(semiUnCollapse) || effect.is(semiUnFade)) {
         // @ts-ignore
         value = value.update({filter: effect.value});
       }
@@ -145,7 +241,7 @@ export const collapseField = StateField.define({
     return value;
   },
   provide: f => EditorView.decorations.from(f)
-})
+})// collapseField
 
 class TextAboveCodeblockWidget extends WidgetType {
   text: string;
@@ -156,8 +252,9 @@ class TextAboveCodeblockWidget extends WidgetType {
   specificHeader: boolean;
   languageName: string;
   hasLangBorderColor: boolean;
+  settings: CodeblockCustomizerSettings;
 
-  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean) {
+  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings) {
     super();
     this.text = text;    
     this.displayLanguageName = displayLanguageName;
@@ -165,13 +262,14 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.languageName = languageName || "";
     this.defaultFold = defaultFold;
     this.hasLangBorderColor = hasLangBorderColor;
+    this.settings = settings;
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
   handleMutation = (mutations: MutationRecord[]) => {
     mutations.forEach(mutation => {
       if ((mutation.target as HTMLElement).hasAttribute("data-clicked")){
-        handleClick(this.view, mutation.target as HTMLElement);        
+        handleClick(this.view, mutation.target as HTMLElement, this.settings);        
         //this.view.update([]);
         //this.view.state.update();
         //EditorView.requestMeasure;
@@ -183,20 +281,18 @@ class TextAboveCodeblockWidget extends WidgetType {
   }
 
   eq(other: TextAboveCodeblockWidget) {
-    return other.text === this.text && other.displayLanguageName === this.displayLanguageName && other.languageName === this.languageName && other.specificHeader === this.specificHeader && other.defaultFold === this.defaultFold && this.hasLangBorderColor === other.hasLangBorderColor;
+    return other.text === this.text && 
+    other.displayLanguageName === this.displayLanguageName && 
+    other.languageName === this.languageName && 
+    other.specificHeader === this.specificHeader && 
+    other.defaultFold === this.defaultFold && 
+    this.hasLangBorderColor === other.hasLangBorderColor;
   }
 
   mousedownEventHandler = (event: MouseEvent) => {
     const container = event.currentTarget as HTMLElement;
     container.setAttribute("data-clicked", "true");
-    const Pos = this.view.posAtDOM(container);
-    const effect = this.view.state.field(collapseField, false);
-    let isFolded = false;
-    // @ts-ignore
-    effect.between(Pos, Pos, () => {
-      isFolded = true;
-    });
-    
+    const isFolded = isHeaderFolded(container, this.view, this.settings.SelectedTheme.settings.semiFold.visibleLines) || isHeaderFolded(container, this.view);
     const collapse = container.querySelector('.codeblock-customizer-header-collapse');
     if (collapse) {
       if (isFolded)
@@ -228,14 +324,17 @@ class TextAboveCodeblockWidget extends WidgetType {
 
     return container;
   }
-      
+  
+  updateDOM(dom: HTMLElement, view: EditorView) {
+    view.requestMeasure();
+    return false;
+  }
+
   destroy(dom: HTMLElement) {
     dom.removeAttribute("data-clicked");
     dom.removeEventListener("mousedown", this.mousedownEventHandler);
     this.observer.disconnect();
   }
-
-  ignoreEvent() { return false; }
   
 }// TextAboveCodeblockWidget
 
@@ -244,63 +343,226 @@ export function getCodeblockByHTMLTarget(view: EditorView, target: HTMLElement |
   //view.update([]);
   //view.requestMeasure({});  
   if (!target)
-    return { CollapseStart : null, CollapseEnd : null, isFolded: false };
+    return { CollapseStart : null, CollapseEnd : null };
 
   const Pos = view.posAtDOM(target);
-
-  const effect = view.state.field(collapseField, false);
-  let isFolded = false;
-  // @ts-ignore
-  effect.between(Pos, Pos, () => {isFolded = true});
-
   let CollapseStart: number | null = null;
   let CollapseEnd: number | null = null;
-  let WidgetStart: number | null = null;
   // NOTE: Can't use for loop over view.visibleRanges, because that way the closing backticks wouldn't be found and collapse would not be possible
   let blockFound = false;
-  for (let i = 1; i < view.state.doc.lines; i++) {
+  let inCodeBlock = false;
+  let openingBackticks = 0;
+  for (let i = 1; i <= view.state.doc.lines; i++) {
     const lineText = view.state.doc.line(i).text.toString().trim();
     const line = view.state.doc.line(i);
-    if (lineText.startsWith('```') && lineText.indexOf('```', 3) === -1) {
-      if (WidgetStart === null) {
-        WidgetStart = line.from;
-        if (Pos === line.from){
+
+    const backtickMatch = lineText.match(/^`+(?!.*`)/);
+    if (backtickMatch) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        openingBackticks = backtickMatch[0].length;
+        if (Pos === line.from) {
           if (includeBackTicks)
             CollapseStart = line.from;
           else
             CollapseStart = line.from + line.length;
         }
       } else {
-        blockFound = true;
-        if (includeBackTicks)
-          CollapseEnd = line.to;
-        else 
-          CollapseEnd = line.from - 1;
+        if (backtickMatch[0].length === openingBackticks) {
+          inCodeBlock = false;
+          openingBackticks = 0;
+          blockFound = true;
+          if (includeBackTicks)
+            CollapseEnd = line.to;
+          else 
+            CollapseEnd = line.from - 1;
+        } else {
+          // Nested code block with different number of backticks
+        }
       }
+    } else if (inCodeBlock) {
+      // Lines inside the code block
+    } else {
+      // Lines outside the code block
     }
 
     if (blockFound) {
       if (CollapseStart != null && CollapseEnd != null ){
-          return { CollapseStart, CollapseEnd, isFolded };
+          return { CollapseStart, CollapseEnd };
       }
-      WidgetStart = null;
       blockFound = false;
     }
   }
 
-  return { CollapseStart, CollapseEnd, isFolded };
+  return { CollapseStart, CollapseEnd };
 }// getCodeblockByHTMLTarget
 
-export function handleClick(view: EditorView, target: HTMLElement) {
-  const { CollapseStart, CollapseEnd, isFolded } = getCodeblockByHTMLTarget(view, target, true);
-  if (isFolded) {
-      if (CollapseStart && CollapseEnd) {
-        // @ts-ignore
-        view.dispatch({ effects: UnCollapse.of((from, to) => to <= CollapseStart || from >= CollapseEnd) });
+export function handleClick(view: EditorView, target: HTMLElement, settings: CodeblockCustomizerSettings) {
+  const { CollapseStart, CollapseEnd } = getCodeblockByHTMLTarget(view, target, true);
+  
+  if (CollapseStart === null || CollapseEnd === null)
+    return;
+
+  if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
+    const lineCount = view.state.doc.lineAt(CollapseEnd).number - view.state.doc.lineAt(CollapseStart).number + 1;
+    if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+      const ranges = getRanges(view.state, CollapseStart, CollapseEnd, settings.SelectedTheme.settings.semiFold.visibleLines);
+      const isFolded = isHeaderFolded(target, view, settings.SelectedTheme.settings.semiFold.visibleLines);
+      if (isFolded) {
+        removeFadeOutEffect(view, ranges, CollapseStart, CollapseEnd);
+      } else {
+        addFadeOutEffect(view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
       }
+    } else {
+      toggleCollapseCodeBlock(target, view, CollapseStart, CollapseEnd);
+    }
+  } else {
+    toggleCollapseCodeBlock(target, view, CollapseStart, CollapseEnd);
+  }
+    
+}// handleClick
+
+function getRanges(state: EditorState, CollapseStart: number, CollapseEnd: number, visibleLines: number) {
+  const replaceStart = state.doc.line(state.doc.lineAt(CollapseStart).number + visibleLines + fadeOutLineCount);
+  const replaceEnd = state.doc.line(state.doc.lineAt(CollapseEnd).number);
+
+  const fadeOutStart = state.doc.line(state.doc.lineAt(CollapseStart).number + visibleLines);
+  const fadeOutEnd = state.doc.line(state.doc.lineAt(fadeOutStart.from).number + fadeOutLineCount - 1);
+    
+  return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, };
+}// getRanges
+
+function isHeaderFolded(element: HTMLElement, view: EditorView, visibleLines: number = -1) {
+  const Pos = view.posAtDOM(element);
+  let domPos = Pos;
+
+  if (visibleLines !== -1) {
+    domPos = view.state.doc.line(view.state.doc.lineAt(Pos).number + visibleLines + fadeOutLineCount).from;
+  }
+
+  return hasHeaderEffect(view, domPos, domPos);
+}// isHeaderFolded
+
+function toggleCollapseCodeBlock(target: HTMLElement, view: EditorView, CollapseStart: number, CollapseEnd: number) {
+  //clearFadeEffect(view, collapseField, CollapseStart, CollapseEnd);
+
+  const isFolded = isHeaderFolded(target, view);
+  if (isFolded) {
+    // @ts-ignore
+    view.dispatch({ effects: UnCollapse.of((from, to) => to <= CollapseStart || from >= CollapseEnd) });
   }
   else {
-    if (CollapseStart && CollapseEnd)
-      view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(CollapseStart, CollapseEnd)) });
+    view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(CollapseStart, CollapseEnd)) });
   }
-}// handleClick
+  view.requestMeasure();
+}// collapseCodeBlock
+
+function clearFadeEffect(view: EditorView, CollapseStart: number, CollapseEnd: number) {
+	const hasFadeEffect = hasHeaderEffect(view, CollapseStart, CollapseEnd);
+  if (hasFadeEffect) {
+    // @ts-ignore
+    view.dispatch({ effects: semiUnFade.of((from, to) => to <= CollapseStart || from >= CollapseEnd )});
+    view.requestMeasure();
+  }
+}// clearFadeEffect
+
+function hasHeaderEffect(view: EditorView, startPos: number, endPos: number ) {
+  const effect = view.state.field(collapseField, false);
+  let hasEffect = false;
+  effect?.between(startPos, endPos, () => {hasEffect = true});
+
+  return hasEffect;
+}// hasHeaderEffect
+
+class uncollapseCodeWidget extends WidgetType {
+  view: EditorView;
+
+  constructor(private visibleLines: number) {
+    super();
+  }
+
+  eq(other: uncollapseCodeWidget) {
+    return this.visibleLines === other.visibleLines;
+  }
+
+  mousedownEventHandler = (event: MouseEvent) => {
+    event.preventDefault();
+    const buttonElement = (event.target as HTMLElement)?.parentElement;
+    const codeblockId = buttonElement?.getAttribute("codeblockid") || null;
+    if (!codeblockId)
+      return;
+
+    const targetElement: HTMLElement | null = this.view.contentDOM.querySelector(`[codeblockid="${codeblockId}"]`);
+    const { CollapseStart, CollapseEnd  } = getCodeblockByHTMLTarget(this.view, targetElement, true);
+    if (CollapseStart !== null && CollapseEnd !== null) {
+      const ranges = getRanges(this.view.state, CollapseStart, CollapseEnd, this.visibleLines);
+      removeFadeOutEffect(this.view, ranges, CollapseStart, CollapseEnd);
+      const headerElement = targetElement?.previousElementSibling || null;
+      const collapse = headerElement?.querySelector('.codeblock-customizer-header-collapse') || null;
+      if (collapse) {
+        setIcon(collapse as HTMLElement, "chevrons-up-down");
+      }
+
+      this.view.requestMeasure();
+    }
+  };
+
+  toDOM(view: EditorView): HTMLElement {
+    this.view = view;
+    const container = createUncollapseCodeButton();
+    
+    container.addEventListener("mousedown", this.mousedownEventHandler);
+
+    return container;
+  }
+
+  destroy(dom: HTMLElement) {
+    dom.removeEventListener("mousedown", this.mousedownEventHandler);
+  }
+}// uncollapseCodeWidget
+
+function removeFadeOutEffect(view: EditorView, ranges: Ranges, CollapseStart: number, CollapseEnd: number) {
+  // @ts-ignore
+  view.dispatch({ effects: semiUnCollapse.of((from, to) => to <= ranges.replaceStart.from || from >= ranges.replaceEnd.to )});
+  // @ts-ignore
+  view.dispatch({ effects: semiUnFade.of((from, to) => to <= ranges.fadeOutStart.from - 1 || from >= ranges.replaceEnd.to )}); // BUG ???
+  //view.dispatch({ effects: semiUnFade.of((from, to) => to <= CollapseStart.from - 1 || from >= CollapseEnd.to )});
+  view.requestMeasure();
+}// removeFadeOutEffect
+
+function addFadeOutEffect(state: EditorState, ranges: Ranges, visibleLines: number, view: EditorView | null = null): void | RangeWithDecoration[] {
+  const decorations: RangeWithDecoration[] = [];
+  const fadeOutLines: Line[] = [];
+  for (let i = 0; i < fadeOutLineCount; i++) {
+    fadeOutLines.push(state.doc.line(state.doc.lineAt(ranges.fadeOutStart.from).number + i));
+  }
+  
+  fadeOutLines.forEach((line, i) => {
+    const fadeOutDecoration = Decoration.line({ attributes: { class: `codeblock-customizer-fade-out-line${i}` } });
+    if (view === null) {
+      decorations.push({ from: line.from, to: line.from, decoration: fadeOutDecoration });
+    } else {
+      view?.dispatch({ effects: semiFade.of(fadeOutDecoration.range(line.from, line.from)) });
+      view?.requestMeasure();
+    }
+
+    if (i === fadeOutLineCount - 1) {
+      const uncollapseWidget = Decoration.widget({ widget: new uncollapseCodeWidget(visibleLines) });
+      if (view === null) {
+        decorations.push({ from: line.from, to: line.from, decoration: uncollapseWidget });
+      } else {
+        view?.dispatch({ effects: semiFade.of(uncollapseWidget.range(line.from, line.from)) });
+        view?.requestMeasure();
+      }
+    }
+  });
+
+  const collapseDecoration = Decoration.replace({ block: true });
+  if (view === null) {
+    decorations.push({ from: ranges.replaceStart.from, to: ranges.replaceEnd.to, decoration: collapseDecoration });
+    return decorations;
+  } else {
+    view?.dispatch({ effects: semiCollapse.of(collapseDecoration.range(ranges.replaceStart.from, ranges.replaceEnd.to)) });
+    view?.requestMeasure();
+  }
+}// addFadeOutEffect
