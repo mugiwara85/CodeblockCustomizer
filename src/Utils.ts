@@ -109,25 +109,28 @@ export function getCodeBlockLanguage(str: string): string | null {
 }// getCodeBlockLanguage
 
 export function isFoldDefined(str: string): boolean {
-  const searchTerm = 'fold';
-  str = str.toLowerCase();
-  //searchTerm = searchTerm.toLowerCase();
+  return isParameterDefined("fold", str);
+}// isFoldDefined
 
-  if (str.includes(" fold ")) {
+export function isParameterDefined(searchTerm: string, str: string): boolean {
+  str = str.toLowerCase();
+  searchTerm = searchTerm.toLowerCase();
+
+  if (str.includes(` ${searchTerm} `)) {
     return true;
   }
   const index = str.indexOf(searchTerm);
   if (index !== -1 && index === str.length - searchTerm.length && str[index - 1] === " ") {
     return true;
   }
-  if (str.includes("```fold ")) {
+  if (str.includes("```" + searchTerm + " ")) {
     return true;
   }
-  if (str.includes("```fold") && str.indexOf("```fold") + "```fold".length === str.length) {
+  if (str.includes("```" + searchTerm) && str.indexOf("```" + searchTerm) + ("```" + searchTerm).length === str.length) {
     return true;
   }
   return false;
-}// isFolded
+}// isParameterDefined
 
 export function extractParameter(str: string, searchTerm: string): string | null {
   const originalStr = str;
@@ -167,6 +170,9 @@ export function getHighlightedLines(params: string | null): number[] {
 }// getHighlightedLines
 
 export function isExcluded(lineText: string, excludeLangs: string) : boolean {
+  if (isParameterDefined("exclude", lineText))
+    return true;
+  
   const codeBlockLang = getCodeBlockLanguage(lineText);
   const regexLangs = splitAndTrimString(excludeLangs).map(lang => new RegExp(`^${lang.replace(/\*/g, '.*')}$`, 'i'));
   

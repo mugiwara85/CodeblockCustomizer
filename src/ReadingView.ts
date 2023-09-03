@@ -21,6 +21,11 @@ interface OpenTag {
   class: string | null;
 }
 
+interface IndentationInfo {
+  indentationLevels: number;
+  insertCollapse: boolean;
+}
+
 export async function ReadingView(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
   const codeElm: HTMLElement | null = codeBlockElement.querySelector('pre > code');
   if (!codeElm) 
@@ -55,10 +60,71 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
     return;
 
   const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
+  const codeLines = Array.from(codeblockLines);
+  if (codeLines.length >= 2) {
+    codeLines.shift();
+    codeLines.pop();
+  }
+  const indentationLevels = trackIndentation(codeLines);
   const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
 
-  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, plugin);
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, plugin);
 }// ReadingView
+
+function trackIndentation(lines: string[]): IndentationInfo[] {
+  const result: IndentationInfo[] = [];
+  const spaceIndentRegex = /^( {4}|\t)*/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(spaceIndentRegex);
+    let currentIndentLevel = 0;
+
+    if (match) {
+      const indentation = match[0];
+
+      if (indentation.includes('\t')) {
+        // Handle tabs by counting them as 4 spaces each
+        const tabCount = indentation.split('\t').length - 1;
+        currentIndentLevel = tabCount + 1;
+      } else {
+        // Count the number of spaces
+        const spaceCount = indentation.length / 4;
+        currentIndentLevel = spaceCount;
+      }
+    }
+
+    const nextLine = lines[i + 1];
+    let nextIndentLevel = 0;
+
+    if (nextLine) {
+      const nextMatch = nextLine.match(spaceIndentRegex);
+
+      if (nextMatch) {
+        const nextIndentation = nextMatch[0];
+
+        if (nextIndentation.includes('\t')) {
+          // Handle tabs by counting them as 4 spaces each
+          const tabCount = nextIndentation.split('\t').length - 1;
+          nextIndentLevel = tabCount + 1;
+        } else {
+          // Count the number of spaces
+          const spaceCount = nextIndentation.length / 4;
+          nextIndentLevel = spaceCount;
+        }
+      }
+    }
+
+    const info: IndentationInfo = {
+      indentationLevels: currentIndentLevel,
+      insertCollapse: nextIndentLevel > currentIndentLevel,
+    };
+
+    result.push(info);
+  }
+
+  return result;
+}// trackIndentation
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
   await sleep(50); // need to find a better way instead of this...
@@ -84,11 +150,11 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
 
-    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, plugin);
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, plugin);
   }
 }// calloutPostProcessor
 
-async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], plugin: CodeblockCustomizerPlugin ) {
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, plugin: CodeblockCustomizerPlugin ) {
   if (preElements.length !== codeBlockFirstLines.length)
   return;
 
@@ -107,11 +173,11 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (codeblockDetails.isCodeBlockExcluded)
       continue;
 
-    await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement);
+    await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement, indentationLevels);
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement) {
+async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null) {
   preElement.classList.add(`codeblock-customizer-pre`);
 
   if (codeblockDetails.codeBlockLang)
@@ -148,7 +214,7 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-  highlightLines(preCodeElm, codeblockDetails, plugin.settings.SelectedTheme.settings);
+  highlightLines(preCodeElm, codeblockDetails, plugin.settings.SelectedTheme.settings, indentationLevels);
 }// addClasses
 
 function isFoldable(preElement: HTMLPreElement, linesLen: number, enableSemiFold: boolean, visibleLines: number) {
@@ -298,7 +364,62 @@ function createLineTextElement(line: string) {
   return lineContentWrapper;
 }// createLineTextElement
 
-function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings) {
+/*function addIndentLine(inputString: string): string {
+  // Use a regular expression to find tabs or 4-space indentations at the beginning of the string
+  const indentRegex = /^(?:\t+|( {4})*)/;
+
+  // Find the matched indentation at the beginning of the string
+  const match = inputString.match(indentRegex);
+  const indent = match ? match[0] : '';
+
+  // Determine the type of indentation (tab or spaces)
+  const isTabIndentation = /\t/.test(indent);
+
+  // Calculate the number of tabs or spaces in the matched indentation
+  const numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
+
+  // Generate the <span> elements with the corresponding indentation
+  const spans = isTabIndentation
+    ? Array(numIndentCharacters).fill('<span class="codeblock-customizer-indentation-guide">\t</span>').join('')
+    : Array(numIndentCharacters).fill('<span class="codeblock-customizer-indentation-guide">    </span>').join('');
+
+  // Add the generated <span> elements to the string
+  const stringWithSpans = inputString.replace(indentRegex, spans);
+
+  return stringWithSpans;
+}// addIndentLine*/
+
+function addIndentLine(inputString: string, insertCollapse: boolean = false): string {
+  // Use a regular expression to find tabs or 4-space indentations at the beginning of the string
+  const indentRegex = /^(?:\t+|( {4})*)/;
+
+  // Find the matched indentation at the beginning of the string
+  const match = inputString.match(indentRegex);
+  const indent = match ? match[0] : '';
+
+  // Determine the type of indentation (tab or spaces)
+  const isTabIndentation = /\t/.test(indent);
+
+  // Calculate the number of tabs or spaces in the matched indentation
+  const numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
+
+  const spans = isTabIndentation
+    ? Array(numIndentCharacters).fill(`<span class="codeblock-customizer-indentation-guide">\t</span>`).join('')
+    : Array(numIndentCharacters).fill(`<span class="codeblock-customizer-indentation-guide">    </span>`).join('');
+
+    const lastIndentPosition = isTabIndentation ? numIndentCharacters : numIndentCharacters * 4;
+    console.log(lastIndentPosition);
+    let modifiedString: string = "";
+    if (insertCollapse){
+      modifiedString = inputString.slice(0, lastIndentPosition) + `<span class="codeblock-customizer-collapse-code"></span>` + inputString.slice(lastIndentPosition);
+    }
+  // Add the generated <span> elements to the string
+  const stringWithSpans = inputString.replace(indentRegex, spans);
+
+  return insertCollapse ? modifiedString.replace(indentRegex, spans) : stringWithSpans;
+}// addIndentLine
+
+function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null) {
   if (!preCodeElm)
     return;
 
@@ -329,13 +450,14 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
 
     // create line element
     const lineWrapper = document.createElement("div");
+
     if (isHighlighted) {
       lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
     }
     else if (altHLMatch.length > 0) {
       lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${altHLMatch[0].name.replace(/\s+/g, '-').toLowerCase()}`);
     }
-    
+
     if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
       lineWrapper.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
       fadeOutLineIndex++;
@@ -345,21 +467,26 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
         lineWrapper.appendChild(uncollapseCodeButton);
       }
     }
+
     if (useSemiFold && lineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
       lineWrapper.classList.add(`codeblock-customizer-fade-out-line-hide`);
     }
+
     preCodeElm.appendChild(lineWrapper);
 
     // create line number element
     const lineNumberEl = createLineNumberElement(lineNumber + offset, codeblockDetails.showNumbers);
     lineWrapper.appendChild(lineNumberEl);
 
+    const indentedLine = addIndentLine(line, indentationLevels ? indentationLevels[lineNumber - 1].insertCollapse : false);
+
     // create line text element
-    const lineTextEl = createLineTextElement(line);
+    const lineTextEl = createLineTextElement(indentedLine);
     processHTMLtags(openTagsStack, lineTextEl, line);
     lineWrapper.appendChild(lineTextEl);
-	});
-}// highlightLines
+    lineWrapper.setAttribute("indentLevel", indentationLevels ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
+  });
+}
 
 function handleUncollapseClick(event: Event) {
   const button = event.target as HTMLElement;
@@ -554,7 +681,7 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeblockCusto
     if (codeblockDetails.isCodeBlockExcluded)
       continue;
 
-    await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement);
+    await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement, null);
   }
 }// PDFExport
 

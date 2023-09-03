@@ -15,6 +15,41 @@
   background-color: var(--codeblock-customizer-codeblock-background-color);
 }
 
+.markdown-source-view.mod-cm6 .code-block-flair {
+  display: inline-block !important;
+}
+
+/* Add hanging indents based on the number of tab characters */
+.codeblock-customizer-indentation-guide {
+  position: relative;
+  display: inline-block;
+}
+
+.codeblock-customizer-indentation-guide::before {
+  content: "\200B";
+  display: block;
+  width: 1px;
+  border-right: var(--indentation-guide-width) solid var(--indentation-guide-color);
+  color: transparent;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform: translateX(0.15em);
+}
+
+/* folding in reading view*/
+/* External CSS file or in a <style> tag in your HTML document */
+.codeblock-customizer-collapse-code:before {
+  content: '>';
+  display: inline-block;
+  transform: rotate(90deg);
+  /*padding-right: 0.5rem;*/
+}
+
+.codeblock-customizer-collapse-code:hover {
+  background-color: #ddd;
+}
+
 /* Semi-folding */
 .codeblock-customizer-use-semifold .markdown-source-view .codeblock-customizer-fade-out-line0 .cm-hmd-codeblock,
 .codeblock-customizer-use-semifold .markdown-source-view .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,

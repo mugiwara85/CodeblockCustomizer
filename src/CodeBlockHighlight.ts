@@ -50,6 +50,11 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
       }// shouldUpdate
       
       update(update: ViewUpdate) {
+        console.log("heightChanged =" + update.heightChanged);
+        console.log("geometryChanged =" + update.geometryChanged);
+        console.log("focusChanged =" + update.focusChanged);
+        console.log("docChanged =" + update.docChanged);
+        console.log("selectionSet =" + update.selectionSet);
         if (this.shouldUpdate(update)) {
           for (const [name, color] of Object.entries(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors)) {
             this.prevAlternateColors[name] = color;
