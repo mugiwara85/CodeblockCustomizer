@@ -298,9 +298,15 @@ function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specif
   
   if (Collapse) {
     if (semiFold) {
-      const codeElements = preElements.getElementsByTagName("CODE");
-      const lines = convertHTMLCollectionToArray(codeElements);
-      if (lines.length >= visibleLines + fadeOutLineCount) {
+      let preCodeElm = preElements.querySelector("pre > code");
+      let codeblockLineCount = 0;
+      if (preCodeElm) {
+        let codeblockLines = preCodeElm.innerHTML.split("\n");
+        if (codeblockLines.length == 1)
+          codeblockLines = ['',''];
+        codeblockLineCount = codeblockLines.length - 1;
+      }
+      if (codeblockLineCount >= visibleLines + fadeOutLineCount) {
         preElements.classList.add(`codeblock-customizer-codeblock-semi-collapsed`);
       } else 
         preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
@@ -390,30 +396,22 @@ function createLineTextElement(line: string) {
 }// addIndentLine*/
 
 function addIndentLine(inputString: string, insertCollapse: boolean = false): string {
-  // Use a regular expression to find tabs or 4-space indentations at the beginning of the string
   const indentRegex = /^(?:\t+|( {4})*)/;
-
-  // Find the matched indentation at the beginning of the string
   const match = inputString.match(indentRegex);
   const indent = match ? match[0] : '';
-
-  // Determine the type of indentation (tab or spaces)
   const isTabIndentation = /\t/.test(indent);
-
-  // Calculate the number of tabs or spaces in the matched indentation
   const numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
 
   const spans = isTabIndentation
     ? Array(numIndentCharacters).fill(`<span class="codeblock-customizer-indentation-guide">\t</span>`).join('')
     : Array(numIndentCharacters).fill(`<span class="codeblock-customizer-indentation-guide">    </span>`).join('');
 
-    const lastIndentPosition = isTabIndentation ? numIndentCharacters : numIndentCharacters * 4;
-    console.log(lastIndentPosition);
-    let modifiedString: string = "";
-    if (insertCollapse){
-      modifiedString = inputString.slice(0, lastIndentPosition) + `<span class="codeblock-customizer-collapse-code"></span>` + inputString.slice(lastIndentPosition);
-    }
-  // Add the generated <span> elements to the string
+  const lastIndentPosition = isTabIndentation ? numIndentCharacters : numIndentCharacters * 4;
+  let modifiedString: string = "";
+  if (insertCollapse) {
+    modifiedString = inputString.slice(0, lastIndentPosition) + `<span class="codeblock-customizer-collapse-indicator"><span class="codeblock-customizer-collapse-icon"></span></span>` + inputString.slice(lastIndentPosition);
+  }
+  
   const stringWithSpans = inputString.replace(indentRegex, spans);
 
   return insertCollapse ? modifiedString.replace(indentRegex, spans) : stringWithSpans;
@@ -453,15 +451,16 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
 
     if (isHighlighted) {
       lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
-    }
-    else if (altHLMatch.length > 0) {
+    } else if (altHLMatch.length > 0) {
       lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${altHLMatch[0].name.replace(/\s+/g, '-').toLowerCase()}`);
+    } else {
+      lineWrapper.classList.add(`codeblock-customizer-line`);
     }
 
     if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
       lineWrapper.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
       fadeOutLineIndex++;
-      if (fadeOutLineIndex === fadeOutLineCount - 1){
+      if (fadeOutLineIndex === fadeOutLineCount - 1) {
         const uncollapseCodeButton = createUncollapseCodeButton();
         uncollapseCodeButton.addEventListener("click", handleUncollapseClick);
         lineWrapper.appendChild(uncollapseCodeButton);
@@ -477,16 +476,93 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
     // create line number element
     const lineNumberEl = createLineNumberElement(lineNumber + offset, codeblockDetails.showNumbers);
     lineWrapper.appendChild(lineNumberEl);
-
-    const indentedLine = addIndentLine(line, indentationLevels ? indentationLevels[lineNumber - 1].insertCollapse : false);
-
+    
+    const indentedLine = addIndentLine(line, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
     // create line text element
     const lineTextEl = createLineTextElement(indentedLine);
+    if (indentationLevels && indentationLevels[lineNumber - 1]) {
+      const collapseIcon = lineTextEl.querySelector(".codeblock-customizer-collapse-icon");
+      if (collapseIcon) {
+        setIcon(collapseIcon as HTMLElement, "chevron-down");
+        collapseIcon.addEventListener("click", handleClick);
+      }
+    }
     processHTMLtags(openTagsStack, lineTextEl, line);
     lineWrapper.appendChild(lineTextEl);
-    lineWrapper.setAttribute("indentLevel", indentationLevels ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
+    lineWrapper.setAttribute("indentLevel", (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
   });
-}
+}// highlightLines
+
+function handleClick(event: Event) {
+  const collapseIcon = event.target as HTMLElement;
+  if (!collapseIcon)
+    return;
+  
+  const codeElement = getCodeElementFromCollapseIcon(collapseIcon);
+  if (!codeElement)
+    return;
+
+  const collapseIconParent = getParentWithClassStartingWith(collapseIcon, "codeblock-customizer-line");
+  collapseIconParent?.classList.toggle("codeblock-customizer-lines-below-collapsed");
+
+  const clickedIndentLevel = parseInt(collapseIconParent?.getAttribute('indentlevel') || "");
+  const codeLines = Array.from(codeElement.querySelectorAll('[class^="codeblock-customizer-line"]'));
+  let lessEqualIndent = false;
+  let start = false;
+  const lines: Element[] = [];
+  for (const line of codeLines) {
+    if (collapseIconParent === line)
+      start = true;
+
+    const lineIndentLevel = parseInt(line.getAttribute('indentlevel') || "");
+    if (lineIndentLevel > clickedIndentLevel && start) {
+      lines.push(line);
+      lessEqualIndent = true;
+    } else if (lessEqualIndent && lineIndentLevel <= clickedIndentLevel) {
+      break;
+    }
+  }
+
+  if (collapseIconParent?.classList.contains("codeblock-customizer-lines-below-collapsed")) {
+    setIcon(collapseIcon, "chevron-right");
+    for (const line of lines) {
+      line.classList.add('codeblock-customizer-line-collapsed');
+    }
+  } else {
+    setIcon(collapseIcon, "chevron-down");
+    for (const line of lines) {
+        line.classList.remove('codeblock-customizer-line-collapsed');
+    }
+  }
+}// handleClick
+
+function getCodeElementFromCollapseIcon(collapseIcon: HTMLElement): HTMLElement | null {
+  let parentElement = collapseIcon.parentElement;
+  while (parentElement) {
+    if (parentElement.classList.contains('codeblock-customizer-pre')) {
+      const codeElements = parentElement.querySelector('code');
+      if (codeElements)
+        return codeElements;
+    }
+    parentElement = parentElement.parentElement;
+  }
+  return null;
+}// getCodeElementFromCollapseIcon
+
+function getParentWithClassStartingWith(element: HTMLElement, classNamePrefix: string) {
+  let parent = element.parentElement;
+  while (parent) {
+    const classList = parent.classList;
+    if (classList && Array.from(classList).some((className) => className.startsWith(classNamePrefix))) {
+      const indentLevel = parent.getAttribute('indentlevel');
+      if (indentLevel !== null) {
+        return parent;
+      }
+    }
+    parent = parent.parentElement;
+  }
+  return null;
+}// getParentWithClassStartingWith
 
 function handleUncollapseClick(event: Event) {
   const button = event.target as HTMLElement;
@@ -497,7 +573,7 @@ function handleUncollapseClick(event: Event) {
   if (!codeElement)
     return;
     
-  removeFadeEffect(codeElement.children, false);
+  //removeFadeEffect(codeElement.children, false);
 
   if (header) {
     const collapseIcon = header.querySelector(".codeblock-customizer-header-collapse") as HTMLElement;
@@ -510,11 +586,11 @@ function handleUncollapseClick(event: Event) {
 function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string, codeElements: HTMLCollection | null = null, convert: boolean | null = null, visibleLines: number | null = null) {
   if (pre?.classList.contains(toggleClass)) {
     if (codeElements && (convert !== null))
-      removeFadeEffect(codeElements, convert);
+      //removeFadeEffect(codeElements, convert);
     setIcon(collapseIcon, "chevrons-up-down");
   } else {
     if (codeElements && visibleLines)
-      addFadeEffect(codeElements, visibleLines);
+      //addFadeEffect(codeElements, visibleLines);
     setIcon(collapseIcon, "chevrons-down-up");
   }
   pre?.classList.toggle(toggleClass);

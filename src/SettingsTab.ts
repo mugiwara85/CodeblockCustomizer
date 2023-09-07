@@ -110,6 +110,18 @@ export class SettingsTab extends PluginSettingTab {
     });
 
     new Setting(containerEl)
+      .setName('Enable plugin in source mode')
+      .setDesc('By default the plugin is disabled in source mode. You can enable it in source mode as well using this toggle.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.common.enableInSourceMode)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.common.enableInSourceMode = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
       .setName('Enable editor active line highlight')
       .setDesc('If enabled, you can set the color for the active line (including codeblocks).')
       .addToggle(toggle => toggle
@@ -178,6 +190,17 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
+    new Setting(containerEl)
+      .setName('Show indentation lines in reading view')
+      .setDesc('If enabled indentation lines will be shown in reading view.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.showIndentationLines)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.showIndentationLines = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings);
+        })
+      );
     containerEl.createEl('h4', {text: 'Semi-fold settings'});
 
     let enableSemiFoldToggle: ToggleComponent;
@@ -221,7 +244,6 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings);
         })
       );
-    console.log(this.plugin.settings.SelectedTheme.settings.semiFold.visibleLines.toString());
     updateDependentSettings();
 
     containerEl.createEl('h3', {text: 'Codeblock border settings'});

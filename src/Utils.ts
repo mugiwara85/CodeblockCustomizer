@@ -448,6 +448,12 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.remove('codeblock-customizer-show-uncollapse-code-button');
   }
 
+  if (settings.codeblock.showIndentationLines) {
+    document.body.classList.add('codeblock-customizer-show-indentation-lines');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-indentation-lines');
+  }
+
 }// updateSettingStyles
 
 function formatStyles(colors: ThemeColors, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {

@@ -50,11 +50,11 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
       }// shouldUpdate
       
       update(update: ViewUpdate) {
-        console.log("heightChanged =" + update.heightChanged);
+        /*console.log("heightChanged =" + update.heightChanged);
         console.log("geometryChanged =" + update.geometryChanged);
         console.log("focusChanged =" + update.focusChanged);
         console.log("docChanged =" + update.docChanged);
-        console.log("selectionSet =" + update.selectionSet);
+        console.log("selectionSet =" + update.selectionSet);*/
         if (this.shouldUpdate(update)) {
           for (const [name, color] of Object.entries(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors)) {
             this.prevAlternateColors[name] = color;
@@ -103,7 +103,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
         const languageBorderColors = settings.SelectedTheme.colors[currentMode].codeblock.languageBorderColors || {};
         const decorations: Array<Range<Decoration>> = [];
 
-        if (!view.visibleRanges || view.visibleRanges.length === 0 || isSourceMode(view.state)) {
+        if (!view.visibleRanges || view.visibleRanges.length === 0 || (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))) {
           return RangeSet.empty;
         }
 

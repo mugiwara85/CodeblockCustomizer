@@ -136,7 +136,8 @@ export const codeblockHeader = StateField.define<DecorationSet>({
     return Decoration.none;    
   },
   update(oldState: DecorationSet, transaction: Transaction): DecorationSet {
-    if (isSourceMode(transaction.state))
+    // @ts-ignore
+    if (!codeblockHeader.settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
       return Decoration.none;
 
     const builder = new RangeSetBuilder<Decoration>();
@@ -219,14 +220,16 @@ const semiUnFade = StateEffect.define<{ filter: number; filterFrom: number; filt
 let pluginSettings: CodeblockCustomizerSettings;
 export const collapseField = StateField.define<RangeSet<Decoration>>({  
   create(state): RangeSet<Decoration> {
-    if (isSourceMode(state))
+    // @ts-ignore
+    if (!collapseField.pluginSettings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
       return Decoration.none;
     // @ts-ignore
     return defaultFold(state, collapseField.pluginSettings);
     //return Decoration.none;
   },
   update(value, tr) {
-    if (isSourceMode(tr.state))
+    // @ts-ignore
+    if (!collapseField.pluginSettings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(tr.state))
       return Decoration.none;
 
     value = value.map(tr.changes)
@@ -437,7 +440,10 @@ function isHeaderFolded(element: HTMLElement, view: EditorView, visibleLines: nu
   let domPos = Pos;
 
   if (visibleLines !== -1) {
-    domPos = view.state.doc.line(view.state.doc.lineAt(Pos).number + visibleLines + fadeOutLineCount).from;
+    const lineNumber = view.state.doc.lineAt(Pos).number;
+    const targetLine = lineNumber + visibleLines + fadeOutLineCount;
+    if ( view.state.doc.lines >= targetLine)
+      domPos = view.state.doc.line(targetLine).from;
   }
 
   return hasHeaderEffect(view, domPos, domPos);
