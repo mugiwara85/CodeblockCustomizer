@@ -73,7 +73,7 @@ To highlight lines specify `hl:` followed by line numbers in the first line of t
 - You can specify ranges e.g.: `hl:2-5` This would highlight lines from 2 to 5. 
 - You can also combine the methods e.g.: `hl:1,3,4-6` This would highlight lines 1, 3 and lines from 4 to 6.
 
-Example:
+Example:  
 ` ```cpp hl:1,3,4-6`
 
 ![Pasted_image_20230125230046.png](attachments/Pasted_image_20230125230046.png)
@@ -104,9 +104,9 @@ You can define colors for languages. This means, that if you want to show a bord
 
 To display a filename specify `file:` or `title:` followed by a filename in the first line of the code block. If the filename contains space, specify it between `""` e.g.: `file:"long filename.cpp"`. `title` is basically an alias for file. If both are defined, then `file` will be used
 
-Example:
-` ```cpp file:test.cpp`
-` ```cpp title:test.py`
+Example:  
+` ```cpp file:test.cpp`  
+` ```cpp title:test.py`  
 ` ```cpp file:"long filename.cpp"`
 
 ![Pasted_image_20230125230351.png](attachments/Pasted_image_20230125230351.png)
@@ -117,7 +117,7 @@ Example:
 
 To specify an initial fold state when the document is opened, specify `fold` in the first line of the code block. If `fold` is defined in a code block, then when you open the document, the code block will be automatically collapsed, and only the header will be displayed. You can unfold the code block by clicking on the header.
 
-Example:
+Example:  
 ` ```cpp fold`
 
 ![Pasted_image_20230125230928.png](attachments/Pasted_image_20230125230928.png)
