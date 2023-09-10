@@ -40,11 +40,13 @@
 }
 
 /* folding in reading view */
-.codeblock-customizer-collapse-indicator {
+.markdown-reading-view .codeblock-customizer-collapse-indicator,
+.markdown-source-view .codeblock-customizer-collapse-indicator {
   position: relative;
   z-index: 1;
 }
-.codeblock-customizer-collapse-icon {
+.markdown-reading-view .codeblock-customizer-collapse-icon,
+.markdown-source-view .codeblock-customizer-collapse-icon {
   position: absolute;
   display: block;
   top: 0;
@@ -53,19 +55,36 @@
   cursor: var(--cursor);
   /*padding-right: 5px;*/
   color: var(--collapse-icon-color);
+  user-select: none;
 }
-.codeblock-customizer-collapse-indicator .codeblock-customizer-collapse-icon {
+.markdown-reading-view .codeblock-customizer-collapse-indicator .codeblock-customizer-collapse-icon,
+.markdown-source-view .codeblock-customizer-collapse-indicator .codeblock-customizer-collapse-icon {
   right: -0.5em;
   padding-right: 0.5rem;
 }
-.codeblock-customizer-collapse-icon {
+.markdown-reading-view .codeblock-customizer-collapse-icon,
+.markdown-source-view .codeblock-customizer-collapse-icon {
   display: none;
 }
-.codeblock-customizer-line-text:hover .codeblock-customizer-collapse-icon {
+.markdown-reading-view .codeblock-customizer-line-text:hover .codeblock-customizer-collapse-icon,
+.markdown-source-view .codeblock-customizer-line-text:hover .codeblock-customizer-collapse-icon {
   display: block;
 }
-.markdown-reading-view .codeblock-customizer-line-collapsed {
+.markdown-reading-view .codeblock-customizer-line-hidden,
+.markdown-source-view .codeblock-customizer-line-hidden {
   display: none !important;
+}
+.markdown-reading-view .codeblock-customizer-lines-below-collapsed .codeblock-customizer-collapse-icon,
+.markdown-source-view .codeblock-customizer-lines-below-collapsed .codeblock-customizer-collapse-icon {
+  display: block;
+  color: var(--collapse-icon-color-collapsed);
+}
+.markdown-reading-view .codeblock-customizer-foldPlaceholder,
+.markdown-source-view .codeblock-customizer-foldPlaceholder {
+  color: var(--text-faint);
+  background-color: transparent;
+  border: none;
+  margin-left: 8px;
 }
 
 /* Semi-folding */
@@ -74,10 +93,7 @@
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text {
   opacity: 0.5;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .cm-hmd-codeblock,
@@ -85,10 +101,7 @@
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text {
   opacity: 0.3;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .cm-hmd-codeblock,
@@ -96,10 +109,7 @@
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text {
   opacity: 0.1;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .cm-hmd-codeblock,
@@ -107,81 +117,63 @@
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text {
   opacity: 0.05;
 }
 
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line0*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 75%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 75%, var(--background-primary)) 100%);
 }
 
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line1*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 50%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 50%, var(--background-primary)) 100%);
 }
 
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line2*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 25%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 25%, var(--background-primary)) 100%);
 }
 
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line3*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-codeblock-background-color) 0%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-customizer-gutter-background-color) 0%, var(--background-primary)) 100%);
 }
 
 /* Semi-fold reading view */
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line-hide/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line-hide*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line-hide {
   display: none !important;
 }
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed > code/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"])*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed > code {
   padding-bottom: 0px;
 }
 
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2/*,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-header-container ~ code:has([class^="codeblock-customizer-fade-out-line"]) .codeblock-customizer-fade-out-line2*/ {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 {
   position: relative;
   /*overflow: hidden;*/
 }
@@ -204,7 +196,7 @@
   position: absolute;
   right: 50%;
   transform: translateX(50%);
-  /*top: 6px;*/
+  top: 6px;
   z-index: 1;
   display: inline-block;
   /*padding: var(--size-4-1) var(--size-4-2);*/
@@ -216,10 +208,11 @@
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
   cursor: var(--cursor);
-  margin-top: calc(var(--line-height-normal) * 1em);
+  /*margin-top: calc(var(--line-height-normal) * 1em);*/
 }
 
-.codeblock-customizer-uncollapse-code {
+.codeblock-customizer-uncollapse-code,
+.markdown-embed .markdown-preview-view .codeblock-customizer-uncollapse-code {
   display: none;
 }
 .codeblock-customizer-uncollapse-code:hover {
@@ -327,11 +320,18 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   display: none;
 }
 .markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number,
-.markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
-  box-shadow: 0px calc(-1 * var(--code-padding)) var(--codeblock-customizer-gutter-background-color);
+.markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number-specific,
+.markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
+  /*box-shadow: 0px calc(-1 * var(--code-padding)) var(--codeblock-customizer-gutter-background-color);*/
+  box-shadow: 
+  0px var(--code-padding) var(--codeblock-customizer-gutter-background-color),
+  0px calc(-1 * var(--code-padding)) var(--codeblock-customizer-gutter-background-color);
 }
 .markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number,
-.markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
+.markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number-specific,
+.markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number-specific{ /* Maintain gutter color when padded */
   box-shadow: 0px var(--code-padding) var(--codeblock-customizer-gutter-background-color);
 }
 .markdown-rendered .codeblock-customizer-pre > code > div:only-child > .codeblock-customizer-line-number,
@@ -443,8 +443,35 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
   background-color: var(--color-red);
   color: white;
 }
-.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .code-block-flair {
+.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
   right: 40px;
+}
+
+/* copy code styling */
+.codeblock-customizer-show-copy-code-button .markdown-source-view .codeblock-customizer-copy-code {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  z-index: 1;
+  display: inline-block;
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  cursor: var(--cursor);
+}
+.markdown-source-view .codeblock-customizer-copy-code {
+  display: none;
+}
+.markdown-source-view .codeblock-customizer-copy-code:hover {
+  background-color: rgba(var(--mono-rgb-100), 0.075);
+}
+.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .codeblock-customizer-copy-code {
+  right: 40px;
+}
+.codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
+  display: none !important;
 }
 
 .codeblock-customizer-header-container,
@@ -558,7 +585,8 @@ div:has(> img.codeblock-customizer-icon) {
 }
 
 /* collapsed embedded code */
-.markdown-embed .markdown-preview-view .markdown-preview-section:has(.codeblock-customizer-pre-parent):has(.codeblock-customizer-codeblock-collapsed) {
+.markdown-embed .markdown-preview-view .markdown-preview-section:has(.codeblock-customizer-pre-parent):has(.codeblock-customizer-codeblock-collapsed),
+.markdown-embed .markdown-preview-view .markdown-preview-section:has(.codeblock-customizer-pre-parent):has(.codeblock-customizer-lines-below-collapsed) {
   min-height: unset !important;
 }
 
@@ -621,15 +649,15 @@ pre.codeblock-customizer-pre [class^=codeblock-customizer-line-number] {
   border-top-left-radius: 0px;
   border-top-right-radius: 0px;
 }
-.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end,
-.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].codeblock-customizer-fade-out-line3 {
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end/*,
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].codeblock-customizer-fade-out-line3*/ {
   border-bottom-left-radius: var(--border-radius);
   border-bottom-right-radius: var(--border-radius);
 }
 .codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end .codeblock-customizer-line-number,
-.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end .codeblock-customizer-line-number-specific,
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end .codeblock-customizer-line-number-specific/*,
 .codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number,
-.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific {
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific*/ {
   border-bottom-left-radius: var(--border-radius);
 }
 body:not(.codeblock-customizer-show-langicons-always):not(.codeblock-customizer-show-langnames-always) .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin,

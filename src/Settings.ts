@@ -37,6 +37,7 @@ export interface ThemeSettings {
     enableDeleteCodeButton: boolean;
     codeBlockBorderStylingPosition: string;
     showIndentationLines: boolean;
+    enableCopyCodeButton: boolean;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -128,6 +129,7 @@ const Solarized: Theme = {
       enableDeleteCodeButton: false,
       codeBlockBorderStylingPosition: 'disable',
       showIndentationLines: false,
+      enableCopyCodeButton: false,
     },
     semiFold: {
       enableSemiFold: false,
@@ -226,6 +228,7 @@ const Obsidian: Theme = {
       enableDeleteCodeButton: false,
       codeBlockBorderStylingPosition: 'disable',
       showIndentationLines: false,
+      enableCopyCodeButton: false,
     },
     semiFold: {
       enableSemiFold: false,

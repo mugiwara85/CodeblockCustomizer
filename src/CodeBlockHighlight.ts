@@ -3,9 +3,9 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
-import { setIcon } from "obsidian";
+import { Notice, setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
 
 interface Codeblock {
@@ -50,11 +50,6 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
       }// shouldUpdate
       
       update(update: ViewUpdate) {
-        /*console.log("heightChanged =" + update.heightChanged);
-        console.log("geometryChanged =" + update.geometryChanged);
-        console.log("focusChanged =" + update.focusChanged);
-        console.log("docChanged =" + update.docChanged);
-        console.log("selectionSet =" + update.selectionSet);*/
         if (this.shouldUpdate(update)) {
           for (const [name, color] of Object.entries(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors)) {
             this.prevAlternateColors[name] = color;
@@ -119,7 +114,6 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
             enter(node) {
               const line = view.state.doc.lineAt(node.from);
               const lineText = view.state.sliceDoc(line.from, line.to).toString().trim();
-              //const lang = getCodeBlockLanguage(lineText);
               let lang = null;
               const startLine = node.type.name.includes("HyperMD-codeblock-begin");
               if (startLine)
@@ -127,7 +121,6 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
               const endLine = node.type.name.includes("HyperMD-codeblock-end");
 
               if (lang) {
-                //console.log(lineText);
                 bExclude = isExcluded(lineText, settings.ExcludeLangs);
                 codeblockLanguageClass = "codeblock-customizer-language-" + lang.toLowerCase();
                 borderColor = getBorderColorByLanguage(lang, languageBorderColors);
@@ -181,8 +174,10 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
               if (node.type.name === "HyperMD-codeblock_HyperMD-codeblock-bg" || startLine || endLine) {
                 decorations.push(Decoration.line({attributes: {class: lineClass, "codeblockId": codeblockId.toString(), "style": style}}).range(node.from));
                 decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : lineNumber.toString(), showNumbers, isSpecificNumber, spanClass, codeblockId),}).range(node.from));
-                if (startLine)
-                  decorations.push(Decoration.widget({ widget: new deleteCodeWidget(codeblockId)}).range(node.from));
+                if (startLine) {
+                  decorations.push(Decoration.widget({ widget: new deleteCodeWidget(codeblockId)}).range(node.from)); 
+                  decorations.push(Decoration.widget({ widget: new copyCodeWidget(lang, codeblockId)}).range(node.from));
+                }
                 lineNumber++;
               }
             },
@@ -357,6 +352,66 @@ class deleteCodeWidget extends WidgetType {
     return container;
   }
 }// deleteCodeWidget
+
+class copyCodeWidget extends WidgetType {
+  constructor(private codeblockLanguage: string | null, private codeblockId: number) {
+    super();
+  }
+
+  eq(other: copyCodeWidget) {
+    return this.codeblockId === other.codeblockId && this.codeblockLanguage === other.codeblockLanguage;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const container = document.createElement("span");
+    container.classList.add("codeblock-customizer-copy-code");
+    container.setAttribute("aria-label", "Copy code");
+    if (this.codeblockLanguage) {
+      const displayLangText = getDisplayLanguageName(this.codeblockLanguage);
+      if (displayLangText)
+        container.setText(displayLangText);
+      else
+        setIcon(container, "copy");
+    } else
+      setIcon(container, "copy");
+    
+    container.addEventListener("mousedown", async (event) => {
+      const lines: NodeListOf<HTMLElement> = view.contentDOM.querySelectorAll(`[codeblockid="${this.codeblockId}"]`);
+      const codeTextArray: string[] = [];
+    
+      lines.forEach((line, index) => {
+        if (index === 0 || index === lines.length - 1) {
+          return;
+        }
+    
+        const codeElements = line.querySelectorAll('.cm-hmd-codeblock');
+        codeElements.forEach((codeElement, codeIndex) => {
+          const textContent = codeElement.textContent || "";
+          codeTextArray.push(textContent);
+        });
+
+        if (index !== lines.length - 2) {
+          codeTextArray.push('\n');
+        }
+      });
+
+      const concatenatedCodeText = codeTextArray.join('');
+      addTextToClipboard(concatenatedCodeText);
+    });
+      
+    return container;
+  }
+}// copyCodeWidget
+
+async function addTextToClipboard(content: string) {
+  try {
+    await navigator.clipboard.writeText(content);
+    new Notice("Copied to your clipboard");
+  } catch (error) {
+    console.error(error);
+    new Notice("Could not copy to your clipboard");
+  }
+}// addTextToClipboard
 
 function findCodeblocks(state: EditorState): SyntaxNodeRef[] {
   const tree = syntaxTree(state);

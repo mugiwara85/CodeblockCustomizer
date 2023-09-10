@@ -6,19 +6,15 @@
 </p>
 
 > [!important]
-> Version `1.2.0` requires that you remove the `data.json` file from your `VaultFolder/.obsidian/plugins/codeblock-customizer/` folder (or reinstall the plugin)!
+> Version `1.2.2` changes
 > 
-> There are a few new options:
-> - option to show a delete code button (This actually deletes the code!)
-> - collapse icon
-> - collapsed code text
-> - active line number color
-> - PDF print settings
-> - inline code styling
-> - border colors
-> - ln parameter
-> 
-> Please read the README, because there are a few important changes!
+> New options:
+> - You can now exclude specific code blocks by defining the `exclude` parameter
+> - You can now enable/disable the plugin in source mode
+> - Added option to display indentation lines in reading view
+> - Lines in reading view can now be collapsed
+> - Added option to display a copy code button. This is very similar to the default Obsidian copy code button, with the difference that it will be always shown, even if you click inside a code block
+
 
 This is a plugin for Obsidian (https://obsidian.md).
 
@@ -30,7 +26,7 @@ The plugin lets you customize the code blocks in the following way:
 - Default Obsidian and Solarized theme. You can create your own themes as well.
 - Enable editor active line highlight. The active line in Obsidian (including code blocks) will be highlighted (you can customize the color).
 - Enable code block active line highlight. The active line inside a code block will be highlighted (you can customize the color).
-- Exclude languages. You can define languages separated by a comma, to which the plugin will not apply.
+- Exclude languages. You can define languages separated by a comma, to which the plugin will not apply. You can also define `exclude` for specific code blocks to exclude them.
 - Set background color for code blocks.
 - Lets you highlight specific lines.
     - Customize highlight color

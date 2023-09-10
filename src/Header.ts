@@ -79,7 +79,7 @@ export function defaultFold(state: EditorState, settings: CodeblockCustomizerSet
         const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
         if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
           const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
-          const decorations = addFadeOutEffect(state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
+          const decorations = addFadeOutEffect(null, state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
           for (const { from, to, decoration } of decorations || []) {
             builder.add(from, to, decoration);
           }
@@ -104,7 +104,13 @@ export function foldAll(view: EditorView, settings: CodeblockCustomizerSettings,
         const lineCount = end.number - start.number + 1;
         if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
           const ranges = getRanges(view.state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
-          addFadeOutEffect(view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
+          const Pos = view.domAtPos(start.from);
+          let headerElement = null;
+          if (Pos) {
+            headerElement = (Pos.node as HTMLElement).previousElementSibling;
+          }
+
+          addFadeOutEffect(headerElement as HTMLElement, view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
         } else {
           view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
           view.requestMeasure();
@@ -295,14 +301,6 @@ class TextAboveCodeblockWidget extends WidgetType {
   mousedownEventHandler = (event: MouseEvent) => {
     const container = event.currentTarget as HTMLElement;
     container.setAttribute("data-clicked", "true");
-    const isFolded = isHeaderFolded(container, this.view, this.settings.SelectedTheme.settings.semiFold.visibleLines) || isHeaderFolded(container, this.view);
-    const collapse = container.querySelector('.codeblock-customizer-header-collapse');
-    if (collapse) {
-      if (isFolded)
-        setIcon(collapse as HTMLElement, "chevrons-up-down");
-      else
-        setIcon(collapse as HTMLElement, "chevrons-down-up");
-    }
   };
 
   toDOM(view: EditorView): HTMLElement {
@@ -412,9 +410,9 @@ export function handleClick(view: EditorView, target: HTMLElement, settings: Cod
       const ranges = getRanges(view.state, CollapseStart, CollapseEnd, settings.SelectedTheme.settings.semiFold.visibleLines);
       const isFolded = isHeaderFolded(target, view, settings.SelectedTheme.settings.semiFold.visibleLines);
       if (isFolded) {
-        removeFadeOutEffect(view, ranges, CollapseStart, CollapseEnd);
+        removeFadeOutEffect(target, view, ranges, CollapseStart, CollapseEnd);
       } else {
-        addFadeOutEffect(view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
+        addFadeOutEffect(target, view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
       }
     } else {
       toggleCollapseCodeBlock(target, view, CollapseStart, CollapseEnd);
@@ -435,7 +433,7 @@ function getRanges(state: EditorState, CollapseStart: number, CollapseEnd: numbe
   return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, };
 }// getRanges
 
-function isHeaderFolded(element: HTMLElement, view: EditorView, visibleLines: number = -1) {
+function isHeaderFolded(element: HTMLElement, view: EditorView, visibleLines = -1) {
   const Pos = view.posAtDOM(element);
   let domPos = Pos;
 
@@ -451,14 +449,18 @@ function isHeaderFolded(element: HTMLElement, view: EditorView, visibleLines: nu
 
 function toggleCollapseCodeBlock(target: HTMLElement, view: EditorView, CollapseStart: number, CollapseEnd: number) {
   //clearFadeEffect(view, collapseField, CollapseStart, CollapseEnd);
-
+  const collapseIcon = target.querySelector('.codeblock-customizer-header-collapse');
   const isFolded = isHeaderFolded(target, view);
   if (isFolded) {
     // @ts-ignore
     view.dispatch({ effects: UnCollapse.of((from, to) => to <= CollapseStart || from >= CollapseEnd) });
+    if (collapseIcon)
+      setIcon(collapseIcon as HTMLElement, "chevrons-up-down");
   }
   else {
     view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(CollapseStart, CollapseEnd)) });
+    if (collapseIcon)
+      setIcon(collapseIcon as HTMLElement, "chevrons-down-up");
   }
   view.requestMeasure();
 }// collapseCodeBlock
@@ -493,7 +495,7 @@ class uncollapseCodeWidget extends WidgetType {
 
   mousedownEventHandler = (event: MouseEvent) => {
     event.preventDefault();
-    const buttonElement = (event.target as HTMLElement)?.parentElement;
+    const buttonElement = (event.currentTarget as HTMLElement)?.parentElement;
     const codeblockId = buttonElement?.getAttribute("codeblockid") || null;
     if (!codeblockId)
       return;
@@ -502,13 +504,8 @@ class uncollapseCodeWidget extends WidgetType {
     const { CollapseStart, CollapseEnd  } = getCodeblockByHTMLTarget(this.view, targetElement, true);
     if (CollapseStart !== null && CollapseEnd !== null) {
       const ranges = getRanges(this.view.state, CollapseStart, CollapseEnd, this.visibleLines);
-      removeFadeOutEffect(this.view, ranges, CollapseStart, CollapseEnd);
       const headerElement = targetElement?.previousElementSibling || null;
-      const collapse = headerElement?.querySelector('.codeblock-customizer-header-collapse') || null;
-      if (collapse) {
-        setIcon(collapse as HTMLElement, "chevrons-up-down");
-      }
-
+      removeFadeOutEffect(headerElement as HTMLElement, this.view, ranges, CollapseStart, CollapseEnd);
       this.view.requestMeasure();
     }
   };
@@ -527,16 +524,19 @@ class uncollapseCodeWidget extends WidgetType {
   }
 }// uncollapseCodeWidget
 
-function removeFadeOutEffect(view: EditorView, ranges: Ranges, CollapseStart: number, CollapseEnd: number) {
+function removeFadeOutEffect(headerElement: HTMLElement, view: EditorView, ranges: Ranges, CollapseStart: number, CollapseEnd: number) {
   // @ts-ignore
   view.dispatch({ effects: semiUnCollapse.of((from, to) => to <= ranges.replaceStart.from || from >= ranges.replaceEnd.to )});
   // @ts-ignore
   view.dispatch({ effects: semiUnFade.of((from, to) => to <= ranges.fadeOutStart.from - 1 || from >= ranges.replaceEnd.to )}); // BUG ???
   //view.dispatch({ effects: semiUnFade.of((from, to) => to <= CollapseStart.from - 1 || from >= CollapseEnd.to )});
   view.requestMeasure();
+  const collapseIcon = headerElement.querySelector('.codeblock-customizer-header-collapse');
+  if (collapseIcon)
+    setIcon(collapseIcon as HTMLElement, "chevrons-up-down");
 }// removeFadeOutEffect
 
-function addFadeOutEffect(state: EditorState, ranges: Ranges, visibleLines: number, view: EditorView | null = null): void | RangeWithDecoration[] {
+function addFadeOutEffect(element: HTMLElement | null, state: EditorState, ranges: Ranges, visibleLines: number, view: EditorView | null = null): void | RangeWithDecoration[] {
   const decorations: RangeWithDecoration[] = [];
   const fadeOutLines: Line[] = [];
   for (let i = 0; i < fadeOutLineCount; i++) {
@@ -563,8 +563,12 @@ function addFadeOutEffect(state: EditorState, ranges: Ranges, visibleLines: numb
     }
   });
 
+  const collapseIcon = element?.querySelector('.codeblock-customizer-header-collapse');
+  if (collapseIcon)
+    setIcon(collapseIcon as HTMLElement, "chevrons-down-up");
+
   const collapseDecoration = Decoration.replace({ block: true });
-  if (view === null) {
+  if (view === null) {    
     decorations.push({ from: ranges.replaceStart.from, to: ranges.replaceEnd.to, decoration: collapseDecoration });
     return decorations;
   } else {

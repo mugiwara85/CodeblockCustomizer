@@ -42,6 +42,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           if (mode === "source") {
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, true, false);
+            foldAllReadingView(true, this.settings);
           } else if (mode === "preview") {
             foldAllReadingView(true, this.settings);
           }
@@ -63,6 +64,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           if (mode === "source") {
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, false, false);
+            foldAllReadingView(false, this.settings);
           } else if (mode === "preview") {
             foldAllReadingView(false, this.settings);
           }
@@ -86,16 +88,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
             foldAll(markdownView.editor.cm, this.settings, true, false);
             // @ts-ignore
             foldAll(markdownView.editor.cm, this.settings, false, true);
+            foldAllReadingView(false, this.settings);
+            this.restoreDefaultFold();
           } else if (mode === "preview") {
             foldAllReadingView(false, this.settings);
-            const preElements = document.querySelectorAll('.codeblock-customizer-pre.codeblock-customizer-codeblock-default-collapse');
-            preElements.forEach((preElement) => {
-              //preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
-              let lines: Element[] = [];
-              const codeElements = preElement?.getElementsByTagName("CODE");
-              lines = convertHTMLCollectionToArray(codeElements);              
-              toggleFoldClasses(preElement as HTMLPreElement, lines.length, true, this.settings.SelectedTheme.settings.semiFold.enableSemiFold, this.settings.SelectedTheme.settings.semiFold.visibleLines);
-            });
+            this.restoreDefaultFold();
           }
         }
       }
@@ -165,4 +162,15 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     await this.saveData(this.settings);
     this.app.workspace.updateOptions();
   }
+
+  restoreDefaultFold() {
+    const preElements = document.querySelectorAll('.codeblock-customizer-pre.codeblock-customizer-codeblock-default-collapse');
+    preElements.forEach((preElement) => {
+      //preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
+      let lines: Element[] = [];
+      const codeElements = preElement?.getElementsByTagName("CODE");
+      lines = convertHTMLCollectionToArray(codeElements);              
+      toggleFoldClasses(preElement as HTMLPreElement, lines.length, true, this.settings.SelectedTheme.settings.semiFold.enableSemiFold, this.settings.SelectedTheme.settings.semiFold.visibleLines);
+    });
+  }// restoreDefaultFold
 }

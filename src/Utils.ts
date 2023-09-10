@@ -414,6 +414,11 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.add('codeblock-customizer-collapseIconRight');
   }
 
+  if (settings.codeblock.enableCopyCodeButton)
+    document.body.classList.add('codeblock-customizer-show-copy-code-button');
+  else
+    document.body.classList.remove('codeblock-customizer-show-copy-code-button');
+
   if (settings.codeblock.enableDeleteCodeButton)
     document.body.classList.add('codeblock-customizer-show-delete-code-button');
 	else

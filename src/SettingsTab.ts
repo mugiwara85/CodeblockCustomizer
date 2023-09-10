@@ -179,6 +179,18 @@ export class SettingsTab extends PluginSettingTab {
     this.createPickrSetting(containerEl, 'Highlight color (used by the "hl" parameter)', '', "codeblock.highlightColor");
 
     new Setting(containerEl)
+      .setName('Show copy code button')
+      .setDesc('If enabled a copy code button will be displayed on every codeblock. If clicked, the content of that codeblock is copied. This button will be always shown, even if you click inside the code block!')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
       .setName('Show delete code button')
       .setDesc('If enabled an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
       .addToggle(toggle => toggle
