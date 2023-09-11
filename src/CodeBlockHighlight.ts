@@ -3,9 +3,9 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
-import { Notice, setIcon } from "obsidian";
+import { setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
 
 interface Codeblock {
@@ -402,16 +402,6 @@ class copyCodeWidget extends WidgetType {
     return container;
   }
 }// copyCodeWidget
-
-async function addTextToClipboard(content: string) {
-  try {
-    await navigator.clipboard.writeText(content);
-    new Notice("Copied to your clipboard");
-  } catch (error) {
-    console.error(error);
-    new Notice("Could not copy to your clipboard");
-  }
-}// addTextToClipboard
 
 function findCodeblocks(state: EditorState): SyntaxNodeRef[] {
   const tree = syntaxTree(state);

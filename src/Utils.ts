@@ -1,4 +1,4 @@
-import { setIcon, editorLivePreviewField } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice } from "obsidian";
 import { EditorState } from "@codemirror/state";
 
 import { Languages, manualLang, Icons } from "./Const";
@@ -666,3 +666,13 @@ export function isSourceMode(state: EditorState): boolean {
     return true;
   return false;
 }// isSourceMode
+
+export async function addTextToClipboard(content: string) {
+  try {
+    await navigator.clipboard.writeText(content);
+    new Notice("Copied to your clipboard");
+  } catch (error) {
+    console.error(error);
+    new Notice("Could not copy to your clipboard");
+  }
+}// addTextToClipboard

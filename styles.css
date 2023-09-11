@@ -305,12 +305,16 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 /* Codeblock border styling end */
 
 /* Copy code button adjustment */
-.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container ~ .copy-code-button,
+/*.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container ~ .copy-code-button,
 .codeblock-customizer-show-langnames-always .codeblock-customizer-header-container ~ .copy-code-button,
-.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container ~ .copy-code-button {
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container ~ .copy-code-button*/
+.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container ~ .codeblock-customizer-copy-code-button {
   margin-top: calc(var(--language-icon-size) + 6px) !important;
 }
-.codeblock-customizer-header-container-specific ~ .copy-code-button {
+/*.codeblock-customizer-header-container-specific ~ .copy-code-button*/
+.codeblock-customizer-header-container-specific ~ .codeblock-customizer-copy-code-button {
   margin-top: calc(var(--language-icon-size) + 6px) !important;
 }
 
@@ -447,7 +451,7 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
   right: 40px;
 }
 
-/* copy code styling */
+/* copy code styling (edit mode) */
 .codeblock-customizer-show-copy-code-button .markdown-source-view .codeblock-customizer-copy-code {
   position: absolute;
   right: 6px;
@@ -472,6 +476,29 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 }
 .codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
   display: none !important;
+}
+/* copy code button styling (reading view) */ 
+.markdown-rendered button.codeblock-customizer-copy-code-button {
+  margin: 6px;
+  padding: 6px 8px;
+  height: auto;
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-family: var(--font-interface);
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.markdown-rendered .codeblock-customizer-copy-code-button:hover {
+  background-color: rgba(var(--mono-rgb-100), 0.075);
+}
+.markdown-rendered pre:not(:hover) > button.codeblock-customizer-copy-code-button {
+  display: none ;
+}
+.markdown-rendered .codeblock-customizer-pre .copy-code-button {
+  display: none;
 }
 
 .codeblock-customizer-header-container,

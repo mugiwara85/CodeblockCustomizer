@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation } from "obsidian";
 
-import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton } from "./Utils";
+import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard } from "./Utils";
 import CodeblockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -180,6 +180,10 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
 async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null) {
   preElement.classList.add(`codeblock-customizer-pre`);
 
+  const copyButton = createCopyButton(codeblockDetails.codeBlockLang);
+  copyButton.addEventListener("click", copyCode);
+  preElement.appendChild(copyButton);
+
   if (codeblockDetails.codeBlockLang)
     preElement.classList.add(`codeblock-customizer-language-` + codeblockDetails.codeBlockLang.toLowerCase());
 
@@ -216,6 +220,46 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
 
   highlightLines(preCodeElm, codeblockDetails, plugin.settings.SelectedTheme.settings, indentationLevels);
 }// addClasses
+
+function createCopyButton(codeblockLanguage: string) {
+  const container = document.createElement("button");
+  container.classList.add(`codeblock-customizer-copy-code-button`);
+  container.setAttribute("aria-label", "Copy code");
+
+  if (codeblockLanguage) {
+    const displayLangText = getDisplayLanguageName(codeblockLanguage);
+    if (displayLangText)
+    container.setText(displayLangText);
+    else
+      setIcon(container, "copy");
+  } else
+    setIcon(container, "copy");
+
+  return container;
+}// createCopyButton
+
+function copyCode(event: Event) {
+  const button = event.currentTarget as HTMLElement;
+  const preElement = button.parentNode;
+  if (!preElement)
+    return;
+
+  const lines = preElement.querySelectorAll("code");
+  const codeTextArray: string[] = [];
+
+  lines.forEach((line, index) => {
+    const codeElements = line.querySelectorAll('.codeblock-customizer-line-text');
+    codeElements.forEach((codeElement, codeIndex) => {
+      const textContent = codeElement.textContent || "";
+      codeTextArray.push(textContent);
+      if (codeIndex !== codeElements.length - 1)
+        codeTextArray.push('\n');
+    });
+  });
+
+  const concatenatedCodeText = codeTextArray.join('');
+  addTextToClipboard(concatenatedCodeText);
+}// copyCode
 
 function isFoldable(preElement: HTMLPreElement, linesLen: number, enableSemiFold: boolean, visibleLines: number) {
   if (enableSemiFold) {
