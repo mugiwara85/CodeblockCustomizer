@@ -24,9 +24,9 @@
 	},
 	"dependencies": {
 		"@codemirror/language": "^6.8.0",
+		"@lezer/common": "^1.1.0",
 		"@simonwep/pickr": "^1.8.2",
 		"eslint": "^8.39.0",
-		"lezer-tree": "^0.13.2",
 		"lodash": "^4.17.21"
 	}
 }

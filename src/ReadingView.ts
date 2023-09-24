@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation } from "obsidian";
 
-import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard } from "./Utils";
+import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getTextValues, checkLineForLinks } from "./Utils";
 import CodeblockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -30,7 +30,7 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   const codeElm: HTMLElement | null = codeBlockElement.querySelector('pre > code');
   if (!codeElm) 
     return;
-  
+
   /*if (Array.from(codeElm.classList).some(className => /^language-\S+/.test(className)))
     while(!codeElm.classList.contains("is-loaded"))
       await sleep(2);*/
@@ -204,7 +204,7 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
     }
   }
 
-  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines );
+  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines, plugin.settings.SelectedTheme.settings.codeblock.enableLinks);
   preElement.insertBefore(header, preElement.childNodes[0]);
 	
   const lines = Array.from(preCodeElm.innerHTML.split('\n')) || 0;
@@ -308,7 +308,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
   return;
 }// handlePDFExport
 
-function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number) {
+function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number, enableLinks: boolean) {
   const parent = preElements.parentNode;
 
   const container = createContainer(specificHeader, languageName, false); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
@@ -319,7 +319,7 @@ function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specif
     }
     container.appendChild(createCodeblockLang(languageName));
   }
-  container.appendChild(createFileName(textToDisplay));
+  container.appendChild(createFileName(textToDisplay, enableLinks));
   const collapseEl = createCodeblockCollapse(Collapse);
   container.appendChild(collapseEl);
   if (parent)
@@ -414,7 +414,7 @@ function addIndentLine(inputString: string, insertCollapse = false): string {
   return insertCollapse ? modifiedString.replace(indentRegex, spans) : stringWithSpans;
 }// addIndentLine
 
-function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null) {
+async function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null) {
   if (!preCodeElm)
     return;
 
@@ -476,7 +476,7 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
     
     const indentedLine = addIndentLine(line, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
     // create line text element
-    const lineTextEl = createLineTextElement(indentedLine);
+    const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine).join('') : indentedLine);
     if (indentationLevels && indentationLevels[lineNumber - 1]) {
       const collapseIcon = lineTextEl.querySelector(".codeblock-customizer-collapse-icon");
       if (collapseIcon) {
@@ -489,6 +489,215 @@ function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDeta
     lineWrapper.setAttribute("indentLevel", (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
   });
 }// highlightLines
+
+function parseInput(input: string): string[] {
+  const elements: string[] = getHTMLElements(input);
+  const ranges: { startElementIdx: number; endElementIdx: number, containsHashtag: boolean, rawLinkText: string }[] = getLinkRanges(elements);
+
+  ranges.forEach((range) => {
+    const { displayText, linkText } = getTextValues(range.rawLinkText);
+    elements[range.startElementIdx] = `<a href="${linkText}" class="internal-link "${elements[range.startElementIdx]}`;
+    if (range.containsHashtag) {
+    /*  const endElementText = getTextContentFromHTMLElementString(elements[range.endElementIdx]) || '';
+      console.log("endElementText = " + endElementText);
+      const closingTagPos = endElementText.indexOf(']]');
+      const hashTagPos = endElementText.indexOf('#');
+      const modifiedText = deleteCharactersAfter(insertString(endElementText, `</a>`, closingTagPos), closingTagPos + 4, 2);
+      const anchorStartPos = modifiedText.indexOf('<');
+      elements[range.endElementIdx] = modifiedText.slice(0, hashTagPos) + modifiedText.slice(anchorStartPos);
+      console.log("modifiedText = " + modifiedText.slice(0, hashTagPos) + modifiedText.slice(anchorStartPos));*/
+      elements[range.endElementIdx] = insertString(elements[range.endElementIdx], `</a>`, elements[range.endElementIdx].indexOf(']]')), elements[range.endElementIdx].indexOf(']]') + 4, 2;
+    } else {
+      elements[range.endElementIdx] = `${elements[range.endElementIdx]}</a>`;
+    }
+
+    for (let i = range.startElementIdx; i <= range.endElementIdx; i++) {
+      if (getTextContentFromHTMLElementString(elements[i])?.startsWith('#')) {
+        if (elements[i].length === 1)
+          elements[i] = '';
+        else {
+          const pattern = /#(.*?)]]/g;
+          const replacedString = elements[i].replace(pattern, '');
+          elements[i] = replacedString;
+        }
+      }
+      else {
+        elements[i] = updateTextContentOfHTMLElementString(elements[i], i === range.startElementIdx ? displayText : '');
+      }
+    }
+  });
+
+  return elements;
+}// parseInput
+
+function getHTMLElements(input: string) {
+  const elements: string[] = [];
+
+  let currentElement = '';
+  const stack: string[] = [];
+
+  const regex = /(<\/?[^>]+>)|([^<]+)/g;
+  const matches = input.match(regex);
+
+  if (matches) {
+    for (const match of matches) {
+      if (match.startsWith('</')) {
+        // Closing tag encountered
+        const openingTag = stack.pop();
+        currentElement += match;
+        if (!openingTag) {
+          elements.push(currentElement);
+          currentElement = '';
+        }
+      } else if (match.startsWith('<')) {
+        // Opening tag encountered
+        stack.push(match);
+        currentElement += match;
+      } else {
+        // Content
+        currentElement += match;
+      }
+
+      if (stack.length === 0) {
+        elements.push(`${currentElement}`);
+        currentElement = '';
+      }
+    }
+  }
+
+  return elements;
+}// getHTMLElements
+
+function handleSpanElement(elements: string[], i: number, element: string) {
+  const classes = getClassesFromHTMLElementString(element);
+  const spanElement = createSpan({ cls: classes });
+  elements[i] = checkLineForLinks(spanElement, getTextContentFromHTMLElementString(element) || '').outerHTML;
+}// handleSpanElement
+
+function insertString(originalString: string, insertion: string, position: number) {
+  return originalString.slice(0, position) + insertion + originalString.slice(position);
+}// insertString
+
+function deleteCharactersAfter(originalString: string, position: number, count: number) {
+  return originalString.slice(0, position) + originalString.slice(position + count);
+}// deleteCharactersAfter
+
+function getLinkRanges(elements: string[]) {
+  const ranges: { startElementIdx: number; endElementIdx: number, containsHashtag: boolean, rawLinkText: string }[] = [];
+  let startElementIdx = -1;
+  let endElementIdx = -1;
+
+  for (let i = 0; i < elements.length; i++) {
+    const element = elements[i];
+    const textContent = isHTMLElementString(element) ? getTextContentFromHTMLElementString(element) || '' : element;
+
+    const openingTag = '[[';
+    const closingTag = ']]';
+
+    // Case 1: <span>[[sdfsdf sd f]]</span>
+    if (textContent.length > 5 && textContent.includes(openingTag) && textContent.includes(closingTag)) {
+      handleSpanElement(elements, i, element);
+      continue;
+    } else if (textContent === '[') { 
+      // Case 2 and 3
+      const nextElementText = getTextContentFromHTMLElementString(elements[i + 1]) || '';
+      
+      if (nextElementText === '[') {
+        startElementIdx = i;
+        let j = i + 1;
+        let linkText = '';
+
+        while (j < elements.length) {
+          j++;
+          const nextElement = elements[j];
+          const prevElement = elements[j - 1];
+          const nextElementText = getTextContentFromHTMLElementString(nextElement) || '';
+          const prevElementText = getTextContentFromHTMLElementString(prevElement) || '';
+
+          linkText += nextElementText;
+
+          if ((prevElementText === ']' && nextElementText === ']') || nextElementText.includes(closingTag)) {
+            endElementIdx = j;
+            let containsHashtag = false;
+            let rawLinkText = '';
+            if (linkText.length > 2 && linkText.includes(closingTag)) {
+              const closingTagPos = linkText.indexOf(closingTag);
+              rawLinkText = linkText.substring(0, closingTagPos);// first link end
+
+              if (nextElementText.includes("#")) { //linkText.includes
+                containsHashtag = true;
+              }
+            }
+            if (startElementIdx !== -1 && endElementIdx !== -1 && rawLinkText.length > 0) {
+              ranges.push({ startElementIdx: startElementIdx, endElementIdx: endElementIdx, containsHashtag: containsHashtag, rawLinkText: rawLinkText });
+            }
+            startElementIdx = -1; 
+            endElementIdx = -1;
+            containsHashtag = false;
+          }
+        }
+      }
+    }
+  }
+
+  return ranges;
+}// getLinkRanges
+
+function getClassesFromHTMLElementString(input: string): string[] {
+  const tempElement = document.createElement('div');
+  tempElement.innerHTML = input;
+
+  const firstElement = tempElement.firstElementChild;
+  
+  if (firstElement) {
+    return Array.from(firstElement.classList);
+  }
+
+  return [];
+}// getClassesFromHTMLElementString
+
+function getTextContentFromHTMLElementString(input: string): string | null {
+  const tempElement = document.createElement('div');
+  tempElement.innerHTML = input;
+  return tempElement.textContent;
+}// extractTextContentFromHTMLElementString
+
+function updateTextContentOfHTMLElementString(input: string, newContent: string): string {
+  if (input.includes('<') && input.includes('>')) {
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = input;
+
+    const existingElement = tempElement.firstElementChild;
+    if (existingElement) {
+      existingElement.textContent = newContent;
+    }
+
+    return tempElement.innerHTML;
+  } else {
+    return newContent;
+  }
+}// updateTextContentFromHTMLElementString
+
+function isHTMLElementString(input: string): boolean {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(input, 'text/html');
+    return doc.body.childNodes.length > 0;
+  } catch (e) {
+    return false;
+  }
+}// isHTMLElementString
+
+function addClassToHtmlElement(htmlString: string, newClass: string) {
+  return htmlString.replace(/<(\w+)([^>]*)class="([^"]*)"(.*?)>/, (match, tagName, beforeClass, existingClasses, afterAttributes) => {
+    if (existingClasses.includes(newClass)) {
+      return match;
+    } else {
+      const updatedClasses = existingClasses + ' ' + newClass;
+      return `<${tagName}${beforeClass}class="${updatedClasses}"${afterAttributes}>`;
+    }
+  });
+}// addClassToHtmlElement
 
 function handleClick(event: Event) {
   const collapseIcon = event.currentTarget as HTMLElement;

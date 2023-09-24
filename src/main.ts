@@ -108,7 +108,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     collapseField.pluginSettings = this.settings;
     this.extensions.push(collapseField);
         
-    this.extensions.push(codeblockHighlight(this.settings));
+    this.extensions.push(codeblockHighlight(this.settings, this.app));
 
     this.registerEditorExtension(this.extensions);
 

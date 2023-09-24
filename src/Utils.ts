@@ -262,15 +262,57 @@ export function createCodeblockCollapse(defaultFold: boolean) {
     setIcon(collapse, "chevrons-up-down");
     
   collapse.classList.add(`codeblock-customizer-header-collapse`);
+
   return collapse;
 }// createCodeblockLang
 
-export function createFileName(text: string) {
+export function createFileName(text: string, enableLinks: boolean) {
   const fileName = document.createElement("div");
-  fileName.innerText = text;
   fileName.classList.add("codeblock-customizer-header-text");
-  return fileName;
+
+  if (enableLinks)
+    return checkLineForLinks(fileName, text);
+  else {
+    fileName.innerText = text;
+    return fileName;
+  }
 }// createFileName
+
+export function checkLineForLinks(element: HTMLElement, text: string) {
+  const regex = /\[\[(.*?)\]\]/g;
+  let match;
+  let currentIndex = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    const substring = match[1];
+    const startPosition = match.index;
+    const endPosition = regex.lastIndex;
+
+    if (startPosition > currentIndex) {
+      const textBeforeMatch = text.substring(currentIndex, startPosition);
+      const textNode = document.createTextNode(textBeforeMatch);
+      element.appendChild(textNode);
+    }
+
+    if (substring.length > 0) {
+      const { displayText, linkText } = getTextValues(substring);
+      const anchor = document.createElement("a");
+      anchor.innerText = displayText;
+      anchor.href = linkText;
+      anchor.classList.add("internal-link");
+      element.appendChild(anchor);
+    }
+    currentIndex = endPosition;
+  }
+
+  if (currentIndex < text.length) {
+    const textAfterLastMatch = text.substring(currentIndex);
+    const textNode = document.createTextNode(textAfterLastMatch);
+    element.appendChild(textNode);
+  }
+
+  return element;
+}// checkLineForLinks
 
 export function createUncollapseCodeButton() {
   const uncollapseCodeButton = document.createElement("span");
@@ -676,3 +718,31 @@ export async function addTextToClipboard(content: string) {
     new Notice("Could not copy to your clipboard");
   }
 }// addTextToClipboard
+
+export function getTextValues(rawText: string) {
+  let pipedText, displayText, linkText;
+  if (rawText.includes("|")) {
+    pipedText = extractText(rawText);
+    if (typeof pipedText === 'string') {
+      displayText = pipedText;
+      linkText = pipedText;
+    } else {
+      displayText = pipedText.after;
+      linkText = pipedText.before;
+    }
+  } else {
+    displayText = rawText;
+    linkText = rawText;
+  }
+
+  return { displayText, linkText };
+}// getTextValues
+
+function extractText(input: string): { before: string, after: string } | string {
+  if (input.includes('|')) {
+      const [before, after] = input.split('|');
+      return { before, after };
+  } else {
+      return input;
+  }
+}// extractText

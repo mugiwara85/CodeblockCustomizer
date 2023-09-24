@@ -213,6 +213,18 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings);
         })
       );
+
+    new Setting(containerEl)
+      .setName('Enable links usage')
+      .setDesc('If enabled you can use links in the header and code blocks as well. Examples: [[Document1]], [[Document1|DisplayText]], [[Document1#Paragraph|DisplayText]], [[Document1#^<BlockId>|DisplayText]] etc.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     containerEl.createEl('h4', {text: 'Semi-fold settings'});
 
     let enableSemiFoldToggle: ToggleComponent;

@@ -262,6 +262,7 @@ class TextAboveCodeblockWidget extends WidgetType {
   languageName: string;
   hasLangBorderColor: boolean;
   settings: CodeblockCustomizerSettings;
+  enableLinks: boolean;
 
   constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings) {
     super();
@@ -272,6 +273,7 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.defaultFold = defaultFold;
     this.hasLangBorderColor = hasLangBorderColor;
     this.settings = settings;
+    this.enableLinks = settings.SelectedTheme.settings.codeblock.enableLinks;
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
@@ -295,7 +297,8 @@ class TextAboveCodeblockWidget extends WidgetType {
     other.languageName === this.languageName && 
     other.specificHeader === this.specificHeader && 
     other.defaultFold === this.defaultFold && 
-    this.hasLangBorderColor === other.hasLangBorderColor;
+    other.hasLangBorderColor === this.hasLangBorderColor &&
+    other.enableLinks === this.enableLinks;
   }
 
   mousedownEventHandler = (event: MouseEvent) => {
@@ -314,7 +317,7 @@ class TextAboveCodeblockWidget extends WidgetType {
       container.appendChild(createCodeblockLang(this.languageName));
     }
 
-    container.appendChild(createFileName(this.text));
+    container.appendChild(createFileName(this.text, this.enableLinks));
     const collapse = createCodeblockCollapse(this.defaultFold);
     container.appendChild(collapse);
 

@@ -3,9 +3,9 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
-import { setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
 
 interface Codeblock {
@@ -13,7 +13,7 @@ interface Codeblock {
   to: number;
 }
 
-export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
+export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: App) {
   const viewPlugin = ViewPlugin.fromClass(
     class CodeblockHighlightPlugin {
       mutationObserver: MutationObserver;
@@ -23,6 +23,8 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
       prevAlternateColors: Record<string, string>;
       prevBorderColors: Record<string, string>;
       prevExcludeLangs: string;
+      app: App;
+      previousCursorPos: number;
 
       constructor(view: EditorView) {
         this.initialize(view, settings);
@@ -36,6 +38,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
         this.prevAlternateColors = {};
         this.prevBorderColors = {};
         this.prevExcludeLangs = "";
+        this.app = app;
       }// initialize
 
       forceUpdate(editorView: EditorView) {
@@ -45,8 +48,9 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
       }// forceUpdate
 
       shouldUpdate(update: ViewUpdate) {
+        const currentCursorPos = update.view.state.selection.main.head;
         return (update.docChanged || update.viewportChanged || !areObjectsEqual(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors, this.prevAlternateColors)
-        || !areObjectsEqual(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors, this.prevBorderColors) || this.settings.ExcludeLangs !== this.prevExcludeLangs);
+        || !areObjectsEqual(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors, this.prevBorderColors) || this.settings.ExcludeLangs !== this.prevExcludeLangs || this.previousCursorPos !== currentCursorPos);
       }// shouldUpdate
       
       update(update: ViewUpdate) {
@@ -113,7 +117,8 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
           syntaxTree(view.state).iterate({ from: codeblock.from, to: codeblock.to,
             enter(node) {
               const line = view.state.doc.lineAt(node.from);
-              const lineText = view.state.sliceDoc(line.from, line.to).toString().trim();
+              const originalLineText = view.state.sliceDoc(line.from, line.to).toString();
+              const lineText = originalLineText.trim();
               let lang = null;
               const startLine = node.type.name.includes("HyperMD-codeblock-begin");
               if (startLine)
@@ -131,6 +136,9 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
                 }
                 return;
               }
+              
+              if (settings.SelectedTheme.settings.codeblock.enableLinks)
+                checkForLinks(view, originalLineText, node, decorations, app);
 
               if (startLine) {
                 const result = processLineText(lineText, codeblockId, alternateColors);
@@ -193,6 +201,80 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings) {
 
   return viewPlugin;
 }// codeblockHighlight
+
+function checkForLinks(view: EditorView, originalLineText: string, node: SyntaxNodeRef, decorations: Array<Range<Decoration>>, app: App) {
+  const cursorPos = view.state.selection.main.head;
+  const regex = /\[\[(.*?)\]\]/g;
+  const linkClass = "cm-formatting-link";
+  const startClass = `${linkClass} cm-formatting-link-start`;
+  const endClass = `${linkClass} cm-formatting-link-end`;
+  let match;
+  while ((match = regex.exec(originalLineText)) !== null && (node.type.name === "HyperMD-codeblock_HyperMD-codeblock-bg" || node.type.name.includes("HyperMD-codeblock-begin"))) {
+    const substring = match[1];
+    const startPosition = match.index;
+    if ((cursorPos < node.from + startPosition || cursorPos > node.from + startPosition + substring.length + 4) && substring.length > 0 ) { // outside
+      decorations.push(Decoration.replace({}).range(node.from + startPosition, node.from + startPosition + 2));
+      decorations.push(Decoration.replace({}).range(node.from + startPosition + substring.length + 2, node.from + startPosition + substring.length + 4));
+      const { displayText, linkText } = getTextValues(substring);
+      decorations.push(Decoration.replace({ widget: new createLink(displayText, linkText, app) }).range(node.from + startPosition + 2, node.from + startPosition + substring.length + 2));
+    } else if (cursorPos >= node.from + startPosition || cursorPos <= node.from + startPosition + substring.length + 4 ) { // inside
+      decorations.push(Decoration.mark({class: startClass}).range(node.from + startPosition, node.from + startPosition + 2));
+      decorations.push(Decoration.mark({class: endClass}).range(node.from + startPosition + substring.length + 2, node.from + startPosition + substring.length + 4));
+      if (substring.length > 0)
+        decorations.push(Decoration.mark({class:"cm-hmd-internal-link"}).range(node.from + startPosition + 2, node.from + startPosition + substring.length + 2));
+    }                
+  }
+}// checkForLinks
+
+class createLink extends WidgetType {
+  private spanElement: HTMLSpanElement | null = null;
+
+  constructor(private displayText: string, private linkText: string, private app: App) {
+    super();
+  }
+
+  eq(other: createLink) {
+    return this.displayText === other.displayText && this.linkText === other.linkText && this.app === other.app;
+  }
+  
+  toDOM(view: EditorView): HTMLElement {
+    const anchorElement = document.createElement("a");
+    anchorElement.classList.add("cm-hmd-internal-link");
+
+    this.spanElement = document.createElement("span");
+    this.spanElement.classList.add("cm-underline");
+    this.spanElement.innerText = this.displayText;
+    this.spanElement.setAttribute("data-path", this.linkText);
+    this.spanElement.addEventListener("click", (event) => openLink(event, this.app));
+    anchorElement.appendChild(this.spanElement);
+
+    return anchorElement;
+  }
+
+  destroy() {
+    if (this.spanElement) {
+      this.spanElement.removeEventListener("click", (event) => openLink(event, this.app));
+      this.spanElement = null;
+    }
+  }
+}// createLink
+
+function openLink(event: Event, app: App) {  
+  const targetElement = event.currentTarget as HTMLElement;
+
+  const dataPath = targetElement.getAttribute("data-path");
+  if (!dataPath)
+    return;
+
+  let sourcePath;  
+  let activeFile = app.workspace.getActiveFile();
+  if (activeFile) {
+    sourcePath = activeFile.path;
+  }
+
+  if (sourcePath)
+    app.workspace.openLinkText(dataPath, sourcePath);
+}// openLink
 
 function processLineText(lineText: string, codeblockId: number, alternateColors: Record<string, string>) {
   let lineNumber = 0;
