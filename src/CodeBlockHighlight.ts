@@ -458,32 +458,32 @@ class copyCodeWidget extends WidgetType {
       setIcon(container, "copy");
     
     container.addEventListener("mousedown", async (event) => {
-      const lines: NodeListOf<HTMLElement> = view.contentDOM.querySelectorAll(`[codeblockid="${this.codeblockId}"]`);
-      const codeTextArray: string[] = [];
-    
-      lines.forEach((line, index) => {
-        if (index === 0 || index === lines.length - 1) {
-          return;
-        }
-    
-        const codeElements = line.querySelectorAll('.cm-hmd-codeblock');
-        codeElements.forEach((codeElement, codeIndex) => {
-          const textContent = codeElement.textContent || "";
-          codeTextArray.push(textContent);
-        });
+      const target: HTMLElement | null = view.contentDOM.querySelector(`[codeblockid="${this.codeblockId}"]`);
+      const { CollapseStart, CollapseEnd } = getCodeblockByHTMLTarget(view, target, false);
 
-        if (index !== lines.length - 2) {
-          codeTextArray.push('\n');
-        }
-      });
-
-      const concatenatedCodeText = codeTextArray.join('');
-      addTextToClipboard(concatenatedCodeText);
+      if (CollapseStart && CollapseEnd) {
+        const lines = view.state.sliceDoc(CollapseStart, CollapseEnd).toString();
+        addTextToClipboard(removeFirstLine(lines));
+      }
     });
-      
+
     return container;
   }
 }// copyCodeWidget
+
+function removeFirstLine(inputString: string): string {
+  const lines = inputString.split('\n');
+  
+  if (lines.length > 1) {
+    const modifiedLines = lines.slice(1);
+    const resultString = modifiedLines.join('\n');
+    
+    return resultString;
+  } else {
+    // If there's only one line or the input is empty, return an empty string
+    return '';
+  }
+}// removeFirstLine
 
 function findCodeblocks(state: EditorState): SyntaxNodeRef[] {
   const tree = syntaxTree(state);
