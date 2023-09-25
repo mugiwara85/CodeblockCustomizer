@@ -19,6 +19,11 @@
   display: inline-block !important;
 }
 
+/* Hidden elements */
+.codeblock-customizer-hidden-element {
+  display: none;
+}
+
 /* Indentation lines */
 .codeblock-customizer-indentation-guide::before {
   display: none;

@@ -1,7 +1,7 @@
 import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Text, Line } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 
-import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode } from "./Utils";
+import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -154,8 +154,10 @@ export const codeblockHeader = StateField.define<DecorationSet>({
     let numBackticks = 0;
     let inCodeBlock = false;
     let bExclude = false;
+    
     for (let i = 1; i < transaction.state.doc.lines; i++) {
-      const lineText = transaction.state.doc.line(i).text.toString().trim();
+      const originalLineText = transaction.state.doc.line(i).text.toString();
+      const lineText = originalLineText.trim();
       const line = transaction.state.doc.line(i);
       const lang = getCodeBlockLanguage(lineText);
       bExclude = isExcluded(lineText, this.settings.ExcludeLangs);
@@ -169,7 +171,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
           WidgetStart = line;
           fileName = extractFileTitle(lineText);
           Fold = isFoldDefined(lineText);
-
+          const indent = getIndentationLevel(originalLineText);
           if (!bExclude) {
             if (fileName === null || fileName === "") {
               if (Fold) {
@@ -184,7 +186,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
             }
             const hasLangBorderColor = getBorderColorByLanguage(lang || "", this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).length > 0 ? true : false;
             // @ts-ignore
-            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings));
+            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings, indent));
             //EditorView.requestMeasure;
           }
         } else {
@@ -212,8 +214,8 @@ export const codeblockHeader = StateField.define<DecorationSet>({
   },
 });// codeblockHeader
 
-function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings) {
-  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings), block: true });
+function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, indent: number) {
+  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings, indent), block: true });
 }// createDecorationWidget
 
 const Collapse = StateEffect.define<Range<Decoration>>();
@@ -263,8 +265,9 @@ class TextAboveCodeblockWidget extends WidgetType {
   hasLangBorderColor: boolean;
   settings: CodeblockCustomizerSettings;
   enableLinks: boolean;
+  indent: number;
 
-  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings) {
+  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, indent: number) {
     super();
     this.text = text;    
     this.displayLanguageName = displayLanguageName;
@@ -274,6 +277,7 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.hasLangBorderColor = hasLangBorderColor;
     this.settings = settings;
     this.enableLinks = settings.SelectedTheme.settings.codeblock.enableLinks;
+    this.indent = indent;
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
@@ -298,7 +302,8 @@ class TextAboveCodeblockWidget extends WidgetType {
     other.specificHeader === this.specificHeader && 
     other.defaultFold === this.defaultFold && 
     other.hasLangBorderColor === this.hasLangBorderColor &&
-    other.enableLinks === this.enableLinks;
+    other.enableLinks === this.enableLinks &&
+    other.indent === this.indent;
   }
 
   mousedownEventHandler = (event: MouseEvent) => {
@@ -320,7 +325,10 @@ class TextAboveCodeblockWidget extends WidgetType {
     container.appendChild(createFileName(this.text, this.enableLinks));
     const collapse = createCodeblockCollapse(this.defaultFold);
     container.appendChild(collapse);
-
+    if (this.indent > 0) {
+      container.setAttribute("style", `margin-left:${this.indent * 20}px !important`);
+    }
+    
     container.addEventListener("mousedown", this.mousedownEventHandler);
     this.observer.observe(container, { attributes: true });   
     

@@ -746,3 +746,13 @@ function extractText(input: string): { before: string, after: string } | string 
       return input;
   }
 }// extractText
+
+export function getIndentationLevel(line: string) {
+  const indentationMatch = line.match(/^( {4}|\t)*/);
+  if (indentationMatch) {
+    const indentation = indentationMatch[0];
+    const indentationLevel = indentation.replace(/\t/g, '    ').length / 4;
+    return Math.floor(indentationLevel);
+  }
+  return 0;
+}// getIndentationLevel

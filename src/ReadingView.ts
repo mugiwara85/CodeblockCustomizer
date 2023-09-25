@@ -385,7 +385,7 @@ function createLineNumberElement(lineNumber: number, showNumbers: string) {
 function createLineTextElement(line: string) {
   const lineText = line !== "" ? line : "<br>";
   const sanitizedText = sanitizeHTMLToDom(lineText);
-  const lineContentWrapper = createDiv({cls: `codeblock-customizer-line-text`, text: sanitizedText});  
+  const lineContentWrapper = createDiv({cls: `codeblock-customizer-line-text`, text: sanitizedText});
   
   return lineContentWrapper;
 }// createLineTextElement
@@ -664,6 +664,9 @@ function getTextContentFromHTMLElementString(input: string): string | null {
 
 function updateTextContentOfHTMLElementString(input: string, newContent: string): string {
   if (input.includes('<') && input.includes('>')) {
+    /*const sanitizedText = sanitizeHTMLToDom(input);
+    const tempElement = createDiv({text: sanitizedText});*/ // very slow...
+
     const tempElement = document.createElement('div');
     tempElement.innerHTML = input;
 

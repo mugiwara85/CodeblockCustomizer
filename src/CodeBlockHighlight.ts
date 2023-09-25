@@ -3,7 +3,7 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues, getIndentationLevel } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { App, setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
@@ -113,6 +113,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         // remove duplicates
         const deduplicatedCodeblocks = this.deduplicateCodeblocks(visibleCodeblocks);
         let codeblockId = 0;
+        let indent = 0;
         for (const codeblock of deduplicatedCodeblocks) {
           syntaxTree(view.state).iterate({ from: codeblock.from, to: codeblock.to,
             enter(node) {
@@ -121,8 +122,10 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
               const lineText = originalLineText.trim();
               let lang = null;
               const startLine = node.type.name.includes("HyperMD-codeblock-begin");
-              if (startLine)
+              if (startLine) {
                 lang = getCodeBlockLanguage(lineText);
+                indent = getIndentationLevel(originalLineText);
+              }
               const endLine = node.type.name.includes("HyperMD-codeblock-end");
 
               if (lang) {
@@ -185,6 +188,11 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
                 if (startLine) {
                   decorations.push(Decoration.widget({ widget: new deleteCodeWidget(codeblockId)}).range(node.from)); 
                   decorations.push(Decoration.widget({ widget: new copyCodeWidget(lang, codeblockId)}).range(node.from));
+                }
+
+                if (indent > 0) {
+                  decorations.push(Decoration.mark({class: "codeblock-customizer-hidden-element"}).range(node.from, node.from + 4 * indent)); 
+                  decorations.push(Decoration.line({attributes: {"style": `margin-left:${indent * 20}px !important`}}).range(node.from)); 
                 }
                 lineNumber++;
               }
