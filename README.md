@@ -221,7 +221,6 @@ By default, if you print a document the styling is not applied to it. You can en
 Code blocks in lists, are now indented properly as shown below. Simply, mark the text in the code block, and press TAB. This will shift the code block right, by adding margin to the left side. Pressing TAB multiple times, indents the code block more. If you want to undo it, just select the text again, and press SHIFT+TAB.
 
 ![Pasted_image_20230925220351.png](attachments/Pasted_image_20230925220351.png)
-[[Indented-code-blocks]]
 
 ## How to install the plugin
 
