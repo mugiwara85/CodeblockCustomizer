@@ -171,7 +171,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
           WidgetStart = line;
           fileName = extractFileTitle(lineText);
           Fold = isFoldDefined(lineText);
-          const indent = getIndentationLevel(originalLineText);
+          const { level, characters, margin } = getIndentationLevel(originalLineText);
           if (!bExclude) {
             if (fileName === null || fileName === "") {
               if (Fold) {
@@ -186,7 +186,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
             }
             const hasLangBorderColor = getBorderColorByLanguage(lang || "", this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).length > 0 ? true : false;
             // @ts-ignore
-            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings, indent));
+            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings, margin));
             //EditorView.requestMeasure;
           }
         } else {
@@ -214,8 +214,8 @@ export const codeblockHeader = StateField.define<DecorationSet>({
   },
 });// codeblockHeader
 
-function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, indent: number) {
-  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings, indent), block: true });
+function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number) {
+  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings, marginLeft), block: true });
 }// createDecorationWidget
 
 const Collapse = StateEffect.define<Range<Decoration>>();
@@ -265,9 +265,9 @@ class TextAboveCodeblockWidget extends WidgetType {
   hasLangBorderColor: boolean;
   settings: CodeblockCustomizerSettings;
   enableLinks: boolean;
-  indent: number;
+  marginLeft: number;
 
-  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, indent: number) {
+  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number) {
     super();
     this.text = text;    
     this.displayLanguageName = displayLanguageName;
@@ -277,7 +277,7 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.hasLangBorderColor = hasLangBorderColor;
     this.settings = settings;
     this.enableLinks = settings.SelectedTheme.settings.codeblock.enableLinks;
-    this.indent = indent;
+    this.marginLeft = marginLeft;
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
@@ -303,7 +303,7 @@ class TextAboveCodeblockWidget extends WidgetType {
     other.defaultFold === this.defaultFold && 
     other.hasLangBorderColor === this.hasLangBorderColor &&
     other.enableLinks === this.enableLinks &&
-    other.indent === this.indent;
+    other.marginLeft === this.marginLeft;
   }
 
   mousedownEventHandler = (event: MouseEvent) => {
@@ -325,8 +325,8 @@ class TextAboveCodeblockWidget extends WidgetType {
     container.appendChild(createFileName(this.text, this.enableLinks));
     const collapse = createCodeblockCollapse(this.defaultFold);
     container.appendChild(collapse);
-    if (this.indent > 0) {
-      container.setAttribute("style", `margin-left:${this.indent * 20}px !important`);
+    if (this.marginLeft > 0) {
+      container.setAttribute("style", `margin-left:${this.marginLeft}px !important`);
     }
     
     container.addEventListener("mousedown", this.mousedownEventHandler);

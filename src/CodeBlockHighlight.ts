@@ -113,7 +113,9 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         // remove duplicates
         const deduplicatedCodeblocks = this.deduplicateCodeblocks(visibleCodeblocks);
         let codeblockId = 0;
-        let indent = 0;
+        let indentLevel = 0;
+        let indentChars = 0;
+        let marginLeft = 0;
         for (const codeblock of deduplicatedCodeblocks) {
           syntaxTree(view.state).iterate({ from: codeblock.from, to: codeblock.to,
             enter(node) {
@@ -124,7 +126,10 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
               const startLine = node.type.name.includes("HyperMD-codeblock-begin");
               if (startLine) {
                 lang = getCodeBlockLanguage(lineText);
-                indent = getIndentationLevel(originalLineText);
+                const { level, characters, margin } = getIndentationLevel(originalLineText);
+                indentLevel = level;
+                indentChars = characters;
+                marginLeft = margin;
               }
               const endLine = node.type.name.includes("HyperMD-codeblock-end");
 
@@ -190,9 +195,9 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
                   decorations.push(Decoration.widget({ widget: new copyCodeWidget(lang, codeblockId)}).range(node.from));
                 }
 
-                if (indent > 0) {
-                  decorations.push(Decoration.mark({class: "codeblock-customizer-hidden-element"}).range(node.from, node.from + 4 * indent)); 
-                  decorations.push(Decoration.line({attributes: {"style": `margin-left:${indent * 20}px !important`}}).range(node.from)); 
+                if (indentLevel > 0) {
+                  decorations.push(Decoration.mark({class: "codeblock-customizer-hidden-element"}).range(node.from, node.from + indentChars));
+                  decorations.push(Decoration.line({attributes: {"style": `margin-left:${marginLeft}px !important`}}).range(node.from)); 
                 }
                 lineNumber++;
               }

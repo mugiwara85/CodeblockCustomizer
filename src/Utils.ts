@@ -751,8 +751,29 @@ export function getIndentationLevel(line: string) {
   const indentationMatch = line.match(/^( {4}|\t)*/);
   if (indentationMatch) {
     const indentation = indentationMatch[0];
-    const indentationLevel = indentation.replace(/\t/g, '    ').length / 4;
-    return Math.floor(indentationLevel);
+    const spacesCount = (indentation.match(/ {4}/g) || []).length;
+    const tabsCount = (indentation.match(/\t/g) || []).length;
+
+    const indentationLevel = spacesCount + tabsCount;
+    const additionalCharacters = spacesCount * 4 + tabsCount;
+    
+    let margin = 0;
+    if (spacesCount > 0 && tabsCount === 0)
+      margin = (spacesCount * 19);
+    else if (spacesCount === 0 && tabsCount > 0)
+      margin = (20 + ((tabsCount - 1) * 32));
+    else if (spacesCount > 0 && tabsCount > 0)
+      margin = (spacesCount * 19) + (20 + ((tabsCount - 1) * 32));
+    
+    return {
+      level: indentationLevel,
+      characters: additionalCharacters,
+      margin: margin
+    };
   }
-  return 0;
+  return {
+    level: 0,
+    characters: 0,
+    margin: 0
+  };
 }// getIndentationLevel
