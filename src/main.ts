@@ -20,7 +20,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     
     await this.loadSettings();
     this.extensions = [];
-    // npm install eslint@8.39.0
+    // npm install eslint@8.39.0 -g
     // eslint main.ts
     
   /* Problems to solve:

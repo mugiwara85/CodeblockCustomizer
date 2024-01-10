@@ -1,7 +1,7 @@
 import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Text, Line } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 
-import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel } from "./Utils";
+import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel, getLanguageSpecificColorClass } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -266,6 +266,7 @@ class TextAboveCodeblockWidget extends WidgetType {
   settings: CodeblockCustomizerSettings;
   enableLinks: boolean;
   marginLeft: number;
+  languageSpecificColors: Record<string, string>;
 
   constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number) {
     super();
@@ -278,6 +279,7 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.settings = settings;
     this.enableLinks = settings.SelectedTheme.settings.codeblock.enableLinks;
     this.marginLeft = marginLeft;
+    this.languageSpecificColors = createObjectCopy(settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.languageName] || {});//settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName === null ? "" : languageName];
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
@@ -303,7 +305,8 @@ class TextAboveCodeblockWidget extends WidgetType {
     other.defaultFold === this.defaultFold && 
     other.hasLangBorderColor === this.hasLangBorderColor &&
     other.enableLinks === this.enableLinks &&
-    other.marginLeft === this.marginLeft;
+    other.marginLeft === this.marginLeft &&
+    areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors);
   }
 
   mousedownEventHandler = (event: MouseEvent) => {
@@ -313,7 +316,8 @@ class TextAboveCodeblockWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     this.view = view;
-    const container = createContainer(this.specificHeader, this.languageName, this.hasLangBorderColor);
+    const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.languageName, null, this.languageSpecificColors);
+    const container = createContainer(this.specificHeader, this.languageName, this.hasLangBorderColor, codeblockLanguageSpecificClass);
     if (this.displayLanguageName){
       const Icon = getLanguageIcon(this.displayLanguageName)
       if (Icon) {
@@ -349,6 +353,39 @@ class TextAboveCodeblockWidget extends WidgetType {
   }
   
 }// TextAboveCodeblockWidget
+
+function createObjectCopy(languageSpecificColors: Record<string, string>){
+  const newObject: Record<string, string> = {};
+  for (const [property, value] of Object.entries(languageSpecificColors)) {
+    newObject[property] = value;
+  }
+  return newObject;
+}//createObjectCopy
+
+function areObjectsEqual(obj1: Record<string, string> | null | undefined, obj2: Record<string, string> | null | undefined): boolean {
+  if (obj1 === null && obj2 === null) {
+    return true;
+  }
+
+  if ((obj1 === null || obj1 === undefined) || (obj2 === null || obj2 === undefined)) {
+    return false;
+  }
+
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) {
+    return false;
+  }
+
+  for (const key of keys1) {
+    if (obj1[key] !== obj2[key]) {
+      return false;
+    }
+  }
+
+  return true;
+}// areObjectsEqual
 
 export function getCodeblockByHTMLTarget(view: EditorView, target: HTMLElement | null, includeBackTicks: boolean) {
   //view.state.update();

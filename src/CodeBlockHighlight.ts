@@ -3,7 +3,7 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues, getIndentationLevel } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues, getIndentationLevel, getLanguageSpecificColorClass } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { App, setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
@@ -98,8 +98,10 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         let bExclude = false;
         let borderColor = "";
         let codeblockLanguageClass = "";
+        let codeblockLanguageSpecificClass = "";
         const alternateColors = settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {};
         const languageBorderColors = settings.SelectedTheme.colors[currentMode].codeblock.languageBorderColors || {};
+        const languageSpecificColors = settings.SelectedTheme.colors[currentMode].languageSpecificColors;
         const decorations: Array<Range<Decoration>> = [];
 
         if (!view.visibleRanges || view.visibleRanges.length === 0 || (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))) {
@@ -136,6 +138,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
               if (lang) {
                 bExclude = isExcluded(lineText, settings.ExcludeLangs);
                 codeblockLanguageClass = "codeblock-customizer-language-" + lang.toLowerCase();
+                codeblockLanguageSpecificClass = getLanguageSpecificColorClass(lang, languageSpecificColors);
                 borderColor = getBorderColorByLanguage(lang, languageBorderColors);
               }
               if (bExclude) {
@@ -167,7 +170,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
                   lineClass = `codeblock-customizer-line-highlighted-${altHLMatch[0].name.replace(/\s+/g, '-').toLowerCase()}`;
                 }
               }
-              lineClass = lineClass + " " + codeblockLanguageClass;
+              lineClass = lineClass + " " + codeblockLanguageClass + " " + codeblockLanguageSpecificClass;
               let spanClass = "";
               if (startLine){
                 spanClass = `codeblock-customizer-line-number-first`;
@@ -184,6 +187,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
               if (endLine) {
                 spanClass = `codeblock-customizer-line-number-last`;
                 codeblockLanguageClass = "";
+                codeblockLanguageSpecificClass = "";
                 borderColor = "";
               }
 

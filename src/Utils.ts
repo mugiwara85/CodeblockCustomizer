@@ -221,12 +221,15 @@ export function loadIcons(){
 }// loadIcons
 
 // Functions for displaying header BEGIN
-export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean) {
+export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string) {
   const container = document.createElement("div");
   container.classList.add(`codeblock-customizer-header-container${specific ? '-specific' : ''}`);
   
-  if (languageName)
+  if (languageName) {
     container.classList.add(`codeblock-customizer-language-${languageName.toLowerCase()}`);
+    if (codeblockLanguageSpecificClass)
+      container.classList.add(codeblockLanguageSpecificClass);
+  }
 
   if (hasLangBorderColor)
     container.classList.add(`hasLangBorderColor`);
@@ -383,6 +386,26 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings) {
     `;
   }, '');
 
+  const languageSpecificStyling = Object.entries(settings.SelectedTheme.colors[currentMode].languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
+    const languageStyling = Object.entries(attributes || {}).reduce((languageStyling, [attribute, hexValue]) => {
+      // Replace dot with hyphen in the attribute name
+      const attributeName = attribute.toLowerCase().replace(/\./g, '-');
+      
+      // Check if there's a corresponding mapping in stylesDict
+      const mappedAttributeName = stylesDict[attribute] || attributeName;
+  
+      return languageStyling + `
+        --${mappedAttributeName}: ${hexValue};
+      `;
+    }, '');
+  
+    return styling + `
+      .codeblock-customizer-languageSpecific-${language.toLowerCase()} {
+        ${languageStyling}
+      }
+    `;
+  }, '');
+
   const textSettingsStyles = `
     body.codeblock-customizer [class^="codeblock-customizer-header-language-tag"] {
       --codeblock-customizer-language-tag-text-bold: ${settings.SelectedTheme.settings.header.codeblockLangBoldText ? 'bold' : 'normal'};
@@ -393,7 +416,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings) {
       --codeblock-customizer-header-text-italic: ${settings.SelectedTheme.settings.header.italicText ? 'italic' : 'normal'};
     }
   `;
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + textSettingsStyles).trim().replace(/[\r\n\s]+/g, ' ');
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles).trim().replace(/[\r\n\s]+/g, ' ');
   
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
@@ -777,3 +800,19 @@ export function getIndentationLevel(line: string) {
     margin: 0
   };
 }// getIndentationLevel
+
+export function getLanguageSpecificColorClass(codeblockLanguage: string, languageSpecificColors: Record<string, Record<string, string>> | null, languageSpecificColor?: Record<string, string>) {
+  let codeblockLanguageSpecificClass = "";
+
+  // Check if languageSpecificColors contains properties
+  if (languageSpecificColors!== null && languageSpecificColors[codeblockLanguage] && Object.keys(languageSpecificColors[codeblockLanguage]).length > 0) {
+    codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + codeblockLanguage.toLowerCase();
+  }
+
+  // Check if additionalColors contains properties
+  if (languageSpecificColor && Object.keys(languageSpecificColor).length > 0) {
+    codeblockLanguageSpecificClass += "codeblock-customizer-languageSpecific-" + codeblockLanguage.toLowerCase();
+  }
+
+  return codeblockLanguageSpecificClass;
+}// getLanguageSpecificColorClass

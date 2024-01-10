@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation } from "obsidian";
 
-import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getTextValues, checkLineForLinks } from "./Utils";
+import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getTextValues, checkLineForLinks, getLanguageSpecificColorClass } from "./Utils";
 import CodeblockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -173,19 +173,23 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (codeblockDetails.isCodeBlockExcluded)
       continue;
 
-    await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement, indentationLevels);
+    const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(codeblockDetails.codeBlockLang, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
+    await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass);
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null) {
+async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string) {
   preElement.classList.add(`codeblock-customizer-pre`);
 
   const copyButton = createCopyButton(codeblockDetails.codeBlockLang);
   copyButton.addEventListener("click", copyCode);
   preElement.appendChild(copyButton);
 
-  if (codeblockDetails.codeBlockLang)
+  if (codeblockDetails.codeBlockLang) {
     preElement.classList.add(`codeblock-customizer-language-` + codeblockDetails.codeBlockLang.toLowerCase());
+    if (codeblockLanguageSpecificClass)
+      preElement.classList.add(codeblockLanguageSpecificClass);
+  }
 
   if (preElement.parentElement)
     preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
@@ -204,7 +208,7 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
     }
   }
 
-  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines, plugin.settings.SelectedTheme.settings.codeblock.enableLinks);
+  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines, plugin.settings.SelectedTheme.settings.codeblock.enableLinks, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
   preElement.insertBefore(header, preElement.childNodes[0]);
 	
   const lines = Array.from(preCodeElm.innerHTML.split('\n')) || 0;
@@ -308,10 +312,11 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
   return;
 }// handlePDFExport
 
-function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number, enableLinks: boolean) {
+function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number, enableLinks: boolean, languageSpecificColors: Record<string, Record<string, string>>) {
   const parent = preElements.parentNode;
+  const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(languageName, languageSpecificColors);
+  const container = createContainer(specificHeader, languageName, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
 
-  const container = createContainer(specificHeader, languageName, false); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
   if (displayLanguageName){
     const Icon = getLanguageIcon(displayLanguageName)
     if (Icon) {
@@ -997,7 +1002,8 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeblockCusto
     if (codeblockDetails.isCodeBlockExcluded)
       continue;
 
-    await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement, null);
+    const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(codeblockDetails.codeBlockLang, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
+    await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass);
   }
 }// PDFExport
 

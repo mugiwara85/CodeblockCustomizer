@@ -23,11 +23,14 @@ export interface Colors {
     textColor: string;
   },
   editorActiveLineColor: string;
+  languageSpecificColors: Record<string, Record<string, string>>;
 }
 
 export interface ThemeColors {
   dark: Colors;
   light: Colors;
+  /*darkLanguageSpecific: Record<string, Colors>;
+  lightLanguageSpecific: Record<string, Colors>;*/
 }
 
 export interface ThemeSettings {
@@ -88,6 +91,9 @@ export interface CodeblockCustomizerSettings {
   alternateHighlightColorName: string;
   languageBorderColorName: string;
   foldAllCommand: boolean;
+  settingsType: string;
+  langSpecificSettingsType: string;
+  languageSpecificLanguageName: string;
 }
 
 // dark
@@ -121,6 +127,62 @@ export const L_LANG_BACKGROUND_COLOR = '#B8B5AA';
 export const L_GUTTER_ACTIVE_LINENR_COLOR = '#866704';
 export const L_INLINE_CODE_BACKGROUND_COLOR = '#E9DFBA';
 export const L_INLINE_CODE_TEXT_COLOR = '#866704';
+
+const SolarizedDarkColors = {
+  codeblock: {
+    activeLineColor: D_ACTIVE_CODEBLOCK_LINE_COLOR,
+    backgroundColor: D_BACKGROUND_COLOR,
+    highlightColor: D_HIGHLIGHT_COLOR,
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+  },
+  header: {
+    backgroundColor: D_HEADER_COLOR,
+    textColor: D_HEADER_TEXT_COLOR,
+    lineColor: D_HEADER_LINE_COLOR,
+    codeBlockLangTextColor: D_LANG_COLOR,
+    codeBlockLangBackgroundColor: D_LANG_BACKGROUND_COLOR,
+  },
+  gutter: {
+    textColor: D_GUTTER_TEXT_COLOR,
+    backgroundColor: D_GUTTER_BACKGROUND_COLOR,
+    activeLineNrColor: D_GUTTER_ACTIVE_LINENR_COLOR,
+  },
+  inlineCode: {
+    backgroundColor: D_INLINE_CODE_BACKGROUND_COLOR,
+    textColor: D_INLINE_CODE_TEXT_COLOR,
+  },
+  editorActiveLineColor: D_ACTIVE_LINE_COLOR,
+  languageSpecificColors: {},
+}
+
+const SolarizedLightColors = {
+  codeblock: {
+    activeLineColor: L_ACTIVE_CODEBLOCK_LINE_COLOR,
+    backgroundColor: L_BACKGROUND_COLOR,
+    highlightColor: L_HIGHLIGHT_COLOR,
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+  },
+  header: {
+    backgroundColor: L_HEADER_COLOR,
+    textColor: L_HEADER_TEXT_COLOR,
+    lineColor: L_HEADER_LINE_COLOR,
+    codeBlockLangTextColor: L_LANG_COLOR,
+    codeBlockLangBackgroundColor: L_LANG_BACKGROUND_COLOR,
+  },
+  gutter: {
+    textColor: L_GUTTER_TEXT_COLOR,
+    backgroundColor: L_GUTTER_BACKGROUND_COLOR,
+    activeLineNrColor: L_GUTTER_ACTIVE_LINENR_COLOR,
+  },
+  inlineCode: {
+    backgroundColor: L_INLINE_CODE_BACKGROUND_COLOR,
+    textColor: L_INLINE_CODE_TEXT_COLOR,
+  },
+  editorActiveLineColor: L_ACTIVE_LINE_COLOR,
+  languageSpecificColors: {},
+}
 
 const Solarized: Theme = {
   settings: {
@@ -167,59 +229,67 @@ const Solarized: Theme = {
     enableEditorActiveLineHighlight: true,
   },
   colors: {
-    dark: {
-      codeblock: {
-        activeLineColor: D_ACTIVE_CODEBLOCK_LINE_COLOR,
-        backgroundColor: D_BACKGROUND_COLOR,
-        highlightColor: D_HIGHLIGHT_COLOR,
-        alternateHighlightColors: {},
-        languageBorderColors: {},
-      },
-      header: {
-        backgroundColor: D_HEADER_COLOR,
-        textColor: D_HEADER_TEXT_COLOR,
-        lineColor: D_HEADER_LINE_COLOR,
-        codeBlockLangTextColor: D_LANG_COLOR,
-        codeBlockLangBackgroundColor: D_LANG_BACKGROUND_COLOR,
-      },
-      gutter: {
-        textColor: D_GUTTER_TEXT_COLOR,
-        backgroundColor: D_GUTTER_BACKGROUND_COLOR,
-        activeLineNrColor: D_GUTTER_ACTIVE_LINENR_COLOR,
-      },
-      inlineCode: {
-        backgroundColor: D_INLINE_CODE_BACKGROUND_COLOR,
-        textColor: D_INLINE_CODE_TEXT_COLOR,
-      },
-      editorActiveLineColor: D_ACTIVE_LINE_COLOR,
-    },
-    light: {
-      codeblock: {
-        activeLineColor: L_ACTIVE_CODEBLOCK_LINE_COLOR,
-        backgroundColor: L_BACKGROUND_COLOR,
-        highlightColor: L_HIGHLIGHT_COLOR,
-        alternateHighlightColors: {},
-        languageBorderColors: {},
-      },
-      header: {
-        backgroundColor: L_HEADER_COLOR,
-        textColor: L_HEADER_TEXT_COLOR,
-        lineColor: L_HEADER_LINE_COLOR,
-        codeBlockLangTextColor: L_LANG_COLOR,
-        codeBlockLangBackgroundColor: L_LANG_BACKGROUND_COLOR,
-      },
-      gutter: {
-        textColor: L_GUTTER_TEXT_COLOR,
-        backgroundColor: L_GUTTER_BACKGROUND_COLOR,
-        activeLineNrColor: L_GUTTER_ACTIVE_LINENR_COLOR,
-      },
-      inlineCode: {
-        backgroundColor: L_INLINE_CODE_BACKGROUND_COLOR,
-        textColor: L_INLINE_CODE_TEXT_COLOR,
-      },
-      editorActiveLineColor: L_ACTIVE_LINE_COLOR,
-    },
+    dark: SolarizedDarkColors,
+    light: SolarizedLightColors,
+    /*darkLanguageSpecific: {SolarizedDarkColors},
+    lightLanguageSpecific: {SolarizedLightColors},*/
   },
+}
+
+const ObsidianDarkColors = {
+  codeblock: {
+    activeLineColor: "--color-base-30",
+    backgroundColor: "--code-background",
+    highlightColor: "--text-highlight-bg",
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+  },
+  header: {
+    backgroundColor: "--code-background",
+    textColor: "--text-normal",
+    lineColor: "--color-base-30",
+    codeBlockLangTextColor: "--code-comment",
+    codeBlockLangBackgroundColor: "--code-background",
+  },
+  gutter: {
+    textColor: "--text-faint",
+    backgroundColor: "--code-background",
+    activeLineNrColor: "--text-muted",
+  },
+  inlineCode: {
+    backgroundColor: "--code-background",
+    textColor: "--code-normal",
+  },
+  editorActiveLineColor: "--color-base-20",
+  languageSpecificColors: {},
+}
+
+const ObsidianLightColors = {
+  codeblock: {
+    activeLineColor: "--color-base-30",
+    backgroundColor: "--code-background",
+    highlightColor: "--text-highlight-bg",
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+  },
+  header: {
+    backgroundColor: "--code-background",
+    textColor: "--text-normal",
+    lineColor: "--color-base-30",
+    codeBlockLangTextColor: "--code-comment",
+    codeBlockLangBackgroundColor: "--code-background",
+  },
+  gutter: {
+    textColor: "--text-faint",
+    backgroundColor: "--code-background",
+    activeLineNrColor: "--text-muted",
+  },
+  inlineCode: {
+    backgroundColor: "--code-background",
+    textColor: "--code-normal",
+  },
+  editorActiveLineColor: "--color-base-20",
+  languageSpecificColors: {},
 }
 
 const Obsidian: Theme = {
@@ -267,58 +337,10 @@ const Obsidian: Theme = {
     enableEditorActiveLineHighlight: true,
   },
   colors: {
-    dark: {
-      codeblock: {
-        activeLineColor: "--color-base-30",
-        backgroundColor: "--code-background",
-        highlightColor: "--text-highlight-bg",
-        alternateHighlightColors: {},
-        languageBorderColors: {},
-      },
-      header: {
-        backgroundColor: "--code-background",
-        textColor: "--text-normal",
-        lineColor: "--color-base-30",
-        codeBlockLangTextColor: "--code-comment",
-        codeBlockLangBackgroundColor: "--code-background",
-      },
-      gutter: {
-        textColor: "--text-faint",
-        backgroundColor: "--code-background",
-        activeLineNrColor: "--text-muted",
-      },
-      inlineCode: {
-        backgroundColor: "--code-background",
-        textColor: "--code-normal",
-      },
-      editorActiveLineColor: "--color-base-20",
-    },
-    light: {
-      codeblock: {
-        activeLineColor: "--color-base-30",
-        backgroundColor: "--code-background",
-        highlightColor: "--text-highlight-bg",
-        alternateHighlightColors: {},
-        languageBorderColors: {},
-      },
-      header: {
-        backgroundColor: "--code-background",
-        textColor: "--text-normal",
-        lineColor: "--color-base-30",
-        codeBlockLangTextColor: "--code-comment",
-        codeBlockLangBackgroundColor: "--code-background",
-      },
-      gutter: {
-        textColor: "--text-faint",
-        backgroundColor: "--code-background",
-        activeLineNrColor: "--text-muted",
-      },
-      inlineCode: {
-        backgroundColor: "--code-background",
-        textColor: "--code-normal",
-      },
-      editorActiveLineColor: "--color-base-20",
-    },
+    dark: ObsidianDarkColors,
+    light: ObsidianLightColors,
+    /*darkLanguageSpecific: {ObsidianDarkColors},
+    lightLanguageSpecific: {ObsidianLightColors},*/
   },
 }
 
@@ -334,4 +356,7 @@ export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
   alternateHighlightColorName: "",
   languageBorderColorName: "",
   foldAllCommand: false,
+  settingsType: "basic",
+  langSpecificSettingsType: "",
+  languageSpecificLanguageName: "",
 }
