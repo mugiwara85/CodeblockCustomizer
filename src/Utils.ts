@@ -816,3 +816,11 @@ export function getLanguageSpecificColorClass(codeblockLanguage: string, languag
 
   return codeblockLanguageSpecificClass;
 }// getLanguageSpecificColorClass
+
+export function createObjectCopy(object: Record<string, string>){
+  const newObject: Record<string, string> = {};
+  for (const [property, value] of Object.entries(object)) {
+    newObject[property] = value;
+  }
+  return newObject;
+}//createObjectCopy

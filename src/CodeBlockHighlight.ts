@@ -3,7 +3,7 @@ import { RangeSet, EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues, getIndentationLevel, getLanguageSpecificColorClass } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { App, setIcon } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
@@ -55,12 +55,8 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
       
       update(update: ViewUpdate) {
         if (this.shouldUpdate(update)) {
-          for (const [name, color] of Object.entries(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors)) {
-            this.prevAlternateColors[name] = color;
-          }
-          for (const [name, color] of Object.entries(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors)) {
-            this.prevBorderColors[name] = color;
-          }
+          this.prevAlternateColors = createObjectCopy(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors || {});
+          this.prevBorderColors = createObjectCopy(this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors || {});
           this.prevExcludeLangs = this.settings.ExcludeLangs;
           this.decorations = this.buildDecorations(update.view);
         }

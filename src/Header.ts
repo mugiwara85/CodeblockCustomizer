@@ -1,7 +1,7 @@
 import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Text, Line } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 
-import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel, getLanguageSpecificColorClass } from "./Utils";
+import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -279,7 +279,7 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.settings = settings;
     this.enableLinks = settings.SelectedTheme.settings.codeblock.enableLinks;
     this.marginLeft = marginLeft;
-    this.languageSpecificColors = createObjectCopy(settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.languageName] || {});//settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName === null ? "" : languageName];
+    this.languageSpecificColors = createObjectCopy(settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.languageName] || {});
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
@@ -353,14 +353,6 @@ class TextAboveCodeblockWidget extends WidgetType {
   }
   
 }// TextAboveCodeblockWidget
-
-function createObjectCopy(languageSpecificColors: Record<string, string>){
-  const newObject: Record<string, string> = {};
-  for (const [property, value] of Object.entries(languageSpecificColors)) {
-    newObject[property] = value;
-  }
-  return newObject;
-}//createObjectCopy
 
 function areObjectsEqual(obj1: Record<string, string> | null | undefined, obj2: Record<string, string> | null | undefined): boolean {
   if (obj1 === null && obj2 === null) {

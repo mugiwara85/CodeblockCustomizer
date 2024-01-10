@@ -29,8 +29,6 @@ export interface Colors {
 export interface ThemeColors {
   dark: Colors;
   light: Colors;
-  /*darkLanguageSpecific: Record<string, Colors>;
-  lightLanguageSpecific: Record<string, Colors>;*/
 }
 
 export interface ThemeSettings {
@@ -231,8 +229,6 @@ const Solarized: Theme = {
   colors: {
     dark: SolarizedDarkColors,
     light: SolarizedLightColors,
-    /*darkLanguageSpecific: {SolarizedDarkColors},
-    lightLanguageSpecific: {SolarizedLightColors},*/
   },
 }
 
@@ -339,8 +335,6 @@ const Obsidian: Theme = {
   colors: {
     dark: ObsidianDarkColors,
     light: ObsidianLightColors,
-    /*darkLanguageSpecific: {ObsidianDarkColors},
-    lightLanguageSpecific: {ObsidianLightColors},*/
   },
 }
 
