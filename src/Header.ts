@@ -3,8 +3,9 @@ import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/v
 
 import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
-import { setIcon } from "obsidian";
+import { editorInfoField, setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
+import CodeBlockCustomizerPlugin from "./main";
 
 type Ranges = {
   replaceStart: Line;
@@ -134,6 +135,7 @@ export function foldAll(view: EditorView, settings: CodeblockCustomizerSettings,
 }// foldAll
 
 let settings: CodeblockCustomizerSettings;
+let plugin: CodeBlockCustomizerPlugin;
 export const codeblockHeader = StateField.define<DecorationSet>({
   create(state): DecorationSet {
     document.body.classList.remove('codeblock-customizer-header-collapse-command');
@@ -154,6 +156,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
     let numBackticks = 0;
     let inCodeBlock = false;
     let bExclude = false;
+    const sourcePath = transaction.state.field(editorInfoField)?.file?.path ?? "";
     
     for (let i = 1; i < transaction.state.doc.lines; i++) {
       const originalLineText = transaction.state.doc.line(i).text.toString();
@@ -162,7 +165,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
       const lang = getCodeBlockLanguage(lineText);
       bExclude = isExcluded(lineText, this.settings.ExcludeLangs);
       specificHeader = true;
-
+      
       const backtickMatch = lineText.match(/^`+(?!.*`)/);
       if (backtickMatch) {
         if (!inCodeBlock) {
@@ -186,7 +189,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
             }
             const hasLangBorderColor = getBorderColorByLanguage(lang || "", this.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).length > 0 ? true : false;
             // @ts-ignore
-            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings, margin));
+            builder.add(WidgetStart.from, WidgetStart.from, createDecorationWidget(fileName, getDisplayLanguageName(lang), lang, specificHeader, Fold, hasLangBorderColor, codeblockHeader.settings, margin, level, sourcePath, codeblockHeader.plugin));
             //EditorView.requestMeasure;
           }
         } else {
@@ -214,8 +217,8 @@ export const codeblockHeader = StateField.define<DecorationSet>({
   },
 });// codeblockHeader
 
-function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number) {
-  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings, marginLeft), block: true });
+function createDecorationWidget(textToDisplay: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number, indent: number, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+  return Decoration.widget({ widget: new TextAboveCodeblockWidget(textToDisplay, displayLanguageName, languageName, specificHeader, defaultFold, hasLangBorderColor, settings, marginLeft, indent, sourcePath, plugin), block: true });
 }// createDecorationWidget
 
 const Collapse = StateEffect.define<Range<Decoration>>();
@@ -266,9 +269,12 @@ class TextAboveCodeblockWidget extends WidgetType {
   settings: CodeblockCustomizerSettings;
   enableLinks: boolean;
   marginLeft: number;
+  indent: number;
   languageSpecificColors: Record<string, string>;
+  sourcePath: string;
+  plugin: CodeBlockCustomizerPlugin;
 
-  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number) {
+  constructor(text: string, displayLanguageName: string, languageName: string | null, specificHeader: boolean, defaultFold: boolean, hasLangBorderColor: boolean, settings: CodeblockCustomizerSettings, marginLeft: number, indent: number, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
     super();
     this.text = text;    
     this.displayLanguageName = displayLanguageName;
@@ -279,7 +285,10 @@ class TextAboveCodeblockWidget extends WidgetType {
     this.settings = settings;
     this.enableLinks = settings.SelectedTheme.settings.codeblock.enableLinks;
     this.marginLeft = marginLeft;
+    this.indent = indent;
     this.languageSpecificColors = createObjectCopy(settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.languageName] || {});
+    this.sourcePath = sourcePath;
+    this.plugin = plugin;
     this.observer = new MutationObserver(this.handleMutation);    
   }
   
@@ -306,6 +315,9 @@ class TextAboveCodeblockWidget extends WidgetType {
     other.hasLangBorderColor === this.hasLangBorderColor &&
     other.enableLinks === this.enableLinks &&
     other.marginLeft === this.marginLeft &&
+    other.indent === this.indent &&
+    other.sourcePath === this.sourcePath &&
+    other.plugin === this.plugin &&
     areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors);
   }
 
@@ -326,11 +338,13 @@ class TextAboveCodeblockWidget extends WidgetType {
       container.appendChild(createCodeblockLang(this.languageName));
     }
 
-    container.appendChild(createFileName(this.text, this.enableLinks));
+    container.appendChild(createFileName(this.text, this.enableLinks, this.sourcePath, this.plugin));
     const collapse = createCodeblockCollapse(this.defaultFold);
     container.appendChild(collapse);
-    if (this.marginLeft > 0) {
-      container.setAttribute("style", `margin-left:${this.marginLeft}px !important`);
+    //if (this.marginLeft > 0) {
+    if (this.indent > 0) {
+      container.setAttribute("style", `--level:${this.indent}; `);
+      container.classList.add(`indented-line`);
     }
     
     container.addEventListener("mousedown", this.mousedownEventHandler);

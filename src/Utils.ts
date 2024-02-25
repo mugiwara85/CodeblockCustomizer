@@ -1,8 +1,9 @@
-import { setIcon, editorLivePreviewField, Notice } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App } from "obsidian";
 import { EditorState } from "@codemirror/state";
 
 import { Languages, manualLang, Icons } from "./Const";
 import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
+import CodeBlockCustomizerPlugin from "./main";
 
 export function getCurrentMode() {
   const body = document.querySelector('body');
@@ -33,37 +34,44 @@ export function splitAndTrimString(str: string) {
   return str.split(",").map(s => s.trim());
 }// splitAndTrimString
 
-function extractValue(str: string, searchTerm: string) {
-  const originalStr = str;
-  str = str.toLowerCase();
-  
-  if (str.includes(searchTerm)) {
-    const startIndex = str.indexOf(searchTerm) + searchTerm.length;
-    let result = "";
-    if (str[startIndex] === "\"") {
-      const endIndex = str.indexOf("\"", startIndex + 1);
-      if (endIndex !== -1) {
-        result = originalStr.substring(startIndex + 1, endIndex);
+export function extractValue(str: string, searchTerm: string): string | null {
+  const originalStr = str.toLowerCase();
+  searchTerm = searchTerm.toLowerCase();
+
+  const delimiters = [":", "="];
+
+  for (const delimiter of delimiters) {
+    const searchWithDelimiter = searchTerm + delimiter;
+
+    if (originalStr.includes(searchWithDelimiter)) {
+      const startIndex = originalStr.indexOf(searchWithDelimiter) + searchWithDelimiter.length;
+      let result = "";
+
+      if (originalStr[startIndex] === "\"") {
+        const endIndex = originalStr.indexOf("\"", startIndex + 1);
+        if (endIndex !== -1) {
+          result = str.substring(startIndex + 1, endIndex);
+        } else {
+          result = str.substring(startIndex + 1);
+        }
       } else {
-        result = originalStr.substring(startIndex + 1);
+        const endIndex = originalStr.indexOf(" ", startIndex);
+        if (endIndex !== -1) {
+          result = str.substring(startIndex, endIndex);
+        } else {
+          result = str.substring(startIndex);
+        }
       }
-    } else {
-      const endIndex = str.indexOf(" ", startIndex);
-      if (endIndex !== -1) {
-        result = originalStr.substring(startIndex, endIndex);
-      } else {
-        result = originalStr.substring(startIndex);
-      }
+      return result.trim();
     }
-    return result.trim();
   }
-  
+
   return null;
 }// extractValue
 
 export function extractFileTitle(str: string): string | null {
-  const file =  extractValue(str, "file:");
-  const title =  extractValue(str, "title:");
+  const file =  extractValue(str, "file");
+  const title =  extractValue(str, "title");
 
   if (file && title)
     return file;
@@ -137,20 +145,124 @@ export function extractParameter(str: string, searchTerm: string): string | null
   str = str.toLowerCase();
   searchTerm = searchTerm.toLowerCase();
 
-  if (str.includes(searchTerm)) {
-    const startIndex = str.indexOf(searchTerm) + searchTerm.length;
-    const endIndex = str.indexOf(" ", startIndex);
-    if (endIndex !== -1) {
-      return originalStr.substring(startIndex, endIndex).trim();
-    } else {
-      return originalStr.substring(startIndex).trim();
+  const delimiters = [":", "="];
+
+  for (const delimiter of delimiters) {
+    const searchWithDelimiter = searchTerm + delimiter;
+
+    if (str.includes(searchWithDelimiter)) {
+      const startIndex = str.indexOf(searchWithDelimiter) + searchWithDelimiter.length;
+      let endIndex = -1;
+
+      // Check if the value is enclosed in quotes
+      if (str[startIndex] === '"') {
+        const closingQuoteIndex = str.indexOf('"', startIndex + 1);
+        if (closingQuoteIndex !== -1) {
+          endIndex = closingQuoteIndex + 1;
+        }
+      } else {
+        // If not enclosed in quotes, find the next space
+        endIndex = str.indexOf(" ", startIndex);
+      }
+
+      if (endIndex !== -1) {
+        let extractedValue = originalStr.substring(startIndex, endIndex).trim();
+
+        // Remove the first and last double quotes if present
+        if (extractedValue.startsWith('"') && extractedValue.endsWith('"')) {
+          extractedValue = extractedValue.slice(1, -1);
+        }
+
+        return extractedValue;
+      } else {
+        let extractedValue = originalStr.substring(startIndex).trim();
+
+        // Remove the first and last double quotes if present
+        if (extractedValue.startsWith('"') && extractedValue.endsWith('"')) {
+          extractedValue = extractedValue.slice(1, -1);
+        }
+
+        return extractedValue;
+      }
     }
   }
 
   return null;
 }// extractParameter
 
-export function getHighlightedLines(params: string | null): number[] {
+export interface HighlightLines {
+  lines: number[];
+  words: string;
+  lineSpecificWords: Record<number, string>;
+}
+
+export function getHighlightedLines(params: string | null): HighlightLines {
+  if (!params) {
+    return {
+      lines: [],
+      words: '',
+      lineSpecificWords: {},
+    };
+  }
+
+  const trimmedParams = params.trim();
+  const result: HighlightLines = {
+    lines: [],
+    words: '',
+    lineSpecificWords: {},
+  };
+
+  const segments = trimmedParams.split(",");
+  segments.forEach(segment => {
+    let lineSegment = '';
+    let segmentValue = '';
+
+    if (segment.includes("|")) {
+      const [lineOrRange, val] = segment.split("|");
+      lineSegment = lineOrRange.trim();
+      segmentValue = val.trim();
+    } else {
+      lineSegment = segment.trim();
+    }
+
+    if (lineSegment !== '' && segmentValue === '') {
+      const isNumber = (value: string): boolean => !isNaN(Number(value));
+      if (isNumber(lineSegment)) { // number only
+        result.lines.push(Number(lineSegment));
+      } else {
+        if (lineSegment.includes("-")) { // range without text
+          processRange(lineSegment, segmentValue, result.lines);
+        } else { // text only
+          result.words += result.words ? "," + lineSegment : lineSegment;
+        }
+      }
+    } else if (lineSegment !== '' && segmentValue !== '') {
+      if (lineSegment.includes("-")) { // range with text
+        processRange(lineSegment, segmentValue, result.lineSpecificWords);
+      } else { // number with text
+        result.lineSpecificWords[Number(lineSegment)] = result.lineSpecificWords.hasOwnProperty(Number(lineSegment)) ? result.lineSpecificWords[Number(lineSegment)] + ',' + segmentValue : segmentValue;
+      }
+    }
+  });
+
+  return result;
+}// getHighlightedLines
+
+function processRange<T>(segment: string, segmentValue: string, result: T): void {
+  const range = getLineRanges(segment);
+  // Assuming T is either number[] or Record<number, string>
+  if (Array.isArray(result)) {
+    result.push(...range);
+  } else {
+    range.forEach((num) => {
+      const existingValue = (result as Record<number, string>)[num];
+      const updatedValue = existingValue ? `${existingValue},${segmentValue}` : segmentValue;
+      (result as Record<number, string>)[num] = updatedValue;
+    });
+  }
+}//processRange
+
+export function getLineRanges(params: string | null): number[] {
   if (!params) {
     return [];
   }
@@ -167,7 +279,7 @@ export function getHighlightedLines(params: string | null): number[] {
     }
     return parseInt(line, 10);
   }).flat();
-}// getHighlightedLines
+}// getLineRanges
 
 export function isExcluded(lineText: string, excludeLangs: string) : boolean {
   if (isParameterDefined("exclude", lineText))
@@ -269,53 +381,18 @@ export function createCodeblockCollapse(defaultFold: boolean) {
   return collapse;
 }// createCodeblockLang
 
-export function createFileName(text: string, enableLinks: boolean) {
-  const fileName = document.createElement("div");
-  fileName.classList.add("codeblock-customizer-header-text");
+export function createFileName(text: string, enableLinks: boolean, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+  const fileName = createDiv({cls: "codeblock-customizer-header-text"});
 
-  if (enableLinks)
-    return checkLineForLinks(fileName, text);
+  if (enableLinks) {
+    MarkdownRenderer.render(plugin.app, text, fileName, sourcePath, plugin);
+  }
   else {
     fileName.innerText = text;
-    return fileName;
   }
+  
+  return fileName;
 }// createFileName
-
-export function checkLineForLinks(element: HTMLElement, text: string) {
-  const regex = /\[\[(.*?)\]\]/g;
-  let match;
-  let currentIndex = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    const substring = match[1];
-    const startPosition = match.index;
-    const endPosition = regex.lastIndex;
-
-    if (startPosition > currentIndex) {
-      const textBeforeMatch = text.substring(currentIndex, startPosition);
-      const textNode = document.createTextNode(textBeforeMatch);
-      element.appendChild(textNode);
-    }
-
-    if (substring.length > 0) {
-      const { displayText, linkText } = getTextValues(substring);
-      const anchor = document.createElement("a");
-      anchor.innerText = displayText;
-      anchor.href = linkText;
-      anchor.classList.add("internal-link");
-      element.appendChild(anchor);
-    }
-    currentIndex = endPosition;
-  }
-
-  if (currentIndex < text.length) {
-    const textAfterLastMatch = text.substring(currentIndex);
-    const textNode = document.createTextNode(textAfterLastMatch);
-    element.appendChild(textNode);
-  }
-
-  return element;
-}// checkLineForLinks
 
 export function createUncollapseCodeButton() {
   const uncollapseCodeButton = document.createElement("span");
@@ -360,7 +437,7 @@ const stylesDict: StylesDict = {
   "inlineCode.textColor": 'inline-code-text-color',
 }// stylesDict
 
-export function updateSettingStyles(settings: CodeblockCustomizerSettings) {
+export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
   const styleId = 'codeblock-customizer-styles';
   let styleTag = document.getElementById(styleId);
   if (typeof(styleTag) == 'undefined' || styleTag == null) {
@@ -373,6 +450,12 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings) {
   const altHighlightStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {}).reduce((styling, [colorName, hexValue]) => {
     return styling + `
       .codeblock-customizer-line-highlighted-${colorName.replace(/\s+/g, '-').toLowerCase()} {
+        background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
+      }
+    ` + 
+    `
+      .codeblock-customizer-highlight-text-enabled .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()},
+      body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-highlighted-text-line-${colorName.replace(/\s+/g, '-').toLowerCase()} {
         background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
       }
     `;
@@ -416,7 +499,26 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings) {
       --codeblock-customizer-header-text-italic: ${settings.SelectedTheme.settings.header.italicText ? 'italic' : 'normal'};
     }
   `;
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles).trim().replace(/[\r\n\s]+/g, ' ');
+
+  // @ts-ignore
+  const theme = app.vault.getConfig("cssTheme");
+  let minimalSpecificStyling = "";
+  if (theme.toLowerCase() === "minimal") {
+    minimalSpecificStyling = `
+    .markdown-source-view.is-readable-line-width .indented-line {
+      left: calc(var(--list-indent) * calc(var(--level) * 0.5)) !important;
+      width: calc(var(--line-width) - calc(var(--list-indent) * var(--level))) !important;
+    }
+    `;
+  } else {
+    minimalSpecificStyling = `
+    .markdown-source-view.is-readable-line-width .indented-line {
+      left: calc(var(--list-indent) * var(--level));
+      width: calc(100% - var(--list-indent) * var(--level));
+    }
+    `;
+  }
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
   
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
@@ -522,6 +624,12 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.add('codeblock-customizer-show-indentation-lines');
   } else{
     document.body.classList.remove('codeblock-customizer-show-indentation-lines');
+  }
+
+  if (settings.codeblock.textHighlight) {
+    document.body.classList.add('codeblock-customizer-highlight-text-enabled');
+  } else{
+    document.body.classList.remove('codeblock-customizer-highlight-text-enabled');
   }
 
 }// updateSettingStyles
@@ -779,14 +887,19 @@ export function getIndentationLevel(line: string) {
 
     const indentationLevel = spacesCount + tabsCount;
     const additionalCharacters = spacesCount * 4 + tabsCount;
-    
+    const spaceWidth = 38; // 19
+    /*const body = document.body;
+    const computedStyle = getComputedStyle(body);
+    const colorValue = computedStyle.getPropertyValue("--list-indent").trim();
+    const spaceWidth = colorValue;*/
+
     let margin = 0;
     if (spacesCount > 0 && tabsCount === 0)
-      margin = (spacesCount * 19);
+      margin = (spacesCount * spaceWidth);
     else if (spacesCount === 0 && tabsCount > 0)
       margin = (20 + ((tabsCount - 1) * 32));
     else if (spacesCount > 0 && tabsCount > 0)
-      margin = (spacesCount * 19) + (20 + ((tabsCount - 1) * 32));
+      margin = (spacesCount * spaceWidth) + (20 + ((tabsCount - 1) * 32));
     
     return {
       level: indentationLevel,
@@ -824,3 +937,21 @@ export function createObjectCopy(object: Record<string, string>){
   }
   return newObject;
 }//createObjectCopy
+
+export function getValueNameByLineNumber(lineNumber: number, altLineSpecificWords: { name: string; lineNumber: number; value?: string }[]): { extractedValues: { value: string | undefined, name: string }[] } {
+  const matchingItems = altLineSpecificWords.filter(item => item.lineNumber === lineNumber);
+  const extractedValues = matchingItems.map(item => ({ value: item.value, name: item.name }));
+  return { extractedValues };
+}// getValueNameByLineNumber
+
+export function findAllOccurrences(mainString: string, substring: string): number[] {
+  const indices: number[] = [];
+  let currentIndex = mainString.indexOf(substring);
+
+  while (currentIndex !== -1) {
+    indices.push(currentIndex);
+    currentIndex = mainString.indexOf(substring, currentIndex + substring.length);
+  }
+  
+  return indices;
+}// findAllOccurrences

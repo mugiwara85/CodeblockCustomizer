@@ -40,6 +40,8 @@ export interface ThemeSettings {
     showIndentationLines: boolean;
     enableCopyCodeButton: boolean;
     enableLinks: boolean;
+    enableLinkUpdate: boolean;
+    textHighlight: boolean;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -192,6 +194,8 @@ const Solarized: Theme = {
       showIndentationLines: false,
       enableCopyCodeButton: false,
       enableLinks: false,
+      enableLinkUpdate: false,
+      textHighlight: true,
     },
     semiFold: {
       enableSemiFold: false,
@@ -298,6 +302,8 @@ const Obsidian: Theme = {
       showIndentationLines: false,
       enableCopyCodeButton: false,
       enableLinks: false,
+      enableLinkUpdate: false,
+      textHighlight: true,
     },
     semiFold: {
       enableSemiFold: false,

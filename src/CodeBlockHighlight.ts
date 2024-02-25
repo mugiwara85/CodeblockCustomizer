@@ -1,19 +1,20 @@
 import { EditorView, ViewUpdate, ViewPlugin, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
-import { RangeSet, EditorState, Range } from "@codemirror/state";
+import { RangeSet, EditorState, Range, Line } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 
-import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getTextValues, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy } from "./Utils";
+import { getHighlightedLines, isExcluded, getBorderColorByLanguage, getCurrentMode, getCodeBlockLanguage, extractParameter, isSourceMode, getDisplayLanguageName, addTextToClipboard, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy, getValueNameByLineNumber, findAllOccurrences } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
-import { App, setIcon } from "obsidian";
+import { App, MarkdownRenderer, setIcon, editorInfoField } from "obsidian";
 import { getCodeblockByHTMLTarget } from "./Header";
+import CodeBlockCustomizerPlugin from "./main";
 
 interface Codeblock {
   from: number;
   to: number;
 }
 
-export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: App) {
+export function codeblockHighlight(settings: CodeblockCustomizerSettings, plugin: CodeBlockCustomizerPlugin) {
   const viewPlugin = ViewPlugin.fromClass(
     class CodeblockHighlightPlugin {
       mutationObserver: MutationObserver;
@@ -38,7 +39,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         this.prevAlternateColors = {};
         this.prevBorderColors = {};
         this.prevExcludeLangs = "";
-        this.app = app;
+        this.app = plugin.app;
       }// initialize
 
       forceUpdate(editorView: EditorView) {
@@ -88,6 +89,10 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         let lineNumber = 0;
         let HL: number[] = [];
         let altHL: { name: string, lineNumber: number }[] = [];
+        let lineSpecificWords: Record<number, string> = {};
+        let altLineSpecificWords: { name: string; lineNumber: number; value?: string }[] = [];
+        let words = "";
+        let altWords: { name: string, words: string }[] = [];
         let showNumbers = "";
         let isSpecificNumber = false;
         const currentMode = getCurrentMode();
@@ -99,7 +104,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         const languageBorderColors = settings.SelectedTheme.colors[currentMode].codeblock.languageBorderColors || {};
         const languageSpecificColors = settings.SelectedTheme.colors[currentMode].languageSpecificColors;
         const decorations: Array<Range<Decoration>> = [];
-
+        const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
         if (!view.visibleRanges || view.visibleRanges.length === 0 || (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))) {
           return RangeSet.empty;
         }
@@ -113,7 +118,6 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
         let codeblockId = 0;
         let indentLevel = 0;
         let indentChars = 0;
-        let marginLeft = 0;
         for (const codeblock of deduplicatedCodeblocks) {
           syntaxTree(view.state).iterate({ from: codeblock.from, to: codeblock.to,
             enter(node) {
@@ -127,7 +131,6 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
                 const { level, characters, margin } = getIndentationLevel(originalLineText);
                 indentLevel = level;
                 indentChars = characters;
-                marginLeft = margin;
               }
               const endLine = node.type.name.includes("HyperMD-codeblock-end");
 
@@ -145,7 +148,7 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
               }
               
               if (settings.SelectedTheme.settings.codeblock.enableLinks)
-                checkForLinks(view, originalLineText, node, decorations, app);
+                checkForLinks(view, originalLineText, node, decorations, sourcePath, plugin);
 
               if (startLine) {
                 const result = processLineText(lineText, codeblockId, alternateColors);
@@ -155,20 +158,20 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
                 showNumbers = result.showNumbers;
                 HL = result.HL;
                 altHL = result.altHL;
+                lineSpecificWords = result.lineSpecificWords;
+                altLineSpecificWords = result.altLineSpecificWords;
+                words = result.words;
+                altWords = result.altWords;
               }
 
+              const caseInsensitiveLineText = (originalLineText ?? '').toLowerCase();
+
               let lineClass = `codeblock-customizer-line`;
-              if (HL.includes(lineNumber) && !startLine && !endLine) {
-                lineClass = `codeblock-customizer-line-highlighted`;
-              } else {
-                const altHLMatch = altHL.filter((hl) => hl.lineNumber === lineNumber);
-                if ((altHLMatch.length > 0) && !startLine && !endLine) {
-                  lineClass = `codeblock-customizer-line-highlighted-${altHLMatch[0].name.replace(/\s+/g, '-').toLowerCase()}`;
-                }
-              }
+              lineClass = highlightLinesOrWords(lineNumber, startLine, endLine, node, lineSpecificWords, words, HL, altHL, altLineSpecificWords, altWords, line, decorations, caseInsensitiveLineText, lineClass, settings)
+              
               lineClass = lineClass + " " + codeblockLanguageClass + " " + codeblockLanguageSpecificClass;
               let spanClass = "";
-              if (startLine){
+              if (startLine) {
                 spanClass = `codeblock-customizer-line-number-first`;
               }
               
@@ -194,10 +197,18 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
                   decorations.push(Decoration.widget({ widget: new deleteCodeWidget(codeblockId)}).range(node.from)); 
                   decorations.push(Decoration.widget({ widget: new copyCodeWidget(lang, codeblockId)}).range(node.from));
                 }
-
+                /*const unit = getIndentUnit(view.state);
+                console.log(unit);*/
+                /*
+                  console.log(this.app.vault.getConfig("useTab"));
+                  console.log(this.app.vault.getConfig("tabSize"));
+                 */
                 if (indentLevel > 0) {
-                  decorations.push(Decoration.mark({class: "codeblock-customizer-hidden-element"}).range(node.from, node.from + indentChars));
-                  decorations.push(Decoration.line({attributes: {"style": `margin-left:${marginLeft}px !important`}}).range(node.from)); 
+                  //decorations.push(Decoration.mark({class: "codeblock-customizer-hidden-element"}).range(node.from, node.from + indentChars));
+                  if (originalLineText.length > 0) {
+                    decorations.push(Decoration.replace({ widget: new indentHider() }).range(node.from, node.from + indentChars)); 
+                  }
+                  decorations.push(Decoration.line({attributes: {"style": `--level:${indentLevel}`, class: `indented-line`}}).range(node.from));
                 }
                 lineNumber++;
               }
@@ -215,79 +226,192 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, app: A
   return viewPlugin;
 }// codeblockHighlight
 
-function checkForLinks(view: EditorView, originalLineText: string, node: SyntaxNodeRef, decorations: Array<Range<Decoration>>, app: App) {
+function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, node: SyntaxNodeRef, lineSpecificWords: Record<number, string> = {}, words: string, HL: number[], altHL: { name: string, lineNumber: number }[], altLineSpecificWords: { name: string; lineNumber: number; value?: string }[], altWords: { name: string, words: string }[], line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, lineClass: string, settings: CodeblockCustomizerSettings) {
+  const addHighlightClass = (name = '') => {
+    const className = `codeblock-customizer-line-highlighted${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
+    return className;
+  };
+
+  const highlightLine = (words: string, name = '') => {
+    const caseInsensitiveWords = words.toLowerCase().split(',');
+    for (const word of caseInsensitiveWords) {
+      const retVal = setClass(line, decorations, caseInsensitiveLineText, word, settings, lineClass, name.replace(/\s+/g, '-').toLowerCase());
+      lineClass = retVal !== '' ? retVal : lineClass;
+    }
+    return lineClass;
+  };
+
+  const isCodeblockBg = node.type.name === "HyperMD-codeblock_HyperMD-codeblock-bg";
+
+  if (!startLine && !endLine) {
+    // highlight line by line number hl:1,3-5
+    if (HL.includes(lineNumber)) {
+      lineClass = addHighlightClass();
+    } 
+
+    // highlight specific lines if they contain a word hl:1|test,3-5|test
+    if (lineNumber in lineSpecificWords && isCodeblockBg) {
+      lineClass = highlightLine(lineSpecificWords[lineNumber]);
+    }
+
+    // highlight every line which contains a specific word hl:test
+    if (words.length > 0 && isCodeblockBg) {
+      const substringsArray = words.split(',');
+      substringsArray.forEach(substring => {
+        lineClass = highlightLine(substring);
+      });
+    }
+
+    // highlight line by line number imp:1,3-5
+    const altHLMatch = altHL.find(hl => hl.lineNumber === lineNumber);
+    if (altHLMatch) {
+      lineClass = addHighlightClass(altHLMatch.name);
+    }
+
+    // highlight specific lines if they contain a word imp:1|test,3-5|test
+    const altLineSpecificWord = altLineSpecificWords.find(item => item.lineNumber === lineNumber);
+    if (altLineSpecificWord && isCodeblockBg) {
+      const { extractedValues } = getValueNameByLineNumber(lineNumber, altLineSpecificWords);
+      extractedValues.forEach(({ value, name }) => {
+        lineClass = highlightLine(value ?? '', name);
+      });
+    }
+  
+    // highlight every line which contains a specific word imp:test
+    if (!startLine && !endLine && isCodeblockBg) {
+      for (const entry of altWords) {
+        const { name, words } = entry;
+        if (words.length > 0) {
+          lineClass = highlightLine(words, name);
+        }
+      }
+    }
+  }
+
+  return lineClass;
+}// highlightLinesOrWords
+
+function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, settings: CodeblockCustomizerSettings, lineClass: string, customClass = '') {
+  const occurrences = findAllOccurrences(caseInsensitiveLineText, word);
+
+  if (settings.SelectedTheme.settings.codeblock.textHighlight) {
+    occurrences.forEach((index, occurrenceIndex) => {
+      const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
+      decorations.push(Decoration.mark({ class: classToUse }).range(line.from + index, line.from + index + word.length));
+    });
+    lineClass = ``;
+  } else if (occurrences.length > 0) {
+    lineClass = customClass ? `codeblock-customizer-line-highlighted-${customClass}` : 'codeblock-customizer-line-highlighted';
+  }
+
+  return lineClass;
+}// setClass
+
+function checkForLinks(view: EditorView, originalLineText: string, node: SyntaxNodeRef, decorations: Array<Range<Decoration>>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
   const cursorPos = view.state.selection.main.head;
-  const regex = /\[\[(.*?)\]\]/g;
-  const linkClass = "cm-formatting-link";
-  const startClass = `${linkClass} cm-formatting-link-start`;
-  const endClass = `${linkClass} cm-formatting-link-end`;
-  let match;
-  while ((match = regex.exec(originalLineText)) !== null && (node.type.name === "HyperMD-codeblock_HyperMD-codeblock-bg" || node.type.name.includes("HyperMD-codeblock-begin"))) {
-    const substring = match[1];
-    const startPosition = match.index;
-    if ((cursorPos < node.from + startPosition || cursorPos > node.from + startPosition + substring.length + 4) && substring.length > 0 ) { // outside
-      decorations.push(Decoration.replace({}).range(node.from + startPosition, node.from + startPosition + 2));
-      decorations.push(Decoration.replace({}).range(node.from + startPosition + substring.length + 2, node.from + startPosition + substring.length + 4));
-      const { displayText, linkText } = getTextValues(substring);
-      decorations.push(Decoration.replace({ widget: new createLink(displayText, linkText, app) }).range(node.from + startPosition + 2, node.from + startPosition + substring.length + 2));
-    } else if (cursorPos >= node.from + startPosition || cursorPos <= node.from + startPosition + substring.length + 4 ) { // inside
-      decorations.push(Decoration.mark({class: startClass}).range(node.from + startPosition, node.from + startPosition + 2));
-      decorations.push(Decoration.mark({class: endClass}).range(node.from + startPosition + substring.length + 2, node.from + startPosition + substring.length + 4));
-      if (substring.length > 0)
-        decorations.push(Decoration.mark({class:"cm-hmd-internal-link"}).range(node.from + startPosition + 2, node.from + startPosition + substring.length + 2));
-    }                
+  //const regex = /(?:\[\[([^[\]]*)\]\]|\[([^\]]+)\]\(([^)]+)\))(?!\r?\n)/g;
+  //const regex = /(?:\[\[([^[\]]*)\]\]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
+  const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
+  
+  //----------------------------------------------
+  // only for comments
+  let comment = '';
+  if (node.type.name.includes("HyperMD-codeblock-begin") || node.type.name.includes("comment_hmd-codeblock")) {
+    comment = view.state.sliceDoc(node.from, node.to);
+  }  
+  const matches = [...comment.matchAll(regex)];
+  //----------------------------------------------
+  //const matches = [...originalLineText.matchAll(regex)]; // not only for comments
+
+  for (const match of matches) {
+    //if (node.type.name === "HyperMD-codeblock_HyperMD-codeblock-bg" || node.type.name.includes("HyperMD-codeblock-begin")) { // not only for comments
+      const fullMatch = match[0];
+      const startPosition = match.index !== undefined ? match.index : -1;
+      const isCursorInside = (cursorPos >= node.from + startPosition && cursorPos <= node.from + startPosition + fullMatch.length);
+
+      if (match[1] !== undefined && match[1] !== '') { // Double square bracket link: [[link]] or [[Link|DisplayText]]
+        handleWikiLink(isCursorInside, node, startPosition, fullMatch, decorations, sourcePath, plugin);
+      } else if (match[3] !== undefined && match[3] !== '') { // Square bracket followed by parentheses link: [DisplayText](Link)
+        handleMarkdownLink(isCursorInside, node, startPosition, fullMatch, decorations, sourcePath, plugin);
+      } else if (match[5] !== undefined && match[5] !== '') { // HTTP or HTTPS URL
+        handleHTTPLink(isCursorInside, node, startPosition, fullMatch, decorations, sourcePath, plugin);
+      }
+    //}
   }
 }// checkForLinks
 
-class createLink extends WidgetType {
-  private spanElement: HTMLSpanElement | null = null;
+function handleWikiLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+  const linkClass = "cm-formatting-link";
+  const startClass = `${linkClass} cm-formatting-link-start`;
+  const endClass = `${linkClass} cm-formatting-link-end`;
+  const startPosSquareBrackets = fullMatch.indexOf("[[");
+  const endPosSquareBrackets = fullMatch.lastIndexOf("]]");
+  if (!isCursorInside) {
+    decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
+  } else {
+    decorations.push(Decoration.mark({class: startClass}).range(node.from + startPosition + startPosSquareBrackets, node.from + startPosition + startPosSquareBrackets + 2));
+    decorations.push(Decoration.mark({class: endClass}).range(node.from + startPosition + endPosSquareBrackets, node.from + startPosition + endPosSquareBrackets+2));
+    if (fullMatch.length > 0)
+      decorations.push(Decoration.mark({class:"cm-hmd-internal-link"}).range(node.from + startPosition + startPosSquareBrackets + 2, node.from + startPosition + fullMatch.length - 2));
+  }
+}// handleWikiLink
 
-  constructor(private displayText: string, private linkText: string, private app: App) {
+function handleMarkdownLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+  const linkClass = "cm-formatting-link";
+  const startPosSquareBrackets = fullMatch.indexOf("[");
+  const endPosSquareBrackets = fullMatch.lastIndexOf("]");
+  const startPosParentheses = fullMatch.indexOf("(");
+  const endPosParentheses = fullMatch.lastIndexOf(")");
+
+  if (!isCursorInside) {
+    decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
+  } else {
+    decorations.push(Decoration.mark({class: `cm-formatting ${linkClass} cm-link`}).range(node.from + startPosition + startPosSquareBrackets, node.from + startPosition + startPosSquareBrackets + 1));
+    decorations.push(Decoration.mark({class: `cm-link`}).range(node.from + startPosition + startPosSquareBrackets + 1, node.from + startPosition + endPosSquareBrackets));
+    decorations.push(Decoration.mark({class: `cm-formatting ${linkClass} cm-link`}).range(node.from + startPosition + endPosSquareBrackets, node.from + startPosition + endPosSquareBrackets + 1));
+
+    decorations.push(Decoration.mark({class: `cm-formatting ${linkClass}-string cm-string cm-url`}).range(node.from + startPosition + startPosParentheses, node.from + startPosition + startPosParentheses + 1));
+    decorations.push(Decoration.mark({class: `cm-string cm-url`}).range(node.from + startPosition + startPosParentheses, node.from + startPosition + endPosParentheses));
+    decorations.push(Decoration.mark({class: `cm-formatting ${linkClass}-string cm-string cm-url`}).range(node.from + startPosition + endPosParentheses, node.from + startPosition + endPosParentheses + 1));
+  }
+}// handleMarkdownLink
+
+function handleHTTPLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+  if (isCursorInside) {
+    decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
+  } else {
+    decorations.push(Decoration.mark({class: `cm-url`}).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
+  }
+}// handleHTTPLink
+
+class indentHider extends WidgetType {
+
+  constructor() {
+    super();
+  }
+  
+  toDOM(view: EditorView): HTMLElement {
+    const span = createSpan({cls: "codeblock-customizer-hidden-element"});
+    return span;
+  }
+}// indentHider
+
+class createLink extends WidgetType {
+
+  constructor(private link: string, private sourcePath: string, private plugin: CodeBlockCustomizerPlugin) {
     super();
   }
 
   eq(other: createLink) {
-    return this.displayText === other.displayText && this.linkText === other.linkText && this.app === other.app;
+    return this.link === other.link && this.sourcePath === other.sourcePath && this.plugin === other.plugin;
   }
   
   toDOM(view: EditorView): HTMLElement {
-    const anchorElement = document.createElement("a");
-    anchorElement.classList.add("cm-hmd-internal-link");
-
-    this.spanElement = document.createElement("span");
-    this.spanElement.classList.add("cm-underline");
-    this.spanElement.innerText = this.displayText;
-    this.spanElement.setAttribute("data-path", this.linkText);
-    this.spanElement.addEventListener("click", (event) => openLink(event, this.app));
-    anchorElement.appendChild(this.spanElement);
-
-    return anchorElement;
-  }
-
-  destroy() {
-    if (this.spanElement) {
-      this.spanElement.removeEventListener("click", (event) => openLink(event, this.app));
-      this.spanElement = null;
-    }
+    const span = createSpan({cls: "codeblock-customizer-link"});
+    MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.plugin);
+    return span;
   }
 }// createLink
-
-function openLink(event: Event, app: App) {  
-  const targetElement = event.currentTarget as HTMLElement;
-
-  const dataPath = targetElement.getAttribute("data-path");
-  if (!dataPath)
-    return;
-
-  let sourcePath;  
-  let activeFile = app.workspace.getActiveFile();
-  if (activeFile) {
-    sourcePath = activeFile.path;
-  }
-
-  if (sourcePath)
-    app.workspace.openLinkText(dataPath, sourcePath);
-}// openLink
 
 function processLineText(lineText: string, codeblockId: number, alternateColors: Record<string, string>) {
   let lineNumber = 0;
@@ -295,12 +419,16 @@ function processLineText(lineText: string, codeblockId: number, alternateColors:
   let showNumbers = "";
   let HL: number[] = [];
   let altHL: { name: string, lineNumber: number }[] = [];
+  let lineSpecificWords: Record<number, string> = {};
+  let altLineSpecificWords: { name: string; lineNumber: number }[] = [];
+  let words = "";
+  const altWords: { name: string, words: string }[] = [];
 
   if (lineText) {
     lineNumber = 0;
     isSpecificNumber = false;
     codeblockId++;
-    const specificLN = extractParameter(lineText, "ln:") || "";
+    const specificLN = extractParameter(lineText, "ln") || "";
     if (specificLN.toLowerCase() === "true") {
       showNumbers = "specific";
     } else if (specificLN.toLowerCase() === "false") {
@@ -317,16 +445,25 @@ function processLineText(lineText: string, codeblockId: number, alternateColors:
       }
     }
 
-    const params = extractParameter(lineText, "HL:");
-    HL = getHighlightedLines(params);
-    
+    const params = extractParameter(lineText, "HL");
+    const linesToHighlight = getHighlightedLines(params);
+    HL = linesToHighlight.lines;
+    lineSpecificWords = linesToHighlight.lineSpecificWords;
+    words = linesToHighlight.words;
+
     for (const [name, hexValue] of Object.entries(alternateColors)) {
-      const altParams = extractParameter(lineText, `${name}:`);
-      altHL = altHL.concat(getHighlightedLines(altParams).map((lineNumber) => ({ name, lineNumber })));
+      const altParams = extractParameter(lineText, `${name}`);
+      const altlinesToHighlight = getHighlightedLines(altParams);
+      altHL = altHL.concat(altlinesToHighlight.lines.map((lineNumber) => ({ name, lineNumber })));
+      altLineSpecificWords = altLineSpecificWords.concat(
+        //altHL,
+        Object.entries(altlinesToHighlight.lineSpecificWords).map(([lineNumber, value]: [string, string]) => ({ name, lineNumber: parseInt(lineNumber), value }))
+      );
+      altWords.push({ name, words: altlinesToHighlight.words });
     }
   }
 
-  return { lineNumber, isSpecificNumber, codeblockId, showNumbers, HL, altHL };
+  return { lineNumber, isSpecificNumber, codeblockId, showNumbers, HL, lineSpecificWords, words, altHL, altLineSpecificWords, altWords };
 }// processLineText
 
 function getMaxWidth (view: EditorView, codeblockId: number) {

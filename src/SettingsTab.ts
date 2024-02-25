@@ -14,6 +14,7 @@ export class SettingsTab extends PluginSettingTab {
   pickerInstances: Pickr[];
   headerLangToggles: Setting[];
   headerLangIconToggles: Setting[];
+  linkUpdateToggle: Setting[];
 
   static COLOR_OPTIONS: ColorOptions = {
     "codeblock.activeLineColor": "Codeblock activeline color",
@@ -34,6 +35,7 @@ export class SettingsTab extends PluginSettingTab {
     this.pickerInstances = [];
     this.headerLangToggles = [];
     this.headerLangIconToggles = [];
+    this.linkUpdateToggle = [];
   }
 
   display(): void {
@@ -162,7 +164,7 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.SelectedTheme.settings.common.enableInSourceMode = value;
             await this.plugin.saveSettings();
-            updateSettingStyles(this.plugin.settings);
+            updateSettingStyles(this.plugin.settings, this.app);
           })
         );
   
@@ -174,7 +176,7 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.SelectedTheme.settings.enableEditorActiveLineHighlight = value;
             await this.plugin.saveSettings();
-            updateSettingStyles(this.plugin.settings);
+            updateSettingStyles(this.plugin.settings, this.app);
           })
         );
       
@@ -215,7 +217,7 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableActiveLineHighlight = value;          
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
         
@@ -233,46 +235,79 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
 
     new Setting(codeblockDiv)
       .setName('Show delete code button')
-      .setDesc('If enabled an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
+      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
 
     new Setting(codeblockDiv)
       .setName('Show indentation lines in reading view')
-      .setDesc('If enabled indentation lines will be shown in reading view.')
+      .setDesc('If enabled, indentation lines will be shown in reading view.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.showIndentationLines)
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.showIndentationLines = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
 
     new Setting(codeblockDiv)
       .setName('Enable links usage')
-      .setDesc('If enabled you can use links in the header and code blocks as well. Examples: [[Document1]], [[Document1|DisplayText]], [[Document1#Paragraph|DisplayText]], [[Document1#^<BlockId>|DisplayText]] etc.')
+      .setDesc('If enabled, you can use links in the header, and code blocks as well. In code blocks, you must comment them to work! Examples: [[Document1]], [[Document1|DisplayText]], [[Document1#Paragraph|DisplayText]], [[Document1#^<BlockId>|DisplayText]], [DisplayText](Link), http://example.com etc.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks)
         .onChange(async (value) => {
+          this.linkUpdateToggle.forEach(item => {
+            item.setDisabled(!value);
+          });
           this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks = value;
           await this.plugin.saveSettings();
         })
       );
 
-      codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
+    const enableLinkUpdate = new Setting(codeblockDiv)
+      .setName('Enable automatically updating links on file rename')
+      .setDesc('To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableLinkUpdate)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableLinkUpdate = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    this.linkUpdateToggle.push(enableLinkUpdate);
+  
+    if (!this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks){
+      this.linkUpdateToggle.forEach(item => {
+        item.setDisabled(true);
+      });
+    }
+
+    new Setting(codeblockDiv)
+      .setName('Highlight words instead of lines')
+      .setDesc('If enabled, and if a word is specified in the highlight parameter (e.g. hl:2|test) the word itself will be highlighted in the specified line, not the whole line. This setting has no effect, when only line numbers are defined for highlighting.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.textHighlight)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.textHighlight = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
 
     let enableSemiFoldToggle: ToggleComponent;
     let semiFoldLinesDropDown: DropdownComponent;
@@ -292,7 +327,7 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
           updateDependentSettings();
         })
       )
@@ -312,7 +347,7 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.semiFold.showAdditionalUncollapseButon = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
     updateDependentSettings();
@@ -330,7 +365,7 @@ export class SettingsTab extends PluginSettingTab {
       .onChange((value) => {
         this.plugin.settings.SelectedTheme.settings.codeblock.codeBlockBorderStylingPosition = value;
         (async () => {await this.plugin.saveSettings()})();
-        updateSettingStyles(this.plugin.settings);
+        updateSettingStyles(this.plugin.settings, this.app);
       })
     );
 
@@ -509,7 +544,7 @@ export class SettingsTab extends PluginSettingTab {
       .onChange((value) => {
         this.plugin.settings.SelectedTheme.settings.header.collapseIconPosition = value;
         (async () => {await this.plugin.saveSettings()})();
-        updateSettingStyles(this.plugin.settings);
+        updateSettingStyles(this.plugin.settings, this.app);
       })
     );
 
@@ -648,7 +683,7 @@ export class SettingsTab extends PluginSettingTab {
         .onChange((value) => {
           this.plugin.settings.SelectedTheme.settings.gutter.highlightActiveLineNr = value;
           (async () => {await this.plugin.saveSettings()})();
-          updateSettingStyles(this.plugin.settings);
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
     this.createPickrSetting(gutterDiv, 'Active line number color', 'To set this color enable the option "Hihglight active line number" first.', "gutter.activeLineNrColor");
@@ -729,7 +764,7 @@ export class SettingsTab extends PluginSettingTab {
   }// getRandomColor
      
   applyTheme() {
-    updateSettingStyles(this.plugin.settings);
+    updateSettingStyles(this.plugin.settings, this.app);
     this.plugin.saveSettings();
   }// applyTheme
     
@@ -791,7 +826,7 @@ export class SettingsTab extends PluginSettingTab {
             this.setAndSavePickrSetting(pickrClass, savedColor);
             // if the active line color changed update it
             if (pickrClass === 'editorActiveLineColor' || pickrClass === 'codeblock.activeLineColor'){
-              updateSettingStyles(this.plugin.settings);
+              updateSettingStyles(this.plugin.settings, this.app);
             }
         })
         .on('cancel', (instance: Pickr) => {
@@ -834,7 +869,7 @@ export class SettingsTab extends PluginSettingTab {
     return colorValue || '';
   }// getColorFromPickrClass
 
-  createAlternatePickr(containerEl: HTMLElement, colorContainer: HTMLElement, name: string, Color: string, type: string, colorKey: string = "", languageName: string = ""): Setting {
+  createAlternatePickr(containerEl: HTMLElement, colorContainer: HTMLElement, name: string, Color: string, type: string, colorKey = "", languageName = ""): Setting {
     let alternatePickr: Pickr;
     const desc = (type === "normal") ? "To higlight lines with this color use the \"" + name + "\" parameter. e.g: " + name + ":2,4-6" : "";
 
@@ -968,7 +1003,7 @@ export class SettingsTab extends PluginSettingTab {
     });
   }// updateLanguageBorderColorContainer
 
-  updateLanguageSpecificColorContainer(colorContainer: HTMLElement, language: string = "") {
+  updateLanguageSpecificColorContainer(colorContainer: HTMLElement, language = "") {
     colorContainer.empty();
   
     const languageColors = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;

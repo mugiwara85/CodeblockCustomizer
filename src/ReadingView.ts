@@ -1,24 +1,27 @@
-import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation } from "obsidian";
+import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer } from "obsidian";
 
-import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getTextValues, checkLineForLinks, getLanguageSpecificColorClass } from "./Utils";
-import CodeblockCustomizerPlugin from "./main";
+import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences } from "./Utils";
+import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
+
+import { visitParents } from "unist-util-visit-parents";
+import { fromHtml } from "hast-util-from-html";
+import { toHtml } from "hast-util-to-html";
 
 interface CodeBlockDetails {
   codeBlockLang: string;
   linesToHighlight: number[];
+  lineSpecificWords: Record<number, string>;
+  words: string;
   fileName: string;
   Fold: boolean;
   lineNumberOffset: number;
   showNumbers: string;
   altHL: { name: string; lineNumber: number }[];
+  altLineSpecificWords: { name: string; lineNumber: number }[];
+  altWords: { name: string, words: string }[];
   isCodeBlockExcluded: boolean;
-}
-
-interface OpenTag {
-  tag: string;
-  class: string | null;
 }
 
 interface IndentationInfo {
@@ -26,14 +29,14 @@ interface IndentationInfo {
   insertCollapse: boolean;
 }
 
-export async function ReadingView(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
+export async function ReadingView(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
   const codeElm: HTMLElement | null = codeBlockElement.querySelector('pre > code');
   if (!codeElm) 
     return;
 
   /*if (Array.from(codeElm.classList).some(className => /^language-\S+/.test(className)))
-    while(!codeElm.classList.contains("is-loaded"))
-      await sleep(2);*/
+  while(!codeElm.classList.contains("is-loaded"))
+    await sleep(2);*/
 
   const preElements: Array<HTMLElement> = Array.from(codeBlockElement.querySelectorAll('pre:not(.frontmatter)'));
   if (!preElements)
@@ -67,8 +70,8 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   }
   const indentationLevels = trackIndentation(codeLines);
   const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
-
-  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, plugin);
+  
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, context.sourcePath, plugin);
 }// ReadingView
 
 function trackIndentation(lines: string[]): IndentationInfo[] {
@@ -126,7 +129,7 @@ function trackIndentation(lines: string[]): IndentationInfo[] {
   return result;
 }// trackIndentation
 
-export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin) {
+export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
   await sleep(50); // need to find a better way instead of this...
 
   /*if (Array.from(codeBlockElement.classList).some(className => /^language-\S+/.test(className)))
@@ -150,11 +153,11 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
 
-    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, plugin);
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, context.sourcePath, plugin);
   }
 }// calloutPostProcessor
 
-async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, plugin: CodeblockCustomizerPlugin ) {
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, sourcepath: string, plugin: CodeBlockCustomizerPlugin ) {
   if (preElements.length !== codeBlockFirstLines.length)
   return;
 
@@ -168,17 +171,17 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className)))
       while(!preCodeElm.classList.contains("is-loaded"))
         await sleep(2);
-
+        
     const codeblockDetails = getCodeBlockDetails(codeBlockFirstLine, plugin.settings);
     if (codeblockDetails.isCodeBlockExcluded)
       continue;
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(codeblockDetails.codeBlockLang, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass);
+    await addClasses(preElement, codeblockDetails, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath);
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeblockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string) {
+async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDetails, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string) {
   preElement.classList.add(`codeblock-customizer-pre`);
 
   const copyButton = createCopyButton(codeblockDetails.codeBlockLang);
@@ -208,7 +211,7 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
     }
   }
 
-  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines, plugin.settings.SelectedTheme.settings.codeblock.enableLinks, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
+  const header = HeaderWidget(preElement as HTMLPreElement, fileName, specificHeader, getDisplayLanguageName(codeblockDetails.codeBlockLang), codeblockDetails.codeBlockLang, codeblockDetails.Fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines, plugin.settings.SelectedTheme.settings.codeblock.enableLinks, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors, sourcePath, plugin);
   preElement.insertBefore(header, preElement.childNodes[0]);
 	
   const lines = Array.from(preCodeElm.innerHTML.split('\n')) || 0;
@@ -222,7 +225,7 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-  highlightLines(preCodeElm, codeblockDetails, plugin.settings.SelectedTheme.settings, indentationLevels);
+  highlightLines(preCodeElm, codeblockDetails, plugin.settings.SelectedTheme.settings, indentationLevels, sourcePath, plugin);
 }// addClasses
 
 function createCopyButton(codeblockLanguage: string) {
@@ -276,7 +279,7 @@ function isFoldable(preElement: HTMLPreElement, linesLen: number, enableSemiFold
     preElement?.classList.add('codeblock-customizer-codeblock-collapseable');
 }// isFoldable
 
-async function handlePDFExport(preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeblockCustomizerPlugin, id: string | null) {
+async function handlePDFExport(preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, id: string | null) {
   const file = plugin.app.vault.getAbstractFileByPath(context.sourcePath);
   if (!file) {
     console.error(`File not found: ${context.sourcePath}`);
@@ -304,7 +307,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
 
   try {
     if (plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling)
-      await PDFExport(preElements, plugin, codeBlockFirstLines);
+      await PDFExport(preElements, plugin, codeBlockFirstLines, context.sourcePath);
   } catch (error) {
     console.error(`Error exporting to PDF: ${error.message}`);
     return;
@@ -312,7 +315,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
   return;
 }// handlePDFExport
 
-function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number, enableLinks: boolean, languageSpecificColors: Record<string, Record<string, string>>) {
+function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specificHeader: boolean, displayLanguageName: string, languageName: string, Collapse: boolean, semiFold: boolean, visibleLines: number, enableLinks: boolean, languageSpecificColors: Record<string, Record<string, string>>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
   const parent = preElements.parentNode;
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(languageName, languageSpecificColors);
   const container = createContainer(specificHeader, languageName, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
@@ -324,7 +327,7 @@ function HeaderWidget(preElements: HTMLPreElement, textToDisplay: string, specif
     }
     container.appendChild(createCodeblockLang(languageName));
   }
-  container.appendChild(createFileName(textToDisplay, enableLinks));
+  container.appendChild(createFileName(textToDisplay, enableLinks, sourcePath, plugin));
   const collapseEl = createCodeblockCollapse(Collapse);
   container.appendChild(collapseEl);
   if (parent)
@@ -419,13 +422,47 @@ function addIndentLine(inputString: string, insertCollapse = false): string {
   return insertCollapse ? modifiedString.replace(indentRegex, spans) : stringWithSpans;
 }// addIndentLine
 
-async function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null) {
+function extractLinesFromHTML(preCodeElm: HTMLElement): Array<string> {
+  const tree = fromHtml(preCodeElm.innerHTML.replace(/\n/g, "<br>"), { fragment: true });
+  let htmlContent = preCodeElm.innerHTML;
+
+  visitParents(tree, ["text", "element"], (node, parents) => {
+    if (node.type === "element" && node.tagName === "br") {
+      htmlContent = replaceNewlineWithBr(htmlContent, parents);
+    }
+  });
+
+  const splitTree = fromHtml(htmlContent);
+  htmlContent = toHtml(splitTree);
+
+  let lines = htmlContent.split("<br>");
+  if (lines.length === 1)
+    lines = ["", ""];
+  preCodeElm.innerHTML = "";
+
+  return lines;
+}// extractLinesFromHTML
+
+function replaceNewlineWithBr(htmlContent: string, parents: any[]): string {
+  const brReplacement = parents.length >= 2 ? replaceWithNestedBr(parents) : "<br>";
+  return htmlContent.replace(/\n/, brReplacement);
+}// replaceNewlineWithBr
+
+function replaceWithNestedBr(parents: any[]): string {
+  const nestedBr = parents.slice(1).reduce((ret: string, el) => {
+    const clonedElement = structuredClone(el);
+    clonedElement.children = [];
+    const tags = toHtml(clonedElement).split(/(?<=>)(?=<\/)/);
+    return tags.splice(-1) + ret + tags.join("");
+  }, "<br>");
+  return nestedBr;
+}// replaceWithNestedBr
+
+async function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlockDetails, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
   if (!preCodeElm)
     return;
 
-  let codeblockLines = preCodeElm.innerHTML.split("\n");
-  if (codeblockLines.length == 1)
-    codeblockLines = ['',''];
+  const codeblockLines = extractLinesFromHTML(preCodeElm);
 
   const codeblockLen = codeblockLines.length - 1;
   let useSemiFold = false;
@@ -434,8 +471,6 @@ async function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlo
   }
 
   let fadeOutLineIndex = 0;
-  preCodeElm.innerHTML = "";
-  const openTagsStack: OpenTag[] = [];
   codeblockLines.forEach((line, index) => {
     if (index === codeblockLines.length - 1)
       return;
@@ -481,7 +516,10 @@ async function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlo
     
     const indentedLine = addIndentLine(line, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
     // create line text element
-    const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine).join('') : indentedLine);
+    const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine);
+  
+    textHighlight(codeblockDetails, lineNumber, lineTextEl, lineWrapper);
+
     if (indentationLevels && indentationLevels[lineNumber - 1]) {
       const collapseIcon = lineTextEl.querySelector(".codeblock-customizer-collapse-icon");
       if (collapseIcon) {
@@ -489,223 +527,148 @@ async function highlightLines(preCodeElm: HTMLElement, codeblockDetails: CodeBlo
         collapseIcon.addEventListener("click", handleClick);
       }
     }
-    processHTMLtags(openTagsStack, lineTextEl, line);
     lineWrapper.appendChild(lineTextEl);
     lineWrapper.setAttribute("indentLevel", (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
   });
 }// highlightLines
 
-function parseInput(input: string): string[] {
-  const elements: string[] = getHTMLElements(input);
-  const ranges: { startElementIdx: number; endElementIdx: number, containsHashtag: boolean, rawLinkText: string }[] = getLinkRanges(elements);
+function textHighlight(codeblockDetails: CodeBlockDetails, lineNumber: number, lineTextEl: HTMLDivElement, lineWrapper: HTMLDivElement) {
+  const addHighlightClass = (name = '') => {
+    const className = `codeblock-customizer-highlighted-text-line${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
+    lineWrapper.classList.add(className);
+  };
 
-  ranges.forEach((range) => {
-    const { displayText, linkText } = getTextValues(range.rawLinkText);
-    elements[range.startElementIdx] = `<a href="${linkText}" class="internal-link "${elements[range.startElementIdx]}`;
-    if (range.containsHashtag) {
-    /*  const endElementText = getTextContentFromHTMLElementString(elements[range.endElementIdx]) || '';
-      console.log("endElementText = " + endElementText);
-      const closingTagPos = endElementText.indexOf(']]');
-      const hashTagPos = endElementText.indexOf('#');
-      const modifiedText = deleteCharactersAfter(insertString(endElementText, `</a>`, closingTagPos), closingTagPos + 4, 2);
-      const anchorStartPos = modifiedText.indexOf('<');
-      elements[range.endElementIdx] = modifiedText.slice(0, hashTagPos) + modifiedText.slice(anchorStartPos);
-      console.log("modifiedText = " + modifiedText.slice(0, hashTagPos) + modifiedText.slice(anchorStartPos));*/
-      elements[range.endElementIdx] = insertString(elements[range.endElementIdx], `</a>`, elements[range.endElementIdx].indexOf(']]')), elements[range.endElementIdx].indexOf(']]') + 4, 2;
-    } else {
-      elements[range.endElementIdx] = `${elements[range.endElementIdx]}</a>`;
+  const highlightLine = (words: string, name = '') => {
+    const caseInsensitiveWords = words.toLowerCase().split(',');
+    for (const word of caseInsensitiveWords) {
+      highlightWords(lineTextEl, word, name);
+      if (lineTextEl.textContent?.toLowerCase().includes(word)) {
+        addHighlightClass(name);
+      }
     }
+  };
 
-    for (let i = range.startElementIdx; i <= range.endElementIdx; i++) {
-      if (getTextContentFromHTMLElementString(elements[i])?.startsWith('#')) {
-        if (elements[i].length === 1)
-          elements[i] = '';
-        else {
-          const pattern = /#(.*?)]]/g;
-          const replacedString = elements[i].replace(pattern, '');
-          elements[i] = replacedString;
-        }
-      }
-      else {
-        elements[i] = updateTextContentOfHTMLElementString(elements[i], i === range.startElementIdx ? displayText : '');
-      }
+  // highlight specific lines if they contain a word hl:1|test,3-5|test
+  if (codeblockDetails.lineSpecificWords.hasOwnProperty(lineNumber)) {
+    highlightLine(codeblockDetails.lineSpecificWords[lineNumber] ?? '');
+  }
+
+  // highlight every line which contains a specific word hl:test
+  if (codeblockDetails.words.length > 0) {
+    highlightLine(codeblockDetails.words);
+  }
+
+  // highlight specific lines if they contain a word imp:1|test,3-5|test
+  if (codeblockDetails.altLineSpecificWords.some(item => item.lineNumber === lineNumber)) {
+    const { extractedValues } = getValueNameByLineNumber(lineNumber, codeblockDetails.altLineSpecificWords);
+    extractedValues.forEach(({ value, name }) => {
+      highlightLine(value ?? '', name);
+    });
+  }
+
+  // highlight every line which contains a specific word imp:test
+  codeblockDetails.altWords.forEach(({ name, words }) => {
+    if (words.length > 0) {
+      highlightLine(words, name);
     }
   });
+}// textHighlight
 
-  return elements;
-}// parseInput
+function highlightWords(node: Node, word: string, alternativeName?: string) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const textContent = node.textContent || '';
+    const occurrences = findAllOccurrences(textContent.toLowerCase(), word.toLowerCase());
 
-function getHTMLElements(input: string) {
-  const elements: string[] = [];
+    let offset = 0;
+    occurrences.forEach(index => {
+      const originalIndex = index + offset;
+      const beforeTextContent = textContent.substring(0, originalIndex);
+      const afterTextContent = textContent.substring(originalIndex + word.length);
 
-  let currentElement = '';
-  const stack: string[] = [];
+      const span = document.createElement('span');
+      span.className = alternativeName ? `codeblock-customizer-highlighted-text-${alternativeName}` : `codeblock-customizer-highlighted-text`;
+      span.appendChild(document.createTextNode(word));
 
-  const regex = /(<\/?[^>]+>)|([^<]+)/g;
-  const matches = input.match(regex);
+      const beforeText = document.createTextNode(beforeTextContent);
+      const afterText = document.createTextNode(afterTextContent);
 
-  if (matches) {
-    for (const match of matches) {
-      if (match.startsWith('</')) {
-        // Closing tag encountered
-        const openingTag = stack.pop();
-        currentElement += match;
-        if (!openingTag) {
-          elements.push(currentElement);
-          currentElement = '';
-        }
-      } else if (match.startsWith('<')) {
-        // Opening tag encountered
-        stack.push(match);
-        currentElement += match;
-      } else {
-        // Content
-        currentElement += match;
+      const parentNode = node.parentNode;
+      if (parentNode) {
+        parentNode.replaceChild(afterText, node);
+        parentNode.insertBefore(span, afterText);
+        parentNode.insertBefore(beforeText, span);
       }
 
-      if (stack.length === 0) {
-        elements.push(`${currentElement}`);
-        currentElement = '';
+      // After replacement, reprocess the modified content
+      highlightWords(afterText, word, alternativeName);
+
+      offset += (word.length - 1); // Adjust offset to account for replacement
+    });
+  } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const childNodes = Array.from(node.childNodes);
+      for (let i = 0; i < childNodes.length; i++) {
+        const childNode = childNodes[i];
+        highlightWords(childNode, word, alternativeName);
       }
-    }
   }
+}// highlightWords
 
-  return elements;
-}// getHTMLElements
-
-function handleSpanElement(elements: string[], i: number, element: string) {
-  const classes = getClassesFromHTMLElementString(element);
-  const spanElement = createSpan({ cls: classes });
-  elements[i] = checkLineForLinks(spanElement, getTextContentFromHTMLElementString(element) || '').outerHTML;
-}// handleSpanElement
-
-function insertString(originalString: string, insertion: string, position: number) {
-  return originalString.slice(0, position) + insertion + originalString.slice(position);
-}// insertString
-
-function deleteCharactersAfter(originalString: string, position: number, count: number) {
-  return originalString.slice(0, position) + originalString.slice(position + count);
-}// deleteCharactersAfter
-
-function getLinkRanges(elements: string[]) {
-  const ranges: { startElementIdx: number; endElementIdx: number, containsHashtag: boolean, rawLinkText: string }[] = [];
-  let startElementIdx = -1;
-  let endElementIdx = -1;
-
-  for (let i = 0; i < elements.length; i++) {
-    const element = elements[i];
-    const textContent = isHTMLElementString(element) ? getTextContentFromHTMLElementString(element) || '' : element;
-
-    const openingTag = '[[';
-    const closingTag = ']]';
-
-    // Case 1: <span>[[sdfsdf sd f]]</span>
-    if (textContent.length > 5 && textContent.includes(openingTag) && textContent.includes(closingTag)) {
-      handleSpanElement(elements, i, element);
-      continue;
-    } else if (textContent === '[') { 
-      // Case 2 and 3
-      const nextElementText = getTextContentFromHTMLElementString(elements[i + 1]) || '';
-      
-      if (nextElementText === '[') {
-        startElementIdx = i;
-        let j = i + 1;
-        let linkText = '';
-
-        while (j < elements.length) {
-          j++;
-          const nextElement = elements[j];
-          const prevElement = elements[j - 1];
-          const nextElementText = getTextContentFromHTMLElementString(nextElement) || '';
-          const prevElementText = getTextContentFromHTMLElementString(prevElement) || '';
-
-          linkText += nextElementText;
-
-          if ((prevElementText === ']' && nextElementText === ']') || nextElementText.includes(closingTag)) {
-            endElementIdx = j;
-            let containsHashtag = false;
-            let rawLinkText = '';
-            if (linkText.length > 2 && linkText.includes(closingTag)) {
-              const closingTagPos = linkText.indexOf(closingTag);
-              rawLinkText = linkText.substring(0, closingTagPos);// first link end
-
-              if (nextElementText.includes("#")) { //linkText.includes
-                containsHashtag = true;
-              }
-            }
-            if (startElementIdx !== -1 && endElementIdx !== -1 && rawLinkText.length > 0) {
-              ranges.push({ startElementIdx: startElementIdx, endElementIdx: endElementIdx, containsHashtag: containsHashtag, rawLinkText: rawLinkText });
-            }
-            startElementIdx = -1; 
-            endElementIdx = -1;
-            containsHashtag = false;
-          }
-        }
-      }
-    }
-  }
-
-  return ranges;
-}// getLinkRanges
-
-function getClassesFromHTMLElementString(input: string): string[] {
-  const tempElement = document.createElement('div');
-  tempElement.innerHTML = input;
-
-  const firstElement = tempElement.firstElementChild;
+function removeClassesWithWildcard(element: HTMLElement, classesToRemove: string[]): void {
+  const classes = element.classList;
   
-  if (firstElement) {
-    return Array.from(firstElement.classList);
-  }
-
-  return [];
-}// getClassesFromHTMLElementString
-
-function getTextContentFromHTMLElementString(input: string): string | null {
-  const tempElement = document.createElement('div');
-  tempElement.innerHTML = input;
-  return tempElement.textContent;
-}// extractTextContentFromHTMLElementString
-
-function updateTextContentOfHTMLElementString(input: string, newContent: string): string {
-  if (input.includes('<') && input.includes('>')) {
-    /*const sanitizedText = sanitizeHTMLToDom(input);
-    const tempElement = createDiv({text: sanitizedText});*/ // very slow...
-
-    const tempElement = document.createElement('div');
-    tempElement.innerHTML = input;
-
-    const existingElement = tempElement.firstElementChild;
-    if (existingElement) {
-      existingElement.textContent = newContent;
-    }
-
-    return tempElement.innerHTML;
-  } else {
-    return newContent;
-  }
-}// updateTextContentFromHTMLElementString
-
-function isHTMLElementString(input: string): boolean {
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(input, 'text/html');
-    return doc.body.childNodes.length > 0;
-  } catch (e) {
-    return false;
-  }
-}// isHTMLElementString
-
-function addClassToHtmlElement(htmlString: string, newClass: string) {
-  return htmlString.replace(/<(\w+)([^>]*)class="([^"]*)"(.*?)>/, (match, tagName, beforeClass, existingClasses, afterAttributes) => {
-    if (existingClasses.includes(newClass)) {
-      return match;
-    } else {
-      const updatedClasses = existingClasses + ' ' + newClass;
-      return `<${tagName}${beforeClass}class="${updatedClasses}"${afterAttributes}>`;
+  // Remove classes without wildcards
+  classesToRemove.forEach(className => {
+    if (!className.includes('*')) {
+      element.classList.remove(className);
     }
   });
-}// addClassToHtmlElement
+
+  for (let i = 0; i < classes.length; i++) {
+    const className = classes[i];
+    classesToRemove.forEach(classToRemove => {
+      if (classToRemove.includes('*')) {
+        const regexWildcard = classToRemove.replace(/\*/g, '.*');
+        const regex = new RegExp(regexWildcard);
+        if (regex.test(className)) {
+          element.classList.remove(className);
+        }
+      }
+    });
+  }
+}// removeClassesWithWildcard
+
+function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomizerPlugin): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(input, 'text/html');
+  const elementsWithClass = Array.from(doc.getElementsByClassName('comment'));
+  const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
+
+  elementsWithClass.forEach((element: Element) => {
+    const fragment = document.createDocumentFragment();
+    const textContent = element.textContent || '';
+    let lastIndex = 0;
+    const matches = [...textContent.matchAll(regex)];
+    
+    for (const match of matches) {
+      const textBeforeMatch = textContent.substring(lastIndex, match.index);
+      fragment.appendChild(document.createTextNode(textBeforeMatch));
+      
+      const span = createSpan({cls: "codeblock-customizer-link"});
+      MarkdownRenderer.render(plugin.app, match[0], span, sourcePath, plugin);
+      fragment.appendChild(span);
+      
+      lastIndex = match.index !== undefined ? match.index + match[0].length : lastIndex;
+    }
+
+    const textAfterLastMatch = textContent.substring(lastIndex);
+    fragment.appendChild(document.createTextNode(textAfterLastMatch));
+
+    element.textContent = '';
+    element.appendChild(fragment);
+  });
+  
+  return new XMLSerializer().serializeToString(doc);
+}// parseInput
 
 function handleClick(event: Event) {
   const collapseIcon = event.currentTarget as HTMLElement;
@@ -905,85 +868,7 @@ function addFadeEffect(lines: HTMLCollection, visibleLines: number) {
   }
 }// addFadeEffect
 
-function processHTMLtags(openTagsStack: OpenTag[], lineTextEl: HTMLDivElement, line: string) {
-  // Apply class of open HTML tag to subsequent lines until closing tag is found
-  if (openTagsStack.length > 0) {
-    const lastOpenTagClass = openTagsStack[openTagsStack.length - 1].class;
-    const tokens = lastOpenTagClass?.split(" ");
-
-    if (tokens) {
-      for (let k = 0; k < tokens.length; k++) {
-        lineTextEl.classList.add(tokens[k]);
-      }
-    }
-  }
-
-  // Check if the line contains HTML tags
-  if (line.includes("<") && line.includes(">")) {
-    const openingTags = line.match(/<[^/].*?>/g); // Find all opening HTML tags
-    const closingTags = line.match(/<\/.*?>/g); // Find all closing HTML tags
-
-    if (openingTags && closingTags) {
-      // Process each opening tag
-      for (const openingTag of openingTags) {
-        const tagClass = getClassFromHTMLTag(openingTag);
-
-        // Push the opening tag and its class to the stack
-        openTagsStack.push({ tag: openingTag, class: tagClass });
-      }
-
-      // Process each closing tag
-      for (const closingTag of closingTags) {
-        // Pop the last opening tag from the stack
-        const lastOpenTag = openTagsStack.pop();
-
-        // Check if the closing tag corresponds to the last opening tag
-        if (lastOpenTag && isClosingTagMatching(closingTag, lastOpenTag.tag)) {
-          // If matched, continue to the next line
-          continue;
-        } else {
-          // If not matched, push the last opening tag back to the stack
-          if (lastOpenTag) {
-            openTagsStack.push(lastOpenTag);
-          }
-          break; // Exit the loop since we found the unmatched closing tag
-        }
-      }
-    } else if (openingTags) {
-      // If there are only opening tags and no closing tags in the line
-      for (const openingTag of openingTags) {
-        const tagClass = getClassFromHTMLTag(openingTag);
-        openTagsStack.push({ tag: openingTag, class: tagClass });
-      }
-    } else if (closingTags) {
-      // If there are only closing tags and no opening tags in the line
-      for (const closingTag of closingTags) {
-        const lastOpenTag = openTagsStack.pop();
-        if (!lastOpenTag || !isClosingTagMatching(closingTag, lastOpenTag.tag)) {
-          if (lastOpenTag) {
-            openTagsStack.push(lastOpenTag);
-          }
-          break;
-        }
-      }
-    }
-  }
-}// processHTMLtags
-
-// Helper function to extract the class from an HTML tag
-function getClassFromHTMLTag(tag: string) {
-  const match = tag.match(/class=["']([^"']+)["']/);
-  return match ? match[1] : null;
-}// getClassFromHTMLTag
-
-// Helper function to check if a closing tag matches an opening tag
-function isClosingTagMatching(closingTag: string, openingTag: string) {
-  const closingTagName = closingTag.match(/<\/(\w+)/)?.[1];
-  const openingTagName = openingTag.match(/<(\w+)/)?.[1];
-  return closingTagName === openingTagName;
-}// isClosingTagMatching
-
-async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeblockCustomizerPlugin, codeBlockFirstLines: string[]) {
+async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCustomizerPlugin, codeBlockFirstLines: string[], sourcePath: string) {
   for (const [key, codeblockPreElement] of Array.from(codeBlockElement).entries()) {
     const codeblockParameters = codeBlockFirstLines[key];
     const codeblockDetails = getCodeBlockDetails(codeblockParameters, plugin.settings);  
@@ -1003,20 +888,24 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeblockCusto
       continue;
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(codeblockDetails.codeBlockLang, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass);
+    await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath);
   }
 }// PDFExport
 
 function getCodeBlockDetails(codeBlockFirstLine: string, pluginSettings: CodeblockCustomizerSettings): CodeBlockDetails  {
   const codeBlockLang = getCodeBlockLanguage(codeBlockFirstLine) || "";
-  const highlightedLinesParams = extractParameter(codeBlockFirstLine, "hl:");
-  const linesToHighlight = getHighlightedLines(highlightedLinesParams);
+  const highlightedLinesParams = extractParameter(codeBlockFirstLine, "hl");
+  //const linesToHighlight = getHighlightedLines(highlightedLinesParams).lines;
+  const highlightLines = getHighlightedLines(highlightedLinesParams);
+  const linesToHighlight = highlightLines.lines;
+  const lineSpecificWords = highlightLines.lineSpecificWords;
+  const words = highlightLines.words;
   const fileName = (extractFileTitle(codeBlockFirstLine) || "").toString().trim();
   const Fold = isFoldDefined(codeBlockFirstLine);
   let lineNumberOffset = -1;
   let showNumbers = "";
 
-  const specificLN = (extractParameter(codeBlockFirstLine, "ln:") || "") as string;
+  const specificLN = (extractParameter(codeBlockFirstLine, "ln") || "") as string;
   if (specificLN.toLowerCase() === "true") {
     showNumbers = "specific";
   } else if (specificLN.toLowerCase() === "false") {
@@ -1031,12 +920,21 @@ function getCodeBlockDetails(codeBlockFirstLine: string, pluginSettings: Codeblo
       showNumbers = "";
     }
   }
-  
+
+  let altLineSpecificWords: { name: string; lineNumber: number }[] = [];
+  const altWords: { name: string, words: string }[] = [];
+
   const alternateColors = pluginSettings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors || {};
   let altHL: { name: string, lineNumber: number }[] = [];
   for (const [name, hexValue] of Object.entries(alternateColors)) {
-    const altParams = extractParameter(codeBlockFirstLine, `${name}:`);
-    altHL = altHL.concat(getHighlightedLines(altParams).map((lineNumber) => ({ name, lineNumber })));
+    const altParams = extractParameter(codeBlockFirstLine, `${name}`);
+    const altlinesToHighlight = getHighlightedLines(altParams);
+    altHL = altHL.concat(altlinesToHighlight.lines.map((lineNumber) => ({ name, lineNumber })));
+    altLineSpecificWords = altLineSpecificWords.concat(
+      //altHL,
+      Object.entries(altlinesToHighlight.lineSpecificWords).map(([lineNumber, value]: [string, string]) => ({ name, lineNumber: parseInt(lineNumber), value }))
+    );
+    altWords.push({ name, words: altlinesToHighlight.words });
   }
   
   let isCodeBlockExcluded = false;
@@ -1045,11 +943,15 @@ function getCodeBlockDetails(codeBlockFirstLine: string, pluginSettings: Codeblo
   return {
     codeBlockLang,
     linesToHighlight,
+    lineSpecificWords,
+    words,
     fileName,
     Fold,
     lineNumberOffset,
     showNumbers,
     altHL,
+    altLineSpecificWords, 
+    altWords,
     isCodeBlockExcluded,
   };
 }// getCodeBlockDetails
