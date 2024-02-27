@@ -20,7 +20,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
   extensions: Extension[];
   theme: string;
-  vault: any;
   
   async onload() {
     document.body.classList.add('codeblock-customizer');

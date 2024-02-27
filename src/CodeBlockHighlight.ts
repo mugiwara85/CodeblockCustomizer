@@ -197,16 +197,15 @@ export function codeblockHighlight(settings: CodeblockCustomizerSettings, plugin
                   decorations.push(Decoration.widget({ widget: new deleteCodeWidget(codeblockId)}).range(node.from)); 
                   decorations.push(Decoration.widget({ widget: new copyCodeWidget(lang, codeblockId)}).range(node.from));
                 }
-                /*const unit = getIndentUnit(view.state);
-                console.log(unit);*/
-                /*
-                  console.log(this.app.vault.getConfig("useTab"));
-                  console.log(this.app.vault.getConfig("tabSize"));
-                 */
+                //const unit = getIndentUnit(view.state);
+                //console.log(unit);
+                //console.log(this.app.vault.getConfig("useTab"));
+                //console.log(this.app.vault.getConfig("tabSize"));
+                 
                 if (indentLevel > 0) {
                   //decorations.push(Decoration.mark({class: "codeblock-customizer-hidden-element"}).range(node.from, node.from + indentChars));
                   if (originalLineText.length > 0) {
-                    decorations.push(Decoration.replace({ widget: new indentHider() }).range(node.from, node.from + indentChars)); 
+                    decorations.push(Decoration.replace({}).range(node.from, node.from + indentChars)); 
                   }
                   decorations.push(Decoration.line({attributes: {"style": `--level:${indentLevel}`, class: `indented-line`}}).range(node.from));
                 }
@@ -383,18 +382,6 @@ function handleHTTPLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosit
     decorations.push(Decoration.mark({class: `cm-url`}).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
   }
 }// handleHTTPLink
-
-class indentHider extends WidgetType {
-
-  constructor() {
-    super();
-  }
-  
-  toDOM(view: EditorView): HTMLElement {
-    const span = createSpan({cls: "codeblock-customizer-hidden-element"});
-    return span;
-  }
-}// indentHider
 
 class createLink extends WidgetType {
 

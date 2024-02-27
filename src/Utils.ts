@@ -327,8 +327,11 @@ export function getDisplayLanguageName(code: string | null) {
 
 export const BLOBS: Record<string, string> = {};
 export function loadIcons(){
-  for (const [key, value] of Object.entries(Icons)) {
+  /*for (const [key, value] of Object.entries(Icons)) {
     BLOBS[key.replace(/\s/g, "_")] = URL.createObjectURL(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`], { type: "image/svg+xml" }));
+  }*/
+  for (const [key, value] of Object.entries(Icons)) {
+    BLOBS[key.replace(/\s/g, "_")] = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`)}`;
   }
 }// loadIcons
 
@@ -352,12 +355,13 @@ export function createContainer(specific: boolean, languageName: string, hasLang
 export function createCodeblockLang(lang: string) {
   const codeblockLang = document.createElement("div");
   codeblockLang.innerText = getDisplayLanguageName(lang);
-  codeblockLang.classList.add(`codeblock-customizer-header-language-tag-${lang.toLowerCase()}`);
+  codeblockLang.classList.add(`codeblock-customizer-header-language-tag`);
   return codeblockLang;
 }// createCodeblockLang
 
 export function createCodeblockIcon(displayLang: string) {
   const div = document.createElement("div");
+  div.classList.add("codeblock-customizer-icon-container");
   const img = document.createElement("img");
   img.classList.add("codeblock-customizer-icon");
   img.width = 28; //32
@@ -490,7 +494,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   }, '');
 
   const textSettingsStyles = `
-    body.codeblock-customizer [class^="codeblock-customizer-header-language-tag"] {
+    body.codeblock-customizer .codeblock-customizer-header-language-tag {
       --codeblock-customizer-language-tag-text-bold: ${settings.SelectedTheme.settings.header.codeblockLangBoldText ? 'bold' : 'normal'};
       --codeblock-customizer-language-tag-text-italic: ${settings.SelectedTheme.settings.header.codeblockLangItalicText ? 'italic' : 'normal'};
     }
