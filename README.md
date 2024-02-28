@@ -81,7 +81,7 @@ To highlight lines specify `hl:` followed by line numbers in the first line of t
 - You can specify ranges e.g.: `hl:2-5` This would highlight lines from 2 to 5. 
 - You can also combine the methods e.g.: `hl:1,3,4-6` This would highlight lines 1, 3 and lines from 4 to 6.
 
-Example:
+Example:  
 ` ```cpp hl:1,3,4-6`
 
 ![Pasted_image_20230125230046.png](attachments/Pasted_image_20230125230046.png)
@@ -113,7 +113,7 @@ It is possible now to highlight text instead of lines. To use this option you ha
 
 An example code block with text highlight, using three different colors is shown below:  
 
-![[Pasted_image_20240227234145.png]]
+![[Pasted_image_20240227234145.png]](attachments/Pasted_image_20240227234145.png)
 
 ## Language specific coloring
 
@@ -132,7 +132,7 @@ First, you have to add a language. Then you can select which color you want to s
 
 An example is shown below, where the background color has been defined for "Python", "JavaScript" and "C++" languages.
 
-![[Pasted_image_20240228002357.png]]
+![[Pasted_image_20240228002357.png]](attachments/Pasted_image_20240228002357.png)
 
 ## Border colors
 
@@ -146,10 +146,10 @@ You can define colors for languages. This means, that if you want to show a bord
 
 To display a filename specify `file:` or `title:` followed by a filename in the first line of the code block. If the filename contains space, specify it between `""` e.g.: `file:"long filename.cpp"`. `title` is basically an alias for file. If both are defined, then `file` will be used
 
-Example:
-` ```cpp file:test.cpp`
-` ```cpp title:test.py`
-` ```cpp file:"long filename.cpp"`
+Example:  
+` ```cpp file:test.cpp`  
+` ```cpp title:test.py`  
+` ```cpp file:"long filename.cpp"`  
 
 ![Pasted_image_20230125230351.png](attachments/Pasted_image_20230125230351.png)
 
@@ -159,7 +159,7 @@ Example:
 
 To specify an initial fold state when the document is opened, specify `fold` in the first line of the code block. If `fold` is defined in a code block, then when you open the document, the code block will be automatically collapsed, and only the header will be displayed. You can unfold the code block by clicking on the header.
 
-Example:
+Example:  
 ` ```cpp fold`
 
 ![Pasted_image_20230125230928.png](attachments/Pasted_image_20230125230928.png)
@@ -167,6 +167,7 @@ Example:
 
 You can enable semi-folding in settings tab: 
 ![Pasted_image_20230831132418.png](attachments/Pasted_image_20230831132418.png)
+
 After enabling it, you have to select the count of the visible lines (default is 5). Optionally you can also enable an additional uncollapse button, which will be displayed in the last line.
 Semi-fold works just like the normal fold with the following differences:
 - If your code block doesn't have minimum required lines, then it will fold as until now.
@@ -178,13 +179,13 @@ Example: You set the count of visible lines to 5, and you have a code block with
 >[!note]
 >There is a slight difference between editing mode and reading mode. In editing mode the first line of the code block (where you define the language and the parameters) also counts, in reading mode not, since it doesn't exist. This will probably change in the next release so it is the same between editing and reading mode.
 
-Example semi-folded code block (light theme):
+Example semi-folded code block (light theme):  
 ![Pasted_image_20230831134504.png](attachments/Pasted_image_20230831134504.png)
 
-Example semi-folded code block (dark theme):
+Example semi-folded code block (dark theme):  
 ![Pasted_image_20230831134431.png](attachments/Pasted_image_20230831134431.png)
 
-Example semi-folded code block with additional uncollapse button:
+Example semi-folded code block with additional uncollapse button:  
 ![Pasted_image_20230831134601.png](attachments/Pasted_image_20230831134601.png)
 
 
@@ -279,10 +280,11 @@ By default the links, which point to another document in your vault, are not upd
 
 Sample code block with links, but with the option `Enable links usage` disabled:
 
-![[Pasted_image_20240228005151.png]]
+![[Pasted_image_20240228005151.png]](attachments/Pasted_image_20240228005151.png)
+
 Same code block with the `Enable links usage` option enabled:
 
-![[Pasted_image_20240228005240.png]]
+![[Pasted_image_20240228005240.png]](attachments/Pasted_image_20240228005240.png)
 
 ## How to install the plugin
 
