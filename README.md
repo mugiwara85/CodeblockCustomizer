@@ -6,12 +6,22 @@
 </p>
 
 > [!important]
-> Version `1.2.4` changes
-> 
+> Version `1.2.6` changes
+>
 > New:
-> - You can use now links inside code blocks, and the header
-> - Code blocks in a list are now indented properly in editing mode as well. Read more [here](#indented-code-blocks)
-> - Fixed a bug, which caused that the copy code button did not copy the whole text from a code block
+> - Option to set colors language specifically. This means, you can customize now (almost) every color for Python, and totally different colors for C. Please read more below
+> - Added option to highlight text, not just lines. Please read more below
+> - It is possible now to automatically update links, if a file is renamed. Please read more below
+> 
+> Modified:
+> - Settingstab reorganized a little, because there are a lot of settings now
+> - Every parameter works now with "=" or ":" (Example: hl:7 or hl=7)
+> - All sorts of links work now (markdown link, wiki link, normal http or https), BUT they only work if they are marked as comments. You have to mark them as comment according to the current code block language (For example // in C/C++,  # in Python etc.). This change was necessary as the processing of the HTML in Reading mode was too resource intensive
+> - Fixed indented code blocks
+> - Fixed minimal theme incompatibility
+> - Moved Copy code and delete code buttons to the header (if it is present)
+> - Improved performance in edit mode and reading mode as well
+> - Fixed a case where in reading mode the syntax highlighting was incorrect
 
 
 This is a plugin for Obsidian (https://obsidian.md).
@@ -90,7 +100,41 @@ Example code block with multiple highlight colors:
 
 ![[Pasted_image_20230314211417.png]](attachments/Pasted_image_20230314211417.png)
 
-### Border colors
+### Text highlight
+
+It is possible now to highlight text instead of lines. To use this option you have to enable the `Highlight words instead of lines` option in the settingstab on the "Codeblock" settings page. You can still use the normal highlight as before, but the option got extended:
+* If after the `hl:` parameter a string is defined, then the string is highlighted in every line it is present in the code block. Example: `hl:extension`
+* If after the `hl:` parameter a number is defined, followed by a pipe "|", followed by a string, then the word is highlighted only in this line if it is present. Example: `hl:9|print`
+* If after the `hl:` parameter a range is defined, followed by a pipe "|" character, followed by a string, then the word is highlighted only in these line ranges, if it present. Example: `hl:6-7|print`
+
+> [!note]
+> - You can use the text highlighting with alternative highlight colors as well!
+> - If the setting `Highlight words instead of lines` is disabled, then lines will be highlighted not words. Please note, that if you used multiple colors in one line, and the option `Highlight words instead of lines` is disabled, it may result in an unexpected line highlight, since obviously only one color can be used to highlight a line.
+
+An example code block with text highlight, using three different colors is shown below:  
+
+![[Pasted_image_20240227234145.png]]
+
+## Language specific coloring
+
+In the settings, on the `Language specific colors` settings page it is now possible to define colors for languages. These colors will only apply to code blocks with the defined language. If you defined colors for "Python", then those colors will only apply to every Python code block. 
+First, you have to add a language. Then you can select which color you want to set. Options are:
+- Code block active line color
+- Code block background color
+- Header background color
+- Header text color
+- Header line color
+- Header language text color
+- Header language background color
+- Gutter text color
+- Gutter background color
+- Gutter active line number color
+
+An example is shown below, where the background color has been defined for "Python", "JavaScript" and "C++" languages.
+
+![[Pasted_image_20240228002357.png]]
+
+## Border colors
 
 You can define colors for languages. This means, that if you want to show a border color on `cpp` code blocks then you have to add `cpp` to the list first. After adding it to the list you can set the color. You can also choose on which side (left/right) the border should be displayed. If you don't select a side, the colors will not be displayed.
 
@@ -221,6 +265,24 @@ By default, if you print a document the styling is not applied to it. You can en
 Code blocks in lists, are now indented properly as shown below. Simply, mark the text in the code block, and press TAB. This will shift the code block right, by adding margin to the left side. Pressing TAB multiple times, indents the code block more. If you want to undo it, just select the text again, and press SHIFT+TAB.
 
 ![Pasted_image_20230925220351.png](attachments/Pasted_image_20230925220351.png)
+
+## Links
+
+If you want to convert markdown, wiki and normal http/https link syntax to actual links inside code blocks, then you have to mark them as comment according to the current code block language, and enable the setting `Enable links usage` in the settings on the "Codeblock" settings page. **Links can also be used in the header.**
+For example if you are in a python code block, then you have write a "#" before the link (comment it out), and it will be automatically converted to a link. 
+**From version `1.2.6` only commented out links will be converted!**
+By default the links, which point to another document in your vault, are not updated, if you rename the file. This is because Obsidian does not provide (yet) a way to add these links to the metadata cache. A temporary solution for that is to enable the option `Enable automatically updating links on file rename` option in settings.
+
+>[!important]
+>Please note, that this method iterates over all of your documents in you vault! If you have a huge vault, it could take some time. 
+>During my testing, it was however, very efficient, but please test it yourself!
+
+Sample code block with links, but with the option `Enable links usage` disabled:
+
+![[Pasted_image_20240228005151.png]]
+Same code block with the `Enable links usage` option enabled:
+
+![[Pasted_image_20240228005240.png]]
 
 ## How to install the plugin
 

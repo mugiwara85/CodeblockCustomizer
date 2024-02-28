@@ -150,6 +150,8 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
       
+      this.createReadMeLink(containerEl);
+
       containerEl.createEl("hr");
 
       const basicDiv = containerEl.createEl("div", { cls: "codeblock-customizer-basic-settingsDiv-hide" });
@@ -1083,4 +1085,25 @@ export class SettingsTab extends PluginSettingTab {
     a.innerHTML = `<img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=ThePirateKing&button_colour=e3e7ef&font_colour=262626&font_family=Inter&outline_colour=262626&coffee_colour=ff0000" height="42px">`;
     return a;
   };// createDonateButton
+
+  createReadMeLink = (container: HTMLElement) => {
+    var divElement = container.createEl("div", { cls: "codeblock-customizer-readMe", });
+
+    var spanElement = document.createElement("span");
+    spanElement.style.whiteSpace = "pre"; // Preserve whitespace
+    
+    var textNode = document.createTextNode("For more information, please read the ");
+    spanElement.appendChild(textNode);
+    
+    divElement.appendChild(spanElement);
+    
+    var linkElement = container.createEl("a");
+    linkElement.href = "https://github.com/mugiwara85/CodeblockCustomizer";
+
+    var linkTextNode = document.createTextNode("README");
+    linkElement.appendChild(linkTextNode);
+    
+    divElement.appendChild(linkElement);
+    container.appendChild(divElement);
+  }// createReadMeLink
 }// SettingsTab

@@ -877,6 +877,14 @@ height: calc(var(--line-height-normal) * 1em);
   text-align: center;
 }
 
+.codeblock-customizer-readMe {
+  margin-top: 32px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 /* pickr start */
 .pcr-app .pcr-swatches > button {
     padding: 0;
