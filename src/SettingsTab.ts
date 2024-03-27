@@ -19,6 +19,7 @@ export class SettingsTab extends PluginSettingTab {
   static COLOR_OPTIONS: ColorOptions = {
     "codeblock.activeLineColor": "Codeblock activeline color",
     "codeblock.backgroundColor": "Codeblock backgroundcolor",
+    "codeblock.textColor": "Codeblock textcolor",
     "header.backgroundColor": "Header backgroundcolor",
     "header.textColor": "Header textcolor",
     "header.lineColor": "Header linecolor",
@@ -859,7 +860,7 @@ export class SettingsTab extends PluginSettingTab {
 
     for (const prop of properties) {
       // @ts-ignore
-      colorValue = colorValue[prop];      
+      colorValue = colorValue[prop];
       if (resolveCSSVar && colorValue.toString().startsWith("--")) {
         colorValue = getColorOfCssVariable(colorValue.toString());
       }
@@ -1087,20 +1088,20 @@ export class SettingsTab extends PluginSettingTab {
   };// createDonateButton
 
   createReadMeLink = (container: HTMLElement) => {
-    var divElement = container.createEl("div", { cls: "codeblock-customizer-readMe", });
+    const divElement = container.createEl("div", { cls: "codeblock-customizer-readMe", });
 
-    var spanElement = document.createElement("span");
+    const spanElement = document.createElement("span");
     spanElement.style.whiteSpace = "pre"; // Preserve whitespace
     
-    var textNode = document.createTextNode("For more information, please read the ");
+    const textNode = document.createTextNode("For more information, please read the ");
     spanElement.appendChild(textNode);
     
     divElement.appendChild(spanElement);
     
-    var linkElement = container.createEl("a");
+    const linkElement = container.createEl("a");
     linkElement.href = "https://github.com/mugiwara85/CodeblockCustomizer";
 
-    var linkTextNode = document.createTextNode("README");
+    const linkTextNode = document.createTextNode("README");
     linkElement.appendChild(linkTextNode);
     
     divElement.appendChild(linkElement);

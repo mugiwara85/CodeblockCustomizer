@@ -475,22 +475,27 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
 
   const languageSpecificStyling = Object.entries(settings.SelectedTheme.colors[currentMode].languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
     const languageStyling = Object.entries(attributes || {}).reduce((languageStyling, [attribute, hexValue]) => {
-      // Replace dot with hyphen in the attribute name
-      const attributeName = attribute.toLowerCase().replace(/\./g, '-');
-      
-      // Check if there's a corresponding mapping in stylesDict
-      const mappedAttributeName = stylesDict[attribute] || attributeName;
-  
-      return languageStyling + `
-        --${mappedAttributeName}: ${hexValue};
-      `;
+        const attributeName = attribute.toLowerCase().replace(/\./g, '-');
+
+        const mappedAttributeName = stylesDict[attribute] || attributeName;
+        let selector = `.markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
+        let style = `${mappedAttributeName}: ${hexValue}`;
+        if (mappedAttributeName === "codeblock-textcolor") {
+            selector += `, 
+            .markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} [class^="cm-"], 
+            .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .codeblock-customizer-line-text, 
+            .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token`;
+            style = `color: ${hexValue}`;
+        }
+
+        return languageStyling + `
+          ${selector} {
+            ${mappedAttributeName === "codeblock-textcolor" ? '' : '--'}${style};
+          }
+        `;
     }, '');
-  
-    return styling + `
-      .codeblock-customizer-languageSpecific-${language.toLowerCase()} {
-        ${languageStyling}
-      }
-    `;
+
+    return styling + languageStyling;
   }, '');
 
   const textSettingsStyles = `
@@ -922,7 +927,7 @@ export function getLanguageSpecificColorClass(codeblockLanguage: string, languag
   let codeblockLanguageSpecificClass = "";
 
   // Check if languageSpecificColors contains properties
-  if (languageSpecificColors!== null && languageSpecificColors[codeblockLanguage] && Object.keys(languageSpecificColors[codeblockLanguage]).length > 0) {
+  if (languageSpecificColors !== null && languageSpecificColors[codeblockLanguage] && Object.keys(languageSpecificColors[codeblockLanguage]).length > 0) {
     codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + codeblockLanguage.toLowerCase();
   }
 

@@ -193,6 +193,7 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
     if (codeblockLanguageSpecificClass)
       preElement.classList.add(codeblockLanguageSpecificClass);
   }
+  preCodeElm.classList.add('test');
 
   if (preElement.parentElement)
     preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);

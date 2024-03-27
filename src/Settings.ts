@@ -5,6 +5,7 @@ export interface Colors {
     highlightColor: string;
     alternateHighlightColors: Record<string, string>;
     languageBorderColors: Record<string, string>;
+    textColor: string;
   },
   header: {
     backgroundColor: string;
@@ -135,6 +136,7 @@ const SolarizedDarkColors = {
     highlightColor: D_HIGHLIGHT_COLOR,
     alternateHighlightColors: {},
     languageBorderColors: {},
+    textColor: '#A30505',
   },
   header: {
     backgroundColor: D_HEADER_COLOR,
@@ -163,6 +165,7 @@ const SolarizedLightColors = {
     highlightColor: L_HIGHLIGHT_COLOR,
     alternateHighlightColors: {},
     languageBorderColors: {},
+    textColor: '#A30505',
   },
   header: {
     backgroundColor: L_HEADER_COLOR,
@@ -243,6 +246,7 @@ const ObsidianDarkColors = {
     highlightColor: "--text-highlight-bg",
     alternateHighlightColors: {},
     languageBorderColors: {},
+    textColor: '#A30505',
   },
   header: {
     backgroundColor: "--code-background",
@@ -271,6 +275,7 @@ const ObsidianLightColors = {
     highlightColor: "--text-highlight-bg",
     alternateHighlightColors: {},
     languageBorderColors: {},
+    textColor: '#A30505',
   },
   header: {
     backgroundColor: "--code-background",
