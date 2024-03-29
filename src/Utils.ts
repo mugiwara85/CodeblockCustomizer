@@ -485,7 +485,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
             .markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} [class^="cm-"], 
             .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .codeblock-customizer-line-text, 
             .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token`;
-            style = `color: ${hexValue}`;
+            style = `color: ${hexValue} !important`;
         }
 
         return languageStyling + `
