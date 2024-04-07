@@ -105,7 +105,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     });
 
-    loadIcons();
+    await loadIcons(this);
     
     // @ts-ignore
     codeblockHeader.settings = this.settings;

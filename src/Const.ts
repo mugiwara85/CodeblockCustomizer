@@ -3,6 +3,9 @@
 
 export const fadeOutLineCount = 4;
 
+export const SVG_FOLDER_PATH = "/plugins/codeblock-customizer/customSVG/";
+export const SVG_FILE_PATH = SVG_FOLDER_PATH + "svg.json";
+
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",
   "plain": "Plain text",

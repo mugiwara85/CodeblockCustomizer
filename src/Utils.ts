@@ -1,7 +1,7 @@
 import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App } from "obsidian";
 import { EditorState } from "@codemirror/state";
 
-import { Languages, manualLang, Icons } from "./Const";
+import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH } from "./Const";
 import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 
@@ -300,7 +300,7 @@ export function isExcluded(lineText: string, excludeLangs: string) : boolean {
 export function getLanguageIcon(DisplayName: string) {
   if (!DisplayName)
     return "";
-    
+
   if (Icons.hasOwnProperty(DisplayName)) {
     return Icons[DisplayName];
   }
@@ -326,14 +326,44 @@ export function getDisplayLanguageName(code: string | null) {
 }// getDisplayLanguageName
 
 export const BLOBS: Record<string, string> = {};
-export function loadIcons(){
+export async function loadIcons(plugin: CodeBlockCustomizerPlugin){
   /*for (const [key, value] of Object.entries(Icons)) {
     BLOBS[key.replace(/\s/g, "_")] = URL.createObjectURL(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`], { type: "image/svg+xml" }));
   }*/
   for (const [key, value] of Object.entries(Icons)) {
     BLOBS[key.replace(/\s/g, "_")] = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`)}`;
   }
+  await loadCustomIcons(plugin);
 }// loadIcons
+
+async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
+  try {
+    if (await plugin.app.vault.adapter.exists(plugin.app.vault.configDir + SVG_FILE_PATH)) {
+      const svgJsonContent: string = await plugin.app.vault.adapter.read(plugin.app.vault.configDir + SVG_FILE_PATH);
+      if (svgJsonContent) {
+        const { Languages }: { Languages: Record<string, string> } = JSON.parse(svgJsonContent);
+        for (const [codeblockLanguage, displayLanguage] of Object.entries(Languages)) {
+          const svgFileName = `${displayLanguage}.svg`;
+          try {
+            const svgFilePath: string = plugin.app.vault.configDir + SVG_FOLDER_PATH + svgFileName;
+            const svgFileExists: boolean = await plugin.app.vault.adapter.exists(svgFilePath);
+            if (svgFileExists) {
+              const svgContent: string = await plugin.app.vault.adapter.read(svgFilePath);
+              const base64SVG = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${svgContent}</svg>`)}`;
+              manualLang[codeblockLanguage] = displayLanguage as string;
+              Icons[displayLanguage] = svgContent;
+              BLOBS[displayLanguage.replace(/\s/g, "_")] = `${base64SVG}`;
+            }
+          } catch (fileError) {
+            console.error(`Error reading SVG file ${svgFileName}:`, fileError);
+          }
+        }
+      }
+    }
+  } catch (jsonError) {
+    console.error('Error parsing SVG JSON content:', jsonError);
+  }
+}// loadCustomIcons
 
 // Functions for displaying header BEGIN
 export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string) {
