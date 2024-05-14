@@ -71,6 +71,7 @@ export interface ThemeSettings {
   printing: {
     enablePrintToPDFStyling: boolean;
     forceCurrentColorUse: boolean;
+    uncollapseDuringPrint: boolean;
   },
   common: {
     enableInSourceMode: boolean;
@@ -227,6 +228,7 @@ const Solarized: Theme = {
     printing: {
       enablePrintToPDFStyling: false,
       forceCurrentColorUse: false,
+      uncollapseDuringPrint: false,
     },
     common: {
       enableInSourceMode: false,
@@ -337,6 +339,7 @@ const Obsidian: Theme = {
     printing: {
       enablePrintToPDFStyling: false,
       forceCurrentColorUse: false,
+      uncollapseDuringPrint: false,
     },
     common: {
       enableInSourceMode: false,

@@ -888,6 +888,9 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCusto
     if (codeblockDetails.isCodeBlockExcluded)
       continue;
 
+    if (plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint)
+      codeblockDetails.Fold = false;
+
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(codeblockDetails.codeBlockLang, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     await addClasses(codeblockPreElement, codeblockDetails, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath);
   }

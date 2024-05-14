@@ -725,11 +725,22 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(printToPDFDiv)
     .setName('Force current color mode use')
-    .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected. ')
+    .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
     .addToggle(toggle => toggle
       .setValue(this.plugin.settings.SelectedTheme.settings.printing.forceCurrentColorUse)
       .onChange(async (value) => {
         this.plugin.settings.SelectedTheme.settings.printing.forceCurrentColorUse = value;
+        await this.plugin.saveSettings();
+      })
+    );
+
+    new Setting(printToPDFDiv)
+    .setName('Expand all code blocks during printing')
+    .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
+    .addToggle(toggle => toggle
+      .setValue(this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint)
+      .onChange(async (value) => {
+        this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint = value;
         await this.plugin.saveSettings();
       })
     );
