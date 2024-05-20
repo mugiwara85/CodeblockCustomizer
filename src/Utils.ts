@@ -107,7 +107,7 @@ export function getCodeBlockLanguage(str: string): string | null {
     }
 
     if (!word.includes(":")) {
-      if (word.toLowerCase() === "fold") 
+      if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold") 
         return null;
       else
         return removeLeadingBackticks(word);
@@ -119,6 +119,10 @@ export function getCodeBlockLanguage(str: string): string | null {
 export function isFoldDefined(str: string): boolean {
   return isParameterDefined("fold", str);
 }// isFoldDefined
+
+export function isUnFoldDefined(str: string): boolean {
+  return isParameterDefined("unfold", str);
+}// isUnFoldDefined
 
 export function isParameterDefined(searchTerm: string, str: string): boolean {
   str = str.toLowerCase();

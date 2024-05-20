@@ -45,6 +45,7 @@ export interface ThemeSettings {
     enableLinkUpdate: boolean;
     textHighlight: boolean;
     enableBracketHighlight: boolean;
+    inverseFold: boolean;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -207,6 +208,7 @@ const Solarized: Theme = {
       enableLinkUpdate: false,
       textHighlight: true,
       enableBracketHighlight: true,
+      inverseFold: false,
     },
     semiFold: {
       enableSemiFold: false,
@@ -322,6 +324,7 @@ const Obsidian: Theme = {
       enableLinkUpdate: false,
       textHighlight: true,
       enableBracketHighlight: true,
+      inverseFold: false,
     },
     semiFold: {
       enableSemiFold: false,

@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer } from "obsidian";
 
-import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences } from "./Utils";
+import { getHighlightedLines, getDisplayLanguageName, isExcluded, getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getCodeBlockLanguage, extractParameter, extractFileTitle, isFoldDefined, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, isUnFoldDefined } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -193,7 +193,6 @@ async function addClasses(preElement: HTMLElement, codeblockDetails: CodeBlockDe
     if (codeblockLanguageSpecificClass)
       preElement.classList.add(codeblockLanguageSpecificClass);
   }
-  preCodeElm.classList.add('test');
 
   if (preElement.parentElement)
     preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
@@ -905,9 +904,14 @@ function getCodeBlockDetails(codeBlockFirstLine: string, pluginSettings: Codeblo
   const lineSpecificWords = highlightLines.lineSpecificWords;
   const words = highlightLines.words;
   const fileName = (extractFileTitle(codeBlockFirstLine) || "").toString().trim();
-  const Fold = isFoldDefined(codeBlockFirstLine);
+  let Fold = isFoldDefined(codeBlockFirstLine);
+  const unfold = isUnFoldDefined(codeBlockFirstLine);
   let lineNumberOffset = -1;
   let showNumbers = "";
+
+  if (pluginSettings.SelectedTheme.settings.codeblock.inverseFold) {
+    Fold = unfold ? false : true;
+  }
 
   const specificLN = (extractParameter(codeBlockFirstLine, "ln") || "") as string;
   if (specificLN.toLowerCase() === "true") {

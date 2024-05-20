@@ -326,6 +326,17 @@ export class SettingsTab extends PluginSettingTab {
 
     this.createPickrSetting(codeblockDiv, 'Bracket highlight color', '', "codeblock.bracketHighlightColor");
 
+    new Setting(codeblockDiv)
+      .setName('Inverse fold behavior')
+      .setDesc('If enabled, all code blocks are folded by default when opening a document. To disable this behavior for a specific code block, use the "unfold" parameter.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
 
     let enableSemiFoldToggle: ToggleComponent;

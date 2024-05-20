@@ -1,7 +1,7 @@
 import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Text, Line } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 
-import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy } from "./Utils";
+import { getDisplayLanguageName, getLanguageIcon, isExcluded, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, isFoldDefined, getCodeBlockLanguage, extractFileTitle, getBorderColorByLanguage, getCurrentMode, createUncollapseCodeButton, isSourceMode, getIndentationLevel, getLanguageSpecificColorClass, createObjectCopy, isUnFoldDefined } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { editorInfoField, setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -20,12 +20,13 @@ interface RangeWithDecoration {
   decoration: Decoration;
 }
 
-function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, callback: (start: Line, end: Line, lineText: string, fold: boolean) => void) {
+function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, callback: (start: Line, end: Line, lineText: string, fold: boolean, unfold: boolean) => void) {
   let CollapseStart: Line | null = null;
   let CollapseEnd: Line | null = null;
   let blockFound = false;
   let bExclude = false;
   let isDefaultFold = false;
+  let isDefaultUnFold = false;
   let inCodeBlock = false;
   let openingBackticks = 0;
   
@@ -42,6 +43,7 @@ function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, cal
           continue;
         if (CollapseStart === null) {
           isDefaultFold = isFoldDefined(lineText);
+          isDefaultUnFold = isUnFoldDefined(lineText);
           CollapseStart = line;
         }
       } else {
@@ -62,10 +64,11 @@ function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, cal
 
     if (blockFound) {
       if (CollapseStart != null && CollapseEnd != null) {
-        callback(CollapseStart, CollapseEnd, lineText, isDefaultFold);
+        callback(CollapseStart, CollapseEnd, lineText, isDefaultFold, isDefaultUnFold);
         CollapseStart = null;
         CollapseEnd = null;
         isDefaultFold = false;
+        isDefaultUnFold = false;
       }
       blockFound = false;
     }
@@ -74,8 +77,25 @@ function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, cal
 
 export function defaultFold(state: EditorState, settings: CodeblockCustomizerSettings) {
   const builder = new RangeSetBuilder<Decoration>();
-  processCodeBlocks(state.doc, settings, (start, end, lineText, fold) => {
+  processCodeBlocks(state.doc, settings, (start, end, lineText, fold, unfold) => {
     if (fold) {
+      if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
+        const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
+        if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+          const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
+          const decorations = addFadeOutEffect(null, state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
+          for (const { from, to, decoration } of decorations || []) {
+            builder.add(from, to, decoration);
+          }
+        } else {
+          const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
+          builder.add(start.from, end.to, decoration);
+        }
+      } else {
+        const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
+        builder.add(start.from, end.to, decoration);
+      }
+    } else if (settings.SelectedTheme.settings.codeblock.inverseFold && !unfold) {
       if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
         const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
         if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
@@ -99,7 +119,7 @@ export function defaultFold(state: EditorState, settings: CodeblockCustomizerSet
 }// defaultFold
 
 export function foldAll(view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) {
-  processCodeBlocks(view.state.doc, settings, (start, end, lineText, isDefaultFold) => {
+  processCodeBlocks(view.state.doc, settings, (start, end, lineText, isDefaultFold, isDefaultUnFold) => {
     if (fold) {
       if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
         const lineCount = end.number - start.number + 1;
@@ -151,6 +171,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
     const builder = new RangeSetBuilder<Decoration>();
     let WidgetStart = null;
     let Fold = false;
+    let unfold = false;
     let fileName = null;
     let specificHeader = true;
     let numBackticks = 0;
@@ -174,6 +195,12 @@ export const codeblockHeader = StateField.define<DecorationSet>({
           WidgetStart = line;
           fileName = extractFileTitle(lineText);
           Fold = isFoldDefined(lineText);
+          unfold = isUnFoldDefined(lineText);
+
+          if (this.settings.SelectedTheme.settings.codeblock.inverseFold) {
+            Fold = unfold ? false : true;
+          }
+
           const { level, characters, margin } = getIndentationLevel(originalLineText);
           if (!bExclude) {
             if (fileName === null || fileName === "") {
@@ -198,6 +225,7 @@ export const codeblockHeader = StateField.define<DecorationSet>({
             numBackticks = 0;
             WidgetStart = null;
             Fold = false;
+            unfold = false;
             fileName = null;
           } else {
             // Nested code block with different number of backticks
