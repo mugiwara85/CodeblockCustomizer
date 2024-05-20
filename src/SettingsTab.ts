@@ -3,6 +3,7 @@ import Pickr from "@simonwep/pickr";
 
 import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme } from './Settings';
+import { bracketHighlight } from "./BracketHighlight";
 import CodeBlockCustomizerPlugin from "./main";
 
 interface ColorOptions {
@@ -309,6 +310,21 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
+
+    new Setting(codeblockDiv)
+      .setName('Enable bracket highlight')
+      .setDesc('If you click next to a bracket, the bracket and its corresponding opening/closing bracket will be highlighted.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableBracketHighlight)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableBracketHighlight = value;
+          this.addRemoveExtension(value, bracketHighlight.name);
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    this.createPickrSetting(codeblockDiv, 'Bracket highlight color', '', "codeblock.bracketHighlightColor");
 
     codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
 
@@ -760,6 +776,22 @@ export class SettingsTab extends PluginSettingTab {
     ); 
   }// display
   
+  addRemoveExtension(value: boolean, extensionName: string) {
+    if (value) {
+      // @ts-ignore
+      if (!this.plugin.extensions.find(ext => ext.name === extensionName)) {
+        this.plugin.extensions.push(bracketHighlight(this.plugin));
+      }
+    }
+    else {
+      for (const ext of this.plugin.extensions) {
+        // @ts-ignore
+        if  (ext.name === extensionName)
+          this.plugin.extensions.remove(ext);
+      }
+    }
+  }// addRemoveExtension
+
   refreshDropdown(dropdown: DropdownComponent, settings: CodeblockCustomizerSettings) {
     dropdown.selectEl.empty();
     Object.keys(settings.Themes).forEach((name: string) => {
@@ -977,6 +1009,8 @@ export class SettingsTab extends PluginSettingTab {
       this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.backgroundColor = savedColor;
     } else if (className === 'codeblock.highlightColor') {
       this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.highlightColor = savedColor;
+    } else if (className === 'codeblock.bracketHighlightColor') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightColor = savedColor;
     } else if (className === 'header.backgroundColor') {
       this.plugin.settings.SelectedTheme.colors[currentMode].header.backgroundColor = savedColor;
     } else if (className === 'header.textColor') {

@@ -446,6 +446,12 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
 }
 
+/* Bracket highlight */
+.markdown-source-view .codeblock-customizer-bracket-highlight {
+  color:var(--codeblock-customizer-codeblock-bracket-highlight-color);
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+}
+
 /* Header styling */
 body:not([class*='codeblock-customizer-show-langicons']) .codeblock-customizer-header-container-specific div:has(> img.codeblock-customizer-icon),
 body:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container div:has(> img.codeblock-customizer-icon) {

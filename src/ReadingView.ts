@@ -1049,7 +1049,7 @@ function getCallouts(array: string[]): string[] {
   const arrowBlocksResult: string[] = getCodeBlocksFirstLines(arrowBlocks);
 
   if (arrowBlocksResult.length > 0)
-    return arrowBlocksResult
+    return arrowBlocksResult;
   else
     return [];
 }// getCallouts

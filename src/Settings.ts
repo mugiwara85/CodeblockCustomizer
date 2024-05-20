@@ -6,6 +6,7 @@ export interface Colors {
     alternateHighlightColors: Record<string, string>;
     languageBorderColors: Record<string, string>;
     textColor: string;
+    bracketHighlightColor: string;
   },
   header: {
     backgroundColor: string;
@@ -43,6 +44,7 @@ export interface ThemeSettings {
     enableLinks: boolean;
     enableLinkUpdate: boolean;
     textHighlight: boolean;
+    enableBracketHighlight: boolean;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -80,6 +82,7 @@ export interface ThemeSettings {
 }
 
 export interface Theme {
+  baseTheme?: string;
   settings: ThemeSettings;
   colors: ThemeColors;
 }
@@ -138,6 +141,7 @@ const SolarizedDarkColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
+    bracketHighlightColor: '#36e920',
   },
   header: {
     backgroundColor: D_HEADER_COLOR,
@@ -167,6 +171,7 @@ const SolarizedLightColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
+    bracketHighlightColor: '#ff01f7',
   },
   header: {
     backgroundColor: L_HEADER_COLOR,
@@ -189,6 +194,7 @@ const SolarizedLightColors = {
 }
 
 const Solarized: Theme = {
+  baseTheme: "Solarized",
   settings: {
     codeblock: {
       enableLineNumbers: true,
@@ -200,6 +206,7 @@ const Solarized: Theme = {
       enableLinks: false,
       enableLinkUpdate: false,
       textHighlight: true,
+      enableBracketHighlight: true,
     },
     semiFold: {
       enableSemiFold: false,
@@ -228,7 +235,7 @@ const Solarized: Theme = {
     printing: {
       enablePrintToPDFStyling: false,
       forceCurrentColorUse: false,
-      uncollapseDuringPrint: false,
+      uncollapseDuringPrint: true,
     },
     common: {
       enableInSourceMode: false,
@@ -249,6 +256,7 @@ const ObsidianDarkColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
+    bracketHighlightColor: '#f33bff',
   },
   header: {
     backgroundColor: "--code-background",
@@ -278,6 +286,7 @@ const ObsidianLightColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
+    bracketHighlightColor: '#f33bff',
   },
   header: {
     backgroundColor: "--code-background",
@@ -300,6 +309,7 @@ const ObsidianLightColors = {
 }
 
 const Obsidian: Theme = {
+  baseTheme: "Obsidian",
   settings: {
     codeblock: {
       enableLineNumbers: true,
@@ -311,6 +321,7 @@ const Obsidian: Theme = {
       enableLinks: false,
       enableLinkUpdate: false,
       textHighlight: true,
+      enableBracketHighlight: true,
     },
     semiFold: {
       enableSemiFold: false,
@@ -339,7 +350,7 @@ const Obsidian: Theme = {
     printing: {
       enablePrintToPDFStyling: false,
       forceCurrentColorUse: false,
-      uncollapseDuringPrint: false,
+      uncollapseDuringPrint: true,
     },
     common: {
       enableInSourceMode: false,

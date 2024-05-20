@@ -459,6 +459,7 @@ const stylesDict: StylesDict = {
   "editorActiveLineColor": 'editor-active-line-color',
   "codeblock.backgroundColor": 'codeblock-background-color',
   "codeblock.highlightColor": 'codeblock-highlight-color',
+  "codeblock.bracketHighlightColor": 'codeblock-bracket-highlight-color',
   "header.backgroundColor": 'header-background-color',
   "header.textColor": 'header-text-color',
   "header.lineColor": 'header-line-color',

@@ -7,6 +7,7 @@ import { codeblockHeader, collapseField, foldAll } from "./Header";
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles } from "./Utils";
+import { bracketHighlight } from "./BracketHighlight";
 
 // npm i @simonwep/pickr
 
@@ -118,6 +119,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.extensions.push(collapseField);
         
     this.extensions.push(codeblockHighlight(this.settings, this));
+    
+    if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight)
+      this.extensions.push(bracketHighlight(this));
 
     this.registerEditorExtension(this.extensions);
 
@@ -325,16 +329,48 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// getDisplayNameAndReference
 
   async loadSettings() {
-    //this.settings = Object.assign({}, structuredClone(DEFAULT_SETTINGS), await this.loadData());
     const loadedData = await this.loadData();
-    this.settings = _.merge({}, DEFAULT_SETTINGS, loadedData);
-  }
+    this.settings = _.merge({}, DEFAULT_SETTINGS, loadedData); // copies new settings to default themes and selectedtheme
+
+    const defaultThemeNames = Object.keys(DEFAULT_SETTINGS.Themes);
+    const currentThemeNames = Object.keys(this.settings.Themes);
+
+    const userThemeNames = _.difference(currentThemeNames, defaultThemeNames);
+
+    // if the currently selected Theme does not have a basename, then delete the property from SelectedTheme to avoid setting wrong basename when creating a new theme
+    //const selectedThemeBaseName = this.settings.SelectedTheme.baseTheme;
+    const inUseThemeBaseName = this.settings.Themes[this.settings.ThemeName].baseTheme;
+    if (inUseThemeBaseName === undefined) {
+      delete this.settings.SelectedTheme.baseTheme;
+    }
+
+    userThemeNames.forEach(themeName => {
+      const userTheme = this.settings.Themes[themeName];
+      const baseThemeName = userTheme.baseTheme;
+
+      if (baseThemeName) {
+        // copy new settings from corresponding Theme to user themes which do have a baseTheme (created after this change)
+        const baseTheme = this.settings.Themes[baseThemeName];
+        if (baseTheme) {
+          userTheme.colors = _.merge({}, baseTheme.colors, userTheme.colors);
+          userTheme.settings = _.merge({}, baseTheme.settings, userTheme.settings);
+        }
+      } else {
+        // copy new settings from Obsidian Theme to user themes which do not have a baseTheme (created before this change)
+        const defaultObsidianSettings = this.settings.Themes["Obsidian"];
+        userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
+        userTheme.settings = _.merge({}, defaultObsidianSettings.settings, userTheme.settings);
+      }
+    });
+
+    this.saveSettings();
+  }// loadSettings
 
   async saveSettings() {
     await this.saveData(this.settings);
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
-  }
+  }// saveSettings
 
   restoreDefaultFold() {
     const preElements = document.querySelectorAll('.codeblock-customizer-pre.codeblock-customizer-codeblock-default-collapse');
