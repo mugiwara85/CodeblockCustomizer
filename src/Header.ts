@@ -77,40 +77,31 @@ function processCodeBlocks(doc: Text, settings: CodeblockCustomizerSettings, cal
 
 export function defaultFold(state: EditorState, settings: CodeblockCustomizerSettings) {
   const builder = new RangeSetBuilder<Decoration>();
-  processCodeBlocks(state.doc, settings, (start, end, lineText, fold, unfold) => {
-    if (fold) {
-      if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
-        const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
-        if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
-          const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
-          const decorations = addFadeOutEffect(null, state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
-          for (const { from, to, decoration } of decorations || []) {
-            builder.add(from, to, decoration);
-          }
-        } else {
-          const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
-          builder.add(start.from, end.to, decoration);
-        }
-      } else {
-        const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
-        builder.add(start.from, end.to, decoration);
+
+  const addFoldDecoration = (from: number, to: number) => {
+    const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({ block: true }).range(from, to)), block: true, side: -1 });
+    builder.add(from, to, decoration);
+  };
+
+  const processSemiFold = (start: { from: number }, end: { to: number }) => {
+    const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
+    if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+      const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
+      const decorations = addFadeOutEffect(null, state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
+      for (const { from, to, decoration } of decorations || []) {
+        builder.add(from, to, decoration);
       }
-    } else if (settings.SelectedTheme.settings.codeblock.inverseFold && !unfold) {
+    } else {
+      addFoldDecoration(start.from, end.to);
+    }
+  };
+
+  processCodeBlocks(state.doc, settings, (start, end, lineText, fold, unfold) => {
+    if (fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !unfold)) {
       if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
-        const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
-        if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
-          const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
-          const decorations = addFadeOutEffect(null, state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
-          for (const { from, to, decoration } of decorations || []) {
-            builder.add(from, to, decoration);
-          }
-        } else {
-          const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
-          builder.add(start.from, end.to, decoration);
-        }
+        processSemiFold(start, end);
       } else {
-        const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)), block: true, side: -1 });
-        builder.add(start.from, end.to, decoration);
+        addFoldDecoration(start.from, end.to);
       }
     }
   });
