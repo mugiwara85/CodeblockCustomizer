@@ -6,8 +6,7 @@ import { codeblockHighlight } from "./CodeBlockHighlight";
 import { codeblockHeader, collapseField, foldAll } from "./Header";
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles } from "./Utils";
-import { bracketHighlight } from "./BracketHighlight";
+import { loadIcons, BLOBS, updateSettingStyles, customBracketMatching } from "./Utils";
 
 // npm i @simonwep/pickr
 
@@ -120,8 +119,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         
     this.extensions.push(codeblockHighlight(this.settings, this));
     
-    if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight)
-      this.extensions.push(bracketHighlight(this));
+    if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight) {
+      // @ts-ignore
+      customBracketMatching.plugin = this;
+      this.extensions.push(customBracketMatching);
+    }
 
     this.registerEditorExtension(this.extensions);
 

@@ -6,7 +6,8 @@ export interface Colors {
     alternateHighlightColors: Record<string, string>;
     languageBorderColors: Record<string, string>;
     textColor: string;
-    bracketHighlightColor: string;
+    bracketHighlightColorMatch: string;
+    bracketHighlightColorNoMatch: string;
   },
   header: {
     backgroundColor: string;
@@ -45,6 +46,7 @@ export interface ThemeSettings {
     enableLinkUpdate: boolean;
     textHighlight: boolean;
     enableBracketHighlight: boolean;
+    highlightNonMatchingBrackets: boolean;
     inverseFold: boolean;
   },
   semiFold: {
@@ -142,7 +144,8 @@ const SolarizedDarkColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
-    bracketHighlightColor: '#36e920',
+    bracketHighlightColorMatch: '#36e920',
+    bracketHighlightColorNoMatch: '#FF0000',
   },
   header: {
     backgroundColor: D_HEADER_COLOR,
@@ -172,7 +175,8 @@ const SolarizedLightColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
-    bracketHighlightColor: '#ff01f7',
+    bracketHighlightColorMatch: '#ff01f7',
+    bracketHighlightColorNoMatch: '#FF0000',
   },
   header: {
     backgroundColor: L_HEADER_COLOR,
@@ -208,6 +212,7 @@ const Solarized: Theme = {
       enableLinkUpdate: false,
       textHighlight: true,
       enableBracketHighlight: true,
+      highlightNonMatchingBrackets: false,
       inverseFold: false,
     },
     semiFold: {
@@ -258,7 +263,8 @@ const ObsidianDarkColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
-    bracketHighlightColor: '#f33bff',
+    bracketHighlightColorMatch: '#f33bff',
+    bracketHighlightColorNoMatch: '#FF0000',
   },
   header: {
     backgroundColor: "--code-background",
@@ -288,7 +294,8 @@ const ObsidianLightColors = {
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
-    bracketHighlightColor: '#f33bff',
+    bracketHighlightColorMatch: '#f33bff',
+    bracketHighlightColorNoMatch: '#FF0000',
   },
   header: {
     backgroundColor: "--code-background",
@@ -324,6 +331,7 @@ const Obsidian: Theme = {
       enableLinkUpdate: false,
       textHighlight: true,
       enableBracketHighlight: true,
+      highlightNonMatchingBrackets: false,
       inverseFold: false,
     },
     semiFold: {

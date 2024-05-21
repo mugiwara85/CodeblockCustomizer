@@ -1,5 +1,7 @@
 import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App } from "obsidian";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Range } from "@codemirror/state";
+import { bracketMatching } from "@codemirror/language";
+import { Decoration } from "@codemirror/view";
 
 import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH } from "./Const";
 import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
@@ -463,7 +465,8 @@ const stylesDict: StylesDict = {
   "editorActiveLineColor": 'editor-active-line-color',
   "codeblock.backgroundColor": 'codeblock-background-color',
   "codeblock.highlightColor": 'codeblock-highlight-color',
-  "codeblock.bracketHighlightColor": 'codeblock-bracket-highlight-color',
+  "codeblock.bracketHighlightColorMatch": 'codeblock-bracket-highlight-color-match',
+  "codeblock.bracketHighlightColorNoMatch": 'codeblock-bracket-highlight-color-nomatch',
   "header.backgroundColor": 'header-background-color',
   "header.textColor": 'header-text-color',
   "header.lineColor": 'header-line-color',
@@ -999,3 +1002,28 @@ export function findAllOccurrences(mainString: string, substring: string): numbe
   
   return indices;
 }// findAllOccurrences
+
+let plugin: CodeblockCustomizerSettings;
+export const customBracketMatching = bracketMatching({
+  renderMatch: (match, state) => {
+    const decorations: Range<Decoration>[] = [];
+    
+    if (!match.matched) {
+      // @ts-ignore
+      if (customBracketMatching.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets) {
+        decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.start.from, match.start.to));
+        if (match.end) {
+          decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.end.from, match.end.to));
+        }
+      }
+      return decorations;
+    }
+    
+    if (match.end) {
+      decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.start.from, match.start.to));
+      decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.end.from, match.end.to));
+    }
+
+    return decorations;
+  }
+});// customBracketMatching
