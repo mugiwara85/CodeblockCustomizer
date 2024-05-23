@@ -448,12 +448,12 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 
 /* Bracket highlight */
 .markdown-source-view .codeblock-customizer-bracket-highlight-match {
-  color: var(--codeblock-customizer-codeblock-bracket-highlight-color-match);
-  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+  color: var(--codeblock-bracket-highlight-color-match, var(--codeblock-customizer-codeblock-bracket-highlight-color-match));
+  background-color: var(--codeblock-bracket-highlight-background-color-match, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-match));
 }
 .markdown-source-view .codeblock-customizer-bracket-highlight-nomatch {
-  color: var(--codeblock-customizer-codeblock-bracket-highlight-color-nomatch);;
-  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+  color: var(--codeblock-bracket-highlight-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-color-nomatch));
+  background-color: var(--codeblock-bracket-highlight-background-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-nomatch));
 }
 
 /* Header styling */

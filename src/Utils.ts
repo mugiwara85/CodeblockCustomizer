@@ -467,6 +467,8 @@ const stylesDict: StylesDict = {
   "codeblock.highlightColor": 'codeblock-highlight-color',
   "codeblock.bracketHighlightColorMatch": 'codeblock-bracket-highlight-color-match',
   "codeblock.bracketHighlightColorNoMatch": 'codeblock-bracket-highlight-color-nomatch',
+  "codeblock.bracketHighlightBackgroundColorMatch": 'codeblock-bracket-highlight-background-color-match',
+  "codeblock.bracketHighlightBackgroundColorNoMatch": 'codeblock-bracket-highlight-background-color-nomatch',
   "header.backgroundColor": 'header-background-color',
   "header.textColor": 'header-text-color',
   "header.lineColor": 'header-line-color',
@@ -525,6 +527,12 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
             .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token`;
             style = `color: ${hexValue} !important`;
         }
+        if (mappedAttributeName === "codeblock-bracket-highlight-color-match" || mappedAttributeName === "codeblock-bracket-highlight-background-color-match") {
+          selector += ` .codeblock-customizer-bracket-highlight-match`;
+        }
+        if (mappedAttributeName === "codeblock-bracket-highlight-color-nomatch" || mappedAttributeName === "codeblock-bracket-highlight-background-color-nomatch") {
+          selector += ` .codeblock-customizer-bracket-highlight-nomatch`;
+        }
 
         return languageStyling + `
           ${selector} {
@@ -566,7 +574,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     `;
   }
   styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
-  
+
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
 

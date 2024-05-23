@@ -8,6 +8,8 @@ export interface Colors {
     textColor: string;
     bracketHighlightColorMatch: string;
     bracketHighlightColorNoMatch: string;
+    bracketHighlightBackgroundColorMatch: string;
+    bracketHighlightBackgroundColorNoMatch: string;
   },
   header: {
     backgroundColor: string;
@@ -146,6 +148,8 @@ const SolarizedDarkColors = {
     textColor: '#A30505',
     bracketHighlightColorMatch: '#36e920',
     bracketHighlightColorNoMatch: '#FF0000',
+    bracketHighlightBackgroundColorMatch: D_ACTIVE_CODEBLOCK_LINE_COLOR,
+    bracketHighlightBackgroundColorNoMatch:D_ACTIVE_CODEBLOCK_LINE_COLOR,
   },
   header: {
     backgroundColor: D_HEADER_COLOR,
@@ -177,6 +181,8 @@ const SolarizedLightColors = {
     textColor: '#A30505',
     bracketHighlightColorMatch: '#ff01f7',
     bracketHighlightColorNoMatch: '#FF0000',
+    bracketHighlightBackgroundColorMatch: L_ACTIVE_CODEBLOCK_LINE_COLOR,
+    bracketHighlightBackgroundColorNoMatch:L_ACTIVE_CODEBLOCK_LINE_COLOR,
   },
   header: {
     backgroundColor: L_HEADER_COLOR,
@@ -265,6 +271,8 @@ const ObsidianDarkColors = {
     textColor: '#A30505',
     bracketHighlightColorMatch: '#f33bff',
     bracketHighlightColorNoMatch: '#FF0000',
+    bracketHighlightBackgroundColorMatch: "--color-base-30",
+    bracketHighlightBackgroundColorNoMatch: "--color-base-30",
   },
   header: {
     backgroundColor: "--code-background",
@@ -296,6 +304,8 @@ const ObsidianLightColors = {
     textColor: '#A30505',
     bracketHighlightColorMatch: '#f33bff',
     bracketHighlightColorNoMatch: '#FF0000',
+    bracketHighlightBackgroundColorMatch: "--color-base-30",
+    bracketHighlightBackgroundColorNoMatch: "--color-base-30",
   },
   header: {
     backgroundColor: "--code-background",

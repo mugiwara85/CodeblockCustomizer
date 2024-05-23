@@ -20,6 +20,10 @@ export class SettingsTab extends PluginSettingTab {
     "codeblock.activeLineColor": "Codeblock activeline color",
     "codeblock.backgroundColor": "Codeblock backgroundcolor",
     "codeblock.textColor": "Codeblock textcolor",
+    "codeblock.bracketHighlightColorMatch": 'Matching bracket color',
+    "codeblock.bracketHighlightColorNoMatch": 'Non-matching bracket color',
+    "codeblock.bracketHighlightBackgroundColorMatch": 'Matching bracket background color',
+    "codeblock.bracketHighlightBackgroundColorNoMatch": 'Non-matching bracket background color',
     "header.backgroundColor": "Header backgroundcolor",
     "header.textColor": "Header textcolor",
     "header.lineColor": "Header linecolor",
@@ -327,6 +331,7 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     this.createPickrSetting(codeblockDiv, 'Bracket highlight color for matching brackets', '', "codeblock.bracketHighlightColorMatch");
+    this.createPickrSetting(codeblockDiv, 'Background color for matching brackets', '', "codeblock.bracketHighlightBackgroundColorMatch");
 
     new Setting(codeblockDiv)
       .setName('Enable bracket highlight for non matching brackets')
@@ -341,6 +346,7 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     this.createPickrSetting(codeblockDiv, 'Bracket highlight color for non matching brackets', '', "codeblock.bracketHighlightColorNoMatch");
+    this.createPickrSetting(codeblockDiv, 'Background color for non matching brackets', '', "codeblock.bracketHighlightBackgroundColorNoMatch");
 
     new Setting(codeblockDiv)
       .setName('Inverse fold behavior')
@@ -1024,6 +1030,10 @@ export class SettingsTab extends PluginSettingTab {
       this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightColorMatch = savedColor;
     } else if (className === 'codeblock.bracketHighlightColorNoMatch') {
       this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightColorNoMatch = savedColor;
+    } else if (className === 'codeblock.bracketHighlightBackgroundColorMatch') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightBackgroundColorMatch = savedColor;
+    } else if (className === 'codeblock.bracketHighlightBackgroundColorNoMatch') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightBackgroundColorNoMatch = savedColor;
     } else if (className === 'header.backgroundColor') {
       this.plugin.settings.SelectedTheme.colors[currentMode].header.backgroundColor = savedColor;
     } else if (className === 'header.textColor') {
