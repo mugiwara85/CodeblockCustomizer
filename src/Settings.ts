@@ -218,7 +218,7 @@ const Solarized: Theme = {
       enableLinkUpdate: false,
       textHighlight: true,
       enableBracketHighlight: true,
-      highlightNonMatchingBrackets: false,
+      highlightNonMatchingBrackets: true,
       inverseFold: false,
     },
     semiFold: {
@@ -341,7 +341,7 @@ const Obsidian: Theme = {
       enableLinkUpdate: false,
       textHighlight: true,
       enableBracketHighlight: true,
-      highlightNonMatchingBrackets: false,
+      highlightNonMatchingBrackets: true,
       inverseFold: false,
     },
     semiFold: {

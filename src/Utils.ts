@@ -36,45 +36,10 @@ export function splitAndTrimString(str: string) {
   return str.split(",").map(s => s.trim());
 }// splitAndTrimString
 
-export function extractValue(str: string, searchTerm: string): string | null {
-  const originalStr = str.toLowerCase();
-  searchTerm = searchTerm.toLowerCase();
-
-  const delimiters = [":", "="];
-
-  for (const delimiter of delimiters) {
-    const searchWithDelimiter = searchTerm + delimiter;
-
-    if (originalStr.includes(searchWithDelimiter)) {
-      const startIndex = originalStr.indexOf(searchWithDelimiter) + searchWithDelimiter.length;
-      let result = "";
-
-      if (originalStr[startIndex] === "\"") {
-        const endIndex = originalStr.indexOf("\"", startIndex + 1);
-        if (endIndex !== -1) {
-          result = str.substring(startIndex + 1, endIndex);
-        } else {
-          result = str.substring(startIndex + 1);
-        }
-      } else {
-        const endIndex = originalStr.indexOf(" ", startIndex);
-        if (endIndex !== -1) {
-          result = str.substring(startIndex, endIndex);
-        } else {
-          result = str.substring(startIndex);
-        }
-      }
-      return result.trim();
-    }
-  }
-
-  return null;
-}// extractValue
-
 export function extractFileTitle(str: string): string | null {
-  const file =  extractValue(str, "file");
-  const title =  extractValue(str, "title");
-
+  const file =  extractParameter(str, "file");
+  const title =  extractParameter(str, "title");
+  
   if (file && title)
     return file;
   else if (file && !title)
@@ -146,54 +111,38 @@ export function isParameterDefined(searchTerm: string, str: string): boolean {
   return false;
 }// isParameterDefined
 
-export function extractParameter(str: string, searchTerm: string): string | null {
-  const originalStr = str;
-  str = str.toLowerCase();
-  searchTerm = searchTerm.toLowerCase();
+interface ParsedParams {
+  [key: string]: string;
+}
 
-  const delimiters = [":", "="];
+function parseParameters(input: string): ParsedParams {
+  const params: ParsedParams = {};
+  const cleanedLine = input.replace(/^```/, '').trim();
+  const regex = /(\S+?)([:=])(["'][^"']*["']|[^"'\s]+)?/g;
+  let match;
 
-  for (const delimiter of delimiters) {
-    const searchWithDelimiter = searchTerm + delimiter;
+  while ((match = regex.exec(cleanedLine)) !== null) {
+    let [, key, , value] = match;
 
-    if (str.includes(searchWithDelimiter)) {
-      const startIndex = str.indexOf(searchWithDelimiter) + searchWithDelimiter.length;
-      let endIndex = -1;
-
-      // Check if the value is enclosed in quotes
-      if (str[startIndex] === '"') {
-        const closingQuoteIndex = str.indexOf('"', startIndex + 1);
-        if (closingQuoteIndex !== -1) {
-          endIndex = closingQuoteIndex + 1;
-        }
-      } else {
-        // If not enclosed in quotes, find the next space
-        endIndex = str.indexOf(" ", startIndex);
+    if (value) {
+      value = value.trim();
+      // Remove surrounding quotes if present
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
       }
-
-      if (endIndex !== -1) {
-        let extractedValue = originalStr.substring(startIndex, endIndex).trim();
-
-        // Remove the first and last double quotes if present
-        if (extractedValue.startsWith('"') && extractedValue.endsWith('"')) {
-          extractedValue = extractedValue.slice(1, -1);
-        }
-
-        return extractedValue;
-      } else {
-        let extractedValue = originalStr.substring(startIndex).trim();
-
-        // Remove the first and last double quotes if present
-        if (extractedValue.startsWith('"') && extractedValue.endsWith('"')) {
-          extractedValue = extractedValue.slice(1, -1);
-        }
-
-        return extractedValue;
-      }
+    } else {
+      value = '';
     }
+
+    params[key.trim().toLowerCase()] = value;
   }
 
-  return null;
+  return params;
+}// parseParameters
+
+export function extractParameter(input: string, searchTerm: string): string | null {
+  const params = parseParameters(input);
+  return params[searchTerm.toLowerCase()] || null;
 }// extractParameter
 
 export interface HighlightLines {

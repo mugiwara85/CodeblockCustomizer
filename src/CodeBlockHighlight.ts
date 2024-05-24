@@ -437,7 +437,7 @@ function processLineText(lineText: string, codeblockId: number, alternateColors:
     HL = linesToHighlight.lines;
     lineSpecificWords = linesToHighlight.lineSpecificWords;
     words = linesToHighlight.words;
-
+    
     for (const [name, hexValue] of Object.entries(alternateColors)) {
       const altParams = extractParameter(lineText, `${name}`);
       const altlinesToHighlight = getHighlightedLines(altParams);
