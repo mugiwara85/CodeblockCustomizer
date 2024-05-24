@@ -367,9 +367,10 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number,
 .markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
   /*box-shadow: 0px calc(-1 * var(--code-padding)) var(--codeblock-customizer-gutter-background-color);*/
-  box-shadow: 
+  box-shadow: 0px calc(-1 * var(--code-padding)) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+  /*box-shadow: 
   0px var(--code-padding) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)),
-  0px calc(-1 * var(--code-padding)) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+  0px calc(-1 * var(--code-padding)) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));*/
 }
 .markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number,
 .markdown-rendered .codeblock-customizer-pre > code > div:last-child > .codeblock-customizer-line-number-specific,

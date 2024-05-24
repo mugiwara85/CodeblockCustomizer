@@ -1083,7 +1083,7 @@ export class SettingsTab extends PluginSettingTab {
     const filteredLanguages = language ? { [language]: languageColors[language] } : languageColors;
   
     Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
-      const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}` });
+      const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });
       languageSettingsDiv.createEl('h4', { text: `${languageName} specific color settings` });
       
       this.createDropdown(languageSettingsDiv, languageName);

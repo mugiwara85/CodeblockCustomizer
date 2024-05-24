@@ -467,8 +467,9 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
         const attributeName = attribute.toLowerCase().replace(/\./g, '-');
 
         const mappedAttributeName = stylesDict[attribute] || attributeName;
-        let selector = `.markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
-        let style = `${mappedAttributeName}: ${hexValue}`;
+        let selector = `.codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
+        //.markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()},
+        let style = `${mappedAttributeName}: ${hexValue}`;        
         if (mappedAttributeName === "codeblock-textcolor") {
             selector += `, 
             .markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} [class^="cm-"], 
