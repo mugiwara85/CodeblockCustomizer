@@ -10,6 +10,7 @@ export interface Colors {
     bracketHighlightColorNoMatch: string;
     bracketHighlightBackgroundColorMatch: string;
     bracketHighlightBackgroundColorNoMatch: string;
+    selectionMatchHighlightColor: string;
   },
   header: {
     backgroundColor: string;
@@ -50,6 +51,7 @@ export interface ThemeSettings {
     enableBracketHighlight: boolean;
     highlightNonMatchingBrackets: boolean;
     inverseFold: boolean;
+    enableSelectionMatching: boolean;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -138,6 +140,8 @@ export const L_GUTTER_ACTIVE_LINENR_COLOR = '#866704';
 export const L_INLINE_CODE_BACKGROUND_COLOR = '#E9DFBA';
 export const L_INLINE_CODE_TEXT_COLOR = '#866704';
 
+const SELECTION_MATCH_COLOR = '#99ff7780';
+
 const SolarizedDarkColors = {
   codeblock: {
     activeLineColor: D_ACTIVE_CODEBLOCK_LINE_COLOR,
@@ -150,6 +154,7 @@ const SolarizedDarkColors = {
     bracketHighlightColorNoMatch: '#FF0000',
     bracketHighlightBackgroundColorMatch: D_ACTIVE_CODEBLOCK_LINE_COLOR,
     bracketHighlightBackgroundColorNoMatch:D_ACTIVE_CODEBLOCK_LINE_COLOR,
+    selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
     backgroundColor: D_HEADER_COLOR,
@@ -183,6 +188,7 @@ const SolarizedLightColors = {
     bracketHighlightColorNoMatch: '#FF0000',
     bracketHighlightBackgroundColorMatch: L_ACTIVE_CODEBLOCK_LINE_COLOR,
     bracketHighlightBackgroundColorNoMatch:L_ACTIVE_CODEBLOCK_LINE_COLOR,
+    selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
     backgroundColor: L_HEADER_COLOR,
@@ -220,6 +226,7 @@ const Solarized: Theme = {
       enableBracketHighlight: true,
       highlightNonMatchingBrackets: true,
       inverseFold: false,
+      enableSelectionMatching: false,
     },
     semiFold: {
       enableSemiFold: false,
@@ -273,6 +280,7 @@ const ObsidianDarkColors = {
     bracketHighlightColorNoMatch: '#FF0000',
     bracketHighlightBackgroundColorMatch: "--color-base-30",
     bracketHighlightBackgroundColorNoMatch: "--color-base-30",
+    selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
     backgroundColor: "--code-background",
@@ -306,6 +314,7 @@ const ObsidianLightColors = {
     bracketHighlightColorNoMatch: '#FF0000',
     bracketHighlightBackgroundColorMatch: "--color-base-30",
     bracketHighlightBackgroundColorNoMatch: "--color-base-30",
+    selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
     backgroundColor: "--code-background",
@@ -343,6 +352,7 @@ const Obsidian: Theme = {
       enableBracketHighlight: true,
       highlightNonMatchingBrackets: true,
       inverseFold: false,
+      enableSelectionMatching: false,
     },
     semiFold: {
       enableSemiFold: false,

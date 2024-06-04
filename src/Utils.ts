@@ -1,9 +1,7 @@
 import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App } from "obsidian";
-import { EditorState, Range } from "@codemirror/state";
-import { bracketMatching } from "@codemirror/language";
-import { Decoration } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
 
-import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH } from "./Const";
+import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT } from "./Const";
 import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 
@@ -36,7 +34,7 @@ export function splitAndTrimString(str: string) {
   return str.split(",").map(s => s.trim());
 }// splitAndTrimString
 
-export function extractFileTitle(str: string): string | null {
+export function extractFileTitle(str: string): string {
   const file =  extractParameter(str, "file");
   const title =  extractParameter(str, "title");
   
@@ -47,10 +45,10 @@ export function extractFileTitle(str: string): string | null {
   else if (!file && title)
     return title;
   else
-    return null;
+    return '';
 }// extractFileTitle
 
-export function getCodeBlockLanguage(str: string): string | null {
+export function getCodeBlockLanguage(str: string): string {
   const searchTerm = "```";
   const originalStr = str;
   str = str.toLowerCase();
@@ -75,12 +73,12 @@ export function getCodeBlockLanguage(str: string): string | null {
 
     if (!word.includes(":")) {
       if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold") 
-        return null;
+        return '';
       else
         return removeLeadingBackticks(word);
     }
   }
-  return null;
+  return '';
 }// getCodeBlockLanguage
 
 export function isFoldDefined(str: string): boolean {
@@ -117,7 +115,9 @@ interface ParsedParams {
 
 function parseParameters(input: string): ParsedParams {
   const params: ParsedParams = {};
-  const cleanedLine = input.replace(/^```/, '').trim();
+  const backticks = '`'.repeat(getBacktickCount(input));
+  const backtickRegex = new RegExp(`^${backticks}`);
+  const cleanedLine = input.replace(backtickRegex, '').trim();
   const regex = /(\S+?)([:=])(["'][^"']*["']|[^"'\s]+)?/g;
   let match;
 
@@ -139,6 +139,166 @@ function parseParameters(input: string): ParsedParams {
 
   return params;
 }// parseParameters
+export function getBacktickCount(lineText: string) {
+  return lineText.trim().match(/^`+(?!.*`)/)?.[0].length || 0
+}// getBacktickCount
+
+interface AlternativeHighlight {
+  name: string;
+  lineNumber: number;
+}
+
+interface AlternativeWords {
+  name: string;
+  words: string;
+}
+
+interface AlternativeLinesToHighlight {
+  lines: AlternativeHighlight[];
+  lineSpecificWords: AlternativeHighlight[];
+  words: AlternativeWords[];
+}
+
+export interface Parameters {
+  linesToHighlight: HighlightLines;
+  alternativeLinesToHighlight: AlternativeLinesToHighlight;
+  isSpecificNumber: boolean;
+  lineNumberOffset: number;
+  showNumbers: string;
+  headerDisplayText: string;
+  fold: boolean;
+  unfold: boolean;
+  language: string;
+  displayLanguage: string;
+  specificHeader: boolean;
+  hasLangBorderColor: boolean;
+  exclude: boolean;
+  backtickCount: number;
+  indentLevel: number;
+  indentCharacter: number;
+}
+
+export function getParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
+  const lineText = originalLineText.trim();
+
+  // backtickcount
+  const backtickCount = getBacktickCount(originalLineText);
+
+  // indentation
+  const { level, characters, margin } = getIndentationLevel(originalLineText);
+
+  // default highlight (lines, words, lineSpecificWords)
+  const linesToHighlight = extractHighlightedLines(lineText, "HL");
+  //const { lines, lineSpecificWords, words } = linesToHighlight;
+
+  // highlight with alternative colors (lines, words, lineSpecificWords)
+  const alternateHighlights = extractAlternateHighlights(lineText, settings);
+  //const { altHL, altLineSpecificWords, altWords } = alternateHighlights;
+
+  // isSpecificNumber and showNumbers
+  const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(lineText);
+
+  // fileName/Title
+  let headerDisplayText = extractFileTitle(lineText);
+  
+  // fold
+  let fold = isFoldDefined(lineText);
+
+  // unfold
+  const unfold = isUnFoldDefined(lineText);
+  if (settings.SelectedTheme.settings.codeblock.inverseFold) {
+    fold = unfold ? false : true;
+  }
+
+  // language
+  const language = getCodeBlockLanguage(lineText);
+
+  // displayLanguage
+  const displayLanguage = getDisplayLanguageName(language);
+
+  // isExcluded
+  const exclude = isExcluded(lineText, settings.ExcludeLangs);
+
+  // specificHeader and hasLangBorderColor
+  let specificHeader = true;
+  let hasLangBorderColor = false;
+  if (!exclude) {
+    if (headerDisplayText === null || headerDisplayText === "") {
+      headerDisplayText = DEFAULT_COLLAPSE_TEXT;
+      if (!fold)
+        specificHeader = false;
+    }
+    hasLangBorderColor = getBorderColorByLanguage(language || "", settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).length > 0 ? true : false;
+  }
+
+  return {
+    linesToHighlight: linesToHighlight,
+    alternativeLinesToHighlight: alternateHighlights,
+    isSpecificNumber: isSpecificNumber,
+    lineNumberOffset: lineNumberOffset,
+    showNumbers: showNumbers,
+    headerDisplayText: headerDisplayText,
+    fold: fold,
+    unfold: unfold,
+    language: language,
+    displayLanguage: displayLanguage,
+    specificHeader: specificHeader,
+    hasLangBorderColor: hasLangBorderColor,
+    exclude: exclude,
+    backtickCount: backtickCount,
+    indentLevel: level,
+    indentCharacter: characters,
+  };
+}// getParameters
+
+function extractHighlightedLines(lineText: string, param: string): HighlightLines {
+  const params = extractParameter(lineText, param);
+  return getHighlightedLines(params);
+}// extractHighlightedLines
+
+function extractAlternateHighlights(lineText: string, settings: CodeblockCustomizerSettings): AlternativeLinesToHighlight {
+  const currentMode = getCurrentMode();
+  const alternateColors = settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {};
+  
+  const altHL: AlternativeHighlight[] = [];
+  const altLineSpecificWords: AlternativeHighlight[] = [];
+  const altWords: AlternativeWords[] = [];
+
+  for (const [name, hexValue] of Object.entries(alternateColors)) {
+    const altParams = extractParameter(lineText, name);
+    const altLines = getHighlightedLines(altParams);
+    altHL.push(...altLines.lines.map(lineNumber => ({ name, lineNumber })));
+    altLineSpecificWords.push(...Object.entries(altLines.lineSpecificWords).map(([lineNumber, value]) => ({ name, lineNumber: parseInt(lineNumber), value })));
+    altWords.push({ name, words: altLines.words });
+  }
+
+  return {lines: altHL, lineSpecificWords: altLineSpecificWords, words: altWords };
+}// extractAlternateHighlights
+
+function determineLineNumberDisplay(lineText: string) {
+  const specificLN = extractParameter(lineText, "ln") || "";
+  let isSpecificNumber = false;
+  let showNumbers = "";
+  let lineNumberOffset = 0;
+
+  if (specificLN.toLowerCase() === "true") {
+    showNumbers = "specific";
+  } else if (specificLN.toLowerCase() === "false") {
+    showNumbers = "hide";
+  } else {
+    lineNumberOffset = parseInt(specificLN);
+    if (!isNaN(lineNumberOffset) && lineNumberOffset >= 0) {
+      showNumbers = "specific";
+      isSpecificNumber = true;
+    } else {
+      lineNumberOffset = 0;
+    }
+  }
+
+  lineNumberOffset = lineNumberOffset === 0 ? lineNumberOffset : lineNumberOffset - 1;
+
+  return { isSpecificNumber, showNumbers, lineNumberOffset };
+}// determineLineNumberDisplay
 
 export function extractParameter(input: string, searchTerm: string): string | null {
   const params = parseParameters(input);
@@ -322,14 +482,13 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
 
 // Functions for displaying header BEGIN
 export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string) {
-  const container = document.createElement("div");
-  container.classList.add(`codeblock-customizer-header-container${specific ? '-specific' : ''}`);
+  const container = createDiv({cls: `codeblock-customizer-header-container${specific ? '-specific' : ''}`});
   
   if (languageName) {
     container.classList.add(`codeblock-customizer-language-${languageName.toLowerCase()}`);
-    if (codeblockLanguageSpecificClass)
-      container.classList.add(codeblockLanguageSpecificClass);
   }
+  if (codeblockLanguageSpecificClass)
+    container.classList.add(codeblockLanguageSpecificClass);
 
   if (hasLangBorderColor)
     container.classList.add(`hasLangBorderColor`);
@@ -338,15 +497,13 @@ export function createContainer(specific: boolean, languageName: string, hasLang
 }// createContainer
 
 export function createCodeblockLang(lang: string) {
-  const codeblockLang = document.createElement("div");
-  codeblockLang.innerText = getDisplayLanguageName(lang);
-  codeblockLang.classList.add(`codeblock-customizer-header-language-tag`);
+  const codeblockLang = createDiv({cls: `codeblock-customizer-header-language-tag`, text: getDisplayLanguageName(lang)});
+  //codeblockLang.innerText = getDisplayLanguageName(lang);
   return codeblockLang;
 }// createCodeblockLang
 
 export function createCodeblockIcon(displayLang: string) {
-  const div = document.createElement("div");
-  div.classList.add("codeblock-customizer-icon-container");
+  const div = createDiv({cls: `codeblock-customizer-icon-container`});
   const img = document.createElement("img");
   img.classList.add("codeblock-customizer-icon");
   img.width = 28; //32
@@ -358,14 +515,12 @@ export function createCodeblockIcon(displayLang: string) {
 }// createCodeblockIcon
 
 export function createCodeblockCollapse(defaultFold: boolean) {
-  const collapse = document.createElement("div");
+  const collapse = createDiv({ cls: `codeblock-customizer-header-collapse`});
   //collapse.innerText = defaultFold ? "+" : "-";
   if (defaultFold)
     setIcon(collapse, "chevrons-down-up");
   else
     setIcon(collapse, "chevrons-up-down");
-    
-  collapse.classList.add(`codeblock-customizer-header-collapse`);
 
   return collapse;
 }// createCodeblockLang
@@ -384,8 +539,7 @@ export function createFileName(text: string, enableLinks: boolean, sourcePath: s
 }// createFileName
 
 export function createUncollapseCodeButton() {
-  const uncollapseCodeButton = document.createElement("span");
-  uncollapseCodeButton.classList.add("codeblock-customizer-uncollapse-code");
+  const uncollapseCodeButton = createSpan( {cls: `codeblock-customizer-uncollapse-code`});
   uncollapseCodeButton.setAttribute("aria-label", "Uncollapse code block");
   setIcon(uncollapseCodeButton, "chevron-down");
 
@@ -418,6 +572,7 @@ const stylesDict: StylesDict = {
   "codeblock.bracketHighlightColorNoMatch": 'codeblock-bracket-highlight-color-nomatch',
   "codeblock.bracketHighlightBackgroundColorMatch": 'codeblock-bracket-highlight-background-color-match',
   "codeblock.bracketHighlightBackgroundColorNoMatch": 'codeblock-bracket-highlight-background-color-nomatch',
+  "codeblock.selectionMatchHighlightColor": 'codeblock-selectionmatch-highlight-color',
   "header.backgroundColor": 'header-background-color',
   "header.textColor": 'header-text-color',
   "header.lineColor": 'header-line-color',
@@ -636,7 +791,6 @@ function updateSettingClasses(settings: ThemeSettings) {
   } else{
     document.body.classList.remove('codeblock-customizer-highlight-text-enabled');
   }
-
 }// updateSettingStyles
 
 function formatStyles(colors: ThemeColors, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {
@@ -921,15 +1075,16 @@ export function getIndentationLevel(line: string) {
 
 export function getLanguageSpecificColorClass(codeblockLanguage: string, languageSpecificColors: Record<string, Record<string, string>> | null, languageSpecificColor?: Record<string, string>) {
   let codeblockLanguageSpecificClass = "";
+  const language = codeblockLanguage.length > 0 ? codeblockLanguage : "nolang";
 
   // Check if languageSpecificColors contains properties
-  if (languageSpecificColors !== null && languageSpecificColors[codeblockLanguage] && Object.keys(languageSpecificColors[codeblockLanguage]).length > 0) {
-    codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + codeblockLanguage.toLowerCase();
+  if (languageSpecificColors !== null && languageSpecificColors[language] && Object.keys(languageSpecificColors[language]).length > 0) {
+    codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + language.toLowerCase();
   }
 
   // Check if additionalColors contains properties
   if (languageSpecificColor && Object.keys(languageSpecificColor).length > 0) {
-    codeblockLanguageSpecificClass += "codeblock-customizer-languageSpecific-" + codeblockLanguage.toLowerCase();
+    codeblockLanguageSpecificClass += "codeblock-customizer-languageSpecific-" + language.toLowerCase();
   }
 
   return codeblockLanguageSpecificClass;
@@ -961,27 +1116,16 @@ export function findAllOccurrences(mainString: string, substring: string): numbe
   return indices;
 }// findAllOccurrences
 
-let plugin: CodeblockCustomizerSettings;
-export const customBracketMatching = bracketMatching({
-  renderMatch: (match, state) => {
-    const decorations: Range<Decoration>[] = [];
+export function removeFirstLine(inputString: string): string {
+  const lines = inputString.split('\n');
+  
+  if (lines.length > 1) {
+    const modifiedLines = lines.slice(1);
+    const resultString = modifiedLines.join('\n');
     
-    if (!match.matched) {
-      // @ts-ignore
-      if (customBracketMatching.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets) {
-        decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.start.from, match.start.to));
-        if (match.end) {
-          decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.end.from, match.end.to));
-        }
-      }
-      return decorations;
-    }
-    
-    if (match.end) {
-      decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.start.from, match.start.to));
-      decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.end.from, match.end.to));
-    }
-
-    return decorations;
+    return resultString;
+  } else {
+    // If there's only one line or the input is empty, return an empty string
+    return '';
   }
-});// customBracketMatching
+}// removeFirstLine

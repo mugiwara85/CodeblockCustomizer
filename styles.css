@@ -254,7 +254,7 @@ body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-hig
 
 /* Active gutter line number highlight */
 .codeblock-customizer-gutter-active-line .cm-active [class^='codeblock-customizer-line-number'] {
-  color: var(--gutter-active-linenr-color, var(--codeblock-customizer-gutter-active-linenr-color))
+  color: var(--gutter-active-linenr-color, var(--codeblock-customizer-gutter-active-linenr-color));
 }
 
 /* Inline code editor */
@@ -324,6 +324,12 @@ body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-hig
   border-right-color: var(--border-color);
   border-right-width: 5px;
   border-right-style: solid;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .hasLangBorderColor.codeblock-customizer-fade-out-line3 {
+  border-bottom-left-radius: 5px;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .hasLangBorderColor.codeblock-customizer-fade-out-line3 {
+  border-bottom-right-radius: 5px;
 }
 
 .codeblock-customizer-header-container, 
@@ -406,6 +412,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   position: absolute;
   display: inline-block;
   height: 100%;
+  width: var(--gutter-width);
   /*width: var(--line-number-gutter-width);*/
   /*overflow-x: auto;*/ /* causes problem with shimmering focus and minimal */
   /*direction: rtl;*/
@@ -448,13 +455,25 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 }
 
 /* Bracket highlight */
-.markdown-source-view .codeblock-customizer-bracket-highlight-match {
+.markdown-source-view [class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-match {
   color: var(--codeblock-bracket-highlight-color-match, var(--codeblock-customizer-codeblock-bracket-highlight-color-match));
   background-color: var(--codeblock-bracket-highlight-background-color-match, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-match));
 }
-.markdown-source-view .codeblock-customizer-bracket-highlight-nomatch {
+.markdown-source-view [class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-nomatch {
   color: var(--codeblock-bracket-highlight-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-color-nomatch));
   background-color: var(--codeblock-bracket-highlight-background-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-nomatch));
+}
+.markdown-source-view .codeblock-customizer-bracket-highlight-match:not([class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-match),
+.markdown-source-view .codeblock-customizer-bracket-highlight-nomatch:not([class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-nomatch) { /* dont apply to non-codeblock lines */
+  background-color: transparent;
+}
+
+/* Selection highlight */
+.markdown-source-view .codeblock-customizer-line .cm-selectionMatch {
+  background-color: var(--codeblock-selectionmatch-highlight-color, var(--codeblock-customizer-codeblock-selectionmatch-highlight-color));
+}
+.markdown-source-view .cm-selectionMatch:not(.codeblock-customizer-line .cm-selectionMatch) { /* dont apply to non-codeblock lines */
+  background-color: transparent !important;
 }
 
 /* Header styling */

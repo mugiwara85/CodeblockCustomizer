@@ -1,9 +1,11 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent } from "obsidian";
 import Pickr from "@simonwep/pickr";
 
-import { customBracketMatching, getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
+import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
+import { DEFAULT_COLLAPSE_TEXT } from "./Const";
+import { customBracketMatching, selectionMatching } from "./EditorExtensions";
 
 interface ColorOptions {
   [key: string]: string;
@@ -24,6 +26,7 @@ export class SettingsTab extends PluginSettingTab {
     "codeblock.bracketHighlightColorNoMatch": 'Non-matching bracket color',
     "codeblock.bracketHighlightBackgroundColorMatch": 'Matching bracket background color',
     "codeblock.bracketHighlightBackgroundColorNoMatch": 'Non-matching bracket background color',
+    "codeblock.selectionMatchHighlightColor": 'Selection match highlight color',
     "header.backgroundColor": "Header backgroundcolor",
     "header.textColor": "Header textcolor",
     "header.lineColor": "Header linecolor",
@@ -212,7 +215,7 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableLineNumbers)
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableLineNumbers = value;
-          await this.plugin.saveSettings();          
+          await this.plugin.saveSettings();
         })
       );
 
@@ -225,11 +228,14 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableActiveLineHighlight = value;          
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
+          this.display();
         })
       );
         
-    this.createPickrSetting(codeblockDiv, 'Codeblock active line color', 
-      'To set this color, enable the option "Enable codeblock active line highlight" first.', "codeblock.activeLineColor");
+    if (this.plugin.settings.SelectedTheme.settings.codeblock.enableActiveLineHighlight) {
+      this.createPickrSetting(codeblockDiv, 'Codeblock active line color', 
+        'To set this color, enable the option "Enable codeblock active line highlight" first.', "codeblock.activeLineColor");
+    }
     
     this.createPickrSetting(codeblockDiv, 'Background color', '', "codeblock.backgroundColor");
     this.createPickrSetting(codeblockDiv, 'Highlight color (used by the "hl" parameter)', '', "codeblock.highlightColor");
@@ -281,20 +287,23 @@ export class SettingsTab extends PluginSettingTab {
           });
           this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks = value;
           await this.plugin.saveSettings();
+          this.display();
         })
       );
 
-    const enableLinkUpdate = new Setting(codeblockDiv)
-      .setName('Enable automatically updating links on file rename')
-      .setDesc('To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableLinkUpdate)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableLinkUpdate = value;
-          await this.plugin.saveSettings();
-        })
-      );
-    this.linkUpdateToggle.push(enableLinkUpdate);
+    if (this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks) {
+      const enableLinkUpdate = new Setting(codeblockDiv)
+        .setName('Enable automatically updating links on file rename')
+        .setDesc('To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableLinkUpdate)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.codeblock.enableLinkUpdate = value;
+            await this.plugin.saveSettings();
+          })
+        );
+      this.linkUpdateToggle.push(enableLinkUpdate);
+    }
   
     if (!this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks){
       this.linkUpdateToggle.forEach(item => {
@@ -321,32 +330,40 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableBracketHighlight)
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableBracketHighlight = value;
-          if (value)
+          if (value){
             this.plugin.extensions.push(customBracketMatching);
-          else
+          }
+          else{
             this.plugin.extensions.remove(customBracketMatching);
+          }
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
+          this.display();
         })
       );
 
-    this.createPickrSetting(codeblockDiv, 'Bracket highlight color for matching brackets', '', "codeblock.bracketHighlightColorMatch");
-    this.createPickrSetting(codeblockDiv, 'Background color for matching brackets', '', "codeblock.bracketHighlightBackgroundColorMatch");
+    if (this.plugin.settings.SelectedTheme.settings.codeblock.enableBracketHighlight) {
+      this.createPickrSetting(codeblockDiv, 'Bracket highlight color for matching brackets', '', "codeblock.bracketHighlightColorMatch");
+      this.createPickrSetting(codeblockDiv, 'Background color for matching brackets', '', "codeblock.bracketHighlightBackgroundColorMatch");
 
-    new Setting(codeblockDiv)
-      .setName('Enable bracket highlight for non matching brackets')
-      .setDesc('If you click next to a bracket, and it doesn\'t have a corresponding pair, or the pair does not match the opening/closing bracket (e.g: print("hello"] ), they will be highlighted.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-        })
-      );
+      new Setting(codeblockDiv)
+        .setName('Enable bracket highlight for non matching brackets')
+        .setDesc('If you click next to a bracket, and it doesn\'t have a corresponding pair, or the pair does not match the opening/closing bracket (e.g: print("hello"] ), they will be highlighted.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets = value;
+            await this.plugin.saveSettings();
+            updateSettingStyles(this.plugin.settings, this.app);
+            this.display();
+          })
+        );
 
-    this.createPickrSetting(codeblockDiv, 'Bracket highlight color for non matching brackets', '', "codeblock.bracketHighlightColorNoMatch");
-    this.createPickrSetting(codeblockDiv, 'Background color for non matching brackets', '', "codeblock.bracketHighlightBackgroundColorNoMatch");
+      if (this.plugin.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets) {
+        this.createPickrSetting(codeblockDiv, 'Bracket highlight color for non matching brackets', '', "codeblock.bracketHighlightColorNoMatch");
+        this.createPickrSetting(codeblockDiv, 'Background color for non matching brackets', '', "codeblock.bracketHighlightBackgroundColorNoMatch");
+      }
+    }
 
     new Setting(codeblockDiv)
       .setName('Inverse fold behavior')
@@ -358,6 +375,28 @@ export class SettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         })
       );
+
+    new Setting(codeblockDiv)
+      .setName('Enable selection matching')
+      .setDesc('If enabled, all occurrences of the selected text will be highlighted for easy identification.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectionMatching)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectionMatching = value;
+          if (value){
+            this.plugin.extensions.push(selectionMatching);
+          }
+          else{
+            this.plugin.extensions.remove(selectionMatching);
+          }
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      );
+
+    if (this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectionMatching) {
+      this.createPickrSetting(codeblockDiv, 'Selection match highlight color', '', "codeblock.selectionMatchHighlightColor");
+    }
 
     codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
 
@@ -469,7 +508,7 @@ export class SettingsTab extends PluginSettingTab {
     let languageSpecificColorDisplayText: TextComponent;
     new Setting(languageSpecificDiv)
       .setName("Add languages to set colors")
-      .setDesc('Add a language, to set the colors for this specific language.')
+      .setDesc('Add a language, to set the colors for this specific language. If you want to set colors for code blocks without a language, add "nolang" as a language.')
       .addText(value => { 
         languageSpecificColorDisplayText = value
         languageSpecificColorDisplayText.setPlaceholder('e.g. cpp, csharp')
@@ -604,7 +643,7 @@ export class SettingsTab extends PluginSettingTab {
     .setName('Collapsed code text')
     .setDesc('Overwrite the default "Collapsed Code" text in the header, when the file parameter is not defined.')
     .addText(text => text
-      .setPlaceholder('Collapsed Code')
+      .setPlaceholder(DEFAULT_COLLAPSE_TEXT)
       .setValue(this.plugin.settings.SelectedTheme.settings.header.collapsedCodeText)
       .onChange(async (value) => {
         this.plugin.settings.SelectedTheme.settings.header.collapsedCodeText = value;
@@ -752,10 +791,14 @@ export class SettingsTab extends PluginSettingTab {
       .onChange(async (value) => {
         this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling = value;
         await this.plugin.saveSettings();
+        this.display();
       })
     );
-    this.createPickrSetting(inlineDiv, 'Inline code background color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.backgroundColor");
-    this.createPickrSetting(inlineDiv, 'Inline code text color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.textColor");
+
+    if (this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling) {
+      this.createPickrSetting(inlineDiv, 'Inline code background color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.backgroundColor");
+      this.createPickrSetting(inlineDiv, 'Inline code text color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.textColor");
+    }
 
     const printToPDFDiv = containerEl.createEl("div", { cls: "codeblock-customizer-printToPDF-settingsDiv-hide" });
     printToPDFDiv.toggleClass("codeblock-customizer-printToPDF-settingsDiv-hide", this.plugin.settings.settingsType !== "printToPDF");
@@ -1034,6 +1077,8 @@ export class SettingsTab extends PluginSettingTab {
       this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightBackgroundColorMatch = savedColor;
     } else if (className === 'codeblock.bracketHighlightBackgroundColorNoMatch') {
       this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.bracketHighlightBackgroundColorNoMatch = savedColor;
+    } else if (className === 'codeblock.selectionMatchHighlightColor') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].codeblock.selectionMatchHighlightColor = savedColor;
     } else if (className === 'header.backgroundColor') {
       this.plugin.settings.SelectedTheme.colors[currentMode].header.backgroundColor = savedColor;
     } else if (className === 'header.textColor') {
@@ -1158,7 +1203,7 @@ export class SettingsTab extends PluginSettingTab {
   createReadMeLink = (container: HTMLElement) => {
     const divElement = container.createEl("div", { cls: "codeblock-customizer-readMe", });
 
-    const spanElement = document.createElement("span");
+    const spanElement = createSpan();
     spanElement.style.whiteSpace = "pre"; // Preserve whitespace
     
     const textNode = document.createTextNode("For more information, please read the ");

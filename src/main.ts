@@ -2,12 +2,10 @@ import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath,
 import { Extension } from "@codemirror/state";
 import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
-import { codeblockHighlight } from "./CodeBlockHighlight";
-import { codeblockHeader, collapseField, foldAll } from "./Header";
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, customBracketMatching } from "./Utils";
-
+import { loadIcons, BLOBS, updateSettingStyles } from "./Utils";
+import { customBracketMatching, extensions, selectionMatching } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
 interface codeBlock {
@@ -106,25 +104,18 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
 
     await loadIcons(this);
-    
-    // @ts-ignore
-    codeblockHeader.settings = this.settings;
-    // @ts-ignore
-    codeblockHeader.plugin = this;
-    this.extensions.push(codeblockHeader);
-    
-    // @ts-ignore
-    collapseField.pluginSettings = this.settings;
-    this.extensions.push(collapseField);
         
-    this.extensions.push(codeblockHighlight(this.settings, this));
-    
     if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight) {
       // @ts-ignore
-      customBracketMatching.plugin = this;
+      customBracketMatching.settings = this.settings;
       this.extensions.push(customBracketMatching);
     }
 
+    if (this.settings.SelectedTheme.settings.codeblock.enableSelectionMatching) {
+      this.extensions.push(selectionMatching);
+    }
+
+    this.registerEditorExtension(extensions(this, this.settings));
     this.registerEditorExtension(this.extensions);
 
     const settingsTab = new SettingsTab(this.app, this);
@@ -385,7 +376,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
   }// restoreDefaultFold
 
-  renderReadingViewOnStart() {
+  async renderReadingViewOnStart() {
     this.app.workspace.iterateRootLeaves((currentLeaf: WorkspaceLeaf) => {
       if (currentLeaf.view instanceof MarkdownView) {
         const leafMode = currentLeaf.view.getMode();
