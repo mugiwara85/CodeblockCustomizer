@@ -972,6 +972,50 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// processCodeBlocks
 
+  function foldAll(view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) { // needs to be re-checked
+    processCodeBlocks(view.state.doc, (start, end, lineText, isDefaultFold, isDefaultUnFold) => {
+      if (fold) {
+        if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
+          const lineCount = end.number - start.number + 1;
+          if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+            const ranges = getRanges(view.state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
+            const Pos = view.domAtPos(start.from);
+            let headerElement = null;
+            if (Pos) {
+              headerElement = (Pos.node as HTMLElement).previousElementSibling;
+            }
+  
+            addFadeOutEffect(headerElement as HTMLElement, view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
+          } else {
+            view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
+            view.requestMeasure();
+          }
+        } else {
+          view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
+          view.requestMeasure();
+        }
+      }
+      else {
+        if (!isDefaultFold || !defaultState) {
+          if (settings.SelectedTheme.settings.semiFold.enableSemiFold)
+            clearFadeEffect(view, start.from, end.to);
+  
+          view.dispatch({ effects: UnCollapse.of({filter: (from: number, to: number) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to} )});
+          view.requestMeasure();
+        }
+      }
+    });
+  }// foldAll
+
+  function clearFadeEffect(view: EditorView, CollapseStart: number, CollapseEnd: number) { // needs to be re-checked
+    const hasFadeEffect = hasHeaderEffect(view, CollapseStart, CollapseEnd);
+    if (hasFadeEffect) {
+      view.dispatch({ effects: semiUnFade.of({filter: (from: number, to: number) => to <= CollapseStart || from >= CollapseEnd, filterFrom: CollapseStart, filterTo: CollapseEnd} )});
+
+      view.requestMeasure();
+    }
+  }// clearFadeEffect
+
   return [codeBlockPositions, decorations, collapseField];
 }// extensions
 

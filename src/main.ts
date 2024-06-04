@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles } from "./Utils";
-import { customBracketMatching, extensions, selectionMatching } from "./EditorExtensions";
+import { customBracketMatching, extensions, selectionMatching, } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
 interface codeBlock {
