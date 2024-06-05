@@ -398,6 +398,17 @@ export class SettingsTab extends PluginSettingTab {
       this.createPickrSetting(codeblockDiv, 'Selection match highlight color', '', "codeblock.selectionMatchHighlightColor");
     }
 
+    new Setting(codeblockDiv)
+    .setName('Unwrap code')
+    .setDesc('If enabled, the code will be unwrapped in reading view.')
+    .addToggle(toggle => toggle
+      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode)
+      .onChange(async (value) => {
+        this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode = value;
+        await this.plugin.saveSettings();
+      })
+    );
+
     codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
 
     let enableSemiFoldToggle: ToggleComponent;

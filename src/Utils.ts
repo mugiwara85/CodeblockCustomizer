@@ -139,6 +139,7 @@ function parseParameters(input: string): ParsedParams {
 
   return params;
 }// parseParameters
+
 export function getBacktickCount(lineText: string) {
   return lineText.trim().match(/^`+(?!.*`)/)?.[0].length || 0
 }// getBacktickCount
@@ -595,6 +596,10 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   }
   const currentMode = getCurrentMode();
 
+  const variables = `body.codeblock-customizer {
+    --wrap-code:${settings.SelectedTheme.settings.codeblock.unwrapcode ? 'pre' : 'pre-wrap'}
+  }`;
+
   const altHighlightStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {}).reduce((styling, [colorName, hexValue]) => {
     return styling + `
       .codeblock-customizer-line-highlighted-${colorName.replace(/\s+/g, '-').toLowerCase()} {
@@ -678,7 +683,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
     `;
   }
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
@@ -793,8 +798,11 @@ function updateSettingClasses(settings: ThemeSettings) {
   }
 }// updateSettingStyles
 
-function formatStyles(colors: ThemeColors, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {
+function formatStyles(colors: ThemeColors, settings: ThemeSettings, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {
   return `
+    body.codeblock-customizer {
+      --wrap-code:${settings.codeblock.unwrapcode ? 'pre' : 'pre-wrap'}
+    }
     body.codeblock-customizer.theme-light {
       ${Object.keys(stylesDict).reduce((variables, key) => {
         const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;

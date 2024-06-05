@@ -52,6 +52,7 @@ export interface ThemeSettings {
     highlightNonMatchingBrackets: boolean;
     inverseFold: boolean;
     enableSelectionMatching: boolean;
+    unwrapcode: boolean;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -227,6 +228,7 @@ const Solarized: Theme = {
       highlightNonMatchingBrackets: true,
       inverseFold: false,
       enableSelectionMatching: false,
+      unwrapcode: false,
     },
     semiFold: {
       enableSemiFold: false,
@@ -353,6 +355,7 @@ const Obsidian: Theme = {
       highlightNonMatchingBrackets: true,
       inverseFold: false,
       enableSelectionMatching: false,
+      unwrapcode: false,
     },
     semiFold: {
       enableSemiFold: false,

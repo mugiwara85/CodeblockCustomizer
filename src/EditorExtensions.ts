@@ -65,7 +65,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
-      return  defaultFold(state);
+      return defaultFold(state);
     },
     update(value, tr) {
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(tr.state))

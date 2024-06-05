@@ -558,6 +558,10 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
   display: none !important;
 }
 /* copy code button styling (reading view) */ 
+.markdown-rendered .codeblock-customizer-pre > code {
+  white-space: var(--wrap-code) !important;
+}
+
 .markdown-rendered button.codeblock-customizer-copy-code-button {
   margin: 6px;
   padding: 6px 8px;
