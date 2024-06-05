@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -339,7 +339,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (node.type.name.includes("HyperMD-codeblock-begin")) {
           const startLine = state.doc.lineAt(node.from);
           codeBlockStartPos = node.from;
-          parameters = getParameters(startLine.text, settings);
+          parameters = getAllParameters(startLine.text, settings);
         }
         if (node.type.name.includes("HyperMD-codeblock-end")) {
           codeBlockEndPos = node.to;

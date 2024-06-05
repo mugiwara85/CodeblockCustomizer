@@ -519,7 +519,7 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 .codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
   right: 40px;
 }
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-delete-code {
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-delete-code {
   right: 38px;
 }
 
@@ -546,12 +546,12 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 .codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .codeblock-customizer-copy-code {
   right: 40px;
 }
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .codeblock-customizer-copy-code,
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair {
   right: 73px;
 }
-.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair,
-.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-line .codeblock-customizer-copy-code {
+.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-copy-code {
   right: 40px;
 }
 .codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
@@ -584,8 +584,8 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 .markdown-rendered .codeblock-customizer-pre .copy-code-button {
   display: none;
 }
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-copy-code-button .markdown-rendered button.codeblock-customizer-copy-code-button,
-.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-copy-code-button) .markdown-rendered button.codeblock-customizer-copy-code-button {
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-copy-code-button .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific) button.codeblock-customizer-copy-code-button,
+.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-copy-code-button) .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific) button.codeblock-customizer-copy-code-button {
   right: 30px;
 }
 
@@ -635,7 +635,7 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 
 .codeblock-customizer-header-collapse {
   position: absolute;
-  color: var(--header-text-color, var(--codeblock-customizer-header-text-color));
+  color: var(--text-muted); /*var(--header-text-color, var(--codeblock-customizer-header-text-color));*/
   top: 50%;
   font-size: large;
   font-weight: bold;

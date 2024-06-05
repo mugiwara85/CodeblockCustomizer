@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getParameters } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getAllParameters } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -162,7 +162,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
       while(!preCodeElm.classList.contains("is-loaded"))
         await sleep(2);
         
-    const parameters = getParameters(codeBlockFirstLine, plugin.settings);
+    const parameters = getAllParameters(codeBlockFirstLine, plugin.settings);
     if (parameters.exclude)
       continue;
 
@@ -750,7 +750,7 @@ export function convertHTMLCollectionToArray(elements: HTMLCollection) {
 async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCustomizerPlugin, codeBlockFirstLines: string[], sourcePath: string) {
   for (const [key, codeblockPreElement] of Array.from(codeBlockElement).entries()) {
     const codeblockParameters = codeBlockFirstLines[key];
-    const parameters = getParameters(codeblockParameters, plugin.settings);  
+    const parameters = getAllParameters(codeblockParameters, plugin.settings);  
     
     const codeblockCodeElement: HTMLPreElement | null = codeblockPreElement.querySelector("pre > code");
     if (!codeblockCodeElement)

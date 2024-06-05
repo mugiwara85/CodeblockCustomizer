@@ -179,7 +179,7 @@ export interface Parameters {
   indentCharacter: number;
 }
 
-export function getParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
+export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
   const lineText = originalLineText.trim();
 
   // backtickcount
@@ -595,10 +595,6 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     document.getElementsByTagName('head')[0].appendChild(styleTag);
   }
   const currentMode = getCurrentMode();
-
-  const variables = `body.codeblock-customizer {
-    --wrap-code:${settings.SelectedTheme.settings.codeblock.unwrapcode ? 'pre' : 'pre-wrap'}
-  }`;
 
   const altHighlightStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {}).reduce((styling, [colorName, hexValue]) => {
     return styling + `
