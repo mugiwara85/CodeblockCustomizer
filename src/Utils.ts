@@ -144,6 +144,13 @@ export function getBacktickCount(lineText: string) {
   return lineText.trim().match(/^`+(?!.*`)/)?.[0].length || 0
 }// getBacktickCount
 
+interface AlternativeTextBetween {
+  name: string;
+  lineNumber?: number;
+  from: string;
+  to: string;
+}
+
 interface AlternativeHighlight {
   name: string;
   lineNumber: number;
@@ -158,6 +165,16 @@ interface AlternativeLinesToHighlight {
   lines: AlternativeHighlight[];
   lineSpecificWords: AlternativeHighlight[];
   words: AlternativeWords[];
+  textBetween: AlternativeTextBetween[];
+  lineSpecificTextBetween: AlternativeTextBetween[];
+}
+
+export interface HighlightLines {
+  lines: number[];
+  words: string;
+  lineSpecificWords: Record<number, string>;
+  textBetween: Record<string, string>;
+  lineSpecificTextBetween: Record<number, Record<string, string>>;
 }
 
 export interface Parameters {
@@ -190,12 +207,10 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // default highlight (lines, words, lineSpecificWords)
   const linesToHighlight = extractHighlightedLines(lineText, "HL");
-  //const { lines, lineSpecificWords, words } = linesToHighlight;
-
+  
   // highlight with alternative colors (lines, words, lineSpecificWords)
   const alternateHighlights = extractAlternateHighlights(lineText, settings);
-  //const { altHL, altLineSpecificWords, altWords } = alternateHighlights;
-
+  console.log(alternateHighlights);
   // isSpecificNumber and showNumbers
   const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(lineText);
 
@@ -264,6 +279,8 @@ function extractAlternateHighlights(lineText: string, settings: CodeblockCustomi
   const altHL: AlternativeHighlight[] = [];
   const altLineSpecificWords: AlternativeHighlight[] = [];
   const altWords: AlternativeWords[] = [];
+  const altTextBetween: AlternativeTextBetween[] = [];
+  const altLineSpecificTextBetween: AlternativeTextBetween[] = [];
 
   for (const [name, hexValue] of Object.entries(alternateColors)) {
     const altParams = extractParameter(lineText, name);
@@ -271,9 +288,18 @@ function extractAlternateHighlights(lineText: string, settings: CodeblockCustomi
     altHL.push(...altLines.lines.map(lineNumber => ({ name, lineNumber })));
     altLineSpecificWords.push(...Object.entries(altLines.lineSpecificWords).map(([lineNumber, value]) => ({ name, lineNumber: parseInt(lineNumber), value })));
     altWords.push({ name, words: altLines.words });
+    altTextBetween.push(...Object.entries(altLines.textBetween).map(([from, to]) => ({ name, from, to })));
+    altLineSpecificTextBetween.push(...Object.entries(altLines.lineSpecificTextBetween).flatMap(([lineNumber, pairs]) => 
+      Object.entries(pairs).map(([from, to]) => ({ name, lineNumber: parseInt(lineNumber), from, to }))));
   }
 
-  return {lines: altHL, lineSpecificWords: altLineSpecificWords, words: altWords };
+  return {
+    lines: altHL, 
+    lineSpecificWords: altLineSpecificWords, 
+    words: altWords, 
+    textBetween: altTextBetween,
+    lineSpecificTextBetween: altLineSpecificTextBetween
+  };
 }// extractAlternateHighlights
 
 function determineLineNumberDisplay(lineText: string) {
@@ -306,18 +332,14 @@ export function extractParameter(input: string, searchTerm: string): string | nu
   return params[searchTerm.toLowerCase()] || null;
 }// extractParameter
 
-export interface HighlightLines {
-  lines: number[];
-  words: string;
-  lineSpecificWords: Record<number, string>;
-}
-
 export function getHighlightedLines(params: string | null): HighlightLines {
   if (!params) {
     return {
       lines: [],
       words: '',
       lineSpecificWords: {},
+      textBetween: {},
+      lineSpecificTextBetween: {},
     };
   }
 
@@ -326,22 +348,36 @@ export function getHighlightedLines(params: string | null): HighlightLines {
     lines: [],
     words: '',
     lineSpecificWords: {},
+    textBetween: {},
+    lineSpecificTextBetween: {},
   };
 
   const segments = trimmedParams.split(",");
   segments.forEach(segment => {
     let lineSegment = '';
     let segmentValue = '';
+    let betweenText = '';
 
     if (segment.includes("|")) {
       const [lineOrRange, val] = segment.split("|");
       lineSegment = lineOrRange.trim();
-      segmentValue = val.trim();
+
+      if (val.includes(":")) {
+        const [start, end] = val.split(":");
+        segmentValue = start.trim();
+        betweenText = end.trim();
+      } else {
+        segmentValue = val.trim();
+      }
+    } else if (segment.includes(":")) {
+      const [start, end] = segment.split(":");
+      lineSegment = start.trim();
+      betweenText = end.trim();
     } else {
       lineSegment = segment.trim();
     }
 
-    if (lineSegment !== '' && segmentValue === '') {
+    if (lineSegment !== '' && segmentValue === '' && betweenText === '') {
       const isNumber = (value: string): boolean => !isNaN(Number(value));
       if (isNumber(lineSegment)) { // number only
         result.lines.push(Number(lineSegment));
@@ -352,11 +388,31 @@ export function getHighlightedLines(params: string | null): HighlightLines {
           result.words += result.words ? "," + lineSegment : lineSegment;
         }
       }
-    } else if (lineSegment !== '' && segmentValue !== '') {
+    } else if (lineSegment !== '' && segmentValue !== '' && betweenText === '') {
       if (lineSegment.includes("-")) { // range with text
         processRange(lineSegment, segmentValue, result.lineSpecificWords);
       } else { // number with text
         result.lineSpecificWords[Number(lineSegment)] = result.lineSpecificWords.hasOwnProperty(Number(lineSegment)) ? result.lineSpecificWords[Number(lineSegment)] + ',' + segmentValue : segmentValue;
+      }
+    }
+
+    if (betweenText !== '') {
+      if (lineSegment.includes("-")) {
+        const range = getLineRanges(lineSegment);
+        range.forEach((num) => {
+          if (!result.lineSpecificTextBetween[num]) {
+            result.lineSpecificTextBetween[num] = {};
+          }
+          result.lineSpecificTextBetween[num][segmentValue] = betweenText;
+        });
+      } else if (!isNaN(Number(lineSegment))) {
+        const lineNum = Number(lineSegment);
+        if (!result.lineSpecificTextBetween[lineNum]) {
+          result.lineSpecificTextBetween[lineNum] = {};
+        }
+        result.lineSpecificTextBetween[lineNum][segmentValue] = betweenText;
+      } else {
+        result.textBetween[lineSegment] = betweenText;
       }
     }
   });

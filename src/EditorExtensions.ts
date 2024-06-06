@@ -316,8 +316,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     let codeBlockStartPos = -1;
     let codeBlockEndPos = -1;
     let parameters: Parameters = {
-      linesToHighlight: { lines: [], lineSpecificWords: {}, words: "" },
-      alternativeLinesToHighlight: { lines: [], lineSpecificWords: [], words: [] },
+      linesToHighlight: { lines: [], lineSpecificWords: {}, words: "", textBetween: {}, lineSpecificTextBetween: {} },
+      alternativeLinesToHighlight: { lines: [], lineSpecificWords: [], words: [], textBetween: [], lineSpecificTextBetween: [] },
       isSpecificNumber: false,
       lineNumberOffset: 0,
       showNumbers: "",
@@ -554,7 +554,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     // highlight line by line number hl:1,3-5
     if (parameters.linesToHighlight.lines.includes(lineNumber)) {
       lineClass = addHighlightClass();
-    } 
+    }
   
     // highlight specific lines if they contain a word hl:1|test,3-5|test
     const lineSpecificWords = parameters.linesToHighlight.lineSpecificWords;
@@ -565,10 +565,27 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     // highlight every line which contains a specific word hl:test
     const words = parameters.linesToHighlight.words;
     if (words.length > 0) {
-      const substringsArray = words.split(',');
-      substringsArray.forEach(substring => {
-        lineClass = highlightLine(substring);
-      });
+      lineClass = highlightLine(words);
+    }
+  
+    // highlight lines with specific text between markers hl:start:end
+    const textBetween = parameters.linesToHighlight.textBetween;
+    for (const [start, end] of Object.entries(textBetween)) {
+      if (caseInsensitiveLineText.includes(start.toLowerCase()) && caseInsensitiveLineText.includes(end.toLowerCase())) {
+        const highlightText = `${start}:${end}`;
+        lineClass = highlightLine(highlightText);
+      }
+    }
+  
+    // highlight specific lines with text between markers hl:5|start:end, hl:5-7|start:end
+    const lineSpecificTextBetween = parameters.linesToHighlight.lineSpecificTextBetween;
+    if (lineNumber in lineSpecificTextBetween) {
+      for (const [start, end] of Object.entries(lineSpecificTextBetween[lineNumber])) {
+        if (caseInsensitiveLineText.includes(start.toLowerCase()) && caseInsensitiveLineText.includes(end.toLowerCase())) {
+          const highlightText = `${start}:${end}`;
+          lineClass = highlightLine(highlightText);
+        }
+      }
     }
   
     // highlight line by line number imp:1,3-5
@@ -598,25 +615,59 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       }
     }
+
+      // highlight lines with specific text between markers imp:start:end
+      const altTextBetween = parameters.alternativeLinesToHighlight.textBetween;
+      for (const { from, to, name } of altTextBetween) {
+        if (caseInsensitiveLineText.includes(from.toLowerCase()) && caseInsensitiveLineText.includes(to.toLowerCase())) {
+          const highlightText = `${from}:${to}`;
+          lineClass = highlightLine(highlightText, name);
+        }
+      }
+
+      // highlight specific lines with text between markers imp:5|start:end, imp:5-7|start:end
+      const altLineSpecificTextBetween = parameters.alternativeLinesToHighlight.lineSpecificTextBetween;
+      for (const { lineNumber: altLineNumber, from, to, name } of altLineSpecificTextBetween) {
+        if (lineNumber === altLineNumber && caseInsensitiveLineText.includes(from.toLowerCase()) && caseInsensitiveLineText.includes(to.toLowerCase())) {
+          const highlightText = `${from}:${to}`;
+          lineClass = highlightLine(highlightText, name);
+        }
+      }
   
     return lineClass;
   }// highlightLinesOrWords
-
-  function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, lineClass: string, customClass = '') {
-    const occurrences = findAllOccurrences(caseInsensitiveLineText, word);
   
-    if (settings.SelectedTheme.settings.codeblock.textHighlight) {
-      occurrences.forEach((index) => {
-        const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
-        decorations.push(Decoration.mark({ class: classToUse }).range(line.from + index, line.from + index + word.length));
-      });
-      lineClass = ``;
-    } else if (occurrences.length > 0) {
-      lineClass = customClass ? `codeblock-customizer-line-highlighted-${customClass}` : 'codeblock-customizer-line-highlighted';
+  function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, lineClass: string, customClass = '') {
+    if (word.includes(':')) {
+      const [start, end] = word.split(':').map(w => w.trim().toLowerCase());
+      const startIndex = caseInsensitiveLineText.indexOf(start);
+      const endIndex = caseInsensitiveLineText.indexOf(end, startIndex + start.length);
+  
+      if (startIndex !== -1 && endIndex !== -1) {
+        if (settings.SelectedTheme.settings.codeblock.textHighlight) {
+          const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
+          decorations.push(Decoration.mark({ class: classToUse }).range(line.from + startIndex, line.from + endIndex + end.length));
+          lineClass = '';
+        } else {
+          lineClass = customClass ? `codeblock-customizer-line-highlighted-${customClass}` : 'codeblock-customizer-line-highlighted';
+        }
+      }
+    } else {
+      const occurrences = findAllOccurrences(caseInsensitiveLineText, word);
+  
+      if (settings.SelectedTheme.settings.codeblock.textHighlight) {
+        occurrences.forEach((index) => {
+          const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
+          decorations.push(Decoration.mark({ class: classToUse }).range(line.from + index, line.from + index + word.length));
+        });
+        lineClass = '';
+      } else if (occurrences.length > 0) {
+        lineClass = customClass ? `codeblock-customizer-line-highlighted-${customClass}` : 'codeblock-customizer-line-highlighted';
+      }
     }
   
     return lineClass;
-  }// setClass
+  }// lineClass
 
   function handleWikiLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string) {
     const linkClass = "cm-formatting-link";

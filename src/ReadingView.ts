@@ -493,6 +493,8 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
 }// highlightLines
 
 function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: HTMLDivElement, lineWrapper: HTMLDivElement) {
+  const caseInsensitiveLineText = (lineTextEl.textContent ?? '').toLowerCase();
+
   const addHighlightClass = (name = '') => {
     const className = `codeblock-customizer-highlighted-text-line${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
     lineWrapper.classList.add(className);
@@ -508,6 +510,90 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
     }
   };
 
+  const highlightBetween = (from: string, to: string, name = '') => {
+    const caseInsensitiveFrom = from.toLowerCase();
+    const caseInsensitiveTo = to.toLowerCase();
+    let startFound = false;
+    let accumulatedText = '';
+    let nodesToHighlight: Node[] = [];
+    let startNode: Node | null = null;
+    let endNode: Node | null = null;
+    let startOffset = 0;
+    let endOffset = 0;
+
+    const traverseAndHighlight = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const textContent = node.textContent?.toLowerCase() || '';
+        if (!startFound) {
+          const startIndex = textContent.indexOf(caseInsensitiveFrom);
+          if (startIndex !== -1) {
+            startFound = true;
+            startNode = node;
+            startOffset = startIndex;
+            accumulatedText = textContent.substring(startIndex);
+            nodesToHighlight.push(node);
+          }
+        } else {
+          accumulatedText += textContent;
+          nodesToHighlight.push(node);
+        }
+
+        if (startFound) {
+          const endIndex = accumulatedText.indexOf(caseInsensitiveTo, accumulatedText.indexOf(caseInsensitiveFrom) + caseInsensitiveFrom.length);
+          if (endIndex !== -1) {
+            endNode = node;
+            endOffset = endIndex - (accumulatedText.length - textContent.length) + caseInsensitiveTo.length;
+            if (startNode && endNode) {
+              highlightNodesRange(nodesToHighlight, startNode, startOffset, endNode, endOffset, name);
+              addHighlightClass(name);
+            }
+            startFound = false;
+            accumulatedText = '';
+            nodesToHighlight = [];
+          }
+        }
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        node.childNodes.forEach(traverseAndHighlight);
+      }
+    };
+
+    traverseAndHighlight(lineTextEl);
+  };
+
+  const highlightNodesRange = (nodes: Node[], startNode: Node, startOffset: number, endNode: Node, endOffset: number, name: string) => {
+    for (const currentNode of nodes) {
+      if (currentNode.nodeType === Node.TEXT_NODE) {
+        const span = createSpan();
+        span.className = name ? `codeblock-customizer-highlighted-text-${name}` : 'codeblock-customizer-highlighted-text';
+        
+        let textToHighlight = '';
+        if (currentNode === startNode && currentNode === endNode) {
+          textToHighlight = currentNode.textContent?.substring(startOffset, endOffset) || '';
+        } else if (currentNode === startNode) {
+          textToHighlight = currentNode.textContent?.substring(startOffset) || '';
+        } else if (currentNode === endNode) {
+          textToHighlight = currentNode.textContent?.substring(0, endOffset) || '';
+        } else {
+          textToHighlight = currentNode.textContent || '';
+        }
+
+        span.appendChild(document.createTextNode(textToHighlight));
+
+        const beforeText = document.createTextNode(currentNode.textContent?.substring(0, startOffset) || '');
+        const afterText = currentNode === endNode ? document.createTextNode(currentNode.textContent?.substring(endOffset) || '') : document.createTextNode('');
+
+        const parentNode = currentNode.parentNode;
+        if (parentNode) {
+          parentNode.replaceChild(afterText, currentNode);
+          parentNode.insertBefore(span, afterText);
+          parentNode.insertBefore(beforeText, span);
+        }
+
+        startOffset = 0; // Reset startOffset after the first node
+      }
+    }
+  };
+
   // highlight specific lines if they contain a word hl:1|test,3-5|test
   if (parameters.linesToHighlight.lineSpecificWords.hasOwnProperty(lineNumber)) {
     highlightLine(parameters.linesToHighlight.lineSpecificWords[lineNumber] ?? '');
@@ -516,6 +602,20 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
   // highlight every line which contains a specific word hl:test
   if (parameters.linesToHighlight.words.length > 0) {
     highlightLine(parameters.linesToHighlight.words);
+  }
+
+  // highlight lines with specific text between markers hl:start:end
+  const textBetween = parameters.linesToHighlight.textBetween;
+  for (const [start, end] of Object.entries(textBetween)) {
+    highlightBetween(start, end);
+  }
+
+  // highlight specific lines with text between markers hl:5|start:end, hl:5-7|start:end
+  const lineSpecificTextBetween = parameters.linesToHighlight.lineSpecificTextBetween;
+  if (lineNumber in lineSpecificTextBetween) {
+    for (const [start, end] of Object.entries(lineSpecificTextBetween[lineNumber])) {
+      highlightBetween(start, end);
+    }
   }
 
   // highlight specific lines if they contain a word imp:1|test,3-5|test
@@ -530,6 +630,20 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
   parameters.alternativeLinesToHighlight.words.forEach(({ name, words }) => {
     if (words.length > 0) {
       highlightLine(words, name);
+    }
+  });
+
+  // highlight lines with specific text between markers imp:start:end
+  const altTextBetween = parameters.alternativeLinesToHighlight.textBetween;
+  altTextBetween.forEach(({ from, to, name }) => {
+    highlightBetween(from, to, name);
+  });
+
+  // highlight specific lines with text between markers imp:5|start:end, imp:5-7|start:end
+  const altLineSpecificTextBetween = parameters.alternativeLinesToHighlight.lineSpecificTextBetween;
+  altLineSpecificTextBetween.forEach(({ lineNumber: altLineNumber, from, to, name }) => {
+    if (lineNumber === altLineNumber) {
+      highlightBetween(from, to, name);
     }
   });
 }// textHighlight
