@@ -210,7 +210,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   
   // highlight with alternative colors (lines, words, lineSpecificWords)
   const alternateHighlights = extractAlternateHighlights(lineText, settings);
-  console.log(alternateHighlights);
+
   // isSpecificNumber and showNumbers
   const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(lineText);
 
@@ -244,7 +244,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
       if (!fold)
         specificHeader = false;
     }
-    hasLangBorderColor = getBorderColorByLanguage(language || "", settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).length > 0 ? true : false;
+    hasLangBorderColor = getBorderColorByLanguage(language.length > 0 ? language : "nolang", getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
   }
 
   return {
@@ -666,7 +666,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     `;
   }, '');
 
-  const borderLangColorStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.languageBorderColors || {}).reduce((styling, [colorName, hexValue]) => {
+  const borderLangColorStyling = Object.entries(getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings) || {}).reduce((styling, [colorName, hexValue]) => {
     return styling + `
     .codeblock-customizer-language-${colorName.toLowerCase()} {
       --border-color: ${hexValue};
@@ -1189,3 +1189,56 @@ export function removeFirstLine(inputString: string): string {
     return '';
   }
 }// removeFirstLine
+
+export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin ,settings: CodeblockCustomizerSettings) {
+  const borderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors;
+  /*console.log("before languageBorderColors");
+  Object.entries(borderColors).forEach(([languageName, borderColor]) => {
+    console.log("Language = " + languageName + " color = " + borderColor);
+  });
+  console.log("before languageSpecificColors");
+  Object.entries(settings.SelectedTheme.colors.dark.languageSpecificColors).forEach(([languageName, colorObject]) => {
+    Object.entries(colorObject).forEach(([colorProp, color]) => {
+      console.log("Language = " + languageName + " propety = " + colorProp + " color = " + color);
+    });
+  });*/
+
+  Object.entries(borderColors).forEach(([languageName, borderColor]) => {
+    if (!settings.SelectedTheme.colors.light.languageSpecificColors[languageName]) {
+      settings.SelectedTheme.colors.light.languageSpecificColors[languageName] = {};
+    }
+    if (!settings.SelectedTheme.colors.dark.languageSpecificColors[languageName]) {
+      settings.SelectedTheme.colors.dark.languageSpecificColors[languageName] = {};
+    }
+
+    settings.SelectedTheme.colors.light.languageSpecificColors[languageName]['codeblock.borderColor'] = settings.SelectedTheme.colors.light.codeblock.languageBorderColors[languageName];
+    settings.SelectedTheme.colors.dark.languageSpecificColors[languageName]['codeblock.borderColor'] = settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[languageName];
+
+    delete settings.SelectedTheme.colors.light.codeblock.languageBorderColors[languageName];
+    delete settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[languageName];
+  });
+  (async () => {await app.saveSettings()})();
+  /*console.log("after languageBorderColors");
+  Object.entries(borderColors).forEach(([languageName, borderColor]) => {
+    console.log("Language = " + languageName + " color = " + borderColor);
+  });
+  console.log("after languageSpecificColors");
+  Object.entries(settings.SelectedTheme.colors.dark.languageSpecificColors).forEach(([languageName, colorObject]) => {
+    Object.entries(colorObject).forEach(([colorProp, color]) => {
+      console.log("Language = " + languageName + " propety = " + colorProp + " color = " + color);
+    });
+  });*/
+}// mergeBorderColorsToLanguageSpecificColors
+
+export function getPropertyFromLanguageSpecificColors(propertyName: string, settings: CodeblockCustomizerSettings): Record<string, string> {
+  const languageColors: Record<string, Record<string, string>> = settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
+  const result: Record<string, string> = {};
+
+  Object.entries(languageColors).forEach(([languageName, properties]) => {
+    if ((properties as Record<string, string>)[propertyName]) {
+      result[languageName] = (properties as Record<string, string>)[propertyName];
+    }
+  });
+
+  return result;
+}// getPropertyFromLanguageSpecificColors

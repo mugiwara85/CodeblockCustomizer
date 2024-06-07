@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -115,7 +115,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
-      const container = createContainer(this.parameters.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
+      const container = createContainer(this.parameters.specificHeader, this.parameters.language.length > 0 ? this.parameters.language : "nolang", this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
       if (this.parameters.displayLanguage){
         const Icon = getLanguageIcon(this.parameters.displayLanguage)
         if (Icon) {
@@ -412,7 +412,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (settings.SelectedTheme.settings.codeblock.enableLinks)
         checkForLinks(state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
   
-      // line
       let lineNumber = 0;
       const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
       const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
@@ -471,14 +470,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     let codeblockLanguageSpecificClass = "";
     let borderColor = "";
     const languageSpecificColors = settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
-    const languageBorderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors || {};
+    const languageBorderColors = getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings);
     const language = parameters.language.length > 0 ? parameters.language : "nolang";
 
     codeblockLanguageClass = "codeblock-customizer-language-" + language.toLowerCase();
     codeblockLanguageSpecificClass = getLanguageSpecificColorClass(language, languageSpecificColors);
-    if (parameters.language.length > 0) {      
-      borderColor = getBorderColorByLanguage(parameters.language, languageBorderColors);
-    }
+    borderColor = getBorderColorByLanguage(language, languageBorderColors);
   
     let lineClass = `codeblock-customizer-line`;
     lineClass = highlightLinesOrWords(lineNumber + parameters.lineNumberOffset, startLine, endLine, parameters, line, decorations, lineClass);
@@ -667,7 +664,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   
     return lineClass;
-  }// lineClass
+  }// setClass
 
   function handleWikiLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string) {
     const linkClass = "cm-formatting-link";

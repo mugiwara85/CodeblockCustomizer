@@ -850,10 +850,6 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   display: none;
 }
 
-.codeblock-customizer-border-settingsDiv-hide {
-  display: none;
-}
-
 .codeblock-customizer-languageSpecific-settingsDiv-hide {
   display: none;
 }

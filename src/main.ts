@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors } from "./Utils";
 import { customBracketMatching, extensions, selectionMatching, } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
@@ -104,7 +104,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
 
     await loadIcons(this);
-        
+    
+    mergeBorderColorsToLanguageSpecificColors(this, this.settings);
+
     if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight) {
       // @ts-ignore
       customBracketMatching.settings = this.settings;

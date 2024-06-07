@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getAllParameters } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -178,9 +178,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
   copyButton.addEventListener("click", copyCode);
   preElement.appendChild(copyButton);
 
-  if (parameters.language) {
-    preElement.classList.add(`codeblock-customizer-language-` + parameters.language.toLowerCase());
-  }
+  preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
 
   if (codeblockLanguageSpecificClass)
     preElement.classList.add(codeblockLanguageSpecificClass);
@@ -198,7 +196,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
     isFoldable(preElement as HTMLPreElement, lines.length - 1, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
   }*/
 	
-  const borderColor = getBorderColorByLanguage(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors);
+  const borderColor = getBorderColorByLanguage(parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang", getPropertyFromLanguageSpecificColors("codeblock.borderColor", plugin.settings));
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
@@ -283,7 +281,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
 function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
   const parent = preElements.parentNode;
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-  const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
+  const container = createContainer(parameters.specificHeader, parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang", false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
 
   if (parameters.displayLanguage){
     const Icon = getLanguageIcon(parameters.displayLanguage)
@@ -493,8 +491,6 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
 }// highlightLines
 
 function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: HTMLDivElement, lineWrapper: HTMLDivElement) {
-  const caseInsensitiveLineText = (lineTextEl.textContent ?? '').toLowerCase();
-
   const addHighlightClass = (name = '') => {
     const className = `codeblock-customizer-highlighted-text-line${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
     lineWrapper.classList.add(className);

@@ -19,21 +19,22 @@ export class SettingsTab extends PluginSettingTab {
   linkUpdateToggle: Setting[];
 
   static COLOR_OPTIONS: ColorOptions = {
-    "codeblock.activeLineColor": "Codeblock activeline color",
-    "codeblock.backgroundColor": "Codeblock backgroundcolor",
-    "codeblock.textColor": "Codeblock textcolor",
-    "codeblock.bracketHighlightColorMatch": 'Matching bracket color',
-    "codeblock.bracketHighlightColorNoMatch": 'Non-matching bracket color',
-    "codeblock.bracketHighlightBackgroundColorMatch": 'Matching bracket background color',
-    "codeblock.bracketHighlightBackgroundColorNoMatch": 'Non-matching bracket background color',
-    "codeblock.selectionMatchHighlightColor": 'Selection match highlight color',
-    "header.backgroundColor": "Header backgroundcolor",
-    "header.textColor": "Header textcolor",
-    "header.lineColor": "Header linecolor",
-    "header.codeBlockLangTextColor": "Header language textcolor",
-    "header.codeBlockLangBackgroundColor": "Header language backgroundcolor",
-    "gutter.textColor": "Gutter textcolor",
-    "gutter.backgroundColor": "Gutter backgroundcolor",
+    "codeblock.activeLineColor": "Code block active line color",
+    "codeblock.backgroundColor": "Code block background color",
+    "codeblock.borderColor": "Code block border color",
+    "codeblock.textColor": "Code block text color",
+    "codeblock.bracketHighlightColorMatch": "Matching bracket color",
+    "codeblock.bracketHighlightColorNoMatch": "Non-matching bracket color",
+    "codeblock.bracketHighlightBackgroundColorMatch": "Matching bracket background color",
+    "codeblock.bracketHighlightBackgroundColorNoMatch": "Non-matching bracket background color",
+    "codeblock.selectionMatchHighlightColor": "Selection match highlight color",
+    "header.backgroundColor": "Header background color",
+    "header.textColor": "Header text color",
+    "header.lineColor": "Header line color",
+    "header.codeBlockLangTextColor": "Header language text color",
+    "header.codeBlockLangBackgroundColor": "Header language background color",
+    "gutter.textColor": "Gutter text color",
+    "gutter.backgroundColor": "Gutter background color",
     "gutter.activeLineNrColor": "Gutter active line number color"
   };
 
@@ -140,13 +141,12 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Select settings page')
       .setDesc('Select which settings group you want to modify.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "border": "Codeblock border", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
+        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
           this.plugin.settings.settingsType = value;
           basicDiv.toggleClass("codeblock-customizer-basic-settingsDiv-hide", this.plugin.settings.settingsType !== "basic");
           codeblockDiv.toggleClass("codeblock-customizer-codeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "codeblock");
-          borderDiv.toggleClass("codeblock-customizer-border-settingsDiv-hide", this.plugin.settings.settingsType !== "border");
           languageSpecificDiv.toggleClass("codeblock-customizer-languageSpecific-settingsDiv-hide", this.plugin.settings.settingsType !== "languageSpecific");
           alternateHighlightDiv.toggleClass("codeblock-customizer-alternative-highlight-settingsDiv-hide", this.plugin.settings.settingsType !== "alternateHighlight");
           headerDiv.toggleClass("codeblock-customizer-header-settingsDiv-hide", this.plugin.settings.settingsType !== "header");
@@ -454,64 +454,6 @@ export class SettingsTab extends PluginSettingTab {
       );
     updateDependentSettings();
 
-    const borderDiv = containerEl.createEl("div", { cls: "codeblock-customizer-border-settingsDiv-hide" });
-    borderDiv.toggleClass("codeblock-customizer-border-settingsDiv-hide", this.plugin.settings.settingsType !== "border");
-    borderDiv.createEl('h3', {text: 'Codeblock border settings'});
-
-    new Setting(borderDiv)
-    .setName('Codeblock border styling position')
-    .setDesc('Select on which side the border should be displayed.')
-    .addDropdown((dropdown) => dropdown
-      .addOptions({"disable": "Disable", "left": "Left", "right": "Right"})
-      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.codeBlockBorderStylingPosition)
-      .onChange((value) => {
-        this.plugin.settings.SelectedTheme.settings.codeblock.codeBlockBorderStylingPosition = value;
-        (async () => {await this.plugin.saveSettings()})();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-
-    let languageDisplayText: TextComponent;
-    new Setting(borderDiv)
-      .setName("Add languages to set a border color")
-      .setDesc('Add a language, to which you want to set a border color. You can set the color itself after adding it to the list.')
-      .addText(value => { languageDisplayText = value
-        languageDisplayText = value;
-        languageDisplayText.setPlaceholder('e.g. cpp, csharp')
-        languageDisplayText.onChange(async (languageBorder) => {
-          this.plugin.settings.languageBorderColorName = languageBorder;
-        });
-      })
-      .addButton(async (button) => {
-        button.setButtonText("Add");
-        button.onClick(async () => {
-          const colorNameRegex = /^[^\d][\w\d]*$/;
-          if (this.plugin.settings.languageBorderColorName.trim() === "") {
-            new Notice("Please enter a language name.");
-          } else if (!colorNameRegex.test(this.plugin.settings.languageBorderColorName)) { // check if the input matches the regex
-            new Notice(`"${this.plugin.settings.languageBorderColorName}" is not a valid language name.`);
-          } else {
-            if (this.plugin.settings.languageBorderColorName.toLowerCase() in this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors) {
-              new Notice(`A language with the name "${this.plugin.settings.languageBorderColorName}" already exists.`);
-            } else {
-              const newColor = this.getRandomColor();
-              this.plugin.settings.SelectedTheme.colors.light.codeblock.languageBorderColors[this.plugin.settings.languageBorderColorName] = newColor;
-							this.plugin.settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[this.plugin.settings.languageBorderColorName] = newColor;
-              await this.plugin.saveSettings();
-              new Notice(`Added color "${this.plugin.settings.languageBorderColorName}".`);
-              languageDisplayText.setValue("");
-              this.plugin.settings.languageBorderColorName = "";
-              this.updateLanguageBorderColorContainer(languageContainer); // Update the color container after adding a color
-            }
-          }
-        });
-      });
-
-    const languageContainer = borderDiv.createEl("div", { cls: "codeblock-customizer-languageBorderColorContainer" });
-
-    // Update the color container on page load
-    this.updateLanguageBorderColorContainer(languageContainer);
-
     const languageSpecificDiv = containerEl.createEl("div", { cls: "codeblock-customizer-languageSpecific-settingsDiv-hide" });
     languageSpecificDiv.toggleClass("codeblock-customizer-languageSpecific-settingsDiv-hide", this.plugin.settings.settingsType !== "languageSpecific");
     languageSpecificDiv.createEl('h3', {text: 'Codeblock language specific colors', cls: 'codeblock-customizer-lang-specific-color'});
@@ -551,6 +493,18 @@ export class SettingsTab extends PluginSettingTab {
         });
       });
 
+    new Setting(languageSpecificDiv)
+      .setName('Code block border styling position')
+      .setDesc('Select on which side the border should be displayed.')
+      .addDropdown((dropdown) => dropdown
+        .addOptions({"disable": "Disable", "left": "Left", "right": "Right"})
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.codeBlockBorderStylingPosition)
+        .onChange((value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.codeBlockBorderStylingPosition = value;
+          (async () => {await this.plugin.saveSettings()})();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
     const languageSpecificContainer = languageSpecificDiv.createEl("div", { cls: "codeblock-customizer-languageSpecificColorContainer" });
 
     // Update the color container on page load
@@ -1034,8 +988,6 @@ export class SettingsTab extends PluginSettingTab {
             instance.addSwatch(savedColor);
             if (type === "normal")
               this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors[name] = savedColor;
-            else if (type === "borderColor")
-              this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors[name] = savedColor;
             else if (type === "langSpecific")
               this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
             (async () => {await this.plugin.saveSettings()})();
@@ -1053,10 +1005,6 @@ export class SettingsTab extends PluginSettingTab {
               delete this.plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[name];
               delete this.plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[name];
               this.updateColorContainer(colorContainer); // Update the color container after deleting a color
-            } else if (type === "borderColor") {
-              delete this.plugin.settings.SelectedTheme.colors.light.codeblock.languageBorderColors[name];
-              delete this.plugin.settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[name];
-              this.updateLanguageBorderColorContainer(colorContainer);
             } else if (type === "langSpecific") {
               delete this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][colorKey];
               delete this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][colorKey];
@@ -1121,21 +1069,11 @@ export class SettingsTab extends PluginSettingTab {
       this.createAlternatePickr(colorContainer, colorContainer, colorName, hexValue, "normal");
     });
   }// updateColorContainer
-    
-  updateLanguageBorderColorContainer(colorContainer: HTMLElement) {
-    colorContainer.empty();
-
-    Object.entries(this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors).forEach(([colorName, hexValue]) => {
-      this.createAlternatePickr(colorContainer, colorContainer, colorName, hexValue, "borderColor");
-    });
-  }// updateLanguageBorderColorContainer
 
   updateLanguageSpecificColorContainer(colorContainer: HTMLElement, language = "") {
     colorContainer.empty();
-  
-    const languageColors = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
     
-    // Conditionally filter languages based on the 'language' parameter
+    const languageColors = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
     const filteredLanguages = language ? { [language]: languageColors[language] } : languageColors;
   
     Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
@@ -1178,11 +1116,18 @@ export class SettingsTab extends PluginSettingTab {
             if (this.plugin.settings.langSpecificSettingsType in this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]) {
               new Notice(`${propDisplayText} is already defined for code block language "${languageName}"`);
             } else {
-              const defaultDarkColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "dark", this.plugin.settings.langSpecificSettingsType, true);
-              const defaultLightColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "light", this.plugin.settings.langSpecificSettingsType, true);
-              this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, getCurrentMode() === "dark" ? defaultDarkColor as string : defaultLightColor as string, "langSpecific", this.plugin.settings.langSpecificSettingsType, languageName);
-              this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][this.plugin.settings.langSpecificSettingsType] = defaultLightColor as string;
-              this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][this.plugin.settings.langSpecificSettingsType] = defaultDarkColor as string;
+              if (this.plugin.settings.langSpecificSettingsType === "codeblock.borderColor") {
+                const newColor = this.getRandomColor();
+                this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]['codeblock.borderColor'] = newColor;
+                this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName]['codeblock.borderColor'] = newColor;
+                this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, newColor, "borderColor", this.plugin.settings.langSpecificSettingsType, languageName);
+              } else {
+                const defaultDarkColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "dark", this.plugin.settings.langSpecificSettingsType, true);
+                const defaultLightColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "light", this.plugin.settings.langSpecificSettingsType, true);
+                this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, getCurrentMode() === "dark" ? defaultDarkColor as string : defaultLightColor as string, "langSpecific", this.plugin.settings.langSpecificSettingsType, languageName);
+                this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][this.plugin.settings.langSpecificSettingsType] = defaultLightColor as string;
+                this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][this.plugin.settings.langSpecificSettingsType] = defaultDarkColor as string;
+              }
               (async () => { await this.plugin.saveSettings() })();
               //this.display();
             }
