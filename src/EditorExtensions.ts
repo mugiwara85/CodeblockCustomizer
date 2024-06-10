@@ -34,6 +34,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
   const decorations = StateField.define<DecorationSet>({
     create(state: EditorState): DecorationSet {
+      document.body.classList.remove('codeblock-customizer-header-collapse-command');
+      settings.foldAllCommand = false;
       return Decoration.none;
     },
     update(value: DecorationSet, transaction: Transaction): DecorationSet {
@@ -115,7 +117,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
-      const container = createContainer(this.parameters.specificHeader, this.parameters.language.length > 0 ? this.parameters.language : "nolang", this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
+      const container = createContainer(this.parameters.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
       if (this.parameters.displayLanguage){
         const Icon = getLanguageIcon(this.parameters.displayLanguage)
         if (Icon) {
@@ -475,7 +477,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     codeblockLanguageClass = "codeblock-customizer-language-" + language.toLowerCase();
     codeblockLanguageSpecificClass = getLanguageSpecificColorClass(language, languageSpecificColors);
-    borderColor = getBorderColorByLanguage(language, languageBorderColors);
+    borderColor = getBorderColorByLanguage(parameters.language, languageBorderColors); // handles nolang
   
     let lineClass = `codeblock-customizer-line`;
     lineClass = highlightLinesOrWords(lineNumber + parameters.lineNumberOffset, startLine, endLine, parameters, line, decorations, lineClass);
@@ -1021,11 +1023,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// processCodeBlocks
 
   function foldAll(view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) { // needs to be re-checked
+    const { enableSemiFold, visibleLines } = settings.SelectedTheme.settings.semiFold;
+    const changes: StateEffect<any>[] = [];
+
     processCodeBlocks(view.state.doc, (start, end, lineText, isDefaultFold, isDefaultUnFold) => {
-      if (fold) {
-        if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
-          const lineCount = end.number - start.number + 1;
-          if (lineCount > settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount) {
+      const lineCount = view.state.doc.lineAt(end.to).number - view.state.doc.lineAt(start.from).number + 1;
+
+      if (fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !isDefaultUnFold)) {
+        if (enableSemiFold && lineCount >= visibleLines + fadeOutLineCount + 2) { // +2 to ignore the first and last lines
             const ranges = getRanges(view.state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
             const Pos = view.domAtPos(start.from);
             let headerElement = null;
@@ -1035,24 +1040,22 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
             addFadeOutEffect(headerElement as HTMLElement, view.state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, view);
           } else {
-            view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
-            view.requestMeasure();
+            changes.push(Collapse.of(Decoration.replace({ block: true }).range(start.from, end.to)));
           }
         } else {
-          view.dispatch({ effects: Collapse.of(Decoration.replace({block: true}).range(start.from, end.to)) });
-          view.requestMeasure();
-        }
-      }
-      else {
         if (!isDefaultFold || !defaultState) {
-          if (settings.SelectedTheme.settings.semiFold.enableSemiFold)
+          if (enableSemiFold )
             clearFadeEffect(view, start.from, end.to);
-  
-          view.dispatch({ effects: UnCollapse.of({filter: (from: number, to: number) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to} )});
-          view.requestMeasure();
+
+          changes.push(UnCollapse.of({ filter: (from: number, to: number) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to }));
         }
       }
     });
+
+    if (changes.length > 0) {
+      view.dispatch({ effects: changes });
+      view.requestMeasure();
+    }
   }// foldAll
 
   function clearFadeEffect(view: EditorView, CollapseStart: number, CollapseEnd: number) { // needs to be re-checked
@@ -1064,7 +1067,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// clearFadeEffect
 
-  return [codeBlockPositions, decorations, collapseField];
+  const extensions = [codeBlockPositions, decorations, collapseField];
+
+  const result = {
+    extensions,
+    foldAll
+};
+
+  return result;
 }// extensions
 
 let settings: CodeblockCustomizerSettings;

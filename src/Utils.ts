@@ -240,11 +240,11 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   let hasLangBorderColor = false;
   if (!exclude) {
     if (headerDisplayText === null || headerDisplayText === "") {
-      headerDisplayText = DEFAULT_COLLAPSE_TEXT;
-      if (!fold)
+      headerDisplayText = settings.SelectedTheme.settings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
+      if (!fold && !(language.length > 0 && (settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon || settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang)))
         specificHeader = false;
     }
-    hasLangBorderColor = getBorderColorByLanguage(language.length > 0 ? language : "nolang", getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
+    hasLangBorderColor = getBorderColorByLanguage(language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
   }
 
   return {
@@ -539,11 +539,10 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
 
 // Functions for displaying header BEGIN
 export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string) {
+  const lang = languageName.length > 0 ? languageName.toLowerCase() : "nolang"
   const container = createDiv({cls: `codeblock-customizer-header-container${specific ? '-specific' : ''}`});
-  
-  if (languageName) {
-    container.classList.add(`codeblock-customizer-language-${languageName.toLowerCase()}`);
-  }
+  container.classList.add(`codeblock-customizer-language-${lang.toLowerCase()}`);
+
   if (codeblockLanguageSpecificClass)
     container.classList.add(codeblockLanguageSpecificClass);
 
@@ -604,7 +603,8 @@ export function createUncollapseCodeButton() {
 }// createUncollapseCodeButton
 
 export function getBorderColorByLanguage(languageName: string, languageBorderColors: Record<string, string>): string {
-  const lowercaseLanguageName = languageName.toLowerCase();
+  const lang = languageName.length > 0 ? languageName : "nolang"
+  const lowercaseLanguageName = lang.toLowerCase();
 
   for (const key in languageBorderColors) {
     if (key.toLowerCase() === lowercaseLanguageName) {
@@ -663,14 +663,6 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-highlighted-text-line-${colorName.replace(/\s+/g, '-').toLowerCase()} {
         background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
       }
-    `;
-  }, '');
-
-  const borderLangColorStyling = Object.entries(getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings) || {}).reduce((styling, [colorName, hexValue]) => {
-    return styling + `
-    .codeblock-customizer-language-${colorName.toLowerCase()} {
-      --border-color: ${hexValue};
-    }
     `;
   }, '');
 
@@ -735,7 +727,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
     `;
   }
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + borderLangColorStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
@@ -1192,16 +1184,6 @@ export function removeFirstLine(inputString: string): string {
 
 export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin ,settings: CodeblockCustomizerSettings) {
   const borderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors;
-  /*console.log("before languageBorderColors");
-  Object.entries(borderColors).forEach(([languageName, borderColor]) => {
-    console.log("Language = " + languageName + " color = " + borderColor);
-  });
-  console.log("before languageSpecificColors");
-  Object.entries(settings.SelectedTheme.colors.dark.languageSpecificColors).forEach(([languageName, colorObject]) => {
-    Object.entries(colorObject).forEach(([colorProp, color]) => {
-      console.log("Language = " + languageName + " propety = " + colorProp + " color = " + color);
-    });
-  });*/
 
   Object.entries(borderColors).forEach(([languageName, borderColor]) => {
     if (!settings.SelectedTheme.colors.light.languageSpecificColors[languageName]) {
@@ -1218,16 +1200,7 @@ export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomiz
     delete settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[languageName];
   });
   (async () => {await app.saveSettings()})();
-  /*console.log("after languageBorderColors");
-  Object.entries(borderColors).forEach(([languageName, borderColor]) => {
-    console.log("Language = " + languageName + " color = " + borderColor);
-  });
-  console.log("after languageSpecificColors");
-  Object.entries(settings.SelectedTheme.colors.dark.languageSpecificColors).forEach(([languageName, colorObject]) => {
-    Object.entries(colorObject).forEach(([colorProp, color]) => {
-      console.log("Language = " + languageName + " propety = " + colorProp + " color = " + color);
-    });
-  });*/
+
 }// mergeBorderColorsToLanguageSpecificColors
 
 export function getPropertyFromLanguageSpecificColors(propertyName: string, settings: CodeblockCustomizerSettings): Record<string, string> {

@@ -1,6 +1,6 @@
 /* Define CSS variables */
 :root {
-  --line-number-gutter-width: 32px;
+  --line-number-gutter-width: 38px;
   --line-number-gutter-padding: 16px;
   --border-radius: 5px;
   --code-padding: 8px;
@@ -295,16 +295,22 @@ body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-hig
 }
 
 /* Codeblock border styling */
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-first {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered .codeblock-customizer-header-container-specific[class*="codeblock-customizer-languageSpecific-"]{
+  border-top-left-radius: 0px;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered .codeblock-customizer-header-container-specific[class*="codeblock-customizer-languageSpecific-"]{
+  border-top-right-radius: 0px;
+}
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first {
   border-top-left-radius: 0px !important;
 }
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-first {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first {
   border-top-right-radius: 0px !important;
 }
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-last {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-last {
   border-bottom-left-radius: 0px !important;
 }
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--border-color"] .codeblock-customizer-line-number-last {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-last {
   border-bottom-right-radius: 0px !important;
 }
 
@@ -312,7 +318,7 @@ body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-hig
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-][class*="hasLangBorderColor"] {
-  border-left-color: var(--border-color);
+  border-left-color: var(--codeblock-bordercolor);
   border-left-width: 5px;
   border-left-style: solid;
 }
@@ -321,7 +327,7 @@ body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-hig
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"], 
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-][class*="hasLangBorderColor"] {
-  border-right-color: var(--border-color);
+  border-right-color: var(--codeblock-bordercolor);
   border-right-width: 5px;
   border-right-style: solid;
 }
@@ -353,11 +359,11 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 /*.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container ~ .copy-code-button,
 .codeblock-customizer-show-langnames-always .codeblock-customizer-header-container ~ .copy-code-button,
 .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container ~ .copy-code-button*/
-.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container ~ .codeblock-customizer-copy-code-button,
-.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container ~ .codeblock-customizer-copy-code-button,
-.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container ~ .codeblock-customizer-copy-code-button {
+/*.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button {
   margin-top: calc(var(--language-icon-size) + 6px) !important;
-}
+}*/
 /*.codeblock-customizer-header-container-specific ~ .copy-code-button*/
 .codeblock-customizer-header-container-specific ~ .codeblock-customizer-copy-code-button {
   margin-top: calc(var(--language-icon-size) + 6px) !important;
@@ -412,7 +418,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   position: absolute;
   display: inline-block;
   height: 100%;
-  width: var(--gutter-width);
+  /*width: var(--gutter-width);*/
   /*width: var(--line-number-gutter-width);*/
   /*overflow-x: auto;*/ /* causes problem with shimmering focus and minimal */
   /*direction: rtl;*/
@@ -422,11 +428,14 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   width: var(--line-number-gutter-width);
 }
 
-.codeblock-customizer-line-number-first.codeblock-customizer-line-number-specific-number,
+/*.codeblock-customizer-line-number-first.codeblock-customizer-line-number-specific-number,
 .codeblock-customizer-line-number-last.codeblock-customizer-line-number-specific-number {
   width: var(--gutter-width);
-}
+}*/
 
+.codeblock-customizer-line-number-specific {
+  width: var(--gutter-width);
+}
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific-number) {
   --gutter-width: var(--line-number-gutter-width);
   padding-left: calc(var(--gutter-width) + var(--line-number-gutter-padding)) !important;
@@ -519,7 +528,10 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 .codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
   right: 40px;
 }
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-delete-code {
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
+.codeblock-customizer-show-langicons-always.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
+.codeblock-customizer-show-langnames-always.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-delete-code {
   right: 38px;
 }
 
@@ -547,11 +559,23 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
   right: 40px;
 }
 .codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair {
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button.codeblock-customizer-show-langicons-always .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button.codeblock-customizer-show-langnames-always .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-copy-code-button.codeblock-customizer-header-collapse-command .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-langicons-always .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-show-langnames-always .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-delete-code-button.codeblock-customizer-header-collapse-command .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair {
   right: 73px;
 }
 .codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair,
-.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-copy-code {
+.codeblock-customizer-show-langicons-always.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-show-langnames-always.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-show-langicons-always.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-show-langnames-always.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight:not(.codeblock-customizer-show-delete-code-button) .markdown-source-view.mod-cm6 .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code {
   right: 40px;
 }
 .codeblock-customizer-show-copy-code-button .markdown-source-view.mod-cm6 .codeblock-customizer-line .code-block-flair {
@@ -595,18 +619,37 @@ body:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-he
 .codeblock-customizer-header-collapse-command.codeblock-customizer-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .code-block-flair,
 .codeblock-customizer-header-collapse-command.codeblock-customizer-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
-.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair {
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .code-block-flair,
+.codeblock-customizer-show-copy-code-button.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-show-copy-code-button.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code,
+.codeblock-customizer-show-copy-code-button.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-copy-code {
   top: -30px;
 }
 .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific) .codeblock-customizer-copy-code-button,
-.codeblock-customizer-header-collapse-command .markdown-rendered .codeblock-customizer-pre:not(.codeblock-customizer-codeblock-collapsed) .codeblock-customizer-copy-code-button {
+.codeblock-customizer-header-collapse-command .markdown-rendered .codeblock-customizer-pre:not(.codeblock-customizer-codeblock-collapsed) .codeblock-customizer-copy-code-button{
   top: -37px;
 }
 .codeblock-customizer-show-delete-code-button .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
 .codeblock-customizer-header-collapse-command.codeblock-customizer-show-delete-code-button .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-show-delete-code-button .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-delete-code {
+.codeblock-customizer-header-collapse-command.codeblock-customizer-show-delete-code-button .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
+.codeblock-customizer-show-langicons-always.codeblock-customizer-show-delete-code-button .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-delete-code,
+.codeblock-customizer-show-langnames-always.codeblock-customizer-show-delete-code-button .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-delete-code {
   top: -30px;
   bottom: 25px;
+}
+
+.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button {
+  margin-top: 1px;
+}
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-copy-code-button {
+  right: 30px;
 }
 
 .codeblock-customizer-header-container,
@@ -723,7 +766,11 @@ body .codeblock-customizer-header-container-specific:not(:has( [class^="codebloc
 body:not(:not([class*='codeblock-customizer-show-langnames'])) .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
 body:not(:not([class*='codeblock-customizer-show-langicons'])) .codeblock-customizer-header-container-specific:has(.codeblock-customizer-icon) .codeblock-customizer-header-text,
 body:not(:not([class*='codeblock-customizer-header-collapse-command'])):not(:not([class*='codeblock-customizer-show-langnames-always'])) .codeblock-customizer-header-container .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
-body:not(:not([class*='codeblock-customizer-header-collapse-command'])):not(:not([class*='codeblock-customizer-show-langicons-always'])) .codeblock-customizer-header-container:has(.codeblock-customizer-icon) .codeblock-customizer-header-text {
+body:not(:not([class*='codeblock-customizer-header-collapse-command'])):not(:not([class*='codeblock-customizer-show-langicons-always'])) .codeblock-customizer-header-container:has(.codeblock-customizer-icon) .codeblock-customizer-header-text
+.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text,
+.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text,
+body:not(:not([class*='codeblock-customizer-show-langicons-always'])).codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text,
+body:not(:not([class*='codeblock-customizer-show-langnames-always'])).codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text {
   padding-left: 0px;
 }
 div:has(> img.codeblock-customizer-icon) {

@@ -46,7 +46,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.settings.foldAllCommand = true;
           if (mode === "source") {
             // @ts-ignore
-            foldAll(markdownView.editor.cm, this.settings, true, false);
+            editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
             foldAllReadingView(true, this.settings);
           } else if (mode === "preview") {
             foldAllReadingView(true, this.settings);
@@ -68,7 +68,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.settings.foldAllCommand = true;
           if (mode === "source") {
             // @ts-ignore
-            foldAll(markdownView.editor.cm, this.settings, false, false);
+            editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, false);
             foldAllReadingView(false, this.settings);
           } else if (mode === "preview") {
             foldAllReadingView(false, this.settings);
@@ -90,9 +90,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.settings.foldAllCommand = false;
           if (mode === "source") {
             // @ts-ignore
-            foldAll(markdownView.editor.cm, this.settings, true, false);
+            editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
             // @ts-ignore
-            foldAll(markdownView.editor.cm, this.settings, false, true);
+            editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, true);
             foldAllReadingView(false, this.settings);
             this.restoreDefaultFold();
           } else if (mode === "preview") {
@@ -116,10 +116,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (this.settings.SelectedTheme.settings.codeblock.enableSelectionMatching) {
       this.extensions.push(selectionMatching);
     }
-
-    this.registerEditorExtension(extensions(this, this.settings));
+    const editorExtensions = extensions(this, this.settings);
+    this.registerEditorExtension(editorExtensions.extensions);
     this.registerEditorExtension(this.extensions);
-
+    
     const settingsTab = new SettingsTab(this.app, this);
     this.addSettingTab(settingsTab);
     if (this.settings.ThemeName == "") {

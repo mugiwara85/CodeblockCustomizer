@@ -196,7 +196,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
     isFoldable(preElement as HTMLPreElement, lines.length - 1, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
   }*/
 	
-  const borderColor = getBorderColorByLanguage(parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang", getPropertyFromLanguageSpecificColors("codeblock.borderColor", plugin.settings));
+  const borderColor = getBorderColorByLanguage(parameters.language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", plugin.settings));
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
@@ -281,7 +281,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
 function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
   const parent = preElements.parentNode;
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-  const container = createContainer(parameters.specificHeader, parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang", false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
+  const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
 
   if (parameters.displayLanguage){
     const Icon = getLanguageIcon(parameters.displayLanguage)
@@ -888,7 +888,6 @@ export function foldAllReadingView(fold: boolean, settings: CodeblockCustomizerS
   const preParents = document.querySelectorAll('.codeblock-customizer-pre-parent');
   preParents.forEach((preParent) => {
     const preElement = preParent.querySelector('.codeblock-customizer-pre');
-    const headerTextElement = preElement?.querySelector('.codeblock-customizer-header-container .codeblock-customizer-header-text');
     
     let lines: Element[] = [];
     if (preElement){
@@ -896,11 +895,11 @@ export function foldAllReadingView(fold: boolean, settings: CodeblockCustomizerS
       lines = convertHTMLCollectionToArray(codeElements);
     }
 
-    toggleFoldClasses(preElement as HTMLPreElement, lines.length, fold, settings.SelectedTheme.settings.semiFold.enableSemiFold, settings.SelectedTheme.settings.semiFold.visibleLines, settings.SelectedTheme.settings.header.collapsedCodeText || 'Collapsed Code', headerTextElement as HTMLElement);
+    toggleFoldClasses(preElement as HTMLPreElement, lines.length, fold, settings.SelectedTheme.settings.semiFold.enableSemiFold, settings.SelectedTheme.settings.semiFold.visibleLines);
   });
 }//foldAllreadingView
 
-export function toggleFoldClasses(preElement: HTMLPreElement, linesLength: number, fold: boolean, enableSemiFold: boolean, visibleLines: number, collapsedCodeText: string | null = null, headerTextElement: HTMLElement | null = null) {
+export function toggleFoldClasses(preElement: HTMLPreElement, linesLength: number, fold: boolean, enableSemiFold: boolean, visibleLines: number) {
   if (fold) {
     if (enableSemiFold) {
       if (linesLength >= visibleLines + fadeOutLineCount) {
@@ -910,8 +909,6 @@ export function toggleFoldClasses(preElement: HTMLPreElement, linesLength: numbe
     }
     else
       preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
-    if (collapsedCodeText)
-      headerTextElement?.setText(collapsedCodeText);
   }
   else {
     if (enableSemiFold) {
