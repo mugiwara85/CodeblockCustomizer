@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getLanguageConfig } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -118,10 +118,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
       const container = createContainer(this.parameters.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
-      if (this.parameters.displayLanguage){
-        const Icon = getLanguageIcon(this.parameters.displayLanguage)
+
+      const customLangConfig = getLanguageConfig(this.parameters.language, this.plugin.settings);
+      const customLangDisplayName = customLangConfig?.displayName ?? this.parameters.displayLanguage;
+      if (customLangDisplayName){
+        const Icon = getLanguageIcon(customLangDisplayName)
         if (Icon) {
-          container.appendChild(createCodeblockIcon(this.parameters.displayLanguage));
+          container.appendChild(createCodeblockIcon(customLangDisplayName));
         }
         container.appendChild(createCodeblockLang(this.parameters.language));
       }

@@ -29,7 +29,6 @@
 		"@codemirror/search": "^6.5.6",
 		"@lezer/common": "^1.1.0",
 		"@simonwep/pickr": "^1.8.2",
-		"dompurify": "^3.0.5",
 		"hast-util-from-html": "^2.0.1",
 		"hast-util-to-html": "^9.0.0",
 		"lodash": "^4.17.21",

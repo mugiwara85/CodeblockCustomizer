@@ -491,9 +491,9 @@ export function getDisplayLanguageName(code: string | null) {
   } else if (manualLang.hasOwnProperty(code)) {
     return manualLang[code];
   } else if (code){
-      return code.charAt(0).toUpperCase() + code.slice(1);
+    return code.charAt(0).toUpperCase() + code.slice(1);
   }
-  
+
   return "";
 }// getDisplayLanguageName
 
@@ -508,34 +508,84 @@ export async function loadIcons(plugin: CodeBlockCustomizerPlugin){
   await loadCustomIcons(plugin);
 }// loadIcons
 
+interface LanguageConfig {
+  codeblockLanguages: string[];
+  displayName: string;
+  svgFile?: string;
+  format?: string;
+}
+
+export interface customLanguageConfig {
+  languages: LanguageConfig[];
+}
+
 async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
+  const svgJsonExists = await plugin.app.vault.adapter.exists(plugin.app.vault.configDir + SVG_FILE_PATH);
+  if (!svgJsonExists)
+    return;
+
+  const svgJsonContent = await plugin.app.vault.adapter.read(plugin.app.vault.configDir + SVG_FILE_PATH);
+  if (!svgJsonContent)
+    return;
+  
+  let languageConfig: customLanguageConfig;
   try {
-    if (await plugin.app.vault.adapter.exists(plugin.app.vault.configDir + SVG_FILE_PATH)) {
-      const svgJsonContent: string = await plugin.app.vault.adapter.read(plugin.app.vault.configDir + SVG_FILE_PATH);
-      if (svgJsonContent) {
-        const { Languages }: { Languages: Record<string, string> } = JSON.parse(svgJsonContent);
-        for (const [codeblockLanguage, displayLanguage] of Object.entries(Languages)) {
-          const svgFileName = `${displayLanguage}.svg`;
-          try {
-            const svgFilePath: string = plugin.app.vault.configDir + SVG_FOLDER_PATH + svgFileName;
-            const svgFileExists: boolean = await plugin.app.vault.adapter.exists(svgFilePath);
-            if (svgFileExists) {
-              const svgContent: string = await plugin.app.vault.adapter.read(svgFilePath);
-              const base64SVG = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${svgContent}</svg>`)}`;
-              manualLang[codeblockLanguage] = displayLanguage as string;
-              Icons[displayLanguage] = svgContent;
-              BLOBS[displayLanguage.replace(/\s/g, "_")] = `${base64SVG}`;
-            }
-          } catch (fileError) {
-            console.error(`Error reading SVG file ${svgFileName}:`, fileError);
-          }
-        }
+    languageConfig = JSON.parse(svgJsonContent) as customLanguageConfig;
+  } catch (error) {
+    console.error("Invalid JSON content in the SVG configuration file:", error);
+    return;
+  }
+  plugin.settings.SelectedTheme.settings.customLanguageConfig = languageConfig;
+
+  for (const lang of languageConfig.languages) {
+    if (lang.svgFile) {
+      const svgFilePath = plugin.app.vault.configDir + SVG_FOLDER_PATH + lang.svgFile;
+      const svgFileExists = await plugin.app.vault.adapter.exists(svgFilePath);
+      if (svgFileExists) {
+        const svgContent = await plugin.app.vault.adapter.read(svgFilePath);
+        const base64SVG = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${svgContent}</svg>`)}`;
+        Icons[lang.displayName] = svgContent;
+        BLOBS[lang.displayName.replace(/\s/g, "_")] = `${base64SVG}`;
       }
     }
-  } catch (jsonError) {
-    console.error('Error parsing SVG JSON content:', jsonError);
+    for (const language of lang.codeblockLanguages) {
+      manualLang[language] = lang.displayName as string;
+    }
   }
+
 }// loadCustomIcons
+
+export function loadSyntaxHighlightForCustomLanguages(settings: CodeblockCustomizerSettings) {
+  const customLanguageConfig = settings.SelectedTheme.settings.customLanguageConfig;
+  if (!customLanguageConfig) 
+    return;
+
+  for (const lang of customLanguageConfig.languages) {
+    if (lang.format && lang.format.length > 0) {
+      for (const language of lang.codeblockLanguages) {
+        registerEditorSyntaxHighlightingForLanguage(language, lang.format);
+      }
+    }
+  }
+}// loadSyntaxHighlightForCustomLanguages
+
+export function getLanguageConfig(codeblockLanguage: string, settings: CodeblockCustomizerSettings): LanguageConfig | undefined {
+  if (!settings.SelectedTheme.settings.customLanguageConfig) 
+    return undefined;
+
+  return settings.SelectedTheme.settings.customLanguageConfig.languages.find((langConfig: LanguageConfig) => 
+    langConfig.codeblockLanguages.includes(codeblockLanguage)
+  );
+}// getLanguageConfig
+
+function registerEditorSyntaxHighlightingForLanguage(codeblockLanguage: string, requiredSyntax: string): void {
+  if (!codeblockLanguage || codeblockLanguage.length === 0 || !requiredSyntax || requiredSyntax.length === 0)
+    return;
+
+  window.CodeMirror.defineMode(codeblockLanguage, config =>
+    window.CodeMirror.getMode(config, requiredSyntax)
+  );
+}// registerEditorSyntaxHighlightingForLanguage
 
 // Functions for displaying header BEGIN
 export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string) {

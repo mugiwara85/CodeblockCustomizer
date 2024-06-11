@@ -1,6 +1,6 @@
-import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer } from "obsidian";
+import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -55,9 +55,23 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   }
   const indentationLevels = trackIndentation(codeLines);
   const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
-  
-  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, context.sourcePath, plugin);
+
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, codeblockLines, context.sourcePath, plugin);
 }// ReadingView
+
+async function addCustomSyntaxHighlight(codeblockLines: string[], language: string) {
+  if (codeblockLines.length > 1) {
+    codeblockLines = codeblockLines.slice(1);
+  } else {
+    codeblockLines = [];
+  }
+
+  const prism = await loadPrism();
+  const langDefinition = prism.languages[language];
+
+  const html = await prism.highlight(codeblockLines.join('\n'), langDefinition, language);
+  return html || "";
+}// addCustomSyntaxHighlight
 
 async function getPreElements(element: HTMLElement) {
   const preElements: Array<HTMLElement> = Array.from(element.querySelectorAll("pre:not(.frontmatter)"));
@@ -134,6 +148,12 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   if (!calloutPreElements)
     return;
 
+  const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(calloutPreElements[0]);
+  if (!sectionInfo)
+    return;
+
+  const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
+
   const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
   const viewMode = markdownView?.getMode();
 
@@ -143,11 +163,11 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
 
-    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, context.sourcePath, plugin);
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, codeblockLines, context.sourcePath, plugin);
   }
 }// calloutPostProcessor
 
-async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, sourcepath: string, plugin: CodeBlockCustomizerPlugin ) {
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], sourcepath: string, plugin: CodeBlockCustomizerPlugin ) {
   if (preElements.length !== codeBlockFirstLines.length)
   return;
 
@@ -161,10 +181,21 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className)))
       while(!preCodeElm.classList.contains("is-loaded"))
         await sleep(2);
-        
+
     const parameters = getAllParameters(codeBlockFirstLine, plugin.settings);
     if (parameters.exclude)
       continue;
+
+    const customLangConfig = getLanguageConfig(parameters.language, plugin.settings);
+    const customFormat = customLangConfig?.format ?? undefined;
+    if (customFormat){
+      const highlightedLines = await addCustomSyntaxHighlight(codeblockLines, customFormat);
+      if (highlightedLines.length > 0){
+        if (preCodeElm) {
+          preCodeElm.innerHTML = highlightedLines;
+        }
+      }
+    }
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     await addClasses(preElement, parameters, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath);

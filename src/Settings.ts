@@ -1,3 +1,5 @@
+import { customLanguageConfig } from "./Utils";
+
 export interface Colors {
   codeblock: {
     activeLineColor: string;
@@ -87,6 +89,7 @@ export interface ThemeSettings {
     enableInSourceMode: boolean;
   },
   enableEditorActiveLineHighlight: boolean;
+  customLanguageConfig: customLanguageConfig | null;
 }
 
 export interface Theme {
@@ -263,6 +266,7 @@ const Solarized: Theme = {
       enableInSourceMode: false,
     },
     enableEditorActiveLineHighlight: true,
+    customLanguageConfig: null,
   },
   colors: {
     dark: SolarizedDarkColors,
@@ -390,6 +394,7 @@ const Obsidian: Theme = {
       enableInSourceMode: false,
     },
     enableEditorActiveLineHighlight: true,
+    customLanguageConfig: null,
   },
   colors: {
     dark: ObsidianDarkColors,
