@@ -70,6 +70,7 @@ async function addCustomSyntaxHighlight(codeblockLines: string[], language: stri
   const langDefinition = prism.languages[language];
 
   const html = await prism.highlight(codeblockLines.join('\n'), langDefinition, language);
+
   return html || "";
 }// addCustomSyntaxHighlight
 
@@ -167,6 +168,17 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   }
 }// calloutPostProcessor
 
+async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines: string[], preCodeElm: HTMLElement, settings: CodeblockCustomizerSettings ){
+  const customLangConfig = getLanguageConfig(parameters.language, settings);
+  const customFormat = customLangConfig?.format ?? undefined;
+  if (customFormat){
+    const highlightedLines = await addCustomSyntaxHighlight(codeblockLines, customFormat);
+    if (highlightedLines.length > 0){
+      preCodeElm.innerHTML = highlightedLines;
+    }
+  }
+}// checkCustomSyntaxHighlight
+
 async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], sourcepath: string, plugin: CodeBlockCustomizerPlugin ) {
   if (preElements.length !== codeBlockFirstLines.length)
   return;
@@ -186,16 +198,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (parameters.exclude)
       continue;
 
-    const customLangConfig = getLanguageConfig(parameters.language, plugin.settings);
-    const customFormat = customLangConfig?.format ?? undefined;
-    if (customFormat){
-      const highlightedLines = await addCustomSyntaxHighlight(codeblockLines, customFormat);
-      if (highlightedLines.length > 0){
-        if (preCodeElm) {
-          preCodeElm.innerHTML = highlightedLines;
-        }
-      }
-    }
+    await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin.settings);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     await addClasses(preElement, parameters, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath);

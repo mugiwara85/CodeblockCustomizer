@@ -104,7 +104,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
 
     await loadIcons(this);
-    loadSyntaxHighlightForCustomLanguages(this.settings);
+    loadSyntaxHighlightForCustomLanguages(this.settings); // load syntax highlight
     
     mergeBorderColorsToLanguageSpecificColors(this, this.settings);
 
@@ -168,6 +168,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     for (const url of Object.values(BLOBS)) {
       URL.revokeObjectURL(url)
     }
+    loadSyntaxHighlightForCustomLanguages(this.settings, true); // unload syntax highlight
   }// onunload
   
   async handleFileRename(file: TAbstractFile, oldPath: string) {

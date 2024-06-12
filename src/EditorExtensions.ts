@@ -118,13 +118,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
       const container = createContainer(this.parameters.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
-
-      const customLangConfig = getLanguageConfig(this.parameters.language, this.plugin.settings);
-      const customLangDisplayName = customLangConfig?.displayName ?? this.parameters.displayLanguage;
-      if (customLangDisplayName){
-        const Icon = getLanguageIcon(customLangDisplayName)
+      if (this.parameters.displayLanguage){
+        const Icon = getLanguageIcon(this.parameters.displayLanguage)
         if (Icon) {
-          container.appendChild(createCodeblockIcon(customLangDisplayName));
+          container.appendChild(createCodeblockIcon(this.parameters.displayLanguage));
         }
         container.appendChild(createCodeblockLang(this.parameters.language));
       }

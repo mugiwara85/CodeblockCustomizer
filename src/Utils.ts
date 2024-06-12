@@ -555,7 +555,7 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
 
 }// loadCustomIcons
 
-export function loadSyntaxHighlightForCustomLanguages(settings: CodeblockCustomizerSettings) {
+export function loadSyntaxHighlightForCustomLanguages(settings: CodeblockCustomizerSettings, unload: boolean = false) {
   const customLanguageConfig = settings.SelectedTheme.settings.customLanguageConfig;
   if (!customLanguageConfig) 
     return;
@@ -563,13 +563,14 @@ export function loadSyntaxHighlightForCustomLanguages(settings: CodeblockCustomi
   for (const lang of customLanguageConfig.languages) {
     if (lang.format && lang.format.length > 0) {
       for (const language of lang.codeblockLanguages) {
-        registerEditorSyntaxHighlightingForLanguage(language, lang.format);
+        registerEditorSyntaxHighlightingForLanguage(language, lang.format, unload);
       }
     }
   }
 }// loadSyntaxHighlightForCustomLanguages
 
 export function getLanguageConfig(codeblockLanguage: string, settings: CodeblockCustomizerSettings): LanguageConfig | undefined {
+  codeblockLanguage = codeblockLanguage.toLowerCase();
   if (!settings.SelectedTheme.settings.customLanguageConfig) 
     return undefined;
 
@@ -578,12 +579,15 @@ export function getLanguageConfig(codeblockLanguage: string, settings: Codeblock
   );
 }// getLanguageConfig
 
-function registerEditorSyntaxHighlightingForLanguage(codeblockLanguage: string, requiredSyntax: string): void {
-  if (!codeblockLanguage || codeblockLanguage.length === 0 || !requiredSyntax || requiredSyntax.length === 0)
+function registerEditorSyntaxHighlightingForLanguage(codeblockLanguage: string, requiredSyntax: string, unload: boolean): void {
+  if (!codeblockLanguage || codeblockLanguage.length === 0)
+    return;
+
+  if (!unload && (!requiredSyntax || requiredSyntax.length === 0))
     return;
 
   window.CodeMirror.defineMode(codeblockLanguage, config =>
-    window.CodeMirror.getMode(config, requiredSyntax)
+    window.CodeMirror.getMode(config, unload ? "null" : requiredSyntax)
   );
 }// registerEditorSyntaxHighlightingForLanguage
 
