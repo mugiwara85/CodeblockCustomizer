@@ -350,7 +350,7 @@ It is possible to use custom SVGs, and apply custom syntax highlighting for code
 Explanation:
 - codeblockLanguages (**required**): one or more languages, where you want to apply the displayName, SVG, and format.
 - displayName (**required**): the display Language, which is displayed in the header.
-- svgFile (**optional**): name of an SVGfile in the same folder. **The file must be a plain text SVG without the SVG tag itself**. Look at Const.ts for examples.
+- svgFile (**optional**): name of an SVGfile in the same folder. **The file must be a plain text SVG without the SVG tag itself**. Look at [Const.ts](src/Const.ts) for examples.
 - format (**optional**): the syntax highlighting to apply for this code block.
 
 >[!important]
