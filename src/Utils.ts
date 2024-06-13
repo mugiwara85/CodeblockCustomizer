@@ -127,10 +127,10 @@ function parseParameters(input: string): ParsedParams {
     let cleanedValue = value ? value.trim() : '';
     // Remove surrounding quotes if present
     if ((cleanedValue.startsWith('"') && cleanedValue.endsWith('"')) || (cleanedValue.startsWith("'") && cleanedValue.endsWith("'"))) {
-      cleanedValue = value.slice(1, -1);
+      cleanedValue = cleanedValue.slice(1, -1);
     }
     
-    params[key.trim().toLowerCase()] = value;
+    params[key.trim().toLowerCase()] = cleanedValue;
   }
 
   return params;
@@ -212,7 +212,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // fileName/Title
   let headerDisplayText = extractFileTitle(lineText);
-  
+
   // fold
   let fold = isFoldDefined(lineText);
 
@@ -1148,20 +1148,7 @@ export function getIndentationLevel(line: string) {
 
     const indentationLevel = spacesCount + tabsCount;
     const additionalCharacters = spacesCount * 4 + tabsCount;
-    //const spaceWidth = 38; // 19
-    /*const body = document.body;
-    const computedStyle = getComputedStyle(body);
-    const colorValue = computedStyle.getPropertyValue("--list-indent").trim();
-    const spaceWidth = colorValue;*/
-
-    /*let margin = 0;
-    if (spacesCount > 0 && tabsCount === 0)
-      margin = (spacesCount * spaceWidth);
-    else if (spacesCount === 0 && tabsCount > 0)
-      margin = (20 + ((tabsCount - 1) * 32));
-    else if (spacesCount > 0 && tabsCount > 0)
-      margin = (spacesCount * spaceWidth) + (20 + ((tabsCount - 1) * 32));*/
-    
+     
     return {
       level: indentationLevel,
       characters: additionalCharacters,

@@ -186,12 +186,15 @@ export class SettingsTab extends PluginSettingTab {
             this.plugin.settings.SelectedTheme.settings.enableEditorActiveLineHighlight = value;
             await this.plugin.saveSettings();
             updateSettingStyles(this.plugin.settings, this.app);
+            this.display();
           })
         );
       
-      this.createPickrSetting(basicDiv, 'Editor active line color', 
-      'To set this color, enable the option "Enable editor active line highlighting" first.', "editorActiveLineColor");		
-      
+      if (this.plugin.settings.SelectedTheme.settings.enableEditorActiveLineHighlight) {
+        this.createPickrSetting(basicDiv, 'Editor active line color', 
+        'To set this color, enable the option "Enable editor active line highlighting" first.', "editorActiveLineColor");		
+      }
+
       new Setting(basicDiv)
         .setName('Exclude languages')
         .setDesc('Define languages, separated by a comma, to which the plugin should not apply. You can use a wildcard (*) either at the beginning, or at the end. For example: ad-* will exclude codeblocks where the language starts with ad- e.g.: ad-info, ad-error etc.')
@@ -630,54 +633,56 @@ export class SettingsTab extends PluginSettingTab {
           });
           this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockLanguage = value;
           await this.plugin.saveSettings();
+          this.display();
       })
     );
 
-    this.createPickrSetting(headerLanguageDiv, 'Codeblock language text color', 'To set this color, enable the option "Display codeblock language" first.', "header.codeBlockLangTextColor");    
-    this.createPickrSetting(headerLanguageDiv, 'Codeblock language background color', 'To set this color, enable the option "Display codeblock language" first.', "header.codeBlockLangBackgroundColor");    
-    
-    const boldToggle = new Setting(headerLanguageDiv)
-      .setName('Bold text')
-      .setDesc('If enabled, the codeblock language text will be set to bold.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.header.codeblockLangBoldText)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.header.codeblockLangBoldText = value;
-          await this.plugin.saveSettings();
-      })
-    );
-    this.headerLangToggles.push(boldToggle);
-    
-    const italicToggle = new Setting(headerLanguageDiv)
-      .setName('Italic text')
-      .setDesc('If enabled, the codeblock language text will be set to italic.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.header.codeblockLangItalicText)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.header.codeblockLangItalicText = value;
-          await this.plugin.saveSettings();
-      })
-    );
-    this.headerLangToggles.push(italicToggle);
-    
-    const alwaysDisplayToggle = new Setting(headerLanguageDiv)
-      .setName('Always display codeblock language')
-      .setDesc('If enabled, the codeblock language will always be displayed (if a language is defined), even if the file parameter is not specified.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang = value;
-          await this.plugin.saveSettings();
-      })
-    );
-    this.headerLangToggles.push(alwaysDisplayToggle);
-    
-    if (!this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockLanguage){
-      this.headerLangToggles.forEach(item => {
-        item.setDisabled(true);
-      });
+    if (this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockLanguage) {
+      this.createPickrSetting(headerLanguageDiv, 'Codeblock language text color', 'To set this color, enable the option "Display codeblock language" first.', "header.codeBlockLangTextColor");    
+      this.createPickrSetting(headerLanguageDiv, 'Codeblock language background color', 'To set this color, enable the option "Display codeblock language" first.', "header.codeBlockLangBackgroundColor");    
+      
+      const boldToggle = new Setting(headerLanguageDiv)
+        .setName('Bold text')
+        .setDesc('If enabled, the codeblock language text will be set to bold.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.header.codeblockLangBoldText)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.header.codeblockLangBoldText = value;
+            await this.plugin.saveSettings();
+        })
+      );
+      this.headerLangToggles.push(boldToggle);
+      
+      const italicToggle = new Setting(headerLanguageDiv)
+        .setName('Italic text')
+        .setDesc('If enabled, the codeblock language text will be set to italic.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.header.codeblockLangItalicText)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.header.codeblockLangItalicText = value;
+            await this.plugin.saveSettings();
+        })
+      );
+      this.headerLangToggles.push(italicToggle);
+      
+      const alwaysDisplayToggle = new Setting(headerLanguageDiv)
+        .setName('Always display codeblock language')
+        .setDesc('If enabled, the codeblock language will always be displayed (if a language is defined), even if the file parameter is not specified.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang = value;
+            await this.plugin.saveSettings();
+        })
+      );
+      this.headerLangToggles.push(alwaysDisplayToggle);
+      
+      if (!this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockLanguage){
+        this.headerLangToggles.forEach(item => {
+          item.setDisabled(true);
+        });
+      }
     }
-    
     headerLanguageDiv.createEl('h5', {text: 'Header language icon settings'});
     
     new Setting(headerLanguageDiv)
@@ -691,27 +696,29 @@ export class SettingsTab extends PluginSettingTab {
           });
           this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockIcon = value;
           await this.plugin.saveSettings();
+          this.display();
       })
     );
     
-    const alwaysDisplayIconToggle = new Setting(headerLanguageDiv)
-      .setName('Always display codeblock language icon (if available)')
-      .setDesc('If enabled, the codeblock language icon will always be displayed (if a language is defined and it has an icon), even if the file parameter is not specified.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon = value;
-          await this.plugin.saveSettings();
-      })
-    );
-    this.headerLangIconToggles.push(alwaysDisplayIconToggle);
-    
-    if (!this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockIcon){
-      this.headerLangIconToggles.forEach(item => {
-        item.setDisabled(true);
-      });
+    if (this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockIcon) {
+      const alwaysDisplayIconToggle = new Setting(headerLanguageDiv)
+        .setName('Always display codeblock language icon (if available)')
+        .setDesc('If enabled, the codeblock language icon will always be displayed (if a language is defined and it has an icon), even if the file parameter is not specified.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon = value;
+            await this.plugin.saveSettings();
+        })
+      );
+      this.headerLangIconToggles.push(alwaysDisplayIconToggle);
+      
+      if (!this.plugin.settings.SelectedTheme.settings.header.displayCodeBlockIcon){
+        this.headerLangIconToggles.forEach(item => {
+          item.setDisabled(true);
+        });
+      }
     }
-    
     const gutterDiv = containerEl.createEl("div", { cls: "codeblock-customizer-gutter-settingsDiv-hide" });
     gutterDiv.toggleClass("codeblock-customizer-gutter-settingsDiv-hide", this.plugin.settings.settingsType !== "gutter");
     gutterDiv.createEl('h3', {text: 'Gutter settings'});
@@ -739,9 +746,13 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.SelectedTheme.settings.gutter.highlightActiveLineNr = value;
           (async () => {await this.plugin.saveSettings()})();
           updateSettingStyles(this.plugin.settings, this.app);
+          this.display();
         })
       );
-    this.createPickrSetting(gutterDiv, 'Active line number color', 'To set this color enable the option "Hihglight active line number" first.', "gutter.activeLineNrColor");
+
+    if (this.plugin.settings.SelectedTheme.settings.gutter.highlightActiveLineNr) {
+      this.createPickrSetting(gutterDiv, 'Active line number color', 'To set this color enable the option "Hihglight active line number" first.', "gutter.activeLineNrColor");
+    }
     
     const inlineDiv = containerEl.createEl("div", { cls: "codeblock-customizer-inlineCode-settingsDiv-hide" });
     inlineDiv.toggleClass("codeblock-customizer-inlineCode-settingsDiv-hide", this.plugin.settings.settingsType !== "inlineCode");
@@ -776,30 +787,33 @@ export class SettingsTab extends PluginSettingTab {
       .onChange(async (value) => {
         this.plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling = value;
         await this.plugin.saveSettings();
+        this.display();
       })
     );
 
-    new Setting(printToPDFDiv)
-    .setName('Force current color mode use')
-    .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.SelectedTheme.settings.printing.forceCurrentColorUse)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.printing.forceCurrentColorUse = value;
-        await this.plugin.saveSettings();
-      })
-    );
+    if (this.plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling) {
+      new Setting(printToPDFDiv)
+      .setName('Force current color mode use')
+      .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.printing.forceCurrentColorUse)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.printing.forceCurrentColorUse = value;
+          await this.plugin.saveSettings();
+        })
+      );
 
-    new Setting(printToPDFDiv)
-    .setName('Expand all code blocks during printing')
-    .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint = value;
-        await this.plugin.saveSettings();
-      })
-    );
+      new Setting(printToPDFDiv)
+      .setName('Expand all code blocks during printing')
+      .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    }
 
     // donation
     const cDonationDiv = containerEl.createEl("div", { cls: "codeblock-customizer-Donation", });    
@@ -985,10 +999,12 @@ export class SettingsTab extends PluginSettingTab {
             instance.hide();
             const savedColor = color.toHEXA().toString();
             instance.addSwatch(savedColor);
-            if (type === "normal")
+            if (type === "normal") {
               this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors[name] = savedColor;
-            else if (type === "langSpecific")
+            }
+            else if (type === "langSpecific") {
               this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
+            }
             (async () => {await this.plugin.saveSettings()})();
         })
         .on('cancel', (instance: Pickr) => {
@@ -1119,7 +1135,7 @@ export class SettingsTab extends PluginSettingTab {
                 const newColor = this.getRandomColor();
                 this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]['codeblock.borderColor'] = newColor;
                 this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName]['codeblock.borderColor'] = newColor;
-                this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, newColor, "borderColor", this.plugin.settings.langSpecificSettingsType, languageName);
+                this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, newColor, "langSpecific", this.plugin.settings.langSpecificSettingsType, languageName);
               } else {
                 const defaultDarkColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "dark", this.plugin.settings.langSpecificSettingsType, true);
                 const defaultLightColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "light", this.plugin.settings.langSpecificSettingsType, true);

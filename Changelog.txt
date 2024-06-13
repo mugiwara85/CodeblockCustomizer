@@ -1,0 +1,132 @@
+- 1.2.7 (2024.06.13):
+  New:
+    - Custom SVGs
+    - Option to uncollapse all codeblock on printing
+    - Bracket highlight (click next to a bracket to highlight it and its opening/closing pair)
+    - Selection matching (select text to highlight the where the text is found in the document)
+    - Inverse fold behavior
+    - Option to unwrap code in reading view
+    - Text highlight with from and to markers
+   
+  Modified:
+    - Semi-fold does not count start and end lines (line with opening and closing backticks) in editing mode anymore
+    - Hide inactive options on settings page
+    - Performance improvements
+    - CSS copy and delete code positioning fix
+    - Moved border colors to language specific colors
+    - Language specific colors can now be set for code blocks without a language as well (specify `nolang` as a language)
+    - Fixed a few smaller bugs
+
+- 1.2.6 (2024.02.08):
+  New:
+    - Option to set colors language specifically. This means, you can customize now (almost) every color for Python, and totally different colors for C. Please read the README
+    - Added option to highlight text, not just lines. Please read the README
+    - It is possible now to automatically update links, if a file is renamed. Please read the README
+
+  Modified:
+    - Settingstab reorganized a little, because there are a lot of settings now
+    - Every parameter works now with "=" or ":" (Example: hl:7 or hl=7)
+    - All sorts of links work now (markdown link, wiki link, normal http or https), BUT they only work if they are marked as comments. You have to mark them as comment according to the current code block language (For example // in C/C++, # in Python etc.). This change was necessary as the processing of the HTML in Reading mode was too resource intensive
+    - Fixed indented code blocks
+    - Fixed minimal theme incompatibility
+    - Moved Copy code and delete code buttons to the header (if it is present)
+    - Improved performance in edit mode and reading mode as well
+    - Fixed a case where in reading mode the syntax highlighting was incorrect
+
+- 1.2.5 (2023.09.26):
+  BugFix:
+    - Obsidian handles indentation differently when something is indented using TAB or 4 spaces, and this caused that the indented code block was not displayed correctly. Now it should work correctly.
+
+- 1.2.4 (2023.09.25):
+  New:
+    - You can use now links inside code blocks, and the header
+    - Code blocks in a list are now indented properly in editing mode as well. Read more here
+
+  BugFix:
+    - Fixed a bug, which caused that the copy code button did not copy the whole text from a code block
+
+- 1.2.3 (2023.09.11):
+  BugFix:
+    - content of code blocks without a language specified are now copied correctly
+
+- 1.2.2 (2023.09.10):
+  New options:
+    - You can now exclude specific code blocks by defining the exclude parameter
+    - You can now enable/disable the plugin in source mode
+    - Added option to display indentation lines in reading view
+    - Lines in reading view can now be collapsed
+    - Added option to display a copy code button. This is very similar to the default Obsidian copy code button, with the difference that it will be always shown, even if you click inside a code block
+
+- 1.2.1 (2023.08.31):
+  BugFix:
+    - Nested code blocks are handled correctly now
+    - Fixed some CSS problems with themes
+    - Fixed display problem in embedded code blocks
+    - Fixed not displaying code blocks in call outs in editing mode
+    - Fixed that annoying bug, where the cursor jumps before the header when the header is clicked and a few other smaller problems
+  
+  New featrue:
+    - Semi-folding!
+
+  Note:
+    - Commands need a little tweaking. Next release will fix them.
+
+- 1.2.0 (2023.08.11):
+  Unfortunately, you'll have to remove the data.json file or reinstall the plugin, but this was necessary. Thanks for your understanding.
+  New features:
+    - option to show a delete code button (this actually deletes the code!)
+    - collapse icon position
+    - collapsed code text
+    - active line number color
+    - PDF print settings
+    - inline code styling
+    - border colors
+    - Bug fixing: a lot...
+
+- 1.1.9 (2023.05.20):
+  - Mostly styling
+
+- 1.1.8 (2023.05.13):
+  - BugFix: Fixed a bug, where under Linux the color picker was not displayed.
+
+- 1.1.7 (2023.05.04):
+  - BugFix: Incorrect display of the header when using minimal theme and "Readable line length" was enabled
+  - BugFix: Printing to a PDF did not work until now. Now it works.
+  - New: It is possible to use wildcard ( * ) for excluding languages. e.g.: ad-* will exclude every codeblock where the language starts with ad- (ad-example, ad-bug, ad-summary etc.). The wildcard can be either at the beginning or at the end.
+
+- 1.1.6 (2023.04.23):
+  - BugFix: Incorrectly handled inline code in ReadingView
+
+- 1.1.5 (2023.03.21):
+  - BugFix: Fixed the bug I mentioned last time, and a few other things, rewrote and removed unnecessary code. Everything should work as it should
+
+- 1.1.4 (2023.03.19):
+  - Found a very strange bug, but most people won't even notice it. I added a workaround which unfortunately is not a 100% percent solution (maybe around 90%). This bug however originates either from Obsidian or CodeMirror itself. I am still investigating.
+  - The bug: if a document is opened (only in editing mode), then in very rare cases the viewport is not processed to the end. This results, that the linenumbers, background colors, and other styles are not set for those code block lines. As I said, it occurs in very rare cases, and the workaround helps, but it is not a permanent solution.
+
+- 1.1.3 (2023.03.18):
+  - BugFix: Fixed a minor bug in ReadingView
+
+- 1.1.2 (2023.03.17):
+  - BugFix: corrected minor bug in ReadingView. 
+
+- 1.1.1 (2023.03.16):
+  BugFix: Corrected two small bugs in reading mode:
+    - line number was displayed incorrectly when a very long line was displayed which overflowed to multiple lines.
+    - When the header was collapsed and below another codeblock was displayed without header, it appeared as it belonged to the header.
+
+- 1.1.0 (2023.03.14):
+  - New feature: Display codeblock language icon in header
+  - New feature: Add alternative highlight colors
+  - Change: Line numbers in editing mode are displayed just as line numbers in reading mode. This change was necessary.
+  - BugFix: Fixed a bug, which caused the text in the header to be displayed always in lower case.
+  - BugFix: Fixed a bug, which caused unnecessary execution.
+  
+- 1.0.2 (2023.02.07):
+  - Implemented changes recommended by the Obsidian team.
+
+- 1.0.1 (2023.01.29):
+  - Corrected that empty lines were not shown in reading mode, and the theme is set now automatically according to the Obsidian theme.
+
+- 1.0.0 (2023.01.26):
+  - Initial release
