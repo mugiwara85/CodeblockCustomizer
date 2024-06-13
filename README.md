@@ -53,8 +53,8 @@ The plugin lets you customize the code blocks in the following way:
 
 ## Parameters
 
-Parameters can be defined in the opening line of a code block (after the three opening backticks). 
-All parameters can be defined using `:` or `=`.
+Parameters can be defined in the opening line of a code block (after the three opening backticks).   
+All parameters can be defined using `:` or `=`.  
 Available parameters:
 
 | Name    | Value           | Description                                                                                                                                                                                                                                                             |
@@ -145,8 +145,10 @@ An example code block with text highlight, using three different colors is shown
 
 ![[Pasted_image_20240227234145.png]](attachments/Pasted_image_20240227234145.png)
 
-An example code block with text highlight, using from and to markers:
-![[Pasted_image_20240613130412.png]]
+An example code block with text highlight, using from and to markers:  
+
+![[Pasted_image_20240613130412.png]](attachments/Pasted_image_20240613130412.png)
+
 ## Language specific coloring
 
 In the settings, on the `Language specific colors` settings page it is now possible to define colors for languages. These colors will only apply to code blocks with the defined language. If you defined colors for "Python", then those colors will only apply to every Python code block. **If you want to specify colors for code blocks which do not have a language defined, specify `nolang` as a language.**
@@ -167,14 +169,16 @@ First, you have to add a language. Then you can select which color you want to s
 - Header language background color
 - Gutter text color
 - Gutter background color
-- Gutter active line number color
-    
+- Gutter active line number color  
+
 An example is shown below, where the background color has been defined for "Python", "JavaScript" and "C++" languages.
 
 ![[Pasted_image_20240228002357.png]](attachments/Pasted_image_20240228002357.png)
 
-Example code blocks with border colors set:
-![Pasted_image_20230811134737.png](attachments/Pasted_image_20230811134737.png)
+Example code blocks with border colors set:  
+
+![Pasted_image_20230811134737.png](attachments/Pasted_image_20230811134737.png)  
+
 **Don't forget to set `Codeblock border styling position`, otherwise border colors will not be displayed!**
 
 ## Display filename/title
@@ -356,23 +360,23 @@ Explanation:
 
 An example using the above shown JSON file, where `tcl` syntax highlighting is applied to `language1` code blocks, using the custom SVG file, and the custom display name:
 
-![[Pasted_image_20240613160326.png]]
+![[Pasted_image_20240613160326.png]](attachments/Pasted_image_20240613160326.png)
 
 ## Bracket highlight
 
 You can enable bracket highlighting for matching and also for non-matching brackets. If you click next to a bracket (`(,),{,},[,]`), then the bracket itself, and the corresponding opening/closing bracket will be highlighted. You can set individual background, and highlight colors for matching and non-matching brackets:
 
-![[Pasted_image_20240613130848.png]]
+![[Pasted_image_20240613130848.png]](attachments/Pasted_image_20240613130848.png)
 
 Below is a simple example. Notice that that the matching and non-matching bracket are highlighted with different colors:
 
-![[BracketHighlight.gif]]
+![[BracketHighlight.gif]](attachments/BracketHighlight.gif)
 
 ## Selection matching
 
 If you enable selection matching, you can set the background color for the matches to be highlighted with. Simply select a string, or double click on a word, and the same text will be highlighted if found:
 
-![[selectionmatching.gif]]
+![[SelectionMatching.gif]](attachments/SelectionMatching.gif)
 
 >[!note]
 >Selection matching (currently) has a limit of 750 matches. If there are more matches than this, then selection matching will not highlight anything. Should you encounter a case where this number is not enough, contact me, and I'll increase it.
