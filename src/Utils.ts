@@ -122,18 +122,14 @@ function parseParameters(input: string): ParsedParams {
   let match;
 
   while ((match = regex.exec(cleanedLine)) !== null) {
-    let [, key, , value] = match;
+    const [, key, , value] = match;
 
-    if (value) {
-      value = value.trim();
-      // Remove surrounding quotes if present
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
-      }
-    } else {
-      value = '';
+    let cleanedValue = value ? value.trim() : '';
+    // Remove surrounding quotes if present
+    if ((cleanedValue.startsWith('"') && cleanedValue.endsWith('"')) || (cleanedValue.startsWith("'") && cleanedValue.endsWith("'"))) {
+      cleanedValue = value.slice(1, -1);
     }
-
+    
     params[key.trim().toLowerCase()] = value;
   }
 
@@ -203,7 +199,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const backtickCount = getBacktickCount(originalLineText);
 
   // indentation
-  const { level, characters, margin } = getIndentationLevel(originalLineText);
+  const { level, characters } = getIndentationLevel(originalLineText);
 
   // default highlight (lines, words, lineSpecificWords)
   const linesToHighlight = extractHighlightedLines(lineText, "HL");
@@ -282,7 +278,7 @@ function extractAlternateHighlights(lineText: string, settings: CodeblockCustomi
   const altTextBetween: AlternativeTextBetween[] = [];
   const altLineSpecificTextBetween: AlternativeTextBetween[] = [];
 
-  for (const [name, hexValue] of Object.entries(alternateColors)) {
+  for (const [name] of Object.entries(alternateColors)) {
     const altParams = extractParameter(lineText, name);
     const altLines = getHighlightedLines(altParams);
     altHL.push(...altLines.lines.map(lineNumber => ({ name, lineNumber })));
@@ -535,7 +531,7 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
     console.error("Invalid JSON content in the SVG configuration file:", error);
     return;
   }
-  plugin.settings.SelectedTheme.settings.customLanguageConfig = languageConfig;
+  plugin.customLanguageConfig = languageConfig;
 
   for (const lang of languageConfig.languages) {
     if (lang.svgFile) {
@@ -555,8 +551,8 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
 
 }// loadCustomIcons
 
-export function loadSyntaxHighlightForCustomLanguages(settings: CodeblockCustomizerSettings, unload: boolean = false) {
-  const customLanguageConfig = settings.SelectedTheme.settings.customLanguageConfig;
+export function loadSyntaxHighlightForCustomLanguages(plugin: CodeBlockCustomizerPlugin, unload = false) {
+  const customLanguageConfig = plugin.customLanguageConfig;
   if (!customLanguageConfig) 
     return;
 
@@ -569,12 +565,12 @@ export function loadSyntaxHighlightForCustomLanguages(settings: CodeblockCustomi
   }
 }// loadSyntaxHighlightForCustomLanguages
 
-export function getLanguageConfig(codeblockLanguage: string, settings: CodeblockCustomizerSettings): LanguageConfig | undefined {
+export function getLanguageConfig(codeblockLanguage: string, plugin: CodeBlockCustomizerPlugin): LanguageConfig | undefined {
   codeblockLanguage = codeblockLanguage.toLowerCase();
-  if (!settings.SelectedTheme.settings.customLanguageConfig) 
+  if (!plugin.customLanguageConfig) 
     return undefined;
 
-  return settings.SelectedTheme.settings.customLanguageConfig.languages.find((langConfig: LanguageConfig) => 
+  return plugin.customLanguageConfig.languages.find((langConfig: LanguageConfig) => 
     langConfig.codeblockLanguages.includes(codeblockLanguage)
   );
 }// getLanguageConfig
@@ -1152,24 +1148,24 @@ export function getIndentationLevel(line: string) {
 
     const indentationLevel = spacesCount + tabsCount;
     const additionalCharacters = spacesCount * 4 + tabsCount;
-    const spaceWidth = 38; // 19
+    //const spaceWidth = 38; // 19
     /*const body = document.body;
     const computedStyle = getComputedStyle(body);
     const colorValue = computedStyle.getPropertyValue("--list-indent").trim();
     const spaceWidth = colorValue;*/
 
-    let margin = 0;
+    /*let margin = 0;
     if (spacesCount > 0 && tabsCount === 0)
       margin = (spacesCount * spaceWidth);
     else if (spacesCount === 0 && tabsCount > 0)
       margin = (20 + ((tabsCount - 1) * 32));
     else if (spacesCount > 0 && tabsCount > 0)
-      margin = (spacesCount * spaceWidth) + (20 + ((tabsCount - 1) * 32));
+      margin = (spacesCount * spaceWidth) + (20 + ((tabsCount - 1) * 32));*/
     
     return {
       level: indentationLevel,
       characters: additionalCharacters,
-      margin: margin
+      //margin: margin
     };
   }
   return {

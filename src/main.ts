@@ -1,11 +1,12 @@
 import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice } from "obsidian";
-import { Extension } from "@codemirror/state";
+import { Extension, StateField } from "@codemirror/state";
+import { EditorView, DecorationSet } from "@codemirror/view";
 import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages } from "./Utils";
-import { customBracketMatching, extensions, selectionMatching, } from "./EditorExtensions";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig } from "./Utils";
+import { CodeBlockPositions, extensions } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
 interface codeBlock {
@@ -18,6 +19,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
   extensions: Extension[];
   theme: string;
+  editorExtensions: { extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]>)[];
+    foldAll: (view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) => void;
+    customBracketMatching: Extension;
+    selectionMatching: Extension;
+  }
+  customLanguageConfig: customLanguageConfig | null;
   
   async onload() {
     document.body.classList.add('codeblock-customizer');
@@ -25,6 +32,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     updateSettingStyles(this.settings, this.app);
 
     this.extensions = [];
+    this.customLanguageConfig = null;
     // npm install eslint@8.39.0 -g
     // eslint main.ts
     
@@ -46,7 +54,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.settings.foldAllCommand = true;
           if (mode === "source") {
             // @ts-ignore
-            editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
+            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
             foldAllReadingView(true, this.settings);
           } else if (mode === "preview") {
             foldAllReadingView(true, this.settings);
@@ -68,7 +76,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.settings.foldAllCommand = true;
           if (mode === "source") {
             // @ts-ignore
-            editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, false);
+            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, false);
             foldAllReadingView(false, this.settings);
           } else if (mode === "preview") {
             foldAllReadingView(false, this.settings);
@@ -90,9 +98,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.settings.foldAllCommand = false;
           if (mode === "source") {
             // @ts-ignore
-            editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
+            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
             // @ts-ignore
-            editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, true);
+            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, true);
             foldAllReadingView(false, this.settings);
             this.restoreDefaultFold();
           } else if (mode === "preview") {
@@ -104,21 +112,20 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
 
     await loadIcons(this);
-    loadSyntaxHighlightForCustomLanguages(this.settings); // load syntax highlight
+    loadSyntaxHighlightForCustomLanguages(this); // load syntax highlight
     
     mergeBorderColorsToLanguageSpecificColors(this, this.settings);
 
+    this.editorExtensions = extensions(this, this.settings);
+    this.registerEditorExtension(this.editorExtensions.extensions);
+
     if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight) {
-      // @ts-ignore
-      customBracketMatching.settings = this.settings;
-      this.extensions.push(customBracketMatching);
+      this.extensions.push(this.editorExtensions.customBracketMatching);
+    }
+    if (this.settings.SelectedTheme.settings.codeblock.enableSelectionMatching) {
+      this.extensions.push(this.editorExtensions.selectionMatching);
     }
 
-    if (this.settings.SelectedTheme.settings.codeblock.enableSelectionMatching) {
-      this.extensions.push(selectionMatching);
-    }
-    const editorExtensions = extensions(this, this.settings);
-    this.registerEditorExtension(editorExtensions.extensions);
     this.registerEditorExtension(this.extensions);
     
     const settingsTab = new SettingsTab(this.app, this);
@@ -168,7 +175,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     for (const url of Object.values(BLOBS)) {
       URL.revokeObjectURL(url)
     }
-    loadSyntaxHighlightForCustomLanguages(this.settings, true); // unload syntax highlight
+    loadSyntaxHighlightForCustomLanguages(this, true); // unload syntax highlight
   }// onunload
   
   async handleFileRename(file: TAbstractFile, oldPath: string) {

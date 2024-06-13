@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getLanguageConfig } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, getValueNameByLineNumber, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { fadeOutLineCount } from "./Const";
@@ -86,6 +86,33 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     },
     provide: f => EditorView.decorations.from(f)
   })// collapseField
+
+  /* Extensions */
+  const customBracketMatching = bracketMatching({
+    renderMatch: (match, state) => {
+      const decorations: Range<Decoration>[] = [];
+      
+      if (!match.matched) {
+        if (settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets) {
+          decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.start.from, match.start.to));
+          if (match.end) {
+            decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.end.from, match.end.to));
+          }
+        }
+        return decorations;
+      }
+      
+      if (match.end) {
+        decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.start.from, match.start.to));
+        decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.end.from, match.end.to));
+      }
+
+      return decorations;
+    }
+  });// customBracketMatching
+
+  const matchHighlightOptions = { maxMatches: 750, wholeWords: false };
+  const selectionMatching = highlightSelectionMatches(matchHighlightOptions);
 
   /* Widgets */
 
@@ -456,7 +483,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
         // indentation
         if (parameters.indentLevel > 0) {
-          if (currentLine.text.length > 0) {
+          if (currentLine.text.length > parameters.indentCharacter) {
             decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter)); 
           }
           decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
@@ -1071,36 +1098,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const result = {
     extensions,
-    foldAll
+    foldAll,
+    customBracketMatching,
+    selectionMatching
 };
 
   return result;
 }// extensions
-
-let settings: CodeblockCustomizerSettings;
-export const customBracketMatching = bracketMatching({ // toggle through reconfigure?
-  renderMatch: (match, state) => {
-    const decorations: Range<Decoration>[] = [];
-    
-    if (!match.matched) {
-      // @ts-ignore
-      if (customBracketMatching.settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets) {
-        decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.start.from, match.start.to));
-        if (match.end) {
-          decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.end.from, match.end.to));
-        }
-      }
-      return decorations;
-    }
-    
-    if (match.end) {
-      decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.start.from, match.start.to));
-      decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.end.from, match.end.to));
-    }
-
-    return decorations;
-  }
-});// customBracketMatching
-
-const matchHighlightOptions = { maxMatches: 750, wholeWords: true };
-export const selectionMatching = highlightSelectionMatches(matchHighlightOptions);

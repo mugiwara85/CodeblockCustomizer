@@ -66,6 +66,9 @@ async function addCustomSyntaxHighlight(codeblockLines: string[], language: stri
     codeblockLines = [];
   }
 
+  if (codeblockLines.length === 0)
+    return "";
+
   const prism = await loadPrism();
   const langDefinition = prism.languages[language];
 
@@ -149,11 +152,10 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   if (!calloutPreElements)
     return;
 
-  const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(calloutPreElements[0]);
+  /*const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(calloutPreElements[0]);
   if (!sectionInfo)
     return;
-
-  const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
+  const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);*/
 
   const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
   const viewMode = markdownView?.getMode();
@@ -164,12 +166,12 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
 
-    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, codeblockLines, context.sourcePath, plugin);
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, [], context.sourcePath, plugin);
   }
 }// calloutPostProcessor
 
-async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines: string[], preCodeElm: HTMLElement, settings: CodeblockCustomizerSettings ){
-  const customLangConfig = getLanguageConfig(parameters.language, settings);
+async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines: string[], preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin ){
+  const customLangConfig = getLanguageConfig(parameters.language, plugin);
   const customFormat = customLangConfig?.format ?? undefined;
   if (customFormat){
     const highlightedLines = await addCustomSyntaxHighlight(codeblockLines, customFormat);
@@ -198,7 +200,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (parameters.exclude)
       continue;
 
-    await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin.settings);
+    await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     await addClasses(preElement, parameters, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath);

@@ -5,7 +5,6 @@ import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Ut
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT } from "./Const";
-import { customBracketMatching, selectionMatching } from "./EditorExtensions";
 
 interface ColorOptions {
   [key: string]: string;
@@ -331,10 +330,10 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableBracketHighlight = value;
           if (value){
-            this.plugin.extensions.push(customBracketMatching);
+            this.plugin.extensions.push(this.plugin.editorExtensions.customBracketMatching);
           }
           else{
-            this.plugin.extensions.remove(customBracketMatching);
+            this.plugin.extensions.remove(this.plugin.editorExtensions.customBracketMatching);
           }
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
@@ -384,10 +383,10 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectionMatching = value;
           if (value){
-            this.plugin.extensions.push(selectionMatching);
+            this.plugin.extensions.push(this.plugin.editorExtensions.selectionMatching);
           }
           else{
-            this.plugin.extensions.remove(selectionMatching);
+            this.plugin.extensions.remove(this.plugin.editorExtensions.selectionMatching);
           }
           await this.plugin.saveSettings();
           this.display();
