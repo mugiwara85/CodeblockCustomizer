@@ -76,7 +76,7 @@ Available parameters:
 | ln      | Multiple        |                                                                                                                                                                                                                                                                         |
 |         | true            | Displays line numbers for that specific code block, even if `Enable line numbers` is disabled                                                                                                                                                                           |
 |         | false           | Does not display line numbers for that specific code block, even if  `Enable line numbers` is enabled                                                                                                                                                                   |
-|         | {number}        | Sets the offset for line number to start (e.g: ln:5 -> line numbering strts from 5)                                                                                                                                                                                     |
+|         | {number}        | Sets the offset for line number to start (e.g: `ln:5` -> line numbering starts from 5)                                                                                                                                                                                     |
 
 ## Themes
 
