@@ -1101,7 +1101,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     foldAll,
     customBracketMatching,
     selectionMatching
-};
+  };
 
   return result;
 }// extensions

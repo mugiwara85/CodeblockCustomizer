@@ -1,8 +1,8 @@
-import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent } from "obsidian";
+import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
 import Pickr from "@simonwep/pickr";
 
 import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT } from "./Const";
 
@@ -52,6 +52,7 @@ export class SettingsTab extends PluginSettingTab {
     containerEl.createEl('h3', {text: 'Codeblock Customizer Settings'});
     
     let dropdown: DropdownComponent;
+    let restoreButton: ExtraButtonComponent;
     new Setting(containerEl)
       .setName("Theme")
       .setDesc("Select which theme to use")
@@ -69,14 +70,21 @@ export class SettingsTab extends PluginSettingTab {
         button.setTooltip("Update theme");
         button.setIcon('save');
         button.onClick(() => {
-          if (this.plugin.settings.ThemeName in DEFAULT_SETTINGS.Themes) {
-            new Notice('You cannot update the default themes');
-          }	else {
-            this.plugin.settings.Themes[this.plugin.settings.ThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-            new Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
-            (async () => {await this.plugin.saveSettings()})();
-          }
+          this.plugin.settings.Themes[this.plugin.settings.ThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
+          new Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
+          (async () => {await this.plugin.saveSettings()})();
         });
+      })// addExtraButton
+      .addExtraButton(button => {
+        button.setTooltip("Restore default theme to its original state");
+        button.setIcon('reset');
+        button.onClick(() => {
+          this.restoreThemes(this.plugin.settings.ThemeName, false);
+          (async () => {await this.plugin.saveSettings()})();
+          new Notice(`Theme "${this.plugin.settings.ThemeName}" restored to its original state!`);
+        });
+        button.setDisabled(!(this.plugin.settings.ThemeName in DEFAULT_THEMES))
+        restoreButton = button;
       })// addExtraButton
       .addExtraButton(button => {
         button.setTooltip("Delete theme");
@@ -129,6 +137,7 @@ export class SettingsTab extends PluginSettingTab {
           }
           this.plugin.settings.ThemeName = this.plugin.settings.newThemeName;
           this.refreshDropdown(dropdown, this.plugin.settings);
+          restoreButton.setDisabled(true);
           this.plugin.settings.newThemeName = "";
           text.setValue("");
           (async () => {await this.plugin.saveSettings()})();
@@ -206,6 +215,18 @@ export class SettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
         );
+
+      new Setting(basicDiv)
+        .setName('Restore default themes')
+        .setDesc('Restore all settings of all the default themes to their original state.')
+        .addButton(async (button) => {
+          button.setButtonText("Restore");
+          button.onClick(async () => {
+            this.restoreThemes(this.plugin.settings.ThemeName, true);
+            await this.plugin.saveSettings();
+            new Notice("Default themes restored to their original state!");
+          });
+        });
 
     const codeblockDiv = containerEl.createEl("div", { cls: "codeblock-customizer-codeblock-settingsDiv-hide" });
     codeblockDiv.toggleClass("codeblock-customizer-codeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "codeblock");
@@ -830,6 +851,24 @@ export class SettingsTab extends PluginSettingTab {
     ); 
   }// display
   
+  restoreThemes(themeName: string, cloneAll: boolean) {
+    if (cloneAll){
+      Object.entries(DEFAULT_THEMES).forEach(([name, theme]: [string, Theme]) => {
+        this.plugin.settings.Themes[name] = structuredClone(theme)
+      });
+    } else {
+      Object.entries(DEFAULT_THEMES).forEach(([name, theme]: [string, Theme]) => {
+        if (name === themeName)
+          this.plugin.settings.Themes[name] = structuredClone(theme)
+      });
+    }
+
+    if (themeName in DEFAULT_THEMES)
+      this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[themeName]);
+
+    this.display();
+  }// restoreThemes
+
   refreshDropdown(dropdown: DropdownComponent, settings: CodeblockCustomizerSettings) {
     dropdown.selectEl.empty();
     Object.keys(settings.Themes).forEach((name: string) => {

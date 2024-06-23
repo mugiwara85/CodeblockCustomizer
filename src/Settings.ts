@@ -397,11 +397,13 @@ const Obsidian: Theme = {
   },
 }
 
+export const DEFAULT_THEMES = {
+  'Obsidian': Obsidian,
+  'Solarized': Solarized,
+}
+
 export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
-  Themes: {
-    'Obsidian': Obsidian,
-    'Solarized': Solarized,
-  },
+  Themes: structuredClone(DEFAULT_THEMES),
   ExcludeLangs: 'dataview, ad-*',
   SelectedTheme: structuredClone(Obsidian),
   ThemeName: "Obsidian",
