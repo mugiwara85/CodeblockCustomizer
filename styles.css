@@ -232,14 +232,9 @@
 }
 
 /* Highlighting */
-.codeblock-customizer-line-highlighted {
-  background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
-}
-
-.codeblock-customizer-highlight-text-enabled .codeblock-customizer-highlighted-text {
-  background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
-}
-body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-highlighted-text-line {
+.codeblock-customizer-line-highlighted,
+.codeblock-customizer-highlighted-text,
+.codeblock-customizer-highlighted-text-line {
   background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
 }
 

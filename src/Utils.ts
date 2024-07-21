@@ -1,8 +1,9 @@
 import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App } from "obsidian";
 import { EditorState } from "@codemirror/state";
 
-import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT } from "./Const";
+import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR } from "./Const";
 import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
+import validator from 'validator';
 import CodeBlockCustomizerPlugin from "./main";
 
 export function getCurrentMode() {
@@ -140,42 +141,84 @@ export function getBacktickCount(lineText: string) {
   return lineText.trim().match(/^`+(?!.*`)/)?.[0].length || 0
 }// getBacktickCount
 
-interface AlternativeTextBetween {
-  name: string;
-  lineNumber?: number;
+// inerfaces for highlight
+interface LinesToHighlight {
+  lineNumbers: number[];
+  words: string[];
+  lineSpecificWords: LineSpecificWords[];
+}
+
+type LineSpecificWords = {
+  words: string[];
+  lineNumber: number;
+};
+
+type TextBetween = {
   from: string;
   to: string;
-}
+};
 
-interface AlternativeHighlight {
-  name: string;
+type LineSpecificTextBetween = {
+  from: string;
+  to: string;
   lineNumber: number;
+};
+
+interface TextHighlight {
+  allWordsInLine: number[];
+  words: string[];
+  lineSpecificWords: LineSpecificWords[];
+  textBetween: TextBetween[];
+  lineSpecificTextBetween: LineSpecificTextBetween[];
 }
 
-interface AlternativeWords {
-  name: string;
-  words: string;
-}
-
+// inerfaces for alternative highlight
 interface AlternativeLinesToHighlight {
-  lines: AlternativeHighlight[];
-  lineSpecificWords: AlternativeHighlight[];
+  lines: AlternativeHighlightedLines[];
   words: AlternativeWords[];
-  textBetween: AlternativeTextBetween[];
-  lineSpecificTextBetween: AlternativeTextBetween[];
+  lineSpecificWords: AlternativeLineSpecificWords[];  
 }
 
-export interface HighlightLines {
-  lines: number[];
-  words: string;
-  lineSpecificWords: Record<number, string>;
-  textBetween: Record<string, string>;
-  lineSpecificTextBetween: Record<number, Record<string, string>>;
+type AlternativeHighlightedLines = {
+  lineNumbers: number[];
+  colorName: string;
+};
+
+type AlternativeLineSpecificWords = LineSpecificWords & {
+  colorName: string;
+};
+
+type AlternativeTextBetween = TextBetween & {
+  colorName: string;
+};
+
+type AlternativeLineSpecificTextBetween = LineSpecificTextBetween & {
+  colorName: string;
+};
+
+type AlternativeAllWordsInLine = {
+  allWordsInLine: number[];
+  colorName: string;
+};
+
+type AlternativeWords = {
+  words: string[];
+  colorName: string;
+};
+
+interface AlternativeTextHighlight {
+  allWordsInLine: AlternativeAllWordsInLine[];
+  words: AlternativeWords[];
+  lineSpecificWords: AlternativeLineSpecificWords[];
+  textBetween: AlternativeTextBetween[];
+  lineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
 }
 
 export interface Parameters {
-  linesToHighlight: HighlightLines;
+  defaultLinesToHighlight: LinesToHighlight;
+  defaultTextToHighlight: TextHighlight;
   alternativeLinesToHighlight: AlternativeLinesToHighlight;
+  alternativeTextToHighlight: AlternativeTextHighlight;
   isSpecificNumber: boolean;
   lineNumberOffset: number;
   showNumbers: string;
@@ -190,6 +233,8 @@ export interface Parameters {
   backtickCount: number;
   indentLevel: number;
   indentCharacter: number;
+  lineSeparator: string;
+  textSeparator: string;
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
@@ -201,11 +246,22 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   // indentation
   const { level, characters } = getIndentationLevel(originalLineText);
 
-  // default highlight (lines, words, lineSpecificWords)
-  const linesToHighlight = extractHighlightedLines(lineText, "HL");
-  
-  // highlight with alternative colors (lines, words, lineSpecificWords)
-  const alternateHighlights = extractAlternateHighlights(lineText, settings);
+  // get line separator
+  const lsep = extractParameter(lineText, 'lsep')?.charAt(0);
+  const lineSeparator = lsep || settings.SelectedTheme.settings.codeblock.lineSeparator || DEFAULT_LINE_SEPARATOR;
+
+  // get text separator
+  const tsep = extractParameter(lineText, 'tsep')?.charAt(0);
+  const textSeparator = tsep || settings.SelectedTheme.settings.codeblock.textSeparator || DEFAULT_TEXT_SEPARATOR;
+
+  // default highlight (lines)
+  const defaultLinesToHighlight = getHighlightedLines(lineText, "HL", textSeparator, lineSeparator);
+
+  // default text highlight (words, lineSpecificWords, from - to)
+  const defaultTextToHighlight = getTextHighlight(lineText, "hlt", textSeparator, lineSeparator);
+
+  // highlight with alternative colors (lines, words, lineSpecificWords, from - to)
+  const {alternativeLinesToHighlight, alternativeTextToHighlight} = extractAlternativeHighlights(lineText, textSeparator, lineSeparator, settings);
 
   // isSpecificNumber and showNumbers
   const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(lineText);
@@ -244,8 +300,10 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   }
 
   return {
-    linesToHighlight: linesToHighlight,
-    alternativeLinesToHighlight: alternateHighlights,
+    defaultLinesToHighlight: defaultLinesToHighlight,
+    defaultTextToHighlight: defaultTextToHighlight,
+    alternativeLinesToHighlight: alternativeLinesToHighlight,
+    alternativeTextToHighlight: alternativeTextToHighlight,
     isSpecificNumber: isSpecificNumber,
     lineNumberOffset: lineNumberOffset,
     showNumbers: showNumbers,
@@ -260,43 +318,289 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     backtickCount: backtickCount,
     indentLevel: level,
     indentCharacter: characters,
+    lineSeparator,
+    textSeparator
   };
 }// getParameters
 
-function extractHighlightedLines(lineText: string, param: string): HighlightLines {
-  const params = extractParameter(lineText, param);
-  return getHighlightedLines(params);
-}// extractHighlightedLines
+function sortAndRemoveDuplicates(numbers: number[]): number[] {
+  // sort
+  numbers.sort((a, b) => a - b);
 
-function extractAlternateHighlights(lineText: string, settings: CodeblockCustomizerSettings): AlternativeLinesToHighlight {
-  const currentMode = getCurrentMode();
-  const alternateColors = settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {};
-  
-  const altHL: AlternativeHighlight[] = [];
-  const altLineSpecificWords: AlternativeHighlight[] = [];
-  const altWords: AlternativeWords[] = [];
-  const altTextBetween: AlternativeTextBetween[] = [];
-  const altLineSpecificTextBetween: AlternativeTextBetween[] = [];
+  // remove duplicates
+  const uniqueNumbers = numbers.filter((value, index, array) => {
+    return index === 0 || value !== array[index - 1];
+  });
 
-  for (const [name] of Object.entries(alternateColors)) {
-    const altParams = extractParameter(lineText, name);
-    const altLines = getHighlightedLines(altParams);
-    altHL.push(...altLines.lines.map(lineNumber => ({ name, lineNumber })));
-    altLineSpecificWords.push(...Object.entries(altLines.lineSpecificWords).map(([lineNumber, value]) => ({ name, lineNumber: parseInt(lineNumber), value })));
-    altWords.push({ name, words: altLines.words });
-    altTextBetween.push(...Object.entries(altLines.textBetween).map(([from, to]) => ({ name, from, to })));
-    altLineSpecificTextBetween.push(...Object.entries(altLines.lineSpecificTextBetween).flatMap(([lineNumber, pairs]) => 
-      Object.entries(pairs).map(([from, to]) => ({ name, lineNumber: parseInt(lineNumber), from, to }))));
+  return uniqueNumbers;
+}// sortAndRemoveDuplicates
+
+function getHighlightedLines(lineText: string, parameter: string, textSeparator: string, lineSeparator: string) {
+  const result: LinesToHighlight = {
+    lineNumbers: [],
+    words: [],
+    lineSpecificWords: [],
+  };
+
+  const parameterValue = extractParameter(lineText, parameter);
+  if (!parameterValue) {
+    return result;
   }
 
-  return {
-    lines: altHL, 
-    lineSpecificWords: altLineSpecificWords, 
-    words: altWords, 
-    textBetween: altTextBetween,
-    lineSpecificTextBetween: altLineSpecificTextBetween
+  const trimmedParams = parameterValue.trim();
+  const segments = trimmedParams.split(",");
+
+  for (const segment of segments) {
+    const { line, range, word, from, to } = parseSegment(segment, textSeparator, lineSeparator);
+    // lines or ranges
+    if ((line || range) && !word && !from && !to) {
+      if (line) {
+        result.lineNumbers = result.lineNumbers.concat(getLineRanges(line));
+      }
+      if (range) {
+        result.lineNumbers = result.lineNumbers.concat(getLineRanges(range));
+      }
+    }
+
+    // words
+    if (word && !line && !range && !from && !to){
+      result.words.push(word);
+    }
+    // lineSpecificWords
+    if (word && (line || range) && !from && !to){
+      getLineSpecificWords(result, line, range, word);
+    }
+  }
+
+  result.lineNumbers = sortAndRemoveDuplicates(result.lineNumbers);
+
+  return result;
+}// getHighlightedLines
+
+function getTextHighlight(lineText: string, parameter: string | null, textSeparator: string, lineSeparator: string): TextHighlight {
+  const result: TextHighlight = {
+    allWordsInLine: [],
+    words: [],
+    lineSpecificWords: [],
+    textBetween: [],
+    lineSpecificTextBetween: [],
   };
-}// extractAlternateHighlights
+
+  if (!parameter){
+    return result;
+  }
+
+  const parameterValue = extractParameter(lineText, parameter);
+  if (!parameterValue) {
+    return result;
+  }
+
+  const trimmedParams = parameterValue.trim();
+  const segments = trimmedParams.split(",");
+
+  for (const segment of segments) {
+    const { line, range, word, from, to } = parseSegment(segment, textSeparator, lineSeparator);
+
+    // allWordsInLine
+    if ((line || range ) && !word && !from && !to ){
+      getAllWordsInLine(result, line, range);
+    }
+
+    // words
+    if (word && !line && !range && !from && !to){
+      result.words.push(word);
+    }
+    // lineSpecificWords
+    if (word && (line || range) && !from && !to){
+      getLineSpecificWords(result, line, range, word);
+    }
+
+    // textBetween
+    if ((from || to) && !word && !line && !range){
+      result.textBetween.push({ from: from, to: to });
+    }
+    // lineSpecificTextBetween
+    if ((from || to ) && !word && (line || range)){
+      getLineSpecificTextBetween(result, line, range, from, to);
+    }
+  }
+
+  result.allWordsInLine = sortAndRemoveDuplicates(result.allWordsInLine);
+
+  return result;
+}// getTextHighlight
+
+function getAllWordsInLine(result: TextHighlight, line: string, range: string) {
+  if (line && isWholeNumber(line)) { // number only
+    result.allWordsInLine.push(Number(line));
+  } else if (range){
+    const ranges = getLineRanges(range);
+    result.allWordsInLine.push(...ranges);
+  }
+}// getAllWordsInLine
+
+function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: string, range: string, word: string) {
+  if (range !== '') { // range with text
+    processRange(range, word, result.lineSpecificWords);
+  } else { // number with text
+    const lineNum = Number(line);
+    const existingEntry = result.lineSpecificWords.find(entry => entry.lineNumber === lineNum);
+    const words = word.split(',');
+
+    if (existingEntry) {
+      existingEntry.words.push(...words);
+    } else {
+      result.lineSpecificWords.push({ lineNumber: lineNum, words: words });
+    }
+  }
+}// getLineSpecificWords
+
+function getLineSpecificTextBetween(result: TextHighlight, line: string, range: string, from: string, to: string) {
+  if (range !== '') {
+    const ranges = getLineRanges(range);
+    ranges.forEach((num) => {
+      result.lineSpecificTextBetween.push({ lineNumber: num, from: from, to: to });
+    });
+  } else if (!isNaN(Number(line))) {
+    const lineNum = Number(line);
+    result.lineSpecificTextBetween.push({ lineNumber: lineNum, from: from, to: to });
+  }
+}// getLineSpecificTextBetween
+
+function isWholeNumber(input: string): boolean {
+  return validator.isInt(input, { allow_leading_zeroes: false });
+}
+
+function parseSegment(segment: string, textSeparator: string, lineSeparator: string): { line: string, range: string, word: string, from: string, to: string } {
+  let from = '';
+  let to = '';
+  let line = '';
+  let range = '';
+  let word = '';
+
+  const lineSeparatorIndex = segment.indexOf(lineSeparator);
+  const fromToSeparatorIndex = segment.indexOf(textSeparator);
+
+  if (lineSeparatorIndex !== -1 && fromToSeparatorIndex !== -1) { // string contains both : and | 
+    if (lineSeparatorIndex > fromToSeparatorIndex){ // hlt::|
+      from = segment.substring(0, fromToSeparatorIndex).trim();
+      to = segment.substring(fromToSeparatorIndex + 1).trim();
+    } else{ // hlt:|:
+      const lineOrRange = segment.substring(0, lineSeparatorIndex).trim();
+      const val = segment.substring(lineSeparatorIndex + 1).trim();
+      if (lineOrRange.includes("-"))
+        range = lineOrRange;
+      else if (isWholeNumber(lineOrRange))
+        line = lineOrRange;
+
+      //if (val.includes(":")) {
+      const valFromToSeparatorIndex = val.indexOf(textSeparator);
+      if (valFromToSeparatorIndex !== -1) {
+        from = val.substring(0, valFromToSeparatorIndex ).trim();
+        to = val.substring(valFromToSeparatorIndex  + 1).trim();
+      } else {
+        word = val;
+      }
+    }
+  } else if (fromToSeparatorIndex !== -1 && lineSeparatorIndex === -1){ // only contains :
+    from = segment.substring(0, fromToSeparatorIndex).trim();
+    to = segment.substring(fromToSeparatorIndex + 1).trim();
+  } else if (lineSeparatorIndex !== -1 && fromToSeparatorIndex === -1){ // only contains |
+    const lineOrRange = segment.substring(0, lineSeparatorIndex).trim();
+    const val = segment.substring(lineSeparatorIndex + 1).trim();
+    if (lineOrRange.includes("-"))
+      range = lineOrRange;
+    else if (isWholeNumber(lineOrRange))
+      line = lineOrRange;
+
+    word = val;
+  } else { // does not contains : nor |
+    if (segment.includes("-"))
+      range = segment.trim();
+    else if (isWholeNumber(segment))
+      line = segment.trim();
+    else
+      word = segment.trim();
+  }
+
+  return { line, range, word, from, to };
+}// parseSegment
+
+interface AlternativeHighlight {
+  alternativeLinesToHighlight: AlternativeLinesToHighlight;
+  alternativeTextToHighlight: AlternativeTextHighlight;
+}
+
+function extractAlternativeHighlights(lineText: string, textSeparator: string, lineSeparator: string, settings: CodeblockCustomizerSettings): AlternativeHighlight {
+  const currentMode = getCurrentMode();
+  const alternateColors = settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {};
+
+  const alternativeTextToHighlight: AlternativeTextHighlight = {
+    allWordsInLine: [],
+    words: [],
+    lineSpecificWords: [],
+    textBetween: [],
+    lineSpecificTextBetween: [],
+  };
+
+  //const alternativeLinesToHighlight: AlternativeLinesToHighlight[] = [];
+  const alternativeLinesToHighlight: AlternativeLinesToHighlight = {
+    lines: [],
+    words: [],
+    lineSpecificWords: [],
+  };
+
+  for (const [alternateColorName] of Object.entries(alternateColors)) {
+    const lineHighlight = getHighlightedLines(lineText, alternateColorName, textSeparator, lineSeparator);
+    const textHighlight = getTextHighlight(lineText, `${alternateColorName}t`, textSeparator, lineSeparator);
+
+    // lines or ranges
+    if (lineHighlight.lineNumbers.length > 0) {
+      alternativeLinesToHighlight.lines.push({lineNumbers: lineHighlight.lineNumbers, colorName: alternateColorName});
+    }
+    if (lineHighlight.words.length > 0) {
+      alternativeLinesToHighlight.words.push({words: lineHighlight.words, colorName: alternateColorName});
+    }
+    if (lineHighlight.lineSpecificWords.length > 0) {
+      lineHighlight.lineSpecificWords.forEach((lineSpecificWord) => {
+        alternativeLinesToHighlight.lineSpecificWords.push({ ...lineSpecificWord, colorName: alternateColorName });
+      });
+    }
+
+    // allWordsInLine
+    if (textHighlight.allWordsInLine.length > 0) {
+      alternativeTextToHighlight.allWordsInLine.push({ allWordsInLine: textHighlight.allWordsInLine, colorName: alternateColorName });
+    }
+
+    // lineSpecificWords
+    if (textHighlight.lineSpecificWords.length > 0) {
+      textHighlight.lineSpecificWords.forEach((lineSpecificWord) => {
+        alternativeTextToHighlight.lineSpecificWords.push({ ...lineSpecificWord, colorName: alternateColorName });
+      });
+    }
+
+    // words
+    if (textHighlight.words.length > 0) {
+      alternativeTextToHighlight.words.push({ words: textHighlight.words, colorName: alternateColorName });
+    }
+
+    // textBetween
+    if (textHighlight.textBetween.length > 0) {
+      textHighlight.textBetween.forEach((textBetween) => {
+        alternativeTextToHighlight.textBetween.push({ ...textBetween, colorName: alternateColorName });
+      });
+    }
+
+    // lineSpecificTextBetween
+    if (textHighlight.lineSpecificTextBetween.length > 0) {
+      textHighlight.lineSpecificTextBetween.forEach((lineSpecificTextBetween) => {
+        alternativeTextToHighlight.lineSpecificTextBetween.push({ ...lineSpecificTextBetween, colorName: alternateColorName });
+      });
+    }
+  }
+
+  return {alternativeLinesToHighlight, alternativeTextToHighlight};
+}// extractAlternativeHighlights
 
 function determineLineNumberDisplay(lineText: string) {
   const specificLN = extractParameter(lineText, "ln") || "";
@@ -328,106 +632,22 @@ export function extractParameter(input: string, searchTerm: string): string | nu
   return params[searchTerm.toLowerCase()] || null;
 }// extractParameter
 
-export function getHighlightedLines(params: string | null): HighlightLines {
-  if (!params) {
-    return {
-      lines: [],
-      words: '',
-      lineSpecificWords: {},
-      textBetween: {},
-      lineSpecificTextBetween: {},
-    };
-  }
-
-  const trimmedParams = params.trim();
-  const result: HighlightLines = {
-    lines: [],
-    words: '',
-    lineSpecificWords: {},
-    textBetween: {},
-    lineSpecificTextBetween: {},
-  };
-
-  const segments = trimmedParams.split(",");
-  segments.forEach(segment => {
-    let lineSegment = '';
-    let segmentValue = '';
-    let betweenText = '';
-
-    if (segment.includes("|")) {
-      const [lineOrRange, val] = segment.split("|");
-      lineSegment = lineOrRange.trim();
-
-      if (val.includes(":")) {
-        const [start, end] = val.split(":");
-        segmentValue = start.trim();
-        betweenText = end.trim();
-      } else {
-        segmentValue = val.trim();
-      }
-    } else if (segment.includes(":")) {
-      const [start, end] = segment.split(":");
-      lineSegment = start.trim();
-      betweenText = end.trim();
-    } else {
-      lineSegment = segment.trim();
-    }
-
-    if (lineSegment !== '' && segmentValue === '' && betweenText === '') {
-      const isNumber = (value: string): boolean => !isNaN(Number(value));
-      if (isNumber(lineSegment)) { // number only
-        result.lines.push(Number(lineSegment));
-      } else {
-        if (lineSegment.includes("-")) { // range without text
-          processRange(lineSegment, segmentValue, result.lines);
-        } else { // text only
-          result.words += result.words ? "," + lineSegment : lineSegment;
-        }
-      }
-    } else if (lineSegment !== '' && segmentValue !== '' && betweenText === '') {
-      if (lineSegment.includes("-")) { // range with text
-        processRange(lineSegment, segmentValue, result.lineSpecificWords);
-      } else { // number with text
-        result.lineSpecificWords[Number(lineSegment)] = result.lineSpecificWords.hasOwnProperty(Number(lineSegment)) ? result.lineSpecificWords[Number(lineSegment)] + ',' + segmentValue : segmentValue;
-      }
-    }
-
-    if (betweenText !== '') {
-      if (lineSegment.includes("-")) {
-        const range = getLineRanges(lineSegment);
-        range.forEach((num) => {
-          if (!result.lineSpecificTextBetween[num]) {
-            result.lineSpecificTextBetween[num] = {};
-          }
-          result.lineSpecificTextBetween[num][segmentValue] = betweenText;
-        });
-      } else if (!isNaN(Number(lineSegment))) {
-        const lineNum = Number(lineSegment);
-        if (!result.lineSpecificTextBetween[lineNum]) {
-          result.lineSpecificTextBetween[lineNum] = {};
-        }
-        result.lineSpecificTextBetween[lineNum][segmentValue] = betweenText;
-      } else {
-        result.textBetween[lineSegment] = betweenText;
-      }
-    }
-  });
-
-  return result;
-}// getHighlightedLines
-
 function processRange<T>(segment: string, segmentValue: string, result: T): void {
   const range = getLineRanges(segment);
-  // Assuming T is either number[] or Record<number, string>
-  if (Array.isArray(result)) {
-    result.push(...range);
-  } else {
-    range.forEach((num) => {
-      const existingValue = (result as Record<number, string>)[num];
-      const updatedValue = existingValue ? `${existingValue},${segmentValue}` : segmentValue;
-      (result as Record<number, string>)[num] = updatedValue;
-    });
-  }
+  const words = segmentValue.split(',');
+
+  range.forEach((num) => {
+    const existingEntry = (result as LineSpecificWords[]).find(entry => entry.lineNumber === num);
+
+    if (existingEntry) {
+      existingEntry.words.push(...words);
+    } else {
+      (result as LineSpecificWords[]).push({
+        lineNumber: num,
+        words: words,
+      });
+    }
+  });
 }//processRange
 
 export function getLineRanges(params: string | null): number[] {
@@ -443,9 +663,16 @@ export function getLineRanges(params: string | null): number[] {
       const range = line.split("-");
       const start = parseInt(range[0], 10);
       const end = parseInt(range[1], 10);
+      if (isNaN(start) || isNaN(end)) {
+        return [];
+      }
       return Array.from({ length: end - start + 1 }, (_, i) => start + i);
     }
-    return parseInt(line, 10);
+    const number = parseInt(line, 10);
+    if (isNaN(number)) {
+      return [];
+    }
+    return number;
   }).flat();
 }// getLineRanges
 
@@ -709,8 +936,8 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       }
     ` + 
     `
-      .codeblock-customizer-highlight-text-enabled .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()},
-      body:not(.codeblock-customizer-highlight-text-enabled) .codeblock-customizer-highlighted-text-line-${colorName.replace(/\s+/g, '-').toLowerCase()} {
+      .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()},
+      .codeblock-customizer-highlighted-text-line-${colorName.replace(/\s+/g, '-').toLowerCase()} {
         background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
       }
     `;
@@ -883,12 +1110,6 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.add('codeblock-customizer-show-indentation-lines');
   } else{
     document.body.classList.remove('codeblock-customizer-show-indentation-lines');
-  }
-
-  if (settings.codeblock.textHighlight) {
-    document.body.classList.add('codeblock-customizer-highlight-text-enabled');
-  } else{
-    document.body.classList.remove('codeblock-customizer-highlight-text-enabled');
   }
 }// updateSettingStyles
 

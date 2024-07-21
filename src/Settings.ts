@@ -47,12 +47,13 @@ export interface ThemeSettings {
     enableCopyCodeButton: boolean;
     enableLinks: boolean;
     enableLinkUpdate: boolean;
-    textHighlight: boolean;
     enableBracketHighlight: boolean;
     highlightNonMatchingBrackets: boolean;
     inverseFold: boolean;
     enableSelectionMatching: boolean;
     unwrapcode: boolean;
+    lineSeparator: string;
+    textSeparator: string;
   },
   semiFold: {
     enableSemiFold: boolean;
@@ -223,12 +224,13 @@ const Solarized: Theme = {
       enableCopyCodeButton: false,
       enableLinks: false,
       enableLinkUpdate: false,
-      textHighlight: true,
       enableBracketHighlight: true,
       highlightNonMatchingBrackets: true,
       inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
+      lineSeparator: '',
+      textSeparator: '',
     },
     semiFold: {
       enableSemiFold: false,
@@ -350,12 +352,13 @@ const Obsidian: Theme = {
       enableCopyCodeButton: false,
       enableLinks: false,
       enableLinkUpdate: false,
-      textHighlight: true,
       enableBracketHighlight: true,
       highlightNonMatchingBrackets: true,
       inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
+      lineSeparator: '',
+      textSeparator: '',
     },
     semiFold: {
       enableSemiFold: false,

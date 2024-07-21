@@ -7,6 +7,8 @@ export const SVG_FOLDER_PATH = "/plugins/codeblock-customizer/customSVG/";
 export const SVG_FILE_PATH = SVG_FOLDER_PATH + "svg.json";
 
 export const DEFAULT_COLLAPSE_TEXT = 'Collapsed Code';
+export const DEFAULT_LINE_SEPARATOR = '|';
+export const DEFAULT_TEXT_SEPARATOR = ':';
 
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",

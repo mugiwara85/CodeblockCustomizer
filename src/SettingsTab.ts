@@ -4,7 +4,7 @@ import Pickr from "@simonwep/pickr";
 import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
-import { DEFAULT_COLLAPSE_TEXT } from "./Const";
+import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 
 interface ColorOptions {
   [key: string]: string;
@@ -335,18 +335,6 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     new Setting(codeblockDiv)
-      .setName('Highlight words instead of lines')
-      .setDesc('If enabled, and if a word is specified in the highlight parameter (e.g. hl:2|test) the word itself will be highlighted in the specified line, not the whole line. This setting has no effect, when only line numbers are defined for highlighting.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.textHighlight)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.textHighlight = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-        })
-      );
-
-    new Setting(codeblockDiv)
       .setName('Enable bracket highlight for matching brackets')
       .setDesc('If you click next to a bracket, and if the corresponding opening/closing bracket has been found both of them will be highlighted.')
       .addToggle(toggle => toggle
@@ -428,6 +416,32 @@ export class SettingsTab extends PluginSettingTab {
       .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode)
       .onChange(async (value) => {
         this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode = value;
+        await this.plugin.saveSettings();
+      })
+    );
+
+    codeblockDiv.createEl('h4', {text: 'Text highlight settings'});
+
+    new Setting(codeblockDiv)
+    .setName('Line separator')
+    .setDesc('Override the default line separator (|) globally for text highlighting. You can also specify it for specific code blocks using the "lsep" parameter. The separator can only be one character long!')
+    .addText(text => text
+      .setPlaceholder(DEFAULT_LINE_SEPARATOR)
+      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.lineSeparator)
+      .onChange(async (value) => {
+        this.plugin.settings.SelectedTheme.settings.codeblock.lineSeparator = value.charAt(0);
+        await this.plugin.saveSettings();
+      })
+    );
+
+    new Setting(codeblockDiv)
+    .setName('Text separator')
+    .setDesc('Override the default text separator (:) globally for text highlighting. You can also specify it for specific code blocks using the "tsep" parameter. The separator can only be one character long!')
+    .addText(text => text
+      .setPlaceholder(DEFAULT_TEXT_SEPARATOR)
+      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.textSeparator)
+      .onChange(async (value) => {
+        this.plugin.settings.SelectedTheme.settings.codeblock.textSeparator = value.charAt(0);
         await this.plugin.saveSettings();
       })
     );
