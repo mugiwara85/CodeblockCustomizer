@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, getValueNameByLineNumber, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -457,6 +457,79 @@ function replaceWithNestedBr(parents: any[]): string {
   return nestedBr;
 }// replaceWithNestedBr
 
+function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, parameters: Parameters) {
+  const result = {
+    isHighlighted: false,
+    color: ''
+  };
+
+  // Highlight by line number hl:1,3-5
+  const isHighlightedByLineNumber = parameters.defaultLinesToHighlight.lineNumbers.includes(lineNumber + parameters.lineNumberOffset);
+  
+  // Highlight every line which contains a specific word hl:test
+  let isHighlightedByWord = false;
+  const words = parameters.defaultLinesToHighlight.words;
+  if (words.length > 0 && words.some(word => caseInsensitiveLineText.includes(word))) {
+    isHighlightedByWord = true;
+  }
+
+  // Highlight specific lines if they contain the specified word hl:1|test,3-5|test
+  let isHighlightedByLineSpecificWord = false;
+  const lineSpecificWords = parameters.defaultLinesToHighlight.lineSpecificWords;
+  if (lineSpecificWords.length > 0) {
+    lineSpecificWords.forEach(lsWord => {
+      if (lsWord.lineNumber === lineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
+        isHighlightedByLineSpecificWord = true;
+      }
+    });
+  }
+
+  // Highlight line by line number imp:1,3-5
+  const altHLMatch = parameters.alternativeLinesToHighlight.lines.filter((hl) => hl.lineNumbers.includes(lineNumber + parameters.lineNumberOffset));
+
+  // Highlight every line which contains a specific word imp:test
+  let isAlternativeHighlightedByWord = false;
+  let isAlternativeHighlightedByWordColor = '';
+  const altwords = parameters.alternativeLinesToHighlight.words;
+  if (altwords.length > 0 && altwords.some(altwordObj => altwordObj.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase())))) {
+    altwords.forEach(altwordObj => {
+      if (altwordObj.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase()))) {
+        isAlternativeHighlightedByWord = true;
+        isAlternativeHighlightedByWordColor = altwordObj.colorName;
+      }
+    });
+  }
+
+  // Highlight specific lines if they contain the specified word imp:1|test,3-5|test
+  let isAlternativeHighlightedByLineSpecificWord = false;
+  let isAlternativeHighlightedByLineSpecificWordColor = '';
+  const altLineSpecificWords = parameters.alternativeLinesToHighlight.lineSpecificWords;
+  if (altLineSpecificWords.length > 0) {
+    altLineSpecificWords.forEach(lsWord => {
+      if (lsWord.lineNumber === lineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
+        isAlternativeHighlightedByLineSpecificWord = true;
+        isAlternativeHighlightedByLineSpecificWordColor = lsWord.colorName;
+      }
+    });
+  }
+
+  // Determine final highlight status and color
+  if (isHighlightedByLineNumber || isHighlightedByWord || isHighlightedByLineSpecificWord) {
+    result.isHighlighted = true;
+  } else if (altHLMatch.length > 0) {
+    result.isHighlighted = true;
+    result.color = altHLMatch[0].colorName; // Assuming `colorName` is a property in the `lines` object
+  } else if (isAlternativeHighlightedByWord) {
+    result.isHighlighted = true;
+    result.color = isAlternativeHighlightedByWordColor;
+  } else if (isAlternativeHighlightedByLineSpecificWord) {
+    result.isHighlighted = true;
+    result.color = isAlternativeHighlightedByLineSpecificWordColor;
+  }
+
+  return result;
+}// isLineHighlighted
+
 async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
   if (!preCodeElm)
     return;
@@ -474,16 +547,18 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
       return;
 
     const lineNumber = index + 1;
-    const isHighlighted = parameters.linesToHighlight.lines.includes(lineNumber + parameters.lineNumberOffset);
-    const altHLMatch = parameters.alternativeLinesToHighlight.lines.filter((hl) => hl.lineNumber === lineNumber + parameters.lineNumberOffset);
-
+    const caseInsensitiveLineText = line.toLowerCase();
+    
     // create line element
     const lineWrapper = createDiv();
 
-    if (isHighlighted) {
-      lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
-    } else if (altHLMatch.length > 0) {
-      lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${altHLMatch[0].name.replace(/\s+/g, '-').toLowerCase()}`);
+    const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
+    if (result.isHighlighted) {
+      if (result.color) {
+        lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`);
+      } else {
+        lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
+      }
     } else {
       lineWrapper.classList.add(`codeblock-customizer-line`);
     }
@@ -512,8 +587,7 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
     // create line text element
     const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine);
 
-    textHighlight(parameters, lineNumber, lineTextEl, lineWrapper);
-
+    textHighlight(parameters, lineNumber, lineTextEl);
     if (indentationLevels && indentationLevels[lineNumber - 1]) {
       const collapseIcon = lineTextEl.querySelector(".codeblock-customizer-collapse-icon");
       if (collapseIcon) {
@@ -526,197 +600,395 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
   });
 }// highlightLines
 
-function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: HTMLDivElement, lineWrapper: HTMLDivElement) {
-  const addHighlightClass = (name = '') => {
-    const className = `codeblock-customizer-highlighted-text-line${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
-    lineWrapper.classList.add(className);
-  };
+interface RangeToHighlight {
+  nodesToHighlight: Node[];
+  startNode: Node;
+  startOffset: number;
+  endNode: Node;
+  endOffset: number;
+}
 
-  const highlightLine = (words: string, name = '') => {
-    const caseInsensitiveWords = words.toLowerCase().split(',');
+function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: HTMLDivElement) {
+  const caseInsensitiveLineText = (lineTextEl.textContent ?? '').toLowerCase();
+
+  const wordHighlight = (words: string[], name = '') => {
+    const caseInsensitiveWords = words.map(word => word.toLowerCase());
     for (const word of caseInsensitiveWords) {
       highlightWords(lineTextEl, word, name);
-      if (lineTextEl.textContent?.toLowerCase().includes(word)) {
-        addHighlightClass(name);
-      }
     }
   };
 
   const highlightBetween = (from: string, to: string, name = '') => {
     const caseInsensitiveFrom = from.toLowerCase();
     const caseInsensitiveTo = to.toLowerCase();
-    let startFound = false;
-    let accumulatedText = '';
-    let nodesToHighlight: Node[] = [];
-    let startNode: Node | null = null;
-    let endNode: Node | null = null;
-    let startOffset = 0;
-    let endOffset = 0;
-
-    const traverseAndHighlight = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const textContent = node.textContent?.toLowerCase() || '';
-        if (!startFound) {
-          const startIndex = textContent.indexOf(caseInsensitiveFrom);
-          if (startIndex !== -1) {
-            startFound = true;
-            startNode = node;
-            startOffset = startIndex;
-            accumulatedText = textContent.substring(startIndex);
-            nodesToHighlight.push(node);
-          }
-        } else {
-          accumulatedText += textContent;
-          nodesToHighlight.push(node);
-        }
-
-        if (startFound) {
-          const endIndex = accumulatedText.indexOf(caseInsensitiveTo, accumulatedText.indexOf(caseInsensitiveFrom) + caseInsensitiveFrom.length);
-          if (endIndex !== -1) {
-            endNode = node;
-            endOffset = endIndex - (accumulatedText.length - textContent.length) + caseInsensitiveTo.length;
-            if (startNode && endNode) {
-              highlightNodesRange(nodesToHighlight, startNode, startOffset, endNode, endOffset, name);
-              addHighlightClass(name);
+  
+    const walkAndHighlight = (node: Node, searchTextFrom: string | null, searchTextTo: string | null) => {
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
+      let firstNonWhitespaceNode: Node | null = null;
+      let firstNonWhitespaceOffset = 0;
+      let lastNode: Node | null = null;
+      let lastNodeOffset = 0;
+      const nodesToHighlight: Node[] = [];
+      let searchTextToFound = false;
+    
+      while (walker.nextNode()) {
+        const currentNode = walker.currentNode;
+        const textContent = currentNode.textContent?.toLowerCase() || '';
+    
+        if (!firstNonWhitespaceNode && textContent.trim().length > 0) {
+          if (searchTextFrom) {
+            if (textContent.includes(searchTextFrom)) {
+              firstNonWhitespaceNode = currentNode;
+              firstNonWhitespaceOffset = textContent.indexOf(searchTextFrom);
             }
-            startFound = false;
-            accumulatedText = '';
-            nodesToHighlight = [];
+          } else {
+            firstNonWhitespaceNode = currentNode;
+            firstNonWhitespaceOffset = textContent.search(/\S/);
           }
         }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        node.childNodes.forEach(traverseAndHighlight);
+    
+        if (firstNonWhitespaceNode) {
+          nodesToHighlight.push(currentNode);
+          if (searchTextTo && textContent.includes(searchTextTo)) {
+            const tempOffset = textContent.indexOf(searchTextTo) + searchTextTo.length;
+            if (tempOffset > firstNonWhitespaceOffset) {
+              lastNode = currentNode;
+              lastNodeOffset = tempOffset;
+              searchTextToFound = true;
+              break;
+            } else {
+              let position = tempOffset;
+              while ((position = textContent.indexOf(searchTextTo, position + 1)) !== -1) {
+                if (position > firstNonWhitespaceOffset) {
+                  lastNode = currentNode;
+                  lastNodeOffset = position + searchTextTo.length;
+                  searchTextToFound = true;
+                  break;
+                }
+              }
+              if (searchTextToFound) 
+                break;
+            }
+          }
+        }
+      }
+    
+      if (nodesToHighlight.length > 0 && firstNonWhitespaceNode && (searchTextFrom || searchTextToFound || (!searchTextFrom && !searchTextTo))) {
+        const startNode = firstNonWhitespaceNode;
+        const endNode = lastNode || nodesToHighlight[nodesToHighlight.length - 1];
+        const startOffset = firstNonWhitespaceOffset;
+        const endOffset = lastNodeOffset || endNode.textContent?.length || 0;
+    
+        const rangeToHighlight: RangeToHighlight = {
+          nodesToHighlight,
+          startNode,
+          startOffset,
+          endNode,
+          endOffset,
+        };
+    
+        highlightNodesRange(rangeToHighlight, name);
       }
     };
 
-    traverseAndHighlight(lineTextEl);
-  };
+    const highlightEntireText = (node: Node) => {
+      walkAndHighlight(node, null, null);
+    };
 
-  const highlightNodesRange = (nodes: Node[], startNode: Node, startOffset: number, endNode: Node, endOffset: number, name: string) => {
-    for (const currentNode of nodes) {
+    const highlightFromStart = (node: Node, searchTextFrom: string) => {
+      walkAndHighlight(node, searchTextFrom, null);
+    };
+
+    const highlightUntilEnd = (node: Node, searchTextTo: string) => {
+      walkAndHighlight(node, null, searchTextTo);
+    };
+
+    /*const highlightFromTo = (node: Node, searchTextFrom: string, searchTextTo: string) => {
+      walkAndHighlight(node, searchTextFrom, searchTextTo);
+    };*/
+  
+    if (!caseInsensitiveFrom && !caseInsensitiveTo) {
+      highlightEntireText(lineTextEl);
+    } else if (caseInsensitiveFrom && !caseInsensitiveTo) {
+      highlightFromStart(lineTextEl, caseInsensitiveFrom.toLowerCase());
+    } else if (!caseInsensitiveFrom && caseInsensitiveTo) {
+      highlightUntilEnd(lineTextEl, caseInsensitiveTo.toLowerCase());
+    } else if (caseInsensitiveFrom && caseInsensitiveTo) {
+      //highlightFromTo(lineTextEl, caseInsensitiveFrom.toLowerCase(), caseInsensitiveTo.toLowerCase());
+      highlightFromTo(lineTextEl, from, to, name);
+    }
+  };
+  
+  const highlightNodesRange = (range: RangeToHighlight, name: string) => {
+    const { nodesToHighlight, startNode, startOffset, endNode, endOffset } = range;
+    let currentStartOffset = startOffset; // Change this line
+  
+    for (const currentNode of nodesToHighlight) {
       if (currentNode.nodeType === Node.TEXT_NODE) {
         const span = createSpan();
         span.className = name ? `codeblock-customizer-highlighted-text-${name}` : 'codeblock-customizer-highlighted-text';
         
         let textToHighlight = '';
         if (currentNode === startNode && currentNode === endNode) {
-          textToHighlight = currentNode.textContent?.substring(startOffset, endOffset) || '';
+          textToHighlight = currentNode.textContent?.substring(currentStartOffset, endOffset) || '';
         } else if (currentNode === startNode) {
-          textToHighlight = currentNode.textContent?.substring(startOffset) || '';
+          textToHighlight = currentNode.textContent?.substring(currentStartOffset) || '';
         } else if (currentNode === endNode) {
           textToHighlight = currentNode.textContent?.substring(0, endOffset) || '';
         } else {
           textToHighlight = currentNode.textContent || '';
         }
-
+  
         span.appendChild(document.createTextNode(textToHighlight));
-
-        const beforeText = document.createTextNode(currentNode.textContent?.substring(0, startOffset) || '');
+  
+        const beforeText = document.createTextNode(currentNode.textContent?.substring(0, currentStartOffset) || '');
         const afterText = currentNode === endNode ? document.createTextNode(currentNode.textContent?.substring(endOffset) || '') : document.createTextNode('');
-
+  
         const parentNode = currentNode.parentNode;
         if (parentNode) {
           parentNode.replaceChild(afterText, currentNode);
           parentNode.insertBefore(span, afterText);
           parentNode.insertBefore(beforeText, span);
         }
-
-        startOffset = 0; // Reset startOffset after the first node
+  
+        currentStartOffset = 0; // Reset startOffset after the first node
       }
     }
   };
 
-  // highlight specific lines if they contain a word hl:1|test,3-5|test
-  if (parameters.linesToHighlight.lineSpecificWords.hasOwnProperty(lineNumber)) {
-    highlightLine(parameters.linesToHighlight.lineSpecificWords[lineNumber] ?? '');
+  // highlight text in every line if linetext contains the specified word hlt:test
+  const words = parameters.defaultTextToHighlight.words;
+  if (words.length > 0) {
+    wordHighlight(words);
   }
 
-  // highlight every line which contains a specific word hl:test
-  if (parameters.linesToHighlight.words.length > 0) {
-    highlightLine(parameters.linesToHighlight.words);
+  // highlight text in specific lines if linetext contains the specified word hlt:1|test,3-5|test
+  const lineSpecificWords = parameters.defaultTextToHighlight.lineSpecificWords;
+  const lineSpecificWord = lineSpecificWords.find(item => item.lineNumber === lineNumber);
+  if (lineSpecificWord) {
+    wordHighlight(lineSpecificWord.words);
   }
 
-  // highlight lines with specific text between markers hl:start:end
-  const textBetween = parameters.linesToHighlight.textBetween;
-  for (const [start, end] of Object.entries(textBetween)) {
-    highlightBetween(start, end);
-  }
-
-  // highlight specific lines with text between markers hl:5|start:end, hl:5-7|start:end
-  const lineSpecificTextBetween = parameters.linesToHighlight.lineSpecificTextBetween;
-  if (lineNumber in lineSpecificTextBetween) {
-    for (const [start, end] of Object.entries(lineSpecificTextBetween[lineNumber])) {
-      highlightBetween(start, end);
+  // highlight text with specific text between markers hlt:start:end
+  const textBetween = parameters.defaultTextToHighlight.textBetween;
+  for (const { from, to } of textBetween) {
+    if (caseInsensitiveLineText.includes(from.toLowerCase()) && caseInsensitiveLineText.includes(to.toLowerCase())) {
+      highlightBetween(from, to);
     }
   }
 
-  // highlight specific lines if they contain a word imp:1|test,3-5|test
-  if (parameters.alternativeLinesToHighlight.lineSpecificWords.some(item => item.lineNumber === lineNumber)) {
-    const { extractedValues } = getValueNameByLineNumber(lineNumber, parameters.alternativeLinesToHighlight.lineSpecificWords);
-    extractedValues.forEach(({ value, name }) => {
-      highlightLine(value ?? '', name);
+  // highlight text within specific lines with text between markers hl:5|start:end, hlt:5-7|start:end
+  const lineSpecificTextBetween = parameters.defaultTextToHighlight.lineSpecificTextBetween;
+  const specificTextBetween = lineSpecificTextBetween.find(item => item.lineNumber === lineNumber);
+  if (specificTextBetween) {
+    if (caseInsensitiveLineText.includes(specificTextBetween.from.toLowerCase()) && caseInsensitiveLineText.includes(specificTextBetween.to.toLowerCase())) {
+      highlightBetween(specificTextBetween.from, specificTextBetween.to);
+    }
+  }
+
+  // highlight all words in specified line hlt:1,3-5
+  if (parameters.defaultTextToHighlight.allWordsInLine.includes(lineNumber)) {
+    highlightBetween('', '');
+  }
+
+  // highlight text in every line if linetext contains the specified word impt:test
+  const altWords = parameters.alternativeTextToHighlight.words;
+  for (const entry of altWords) {
+    const { colorName, words } = entry;
+    if (words.length > 0) {
+      wordHighlight(words, colorName);
+    }
+  }
+
+  // highlight text in specific lines if linetext contains the specified word impt:1|test,3-5|test
+  const altLineSpecificWords = parameters.alternativeTextToHighlight.lineSpecificWords;
+  const altLineSpecificWord = altLineSpecificWords.find(item => item.lineNumber === lineNumber);
+  if (altLineSpecificWord) {
+    const { colorName, words } = altLineSpecificWord;
+    wordHighlight(words, colorName);
+  }
+
+  // highlight text with specific text between markers impt:start:end
+  const altTextBetween = parameters.alternativeTextToHighlight.textBetween;
+  altTextBetween.forEach(({ from, to, colorName }) => {
+    highlightBetween(from, to, colorName);
+  });
+
+  // highlight text within specific lines with text between markers impt:5|start:end, imp:5-7|start:end
+  const altLineSpecificTextBetween = parameters.alternativeTextToHighlight.lineSpecificTextBetween;
+  const altSpecificTextBetween = altLineSpecificTextBetween.find(item => item.lineNumber === lineNumber);
+  if (altSpecificTextBetween) {
+    altLineSpecificTextBetween.forEach(({ lineNumber: altLineNumber, from, to, colorName }) => {
+      if (lineNumber === altLineNumber) {
+        highlightBetween(from, to, colorName);
+      }
     });
   }
 
-  // highlight every line which contains a specific word imp:test
-  parameters.alternativeLinesToHighlight.words.forEach(({ name, words }) => {
-    if (words.length > 0) {
-      highlightLine(words, name);
-    }
-  });
-
-  // highlight lines with specific text between markers imp:start:end
-  const altTextBetween = parameters.alternativeLinesToHighlight.textBetween;
-  altTextBetween.forEach(({ from, to, name }) => {
-    highlightBetween(from, to, name);
-  });
-
-  // highlight specific lines with text between markers imp:5|start:end, imp:5-7|start:end
-  const altLineSpecificTextBetween = parameters.alternativeLinesToHighlight.lineSpecificTextBetween;
-  altLineSpecificTextBetween.forEach(({ lineNumber: altLineNumber, from, to, name }) => {
-    if (lineNumber === altLineNumber) {
-      highlightBetween(from, to, name);
-    }
-  });
+  // highlight all words in specified line impt:1,3-5
+  const altAllWordsInLine = parameters.alternativeTextToHighlight.allWordsInLine;
+  const altAllWordsInLineMatch = altAllWordsInLine.find(item => item.allWordsInLine.includes(lineNumber));
+  if (altAllWordsInLineMatch) {
+    highlightBetween('','', altAllWordsInLineMatch.colorName);
+  }
 }// textHighlight
 
-function highlightWords(node: Node, word: string, alternativeName?: string) {
-  if (node.nodeType === Node.TEXT_NODE) {
-    const textContent = node.textContent || '';
-    const occurrences = findAllOccurrences(textContent.toLowerCase(), word.toLowerCase());
+function highlightFromTo(node: Node, from: string, to: string, alternativeName?: string): void {
+  const className = alternativeName 
+    ? `codeblock-customizer-highlighted-text-${alternativeName}` 
+    : `codeblock-customizer-highlighted-text`;
 
-    let offset = 0;
-    occurrences.forEach(index => {
-      const originalIndex = index + offset;
-      const beforeTextContent = textContent.substring(0, originalIndex);
-      const afterTextContent = textContent.substring(originalIndex + word.length);
+  const createSpan = (text: string): HTMLSpanElement => {
+    const span = document.createElement('span');
+    span.className = className;
+    span.appendChild(document.createTextNode(text));
+    return span;
+  };
 
-      const span = createSpan();
-      span.className = alternativeName ? `codeblock-customizer-highlighted-text-${alternativeName}` : `codeblock-customizer-highlighted-text`;
-      span.appendChild(document.createTextNode(word));
+  const collectTextNodes = (node: Node, textNodes: Text[]): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      textNodes.push(node as Text);
+    } else {
+      node.childNodes.forEach(child => collectTextNodes(child, textNodes));
+    }
+  };
 
-      const beforeText = document.createTextNode(beforeTextContent);
-      const afterText = document.createTextNode(afterTextContent);
+  const highlightRanges = (textNodes: Text[], ranges: { start: number, end: number }[]): void => {
+    let currentIndex = 0;
+    let currentRangeIndex = 0;
+    let currentRange = ranges[currentRangeIndex];
 
-      const parentNode = node.parentNode;
+    textNodes.forEach(textNode => {
+      if (!currentRange) return;
+      const textContent = textNode.textContent || '';
+      const fragment = document.createDocumentFragment();
+      let lastIndex = 0;
+
+      while (currentRange && lastIndex < textContent.length) {
+        const rangeStart = currentRange.start - currentIndex;
+        const rangeEnd = currentRange.end - currentIndex;
+
+        if (rangeStart >= 0 && rangeStart < textContent.length) {
+          // Text before the range
+          if (rangeStart > lastIndex) {
+            fragment.appendChild(document.createTextNode(textContent.substring(lastIndex, rangeStart)));
+          }
+
+          // Text within the range
+          if (rangeEnd <= textContent.length) {
+            fragment.appendChild(createSpan(textContent.substring(rangeStart, rangeEnd)));
+            lastIndex = rangeEnd;
+            currentRangeIndex++;
+            currentRange = ranges[currentRangeIndex];
+          } else {
+            fragment.appendChild(createSpan(textContent.substring(rangeStart)));
+            lastIndex = textContent.length;
+            currentRange.start += textContent.length - rangeStart;
+          }
+        } else {
+          break;
+        }
+      }
+
+      // Append remaining text
+      if (lastIndex < textContent.length) {
+        fragment.appendChild(document.createTextNode(textContent.substring(lastIndex)));
+      }
+
+      const parentNode = textNode.parentNode;
       if (parentNode) {
-        parentNode.replaceChild(afterText, node);
-        parentNode.insertBefore(span, afterText);
-        parentNode.insertBefore(beforeText, span);
+        parentNode.replaceChild(fragment, textNode);
       }
 
-      // After replacement, reprocess the modified content
-      highlightWords(afterText, word, alternativeName);
-
-      offset += (word.length - 1); // Adjust offset to account for replacement
+      currentIndex += textContent.length;
     });
-  } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const childNodes = Array.from(node.childNodes);
-      for (let i = 0; i < childNodes.length; i++) {
-        const childNode = childNodes[i];
-        highlightWords(childNode, word, alternativeName);
+  };
+
+  const findRanges = (text: string, from: string, to: string): { start: number, end: number }[] => {
+    const ranges = [];
+    let startIndex = text.toLowerCase().indexOf(from.toLowerCase());
+
+    while (startIndex !== -1) {
+      const endIndex = text.toLowerCase().indexOf(to.toLowerCase(), startIndex + from.length);
+      if (endIndex === -1) break;
+
+      ranges.push({ start: startIndex, end: endIndex + to.length });
+      startIndex = text.toLowerCase().indexOf(from.toLowerCase(), endIndex + to.length);
+    }
+
+    return ranges;
+  };
+
+  const textNodes: Text[] = [];
+  collectTextNodes(node, textNodes);
+
+  const concatenatedText = textNodes.map(node => node.textContent).join('');
+  const ranges = findRanges(concatenatedText, from, to);
+
+  highlightRanges(textNodes, ranges);
+}// highlightFromTo
+
+function highlightWords(node: Node, word: string, alternativeName?: string): void {
+  if (!word) return;
+
+  const lowerCaseWord = word.toLowerCase();
+  const className = alternativeName 
+    ? `codeblock-customizer-highlighted-text-${alternativeName}` 
+    : `codeblock-customizer-highlighted-text`;
+
+  const createSpan = (text: string): HTMLSpanElement => {
+    const span = document.createElement('span');
+    span.className = className;
+    span.appendChild(document.createTextNode(text));
+    return span;
+  };
+
+  const processTextNode = (textNode: Text): void => {
+    const textContent = textNode.textContent || '';
+    const occurrences = findAllOccurrences(textContent.toLowerCase(), lowerCaseWord);
+
+    if (occurrences.length === 0) return;
+
+    const parentNode = textNode.parentNode;
+    if (!parentNode) return;
+
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+
+    occurrences.forEach(index => {
+      const beforeText = textContent.substring(lastIndex, index);
+      const matchText = textContent.substring(index, index + word.length);
+
+      if (beforeText) {
+        fragment.appendChild(document.createTextNode(beforeText));
       }
-  }
+      fragment.appendChild(createSpan(matchText));
+      lastIndex = index + word.length;
+    });
+
+    const remainingText = textContent.substring(lastIndex);
+    if (remainingText) {
+      fragment.appendChild(document.createTextNode(remainingText));
+    }
+
+    parentNode.replaceChild(fragment, textNode);
+  };
+
+  const walkTree = (node: Node): void => {
+    const textNodes: Text[] = [];
+    const collectTextNodes = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        textNodes.push(node as Text);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        Array.from(node.childNodes).forEach(collectTextNodes);
+      }
+    };
+
+    collectTextNodes(node);
+    textNodes.forEach(processTextNode);
+  };
+
+  walkTree(node);
 }// highlightWords
 
 function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomizerPlugin): string {

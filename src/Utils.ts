@@ -248,11 +248,11 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // get line separator
   const lsep = extractParameter(lineText, 'lsep')?.charAt(0);
-  const lineSeparator = lsep || settings.SelectedTheme.settings.codeblock.lineSeparator || DEFAULT_LINE_SEPARATOR;
+  const lineSeparator = lsep || settings.SelectedTheme.settings.textHighlight.lineSeparator || DEFAULT_LINE_SEPARATOR;
 
   // get text separator
   const tsep = extractParameter(lineText, 'tsep')?.charAt(0);
-  const textSeparator = tsep || settings.SelectedTheme.settings.codeblock.textSeparator || DEFAULT_TEXT_SEPARATOR;
+  const textSeparator = tsep || settings.SelectedTheme.settings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
 
   // default highlight (lines)
   const defaultLinesToHighlight = getHighlightedLines(lineText, "HL", textSeparator, lineSeparator);
@@ -936,8 +936,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       }
     ` + 
     `
-      .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()},
-      .codeblock-customizer-highlighted-text-line-${colorName.replace(/\s+/g, '-').toLowerCase()} {
+      .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()}{
         background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
       }
     `;

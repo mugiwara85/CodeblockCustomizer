@@ -427,9 +427,9 @@ export class SettingsTab extends PluginSettingTab {
     .setDesc('Override the default line separator (|) globally for text highlighting. You can also specify it for specific code blocks using the "lsep" parameter. The separator can only be one character long!')
     .addText(text => text
       .setPlaceholder(DEFAULT_LINE_SEPARATOR)
-      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.lineSeparator)
+      .setValue(this.plugin.settings.SelectedTheme.settings.textHighlight.lineSeparator)
       .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.codeblock.lineSeparator = value.charAt(0);
+        this.plugin.settings.SelectedTheme.settings.textHighlight.lineSeparator = value.charAt(0);
         await this.plugin.saveSettings();
       })
     );
@@ -439,9 +439,9 @@ export class SettingsTab extends PluginSettingTab {
     .setDesc('Override the default text separator (:) globally for text highlighting. You can also specify it for specific code blocks using the "tsep" parameter. The separator can only be one character long!')
     .addText(text => text
       .setPlaceholder(DEFAULT_TEXT_SEPARATOR)
-      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.textSeparator)
+      .setValue(this.plugin.settings.SelectedTheme.settings.textHighlight.textSeparator)
       .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.codeblock.textSeparator = value.charAt(0);
+        this.plugin.settings.SelectedTheme.settings.textHighlight.textSeparator = value.charAt(0);
         await this.plugin.saveSettings();
       })
     );

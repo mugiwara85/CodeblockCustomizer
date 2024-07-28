@@ -52,6 +52,8 @@ export interface ThemeSettings {
     inverseFold: boolean;
     enableSelectionMatching: boolean;
     unwrapcode: boolean;
+  },
+  textHighlight: {
     lineSeparator: string;
     textSeparator: string;
   },
@@ -229,6 +231,8 @@ const Solarized: Theme = {
       inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
+    },
+    textHighlight: {
       lineSeparator: '',
       textSeparator: '',
     },
@@ -357,6 +361,8 @@ const Obsidian: Theme = {
       inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
+    },
+    textHighlight: {
       lineSeparator: '',
       textSeparator: '',
     },

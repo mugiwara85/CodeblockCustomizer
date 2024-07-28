@@ -233,8 +233,7 @@
 
 /* Highlighting */
 .codeblock-customizer-line-highlighted,
-.codeblock-customizer-highlighted-text,
-.codeblock-customizer-highlighted-text-line {
+.codeblock-customizer-highlighted-text {
   background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
 }
 
