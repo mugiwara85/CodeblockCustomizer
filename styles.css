@@ -943,10 +943,10 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 
 /* Everforest */
-.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-begin,
+/*.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-begin,
 .codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end {
-height: calc(var(--line-height-normal) * 1em);
-}
+  height: calc(var(--line-height-normal) * 1em);
+}*/
 
 /* Settings */
 .codeblock-customizer-Donation {
