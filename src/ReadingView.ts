@@ -84,7 +84,7 @@ async function getPreElements(element: HTMLElement) {
 
 function trackIndentation(lines: string[]): IndentationInfo[] {
   const result: IndentationInfo[] = [];
-  const spaceIndentRegex = /^( {4}|\t)*/;
+  const spaceIndentRegex = /^( {0,4}|\t)*/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -93,16 +93,7 @@ function trackIndentation(lines: string[]): IndentationInfo[] {
 
     if (match) {
       const indentation = match[0];
-
-      if (indentation.includes('\t')) {
-        // Handle tabs by counting them as 4 spaces each
-        const tabCount = indentation.split('\t').length - 1;
-        currentIndentLevel = tabCount + 1;
-      } else {
-        // Count the number of spaces
-        const spaceCount = indentation.length / 4;
-        currentIndentLevel = spaceCount;
-      }
+      currentIndentLevel = calculateIndentLevel(indentation);
     }
 
     const nextLine = lines[i + 1];
@@ -113,16 +104,7 @@ function trackIndentation(lines: string[]): IndentationInfo[] {
 
       if (nextMatch) {
         const nextIndentation = nextMatch[0];
-
-        if (nextIndentation.includes('\t')) {
-          // Handle tabs by counting them as 4 spaces each
-          const tabCount = nextIndentation.split('\t').length - 1;
-          nextIndentLevel = tabCount + 1;
-        } else {
-          // Count the number of spaces
-          const spaceCount = nextIndentation.length / 4;
-          nextIndentLevel = spaceCount;
-        }
+        nextIndentLevel = calculateIndentLevel(nextIndentation);
       }
     }
 
@@ -136,6 +118,31 @@ function trackIndentation(lines: string[]): IndentationInfo[] {
 
   return result;
 }// trackIndentation
+
+function calculateIndentLevel(indentation: string): number {
+  let indentLevel = 0;
+  let spaceCount = 0;
+
+  for (const char of indentation) {
+    if (char === '\t') {
+      indentLevel += 1;
+      spaceCount = 0;
+    } else if (char === ' ') {
+      spaceCount += 1;
+      if (spaceCount === 4) {
+        indentLevel += 1;
+        spaceCount = 0;
+      }
+    }
+  }
+
+  // Handle remaining spaces less than 4
+  if (spaceCount > 0) {
+    indentLevel += 1;
+  }
+
+  return indentLevel;
+}// calculateIndentLevel
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
   await sleep(50); // need to find a better way instead of this...
@@ -992,10 +999,15 @@ function highlightWords(node: Node, word: string, alternativeName?: string): voi
 }// highlightWords
 
 function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomizerPlugin): string {
-  if (input === "") return input;
+  if (input === "") 
+    return input;
+
+  // #98
+  const placeholder = '\u200B'; // Zero-width space
+  const inputWithPlaceholders = input.replace(/(^\s{1,3})/gm, (match) => placeholder.repeat(match.length));
 
   const parser = new DOMParser();
-  const doc = parser.parseFromString(input, 'text/html');
+  const doc = parser.parseFromString(inputWithPlaceholders, 'text/html');
   const elementsWithClass = Array.from(doc.getElementsByClassName('comment'));
   const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
 
@@ -1024,8 +1036,10 @@ function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomiz
     element.appendChild(fragment);
   });
 
-  return new XMLSerializer().serializeToString(doc);
-}// parseInput
+  const output = new XMLSerializer().serializeToString(doc);
+  return output.replace(new RegExp(placeholder, 'g'), ' ');
+}
+// parseInput
 
 function handleClick(event: Event) {
   const collapseIcon = event.currentTarget as HTMLElement;
