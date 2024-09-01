@@ -145,12 +145,6 @@ function calculateIndentLevel(indentation: string): number {
 }// calculateIndentLevel
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
-  await sleep(50); // need to find a better way instead of this...
-
-  /*if (Array.from(codeBlockElement.classList).some(className => /^language-\S+/.test(className)))
-  while(!codeBlockElement.classList.contains("is-loaded"))
-    await sleep(2);*/
-
   const callouts: HTMLElement | null = codeBlockElement.querySelector('.callout');
   if (!callouts) 
     return;
@@ -159,23 +153,38 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   if (!calloutPreElements)
     return;
 
-  /*const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(calloutPreElements[0]);
-  if (!sectionInfo)
-    return;
-  const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);*/
-
   const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
   const viewMode = markdownView?.getMode();
 
   if (viewMode === "source") {
+    const foundCmView = await waitForCmView(context);
+    if (!foundCmView)
+      return;
+
     // @ts-ignore
     const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
-
     await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, [], context.sourcePath, plugin);
   }
 }// calloutPostProcessor
+
+async function waitForCmView(context: MarkdownPostProcessorContext, maxRetries = 25, delay = 2): Promise<boolean> {
+  // @ts-ignore
+  if (context?.containerEl?.cmView)
+    return true;
+
+  let retries = 0;
+  // @ts-ignore
+  while (!context?.containerEl?.cmView) {
+    if (retries >= maxRetries) {
+      return false;
+    }
+    retries++;
+    await sleep(delay);
+  }
+  return true;
+}// waitForCmView
 
 async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines: string[], preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin ){
   const customLangConfig = getLanguageConfig(parameters.language, plugin);
@@ -190,7 +199,7 @@ async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines
 
 async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], sourcepath: string, plugin: CodeBlockCustomizerPlugin ) {
   if (preElements.length !== codeBlockFirstLines.length)
-  return;
+    return;
 
   for (const [key, preElement] of preElements.entries()) {
     const codeBlockFirstLine = codeBlockFirstLines[key];
