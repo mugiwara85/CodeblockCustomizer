@@ -45,6 +45,8 @@ export interface ThemeSettings {
     codeBlockBorderStylingPosition: string;
     showIndentationLines: boolean;
     enableCopyCodeButton: boolean;
+    enableSelectCodeButton: boolean;
+    enableWrapCodeButton: boolean;
     enableLinks: boolean;
     enableLinkUpdate: boolean;
     enableBracketHighlight: boolean;
@@ -224,6 +226,8 @@ const Solarized: Theme = {
       codeBlockBorderStylingPosition: 'disable',
       showIndentationLines: false,
       enableCopyCodeButton: false,
+      enableSelectCodeButton: false,
+      enableWrapCodeButton: false,
       enableLinks: false,
       enableLinkUpdate: false,
       enableBracketHighlight: true,
@@ -354,6 +358,8 @@ const Obsidian: Theme = {
       codeBlockBorderStylingPosition: 'disable',
       showIndentationLines: false,
       enableCopyCodeButton: false,
+      enableSelectCodeButton: false,
+      enableWrapCodeButton: false,
       enableLinks: false,
       enableLinkUpdate: false,
       enableBracketHighlight: true,

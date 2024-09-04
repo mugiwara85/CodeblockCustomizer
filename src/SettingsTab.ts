@@ -264,30 +264,6 @@ export class SettingsTab extends PluginSettingTab {
     this.createPickrSetting(codeblockDiv, 'Highlight color (used by the "hl" parameter)', '', "codeblock.highlightColor");
 
     new Setting(codeblockDiv)
-      .setName('Show copy code button')
-      .setDesc('If enabled a copy code button will be displayed on every codeblock. If clicked, the content of that codeblock is copied. This button will be always shown, even if you click inside the code block!')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-        })
-      );
-
-    new Setting(codeblockDiv)
-      .setName('Show delete code button')
-      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-        })
-      );
-
-    new Setting(codeblockDiv)
       .setName('Show indentation lines in reading view')
       .setDesc('If enabled, indentation lines will be shown in reading view.')
       .addToggle(toggle => toggle
@@ -410,15 +386,65 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     new Setting(codeblockDiv)
-    .setName('Unwrap code')
-    .setDesc('If enabled, the code will be unwrapped in reading view.')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode = value;
-        await this.plugin.saveSettings();
-      })
-    );
+      .setName('Unwrap code')
+      .setDesc('If enabled, the code will be unwrapped in reading view.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.unwrapcode = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    codeblockDiv.createEl('h4', {text: 'Extra buttons'});
+
+    new Setting(codeblockDiv)
+      .setName('Always show copy code button (only editing view)')
+      .setDesc('If enabled, the copy code button will be displayed on every codeblock. If clicked, the content of that codeblock is copied. The button will be always shown, even if you click inside the code block!')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    new Setting(codeblockDiv)
+      .setName('Show delete code button (only editing view)')
+      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    new Setting(codeblockDiv)
+      .setName('Show select code button (only editing view)')
+      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is selected (including the first and last lines of the code blocks which begin with three backticks).')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    new Setting(codeblockDiv)
+      .setName('Show wrap code button (only reading view)')
+      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is wrapped/unwrapped.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableWrapCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.enableWrapCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
 
     codeblockDiv.createEl('h4', {text: 'Text highlight settings'});
 

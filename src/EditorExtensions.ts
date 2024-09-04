@@ -1,4 +1,4 @@
-import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Line, Text } from "@codemirror/state";
+import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Line, Text, EditorSelection } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
@@ -27,6 +27,15 @@ export interface CodeBlockPositions {
   codeBlockStartPos: number;
   codeBlockEndPos: number;
   parameters: Parameters;
+}
+
+interface ButtonConfig {
+  class: string;
+  displayText: string;
+  action: (view: EditorView) => void;
+  icon: string;
+  text?: string;
+  enabled: boolean;
 }
 
 export function extensions(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
@@ -259,68 +268,53 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
   }// LineNumberWidget
   
-  class deleteCodeWidget extends WidgetType {
-    collapseStart: number;
-    collapseEnd: number;
-  
-    constructor(collapseStart: number, collapseEnd: number) {
+  class buttonWidget extends WidgetType {
+    buttonsConfig: Array<ButtonConfig>;
+
+    constructor(buttonsConfig: Array<ButtonConfig>) {
       super();
-      this.collapseStart = collapseStart;
-      this.collapseEnd = collapseEnd;
+      this.buttonsConfig = buttonsConfig;
     }
   
-    eq(other: deleteCodeWidget) {
-      return this.collapseStart === other.collapseStart && this.collapseEnd === other.collapseEnd;
-    }
+    eq(other: buttonWidget): boolean {
+      if (this.buttonsConfig.length !== other.buttonsConfig.length) 
+        return false;
   
+      return this.buttonsConfig.every((config, i) => {
+        const otherConfig = other.buttonsConfig[i];
+        return (
+          config.class === otherConfig.class && config.displayText === otherConfig.displayText && config.icon === otherConfig.icon &&
+          config.text === otherConfig.text && config.enabled === otherConfig.enabled
+        );
+      });
+    }
+    
     toDOM(view: EditorView): HTMLElement {
-      const container = createSpan({ cls: `codeblock-customizer-delete-code`});
-      container.setAttribute("aria-label", "Delete code block content");
-      setIcon(container, "trash-2");
-      
-      container.onclick = (event) => {
-        const tr = view.state.update({ changes: { from: this.collapseStart, to: this.collapseEnd, insert: "" } });
-        view.dispatch(tr);
-      }
-  
+      const container = document.createElement("div");
+      container.className = "codeblock-customizer-button-container";
+
+      this.buttonsConfig.forEach(config => {
+        if (!config.enabled)
+          return;
+
+        const button = createSpan({ cls: config.class });
+        button.setAttribute("aria-label", config.displayText);
+        button.onclick = () => config.action(view);
+
+        if (config.text) {
+          button.textContent = config.text;
+        } else {
+          setIcon(button, config.icon);
+        }
+
+        container.appendChild(button);
+      });
+
       return container;
     }
-  }// deleteCodeWidget
-  
-  class copyCodeWidget extends WidgetType {
-    displayLangText: string;
-    collapseStart: number;
-    collapseEnd: number;
-  
-    constructor(displayLangText: string, collapseStart: number, collapseEnd: number) {
-      super();
-      this.displayLangText = displayLangText;
-      this.collapseStart = collapseStart;
-      this.collapseEnd = collapseEnd;
-    }
-  
-    eq(other: copyCodeWidget) {
-      return this.displayLangText === other.displayLangText && this.collapseStart === other.collapseStart && this.collapseEnd === other.collapseEnd;
-    }
-  
-    toDOM(view: EditorView): HTMLElement {
-      const container = createSpan({ cls: `codeblock-customizer-copy-code`});
-      container.setAttribute("aria-label", "Copy code");
-  
-      if (this.displayLangText.length > 0)
-        container.setText(this.displayLangText);
-      else
-        setIcon(container, "copy");
-      
-      container.onclick = (event) => {
-        const lines = view.state.sliceDoc(this.collapseStart, this.collapseEnd).toString();
-        addTextToClipboard(removeFirstLine(lines));
-      }
-  
-      return container;
-    }
-  }// copyCodeWidget
-  
+
+  }// buttonWidget
+
   class createLink extends WidgetType {
   
     constructor(private link: string, private sourcePath: string, private plugin: CodeBlockCustomizerPlugin) {
@@ -467,13 +461,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (startLine) {
           spanClass = `codeblock-customizer-line-number-first`;
           
-          // delete code button
-          if (settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
-            decorations.push(Decoration.widget({ widget: new deleteCodeWidget(codeBlockStartPos + currentLine.text.length, codeBlockEndPos - parameters.backtickCount - 1)}).range(lineStartPos)); 
-          
-          // copy code button
-          if (settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
-            decorations.push(Decoration.widget({ widget: new copyCodeWidget(parameters.displayLanguage, codeBlockStartPos + parameters.backtickCount, codeBlockEndPos - parameters.backtickCount)}).range(lineStartPos));
+          // buttons
+          const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, currentLine.text.length, state, parameters);
+          decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs), side: -1}).range(lineStartPos));
         }
   
         if (endLine) {
@@ -497,6 +487,57 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
     return RangeSet.of(decorations, true);
   }// buildDecorations
+
+  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, currentLineLength: number, state: EditorState, parameters: Parameters){
+    const cursorPos = state.selection.main.head;
+    const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
+    
+    let showButton = false;
+    if ((!settings.SelectedTheme.settings.codeblock.enableCopyCodeButton) && !isCursorInCodeBlock)
+      showButton = true;
+    else if (settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
+      showButton = true;
+
+    return [
+      {
+        class: `codeblock-customizer-copy-code`,
+        displayText: "Copy code",
+        action: (view: EditorView) => {
+          const collapseStart = codeBlockStartPos + parameters.backtickCount;
+          const collapseEnd = codeBlockEndPos - parameters.backtickCount;
+          const lines = view.state.sliceDoc(collapseStart, collapseEnd).toString();
+          addTextToClipboard(removeFirstLine(lines));
+        },
+        icon: "copy",
+        text: parameters.displayLanguage,
+        enabled: showButton
+      },
+      {
+        class: `codeblock-customizer-select-code`,
+        displayText: "Select code",
+        action: (view: EditorView) => {
+          const collapseStart = codeBlockStartPos;
+          const collapseEnd = codeBlockEndPos;
+          const transaction = view.state.update({ selection: EditorSelection.range(collapseStart, collapseEnd) });
+          view.dispatch(transaction);
+        },
+        icon: "text",
+        enabled: settings.SelectedTheme.settings.codeblock.enableSelectCodeButton
+      },
+      {
+        class: `codeblock-customizer-delete-code`,
+        displayText: "Delete code block content",
+        action: (view: EditorView) => {
+          const collapseStart = codeBlockStartPos + currentLineLength;
+          const collapseEnd = codeBlockEndPos - parameters.backtickCount - 1;
+          const transaction = view.state.update({ changes: { from: collapseStart, to: collapseEnd, insert: "" } });
+          view.dispatch(transaction);
+        },
+        icon: "trash-2",
+        enabled: settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton
+      }
+    ];
+  }// createButtonConfig
 
   function getLineClass(parameters: Parameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>) {
     let codeblockLanguageClass = "";

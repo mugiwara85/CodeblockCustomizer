@@ -1,6 +1,6 @@
-import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, TFile, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism } from "obsidian";
+import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -226,10 +226,9 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
 async function addClasses(preElement: HTMLElement, parameters: Parameters, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string) {
   preElement.classList.add(`codeblock-customizer-pre`);
 
-  const copyButton = createCopyButton(parameters.displayLanguage);
-  copyButton.addEventListener("click", copyCode);
-  preElement.appendChild(copyButton);
-
+  const buttons = createButtons(parameters, plugin.settings);
+  preElement.appendChild(buttons);
+  
   preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
 
   if (codeblockLanguageSpecificClass)
@@ -271,9 +270,34 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
+function createButtons(parameters: Parameters, settings: CodeblockCustomizerSettings){
+  const container = document.createElement("div");
+  container.className = "codeblock-customizer-button-container";
+
+  const copyButton = createCopyButton(parameters.displayLanguage);
+  copyButton.addEventListener("click", copyCode);
+  container.appendChild(copyButton);
+
+  const wrapCodeButton = createWrapCodeButton();
+  wrapCodeButton.addEventListener("click", (event) => wrapCode(event, settings));
+  container.appendChild(wrapCodeButton);
+
+  return container;
+}// createButtons
+
+function createWrapCodeButton() {
+  const container = document.createElement("button");
+  container.classList.add(`codeblock-customizer-wrap-code`);
+  container.setAttribute("aria-label", "Wrap/Unwrap code");
+  setIcon(container, "wrap-text");
+
+  return container;
+}// createWrapCodeButton
+
 function copyCode(event: Event) {
   const button = event.currentTarget as HTMLElement;
-  const preElement = button.parentNode;
+  const preElement = button.parentNode?.parentNode;
+  console.log(preElement);
   if (!preElement)
     return;
 
@@ -294,19 +318,33 @@ function copyCode(event: Event) {
   addTextToClipboard(concatenatedCodeText);
 }// copyCode
 
-async function handlePDFExport(preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, id: string | null) {
-  const file = plugin.app.vault.getAbstractFileByPath(context.sourcePath);
-  if (!file) {
-    console.error(`File not found: ${context.sourcePath}`);
+function wrapCode(event: Event, settings: CodeblockCustomizerSettings) {
+  const button = event.currentTarget as HTMLElement;
+  const preElement = button.parentNode?.parentNode;
+  if (!preElement)
     return;
-  }
-  const cache = plugin.app.metadataCache.getCache(context.sourcePath);
-  const fileContent = await plugin.app.vault.cachedRead(<TFile> file).catch((error) => {
-    console.error(`Error reading file: ${error.message}`);
-    return '';
-  });
 
-  const fileContentLines = fileContent.split(/\n/g);
+  const codeElement = preElement.querySelector('code');
+  if (!codeElement)
+    return;
+
+  let wrapState = '';
+  const currentWhiteSpace = window.getComputedStyle(codeElement).whiteSpace;
+  if (currentWhiteSpace === 'pre') {
+    wrapState = 'pre-wrap';
+  } else {
+    wrapState = 'pre';
+  }
+
+  codeElement.style.setProperty("white-space", wrapState, "important");
+
+}// wrapCode
+
+async function handlePDFExport(preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, id: string | null) {
+  const { cache, fileContentLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
+  if (!cache || !fileContentLines)
+    return;
+
   let codeBlockFirstLines: string[] = [];
   if (cache?.sections && !id) {
     codeBlockFirstLines = getCodeBlocksFirstLines(fileContentLines);

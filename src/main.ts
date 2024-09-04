@@ -1,11 +1,11 @@
-import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice } from "obsidian";
+import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice, Editor } from "obsidian";
 import { Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock } from "./Utils";
 import { CodeBlockPositions, extensions } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
@@ -44,7 +44,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   // add fold all command
     this.addCommand({
       id: 'codeblock-customizer-foldall-editor',
-      name: 'Fold all codeblocks',
+      name: 'Fold all code blocks',
       callback: () => {
         const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (markdownView) {
@@ -66,7 +66,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     // add unfold all command
     this.addCommand({
       id: 'codeblock-customizer-unfoldall-editor',
-      name: 'Unfold all codeblocks',
+      name: 'Unfold all code blocks',
       callback: () => {
         const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (markdownView) {
@@ -88,7 +88,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     // restore default state
     this.addCommand({
       id: 'codeblock-customizer-restore-fold-editor',
-      name: 'Restore folding state of all codeblocks to default',
+      name: 'Restore folding state of all code blocks to default',
       callback: () => {
         const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (markdownView) {
@@ -108,6 +108,24 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
             this.restoreDefaultFold();
           }
         }
+      }
+    });
+
+    // indent code block
+    this.addCommand({
+      id: 'codeblock-customizer-indent-codeblock',
+      name: 'Indent code block by one level',
+      editorCallback: async (editor: Editor, view: MarkdownView) => {
+        indentCodeBlock(editor, view);
+      }
+    });
+
+    // unindent code block
+    this.addCommand({
+      id: 'codeblock-customizer-unindent-codeblock',
+      name: 'Unindent code block by one level',
+      editorCallback: async (editor: Editor, view: MarkdownView) => {
+        unIndentCodeBlock(editor, view);
       }
     });
 
@@ -185,19 +203,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     for (const mdFile of markdownFiles) {
       let linkUpdate = 0;
-      const cache = this.app.metadataCache.getCache(mdFile.path);
-      const currentFile = this.app.vault.getAbstractFileByPath(mdFile.path);
-      if (!currentFile) {
-        console.error(`File not found: ${mdFile.path}`);
-        return;
-      }
+      const { cache, fileContentLines } = await getFileCacheAndContentLines(this, mdFile.path);
+      if (!cache || !fileContentLines)
+        continue;
 
-      const fileContent = await this.app.vault.cachedRead(<TFile> currentFile).catch((error) => {
-        console.error(`Error reading file: ${error.message}`);
-        return '';
-      });
-
-      const fileContentLines = fileContent.split(/\n/g);
       if (cache?.sections) {
         const codeBlocks: codeBlock[] = [];
         for (const sections of cache.sections) {

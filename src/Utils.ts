@@ -1,4 +1,4 @@
-import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView } from "obsidian";
 import { EditorState } from "@codemirror/state";
 
 import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR } from "./Const";
@@ -1110,6 +1110,19 @@ function updateSettingClasses(settings: ThemeSettings) {
   } else{
     document.body.classList.remove('codeblock-customizer-show-indentation-lines');
   }
+
+  if (settings.codeblock.enableSelectCodeButton) {
+    document.body.classList.add('codeblock-customizer-show-select-code-button');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-select-code-button');
+  }
+
+  if (settings.codeblock.enableWrapCodeButton) {
+    document.body.classList.add('codeblock-customizer-show-wrap-code-button');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-wrap-code-button');
+  }
+
 }// updateSettingStyles
 
 function formatStyles(colors: ThemeColors, settings: ThemeSettings, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {
@@ -1472,3 +1485,79 @@ export function getPropertyFromLanguageSpecificColors(propertyName: string, sett
 
   return result;
 }// getPropertyFromLanguageSpecificColors
+
+export async function getFileCacheAndContentLines(plugin: CodeBlockCustomizerPlugin, filePath: string): Promise<{ cache: CachedMetadata | null, fileContentLines: string[] | null }> {
+  if (filePath === '')
+    return {cache: null, fileContentLines: null};
+  
+  const cache = plugin.app.metadataCache.getCache(filePath);
+  if (!cache)
+    return {cache: null, fileContentLines: null};
+
+  const file = plugin.app.vault.getAbstractFileByPath(filePath);
+  if (!file) {
+    console.error(`File not found: ${filePath}`);
+    return { cache, fileContentLines: null };
+  }
+
+  const fileContent = await plugin.app.vault.cachedRead(<TFile>file).catch((error) => {
+    console.error(`Error reading file: ${error.message}`);
+    return '';
+  });
+
+  const fileContentLines = fileContent.split(/\n/g);
+
+  return { cache, fileContentLines };
+}// getFileCacheAndContentLines
+
+export function addIndentation(input: string[]): string[] {
+  const addSpaces = (line: string) => '    ' + line; // Add 4 spaces
+
+  return input.map(addSpaces);
+}// addIndentation
+
+export function removeIndentation(input: string[]): string[] {
+  const removeSpaces = (line: string) => line.startsWith('    ') ? line.slice(4) : line;
+
+  return input.map(removeSpaces);
+}// removeIndentation
+
+export async function indentCodeBlock(editor: Editor, view: MarkdownView){
+  const cursorPos = editor.getCursor();
+  const { cache, fileContentLines } = await getFileCacheAndContentLines(this, view.file?.path ?? '')
+  if (!cache || !fileContentLines)
+    return;
+
+  if (cache?.sections) {
+    for (const sections of cache.sections) {
+      if (sections.type === "code" && cursorPos.line >= sections.position.start.line && cursorPos.line <= sections.position.end.line) {
+        const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
+        const indentedLines = addIndentation(codeBlockLines);
+        const pos: EditorPosition = {line: sections.position.start.line, ch: 0};
+        const endPos: EditorPosition = {line: sections.position.end.line, ch: sections.position.end.col};
+        editor.replaceRange(indentedLines.join('\n'), pos, endPos);
+        view.save();
+      }
+    }
+  }
+}// indentCodeBlock
+
+export async function unIndentCodeBlock(editor: Editor, view: MarkdownView) {
+  const cursorPos = editor.getCursor();
+  const { cache, fileContentLines } = await getFileCacheAndContentLines(this, view.file?.path ?? '')
+  if (!cache || !fileContentLines)
+    return;
+
+  if (cache?.sections) {
+    for (const sections of cache.sections) {
+      if (sections.type === "code" && cursorPos.line >= sections.position.start.line && cursorPos.line <= sections.position.end.line) {
+        const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
+        const indentedLines = removeIndentation(codeBlockLines);
+        const pos: EditorPosition = {line: sections.position.start.line, ch: 0};
+        const endPos: EditorPosition = {line: sections.position.end.line, ch: sections.position.end.col};
+        editor.replaceRange(indentedLines.join('\n'), pos, endPos);
+        view.save();
+      }
+    }
+  }
+}// unIndentCodeBlock
