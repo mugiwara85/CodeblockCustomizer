@@ -323,6 +323,31 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   };
 }// getParameters
 
+export function getDefaultParameters() {
+  return {
+    defaultLinesToHighlight: {lineNumbers: [], words: [], lineSpecificWords: []},
+    defaultTextToHighlight: {allWordsInLine: [], lineSpecificTextBetween: [], lineSpecificWords: [], textBetween: [], words: []},
+    alternativeLinesToHighlight: {lines: [], words: [], lineSpecificWords: []},
+    alternativeTextToHighlight: { allWordsInLine: [], lineSpecificWords: [], words: [], textBetween: [], lineSpecificTextBetween: []},
+    isSpecificNumber: false,
+    lineNumberOffset: 0,
+    showNumbers: "",
+    headerDisplayText: "",
+    fold: false,
+    unfold: false,
+    language: "",
+    displayLanguage: "",
+    specificHeader: false,
+    hasLangBorderColor: false,
+    exclude: false,
+    backtickCount: 0,
+    indentLevel: 0,
+    indentCharacter: 0,
+    lineSeparator: '',
+    textSeparator: '',
+  }
+}// getDefaultParameters
+
 function sortAndRemoveDuplicates(numbers: number[]): number[] {
   // sort
   numbers.sort((a, b) => a - b);
@@ -1066,12 +1091,7 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.add('codeblock-customizer-collapseIconRight');
   }
 
-  if (settings.codeblock.enableCopyCodeButton)
-    document.body.classList.add('codeblock-customizer-show-copy-code-button');
-  else
-    document.body.classList.remove('codeblock-customizer-show-copy-code-button');
-
-  if (settings.codeblock.enableDeleteCodeButton)
+  if (settings.codeblock.buttons.enableDeleteCodeButton)
     document.body.classList.add('codeblock-customizer-show-delete-code-button');
 	else
 		document.body.classList.remove('codeblock-customizer-show-delete-code-button');
@@ -1111,13 +1131,13 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.remove('codeblock-customizer-show-indentation-lines');
   }
 
-  if (settings.codeblock.enableSelectCodeButton) {
+  if (settings.codeblock.buttons.enableSelectCodeButton) {
     document.body.classList.add('codeblock-customizer-show-select-code-button');
   } else{
     document.body.classList.remove('codeblock-customizer-show-select-code-button');
   }
 
-  if (settings.codeblock.enableWrapCodeButton) {
+  if (settings.codeblock.buttons.enableWrapCodeButton) {
     document.body.classList.add('codeblock-customizer-show-wrap-code-button');
   } else{
     document.body.classList.remove('codeblock-customizer-show-wrap-code-button');

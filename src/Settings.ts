@@ -41,12 +41,8 @@ export interface ThemeSettings {
   codeblock: {
     enableLineNumbers: boolean;
     enableActiveLineHighlight: boolean;
-    enableDeleteCodeButton: boolean;
     codeBlockBorderStylingPosition: string;
     showIndentationLines: boolean;
-    enableCopyCodeButton: boolean;
-    enableSelectCodeButton: boolean;
-    enableWrapCodeButton: boolean;
     enableLinks: boolean;
     enableLinkUpdate: boolean;
     enableBracketHighlight: boolean;
@@ -54,6 +50,12 @@ export interface ThemeSettings {
     inverseFold: boolean;
     enableSelectionMatching: boolean;
     unwrapcode: boolean;
+    buttons: {
+      alwaysShowButtons: boolean;
+      enableSelectCodeButton: boolean;
+      enableWrapCodeButton: boolean;
+      enableDeleteCodeButton: boolean;
+    },
   },
   textHighlight: {
     lineSeparator: string;
@@ -222,12 +224,8 @@ const Solarized: Theme = {
     codeblock: {
       enableLineNumbers: true,
       enableActiveLineHighlight: true,
-      enableDeleteCodeButton: false,
       codeBlockBorderStylingPosition: 'disable',
       showIndentationLines: false,
-      enableCopyCodeButton: false,
-      enableSelectCodeButton: false,
-      enableWrapCodeButton: false,
       enableLinks: false,
       enableLinkUpdate: false,
       enableBracketHighlight: true,
@@ -235,6 +233,12 @@ const Solarized: Theme = {
       inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
+      buttons: {
+        alwaysShowButtons: false,
+        enableSelectCodeButton: false,
+        enableDeleteCodeButton: false,
+        enableWrapCodeButton: false,
+      },
     },
     textHighlight: {
       lineSeparator: '',
@@ -354,12 +358,8 @@ const Obsidian: Theme = {
     codeblock: {
       enableLineNumbers: true,
       enableActiveLineHighlight: true,
-      enableDeleteCodeButton: false,
       codeBlockBorderStylingPosition: 'disable',
       showIndentationLines: false,
-      enableCopyCodeButton: false,
-      enableSelectCodeButton: false,
-      enableWrapCodeButton: false,
       enableLinks: false,
       enableLinkUpdate: false,
       enableBracketHighlight: true,
@@ -367,6 +367,12 @@ const Obsidian: Theme = {
       inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
+      buttons: {
+        alwaysShowButtons: false,
+        enableSelectCodeButton: false,
+        enableDeleteCodeButton: false,
+        enableWrapCodeButton: false,
+      },
     },
     textHighlight: {
       lineSeparator: '',

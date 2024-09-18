@@ -1,4 +1,4 @@
-import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism } from "obsidian";
+import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
@@ -271,8 +271,7 @@ function createCopyButton(displayLanguage: string) {
 }// createCopyButton
 
 function createButtons(parameters: Parameters, settings: CodeblockCustomizerSettings){
-  const container = document.createElement("div");
-  container.className = "codeblock-customizer-button-container";
+  const container = createDiv({cls: `codeblock-customizer-button-container`});
 
   const copyButton = createCopyButton(parameters.displayLanguage);
   copyButton.addEventListener("click", copyCode);
@@ -297,7 +296,6 @@ function createWrapCodeButton() {
 function copyCode(event: Event) {
   const button = event.currentTarget as HTMLElement;
   const preElement = button.parentNode?.parentNode;
-  console.log(preElement);
   if (!preElement)
     return;
 
@@ -332,8 +330,10 @@ function wrapCode(event: Event, settings: CodeblockCustomizerSettings) {
   const currentWhiteSpace = window.getComputedStyle(codeElement).whiteSpace;
   if (currentWhiteSpace === 'pre') {
     wrapState = 'pre-wrap';
+    new Notice("Code wrapped");
   } else {
     wrapState = 'pre';
+    new Notice("Code unwrapped");
   }
 
   codeElement.style.setProperty("white-space", wrapState, "important");

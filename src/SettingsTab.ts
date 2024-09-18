@@ -399,24 +399,12 @@ export class SettingsTab extends PluginSettingTab {
     codeblockDiv.createEl('h4', {text: 'Extra buttons'});
 
     new Setting(codeblockDiv)
-      .setName('Always show copy code button (only editing view)')
-      .setDesc('If enabled, the copy code button will be displayed on every codeblock. If clicked, the content of that codeblock is copied. The button will be always shown, even if you click inside the code block!')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableCopyCodeButton = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-        })
-      );
-
-    new Setting(codeblockDiv)
       .setName('Show delete code button (only editing view)')
       .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
       .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton)
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton)
         .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton = value;
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
         })
@@ -426,9 +414,9 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Show select code button (only editing view)')
       .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is selected (including the first and last lines of the code blocks which begin with three backticks).')
       .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectCodeButton)
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton)
         .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableSelectCodeButton = value;
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
         })
@@ -438,9 +426,21 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Show wrap code button (only reading view)')
       .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is wrapped/unwrapped.')
       .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.enableWrapCodeButton)
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableWrapCodeButton)
         .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.enableWrapCodeButton = value;
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableWrapCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    new Setting(codeblockDiv)
+      .setName('Always show buttons (only editing view)')
+      .setDesc('If enabled, the buttons will always be displayed, even when you click inside the code block. Otherwise, they will only be shown when the cursor is outside the code block.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
         })

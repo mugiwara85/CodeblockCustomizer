@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount } from "./Const";
@@ -15,6 +15,7 @@ export interface ReplaceFadeOutRanges {
   replaceEnd: Line;
   fadeOutStart: Line;
   fadeOutEnd: Line;
+  firstLine: Line;
 }
 
 interface RangeWithDecoration {
@@ -96,7 +97,19 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     provide: f => EditorView.decorations.from(f)
   })// collapseField
 
+  /* update listeners */
+
+  const viewportChangedListener = EditorView.updateListener.of((update) => {
+    if (update.viewportChanged) {
+      update.view.dispatch({
+        effects: StateEffect.appendConfig.of([codeBlockPositions]),  // Rebuild decorations when the viewport changes
+        //effects: StateEffect.reconfigure.of([codeBlockPositions, decorations])
+      });
+    }
+  });// viewportChangedListener
+
   /* Extensions */
+
   const customBracketMatching = bracketMatching({
     renderMatch: (match, state) => {
       const decorations: Range<Decoration>[] = [];
@@ -130,13 +143,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     languageSpecificColors: Record<string, string>;
     parameters: Parameters;
     pos: CodeBlockPositions
+    buttonConfigs: Array<ButtonConfig>;
     sourcePath: string;
     plugin: CodeBlockCustomizerPlugin;
   
-    constructor(parameters: Parameters, pos: CodeBlockPositions, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+    constructor(parameters: Parameters, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
       super();
       this.parameters = parameters;
       this.pos = pos;
+      this.buttonConfigs = buttonConfigs;
       this.enableLinks = plugin.settings.SelectedTheme.settings.codeblock.enableLinks;
       this.languageSpecificColors = createObjectCopy(plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.parameters.language.length > 0 ? this.parameters.language : "nolang"] || {});
       this.sourcePath = sourcePath;
@@ -148,7 +163,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       other.parameters.specificHeader === this.parameters.specificHeader && other.parameters.fold === this.parameters.fold && 
       other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
       other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
-      other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors);
+      other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs);
     }
   
     toDOM(view: EditorView): HTMLElement {
@@ -163,6 +178,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
   
       container.appendChild(createFileName(this.parameters.headerDisplayText, this.enableLinks, this.sourcePath, this.plugin));
+      
+      // header buttons
+      const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
+      container.appendChild(buttonContainer);
+      
       const collapse = createCodeblockCollapse(this.parameters.fold);
       container.appendChild(collapse);
   
@@ -170,7 +190,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         container.setAttribute("style", `--level:${this.parameters.indentLevel}; `);
         container.classList.add(`indented-line`);
       }
-      
+
       container.onclick = (event) => {
         handleClick(view, container, this.pos);
       };
@@ -277,40 +297,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   
     eq(other: buttonWidget): boolean {
-      if (this.buttonsConfig.length !== other.buttonsConfig.length) 
-        return false;
-  
-      return this.buttonsConfig.every((config, i) => {
-        const otherConfig = other.buttonsConfig[i];
-        return (
-          config.class === otherConfig.class && config.displayText === otherConfig.displayText && config.icon === otherConfig.icon &&
-          config.text === otherConfig.text && config.enabled === otherConfig.enabled
-        );
-      });
+      return compareButtonConfigs(this.buttonsConfig, other.buttonsConfig);
     }
     
     toDOM(view: EditorView): HTMLElement {
-      const container = document.createElement("div");
-      container.className = "codeblock-customizer-button-container";
-
-      this.buttonsConfig.forEach(config => {
-        if (!config.enabled)
-          return;
-
-        const button = createSpan({ cls: config.class });
-        button.setAttribute("aria-label", config.displayText);
-        button.onclick = () => config.action(view);
-
-        if (config.text) {
-          button.textContent = config.text;
-        } else {
-          setIcon(button, config.icon);
-        }
-
-        container.appendChild(button);
-      });
-
-      return container;
+      return createButtonContainer(this.buttonsConfig, view);
     }
 
   }// buttonWidget
@@ -338,29 +329,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const positions: CodeBlockPositions[] = [];
     let codeBlockStartPos = -1;
     let codeBlockEndPos = -1;
-    let parameters: Parameters = {
-      defaultLinesToHighlight: {lineNumbers: [], words: [], lineSpecificWords: []},
-      defaultTextToHighlight: {allWordsInLine: [], lineSpecificTextBetween: [], lineSpecificWords: [], textBetween: [], words: []},
-      alternativeLinesToHighlight: {lines: [], words: [], lineSpecificWords: []},
-      alternativeTextToHighlight: { allWordsInLine: [], lineSpecificWords: [], words: [], textBetween: [], lineSpecificTextBetween: []},
-      isSpecificNumber: false,
-      lineNumberOffset: 0,
-      showNumbers: "",
-      headerDisplayText: "",
-      fold: false,
-      unfold: false,
-      language: "",
-      displayLanguage: "",
-      specificHeader: false,
-      hasLangBorderColor: false,
-      exclude: false,
-      backtickCount: 0,
-      indentLevel: 0,
-      indentCharacter: 0,
-      lineSeparator: '',
-      textSeparator: '',
-    };
-
+    let parameters: Parameters = getDefaultParameters();
+  
     syntaxTree(state).iterate({
       enter: (node) => {
         if (node.type.name.includes("HyperMD-codeblock-begin")) {
@@ -434,7 +404,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       // header
       //if (settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon || settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang || pos.parameters.fold || pos.parameters.headerDisplayText)
-      decorations.push(Decoration.widget({ widget: new TextAboveCodeblockWidget(parameters, pos, sourcePath, plugin), block: true }).range(codeBlockStartPos));
+      const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, state, parameters);
+      decorations.push(Decoration.widget({ widget: new TextAboveCodeblockWidget(parameters, pos, buttonConfigs, sourcePath, plugin), block: true }).range(codeBlockStartPos));
   
       if (settings.SelectedTheme.settings.codeblock.enableLinks)
         checkForLinks(state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
@@ -461,8 +432,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (startLine) {
           spanClass = `codeblock-customizer-line-number-first`;
           
-          // buttons
-          const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, currentLine.text.length, state, parameters);
+          // first-line buttons
           decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs), side: -1}).range(lineStartPos));
         }
   
@@ -488,14 +458,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return RangeSet.of(decorations, true);
   }// buildDecorations
 
-  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, currentLineLength: number, state: EditorState, parameters: Parameters){
+  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: Parameters){
     const cursorPos = state.selection.main.head;
     const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
     
     let showButton = false;
-    if ((!settings.SelectedTheme.settings.codeblock.enableCopyCodeButton) && !isCursorInCodeBlock)
+    if ((!settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons) && !isCursorInCodeBlock)
       showButton = true;
-    else if (settings.SelectedTheme.settings.codeblock.enableCopyCodeButton)
+    else if (settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons)
       showButton = true;
 
     return [
@@ -522,22 +492,67 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           view.dispatch(transaction);
         },
         icon: "text",
-        enabled: settings.SelectedTheme.settings.codeblock.enableSelectCodeButton
+        enabled: settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton && showButton
       },
       {
         class: `codeblock-customizer-delete-code`,
         displayText: "Delete code block content",
         action: (view: EditorView) => {
-          const collapseStart = codeBlockStartPos + currentLineLength;
+          const collapseStart = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length;
           const collapseEnd = codeBlockEndPos - parameters.backtickCount - 1;
           const transaction = view.state.update({ changes: { from: collapseStart, to: collapseEnd, insert: "" } });
           view.dispatch(transaction);
         },
         icon: "trash-2",
-        enabled: settings.SelectedTheme.settings.codeblock.enableDeleteCodeButton
+        enabled: settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton && showButton
       }
     ];
   }// createButtonConfig
+
+  function compareButtonConfigs(configs1: Array<ButtonConfig>, configs2: Array<ButtonConfig>): boolean {
+    if (configs1.length !== configs2.length) 
+      return false;
+
+    return configs1.every((config, i) => {
+      const otherConfig = configs2[i];
+      return (
+        config.class === otherConfig.class &&
+        config.displayText === otherConfig.displayText &&
+        config.icon === otherConfig.icon &&
+        config.text === otherConfig.text &&
+        config.enabled === otherConfig.enabled
+      );
+    });
+  }// compareButtonConfigs
+
+  function createButtonContainer(buttonsConfig: Array<ButtonConfig>, view: EditorView, buttonContainerClass?: string) {
+    const container = createDiv({cls: buttonContainerClass || `codeblock-customizer-button-container`});
+
+    buttonsConfig.forEach(config => {
+      if (!config.enabled)
+        return;
+
+      const button = createSpan({ cls: config.class });
+      button.setAttribute("aria-label", config.displayText);
+      button.onclick = () => config.action(view);
+
+      if (config.text) {
+        button.textContent = config.text;
+      } else {
+        setIcon(button, config.icon);
+      }
+
+      container.appendChild(button);
+    });
+
+    if (buttonContainerClass) {
+      container.onclick = (event) => {
+        event.stopPropagation();  // prevent clicks from propagating to the header
+      };
+    }
+
+    return container;
+  }// createButtonContainer
 
   function getLineClass(parameters: Parameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>) {
     let codeblockLanguageClass = "";
@@ -920,6 +935,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const decorations: RangeWithDecoration[] = [];
     const fadeOutLines: Line[] = [];
     const transactions = [];
+
+    const semiFoldClass = Decoration.line({ attributes: { class: `semi-folded` } });
+    if (view === null) {
+      decorations.push({ from: ranges.firstLine.from, to: ranges.firstLine.from, decoration: semiFoldClass });
+    } else {
+      transactions.push(semiFade.of(semiFoldClass.range(ranges.firstLine.from, ranges.firstLine.from)));
+    }
+
     for (let i = 0; i < fadeOutLineCount; i++) {
       fadeOutLines.push(state.doc.line(state.doc.lineAt(ranges.fadeOutStart.from).number + i));
     }
@@ -1001,6 +1024,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   function removeFadeOutEffect(headerElement: HTMLElement, view: EditorView, ranges: ReplaceFadeOutRanges) {
     view.dispatch({ effects: semiUnCollapse.of({filter: (from: number, to: number) => to <= ranges.replaceStart.from || from >= ranges.replaceEnd.to, filterFrom: ranges.replaceStart.from, filterTo: ranges.replaceEnd.to}) });
     view.dispatch({ effects: semiUnFade.of({filter: (from: number, to: number) => to <= ranges.fadeOutStart.from - 1 || from >= ranges.replaceEnd.to, filterFrom: ranges.fadeOutStart.from - 1, filterTo: ranges.replaceEnd.to} )});
+    // additional for removing the first-line fade effect, which is only the class
+    view.dispatch({ effects: semiUnFade.of({filter: (from: number, to: number) => to <= ranges.firstLine.from - 1 || from >= ranges.replaceEnd.to, filterFrom: ranges.firstLine.from - 1, filterTo: ranges.replaceEnd.to} )});
     view.requestMeasure();
 
     const collapseIcon = headerElement.querySelector('.codeblock-customizer-header-collapse');
@@ -1088,13 +1113,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// getCodeblockByHTMLTarget
 
   function getRanges(state: EditorState, codeBlockStartPos: number, codeBlockEndPos: number, visibleLines: number): ReplaceFadeOutRanges {
+    const firstLine = state.doc.lineAt(codeBlockStartPos);
     const fadeOutStart = state.doc.line(state.doc.lineAt(codeBlockStartPos).number + visibleLines + 1);
     const fadeOutEnd = state.doc.line(state.doc.lineAt(fadeOutStart.from).number + fadeOutLineCount - 1);
   
     const replaceStart = state.doc.line(state.doc.lineAt(fadeOutEnd.from).number + 1);
     const replaceEnd = state.doc.line(state.doc.lineAt(codeBlockEndPos).number);
   
-    return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, };
+    return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, firstLine};
   }// getRanges
 
   function processCodeBlocks(doc: Text, callback: (start: Line, end: Line, lineText: string, fold: boolean, unfold: boolean) => void) {
@@ -1197,7 +1223,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositions, decorations, collapseField];
+  const extensions = [codeBlockPositions, decorations, collapseField, viewportChangedListener];
 
   const result = {
     extensions,

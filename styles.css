@@ -485,9 +485,9 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 }
 
 /* button container */
-.codeblock-customizer-button-container {
+.codeblock-customizer-button-container,
+.markdown-source-view .codeblock-customizer-header-button-container {
   position: absolute;
-  top: 6px;
   z-index: 1;
   right: 6px;
   display: flex;
@@ -496,14 +496,64 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   font-size: var(--font-ui-smaller);
   height: calc(var(--language-icon-size) - 6px);
 }
+.codeblock-customizer-button-container {
+  /*display: flex;*/
+  top: 6px;
+}
+.markdown-source-view .codeblock-customizer-header-button-container {
+  /*display: none;*/
+  top: 2px;
+}
 .markdown-rendered pre:not(:hover) > .codeblock-customizer-button-container {
-  display: none ;
+  display: none;
 }
 
+/*.codeblock-customizer-header-container-specific:hover .codeblock-customizer-header-button-container {*/
+  /*background-color: red;*/
+  /*display: flex;
+}*/
+
+/* don't show the header button container when the code block is collapsed */
+.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container,
+.markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container {
+  display: none;
+}
+/* show header button container on hover */
+.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container,
+.markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container {
+  display: flex;
+}
+/* hide select and delete code buttons for collapsed code blocks */
+.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
+  display: none;
+}
+
+/* don't display the first-line button container, when either header is specified, forced, or collapse command is used */
+.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
+  display: none;
+}
+
+/* shift button container to the left when collapse icon is displayed on the right side */
 .codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-show-langicons-always.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-show-langnames-always.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container{
+.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container-specific .codeblock-customizer-header-button-container,
+.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container .codeblock-customizer-header-button-container {
   right: 38px;
 }
 .codeblock-customizer-collapseIconRight .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific) .codeblock-customizer-button-container,
@@ -513,15 +563,21 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   right: 38px;
 }
 
+/* hide wrap code button for collapsed code blocks in reading view*/
+.markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
+.markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code {
+  display: none;
+}
+
 /* move button-container to the header */
-.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+/*.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
   top: -30px;
-}
+}*/
 .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific) .codeblock-customizer-button-container,
 .codeblock-customizer-show-langicons-always .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang'])) .codeblock-customizer-button-container,
 .codeblock-customizer-show-langnames-always .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang'])) .codeblock-customizer-button-container,
@@ -532,31 +588,35 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 }
 
 /* select code styling */
-.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-select-code {
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-select-code,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-select-code {
   padding: var(--size-4-1) var(--size-4-2);
   border-radius: var(--radius-s);
   color: var(--text-muted);
   cursor: var(--cursor);
 }
-.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-select-code:hover {
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-select-code:hover,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-select-code:hover {
   background-color: rgba(var(--mono-rgb-100), 0.075);
 }
 
 /* delete code styling */
-.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-delete-code {
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-delete-code,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   padding: var(--size-4-1) var(--size-4-2);
   border-radius: var(--radius-s);
   color: var(--text-muted);
   cursor: var(--cursor);
 }
-.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-delete-code:hover {
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-delete-code:hover,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-delete-code:hover {
   background-color: var(--color-red);
   color: white;
 }
 
 /* wrap code styling */
 .markdown-rendered .codeblock-customizer-wrap-code {
-  padding: 6px 8px;
+  padding: var(--size-4-1) var(--size-4-2);
   background-color: transparent;
   box-shadow: none;
   color: var(--text-muted);
@@ -574,13 +634,15 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 }
 
 /* copy code styling (edit mode) */
-.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-copy-code {
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-copy-code,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-copy-code {
   padding: var(--size-4-1) var(--size-4-2);
   border-radius: var(--radius-s);
   color: var(--text-muted);
   cursor: var(--cursor);
 }
-.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-copy-code:hover {
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-copy-code:hover,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-copy-code:hover {
   background-color: rgba(var(--mono-rgb-100), 0.075);
 }
 /* completely disable original copy code button in edit mode */
@@ -590,7 +652,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 
 /* copy code button styling (reading view) */ 
 .markdown-rendered button.codeblock-customizer-copy-code-button {
-  padding: 6px 8px;
+  padding: var(--size-4-1) var(--size-4-2);
   background-color: transparent;
   box-shadow: none;
   color: var(--text-muted);

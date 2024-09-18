@@ -19,7 +19,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
   extensions: Extension[];
   theme: string;
-  editorExtensions: { extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]>)[];
+  editorExtensions: { extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]> | Extension)[];
     foldAll: (view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) => void;
     customBracketMatching: Extension;
     selectionMatching: Extension;
