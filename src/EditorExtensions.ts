@@ -393,7 +393,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     //console.log(state.field(editorEditorField).visibleRanges);
     //console.log(state.field(editorEditorField).viewportLineBlocks);
 
-    for (const pos of positions) {
+    const viewport = state.field(editorEditorField).viewport;
+    const filteredPositions = positions.filter(position => {
+      return (position.codeBlockStartPos >= viewport.from && position.codeBlockStartPos <= viewport.to) ||
+             (position.codeBlockEndPos >= viewport.from && position.codeBlockEndPos <= viewport.to);
+    });
+
+    for (const pos of filteredPositions) {
     //  console.log("Start = " + pos.codeBlockStartPos + " - End = " + pos.codeBlockEndPos);
       const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
       const firstCodeBlockLine = state.doc.lineAt(codeBlockStartPos).number;

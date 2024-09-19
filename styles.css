@@ -482,6 +482,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 /* code wrapping */
 .markdown-rendered .codeblock-customizer-pre > code {
   white-space: var(--wrap-code) !important;
+  overflow-wrap: anywhere;
 }
 
 /* button container */
