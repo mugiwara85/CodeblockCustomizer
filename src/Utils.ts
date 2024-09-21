@@ -35,9 +35,9 @@ export function splitAndTrimString(str: string) {
   return str.split(",").map(s => s.trim());
 }// splitAndTrimString
 
-export function extractFileTitle(str: string): string {
-  const file =  extractParameter(str, "file");
-  const title =  extractParameter(str, "title");
+export function extractFileTitle(parsedParameters: ParsedParams): string {
+  const file =  extractParameter(parsedParameters, "file");
+  const title =  extractParameter(parsedParameters, "title");
   
   if (file && title)
     return file;
@@ -119,7 +119,8 @@ function parseParameters(input: string): ParsedParams {
   const backticks = '`'.repeat(getBacktickCount(input));
   const backtickRegex = new RegExp(`^${backticks}`);
   const cleanedLine = input.replace(backtickRegex, '').trim();
-  const regex = /(\S+?)([:=])(["'][^"']*["']|[^"'\s]+)?/g;
+  //const regex = /(\S+?)([:=])(["'][^"']*["']|[^"'\s]+)?/g; // old
+  const regex = /(\S+?)([:=])(["'](?:\\.|[^\\])*?["']|(?:\\.|[^\\\s])+)/g;
   let match;
 
   while ((match = regex.exec(cleanedLine)) !== null) {
@@ -130,7 +131,7 @@ function parseParameters(input: string): ParsedParams {
     if ((cleanedValue.startsWith('"') && cleanedValue.endsWith('"')) || (cleanedValue.startsWith("'") && cleanedValue.endsWith("'"))) {
       cleanedValue = cleanedValue.slice(1, -1);
     }
-    
+    cleanedValue = cleanedValue.replace(/\\(["'])/g, '$1');
     params[key.trim().toLowerCase()] = cleanedValue;
   }
 
@@ -239,6 +240,7 @@ export interface Parameters {
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
   const lineText = originalLineText.trim();
+  const parsedParameters = parseParameters(lineText);
 
   // backtickcount
   const backtickCount = getBacktickCount(originalLineText);
@@ -247,27 +249,27 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const { level, characters } = getIndentationLevel(originalLineText);
 
   // get line separator
-  const lsep = extractParameter(lineText, 'lsep')?.charAt(0);
+  const lsep = extractParameter(parsedParameters, 'lsep')?.charAt(0);
   const lineSeparator = lsep || settings.SelectedTheme.settings.textHighlight.lineSeparator || DEFAULT_LINE_SEPARATOR;
 
   // get text separator
-  const tsep = extractParameter(lineText, 'tsep')?.charAt(0);
+  const tsep = extractParameter(parsedParameters, 'tsep')?.charAt(0);
   const textSeparator = tsep || settings.SelectedTheme.settings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
 
   // default highlight (lines)
-  const defaultLinesToHighlight = getHighlightedLines(lineText, "HL", textSeparator, lineSeparator);
+  const defaultLinesToHighlight = getHighlightedLines(parsedParameters, "HL", textSeparator, lineSeparator);
 
   // default text highlight (words, lineSpecificWords, from - to)
-  const defaultTextToHighlight = getTextHighlight(lineText, "hlt", textSeparator, lineSeparator);
+  const defaultTextToHighlight = getTextHighlight(parsedParameters, "hlt", textSeparator, lineSeparator);
 
   // highlight with alternative colors (lines, words, lineSpecificWords, from - to)
-  const {alternativeLinesToHighlight, alternativeTextToHighlight} = extractAlternativeHighlights(lineText, textSeparator, lineSeparator, settings);
+  const {alternativeLinesToHighlight, alternativeTextToHighlight} = extractAlternativeHighlights(parsedParameters, textSeparator, lineSeparator, settings);
 
   // isSpecificNumber and showNumbers
-  const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(lineText);
+  const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(parsedParameters);
 
   // fileName/Title
-  let headerDisplayText = extractFileTitle(lineText);
+  let headerDisplayText = extractFileTitle(parsedParameters);
 
   // fold
   let fold = isFoldDefined(lineText);
@@ -360,14 +362,14 @@ function sortAndRemoveDuplicates(numbers: number[]): number[] {
   return uniqueNumbers;
 }// sortAndRemoveDuplicates
 
-function getHighlightedLines(lineText: string, parameter: string, textSeparator: string, lineSeparator: string) {
+function getHighlightedLines(parsedParameters: ParsedParams, parameter: string, textSeparator: string, lineSeparator: string) {
   const result: LinesToHighlight = {
     lineNumbers: [],
     words: [],
     lineSpecificWords: [],
   };
 
-  const parameterValue = extractParameter(lineText, parameter);
+  const parameterValue = extractParameter(parsedParameters, parameter);
   if (!parameterValue) {
     return result;
   }
@@ -402,7 +404,7 @@ function getHighlightedLines(lineText: string, parameter: string, textSeparator:
   return result;
 }// getHighlightedLines
 
-function getTextHighlight(lineText: string, parameter: string | null, textSeparator: string, lineSeparator: string): TextHighlight {
+function getTextHighlight(parsedParameters: ParsedParams, parameter: string | null, textSeparator: string, lineSeparator: string): TextHighlight {
   const result: TextHighlight = {
     allWordsInLine: [],
     words: [],
@@ -415,7 +417,7 @@ function getTextHighlight(lineText: string, parameter: string | null, textSepara
     return result;
   }
 
-  const parameterValue = extractParameter(lineText, parameter);
+  const parameterValue = extractParameter(parsedParameters, parameter);
   if (!parameterValue) {
     return result;
   }
@@ -494,7 +496,7 @@ function getLineSpecificTextBetween(result: TextHighlight, line: string, range: 
 
 function isWholeNumber(input: string): boolean {
   return validator.isInt(input, { allow_leading_zeroes: false });
-}
+}// isWholeNumber
 
 function parseSegment(segment: string, textSeparator: string, lineSeparator: string): { line: string, range: string, word: string, from: string, to: string } {
   let from = '';
@@ -556,7 +558,7 @@ interface AlternativeHighlight {
   alternativeTextToHighlight: AlternativeTextHighlight;
 }
 
-function extractAlternativeHighlights(lineText: string, textSeparator: string, lineSeparator: string, settings: CodeblockCustomizerSettings): AlternativeHighlight {
+function extractAlternativeHighlights(parsedParameters: ParsedParams, textSeparator: string, lineSeparator: string, settings: CodeblockCustomizerSettings): AlternativeHighlight {
   const currentMode = getCurrentMode();
   const alternateColors = settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {};
 
@@ -576,8 +578,8 @@ function extractAlternativeHighlights(lineText: string, textSeparator: string, l
   };
 
   for (const [alternateColorName] of Object.entries(alternateColors)) {
-    const lineHighlight = getHighlightedLines(lineText, alternateColorName, textSeparator, lineSeparator);
-    const textHighlight = getTextHighlight(lineText, `${alternateColorName}t`, textSeparator, lineSeparator);
+    const lineHighlight = getHighlightedLines(parsedParameters, alternateColorName, textSeparator, lineSeparator);
+    const textHighlight = getTextHighlight(parsedParameters, `${alternateColorName}t`, textSeparator, lineSeparator);
 
     // lines or ranges
     if (lineHighlight.lineNumbers.length > 0) {
@@ -627,8 +629,8 @@ function extractAlternativeHighlights(lineText: string, textSeparator: string, l
   return {alternativeLinesToHighlight, alternativeTextToHighlight};
 }// extractAlternativeHighlights
 
-function determineLineNumberDisplay(lineText: string) {
-  const specificLN = extractParameter(lineText, "ln") || "";
+function determineLineNumberDisplay(parsedParameters: ParsedParams) {
+  const specificLN = extractParameter(parsedParameters, "ln") || "";
   let isSpecificNumber = false;
   let showNumbers = "";
   let lineNumberOffset = 0;
@@ -652,9 +654,8 @@ function determineLineNumberDisplay(lineText: string) {
   return { isSpecificNumber, showNumbers, lineNumberOffset };
 }// determineLineNumberDisplay
 
-export function extractParameter(input: string, searchTerm: string): string | null {
-  const params = parseParameters(input);
-  return params[searchTerm.toLowerCase()] || null;
+export function extractParameter(parsedParameters: ParsedParams, searchTerm: string): string | null {
+  return parsedParameters[searchTerm.toLowerCase()] || null;
 }// extractParameter
 
 function processRange<T>(segment: string, segmentValue: string, result: T): void {

@@ -226,7 +226,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
 async function addClasses(preElement: HTMLElement, parameters: Parameters, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string) {
   preElement.classList.add(`codeblock-customizer-pre`);
 
-  const buttons = createButtons(parameters, plugin.settings);
+  const buttons = createButtons(parameters);
   preElement.appendChild(buttons);
   
   preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
@@ -270,7 +270,7 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
-function createButtons(parameters: Parameters, settings: CodeblockCustomizerSettings){
+function createButtons(parameters: Parameters){
   const container = createDiv({cls: `codeblock-customizer-button-container`});
 
   const copyButton = createCopyButton(parameters.displayLanguage);
@@ -278,7 +278,7 @@ function createButtons(parameters: Parameters, settings: CodeblockCustomizerSett
   container.appendChild(copyButton);
 
   const wrapCodeButton = createWrapCodeButton();
-  wrapCodeButton.addEventListener("click", (event) => wrapCode(event, settings));
+  wrapCodeButton.addEventListener("click", wrapCode);
   container.appendChild(wrapCodeButton);
 
   return container;
@@ -316,7 +316,7 @@ function copyCode(event: Event) {
   addTextToClipboard(concatenatedCodeText);
 }// copyCode
 
-function wrapCode(event: Event, settings: CodeblockCustomizerSettings) {
+function wrapCode(event: Event) {
   const button = event.currentTarget as HTMLElement;
   const preElement = button.parentNode?.parentNode;
   if (!preElement)
@@ -1085,8 +1085,7 @@ function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomiz
 
   const output = new XMLSerializer().serializeToString(doc);
   return output.replace(new RegExp(placeholder, 'g'), ' ');
-}
-// parseInput
+}// parseInput
 
 function handleClick(event: Event) {
   const collapseIcon = event.currentTarget as HTMLElement;

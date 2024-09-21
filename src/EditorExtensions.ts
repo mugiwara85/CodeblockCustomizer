@@ -393,13 +393,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     //console.log(state.field(editorEditorField).visibleRanges);
     //console.log(state.field(editorEditorField).viewportLineBlocks);
 
-    const viewport = state.field(editorEditorField).viewport;
+    /*const viewport = state.field(editorEditorField).viewport;
     const filteredPositions = positions.filter(position => {
       return (position.codeBlockStartPos >= viewport.from && position.codeBlockStartPos <= viewport.to) ||
              (position.codeBlockEndPos >= viewport.from && position.codeBlockEndPos <= viewport.to);
-    });
+    });*/
 
-    for (const pos of filteredPositions) {
+    for (const pos of positions) {
     //  console.log("Start = " + pos.codeBlockStartPos + " - End = " + pos.codeBlockEndPos);
       const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
       const firstCodeBlockLine = state.doc.lineAt(codeBlockStartPos).number;
@@ -1229,7 +1229,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositions, decorations, collapseField, viewportChangedListener];
+  const extensions = [codeBlockPositions, decorations, collapseField/*, viewportChangedListener*/];
 
   const result = {
     extensions,
