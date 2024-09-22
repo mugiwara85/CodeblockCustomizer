@@ -539,6 +539,24 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
+/* show header button container (copy code only) when enabled */
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container {
+  display: flex;
+}
+/* hide select and delete code buttons when show (copy code only) is enabled */
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded) .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
+  display: none;
+}
 
 /* don't display the first-line button container, when either header is specified, forced, or collapse command is used */
 .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
@@ -568,6 +586,13 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
 .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code {
   display: none;
+}
+/* show button container (copy code only) when enabled */
+.codeblock-customizer-always-show-copy-code-button .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container,
+.codeblock-customizer-always-show-copy-code-button .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container,
+.codeblock-customizer-always-show-copy-code-button .markdown-rendered .codeblock-customizer-pre:has(:not(.codeblock-customizer-codeblock-collapsed)) .codeblock-customizer-button-container,
+.codeblock-customizer-always-show-copy-code-button .markdown-rendered .codeblock-customizer-pre:has(:not(.codeblock-customizer-codeblock-semi-collapsed)) .codeblock-customizer-button-container {
+  display: flex;
 }
 
 /* move button-container to the header */

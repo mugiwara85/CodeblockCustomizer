@@ -1144,6 +1144,12 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.remove('codeblock-customizer-show-wrap-code-button');
   }
 
+  if (settings.codeblock.buttons.alwaysShowCopyCodeButton) {
+    document.body.classList.add('codeblock-customizer-always-show-copy-code-button');
+  } else{
+    document.body.classList.remove('codeblock-customizer-always-show-copy-code-button');
+  }
+
 }// updateSettingStyles
 
 function formatStyles(colors: ThemeColors, settings: ThemeSettings, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {

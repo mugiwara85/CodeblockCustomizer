@@ -399,7 +399,7 @@ export class SettingsTab extends PluginSettingTab {
     codeblockDiv.createEl('h4', {text: 'Extra buttons'});
 
     new Setting(codeblockDiv)
-      .setName('Show delete code button (only editing view)')
+      .setName('Show \'Delete Code\' button (only editing view)')
       .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton)
@@ -411,7 +411,7 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(codeblockDiv)
-      .setName('Show select code button (only editing view)')
+      .setName('Show \'Select Code\' button (only editing view)')
       .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is selected (including the first and last lines of the code blocks which begin with three backticks).')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton)
@@ -423,7 +423,7 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(codeblockDiv)
-      .setName('Show wrap code button (only reading view)')
+      .setName('Show \'Wrap Code\' button (only reading view)')
       .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is wrapped/unwrapped.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableWrapCodeButton)
@@ -436,7 +436,7 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(codeblockDiv)
       .setName('Always show buttons (only editing view)')
-      .setDesc('If enabled, the buttons will always be displayed, even when you click inside the code block. Otherwise, they will only be shown when the cursor is outside the code block.')
+      .setDesc('If enabled, all enabled buttons will always be displayed, even when you click inside the code block. Otherwise, they will only be shown when the cursor is outside the code block.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons)
         .onChange(async (value) => {
@@ -446,6 +446,17 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
+    new Setting(codeblockDiv)
+      .setName('Always show \'Copy Code\' button for collapsed code blocks')
+      .setDesc('If enabled, the \'Copy Code\' button will always be visible on collapsed code blocks in the header. Otherwise, it will only appear when hovering over the header (in editing mode) or the code block (in reading mode).')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.alwaysShowCopyCodeButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.alwaysShowCopyCodeButton = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
     codeblockDiv.createEl('h4', {text: 'Text highlight settings'});
 
     new Setting(codeblockDiv)

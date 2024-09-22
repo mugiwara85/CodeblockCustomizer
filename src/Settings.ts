@@ -52,6 +52,7 @@ export interface ThemeSettings {
     unwrapcode: boolean;
     buttons: {
       alwaysShowButtons: boolean;
+      alwaysShowCopyCodeButton: boolean;
       enableSelectCodeButton: boolean;
       enableWrapCodeButton: boolean;
       enableDeleteCodeButton: boolean;
@@ -235,6 +236,7 @@ const Solarized: Theme = {
       unwrapcode: false,
       buttons: {
         alwaysShowButtons: false,
+        alwaysShowCopyCodeButton: false,
         enableSelectCodeButton: false,
         enableDeleteCodeButton: false,
         enableWrapCodeButton: false,
@@ -369,6 +371,7 @@ const Obsidian: Theme = {
       unwrapcode: false,
       buttons: {
         alwaysShowButtons: false,
+        alwaysShowCopyCodeButton: false,
         enableSelectCodeButton: false,
         enableDeleteCodeButton: false,
         enableWrapCodeButton: false,
