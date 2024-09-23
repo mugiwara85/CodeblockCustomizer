@@ -6,25 +6,27 @@
 </p>
 
 > [!important]
-> Version `1.2.7` changes
+> Version `1.2.8` changes
 >
 > New:
-> - Custom SVGs
-> - Option to uncollapse all codeblock on printing
-> - Bracket highlight (click next to a bracket to highlight it and its opening/closing pair)
-> - Selection matching (select text to highlight the where the text is found in the document)
-> - Inverse fold behavior
-> - Option to unwrap code in reading view  
-> - Text highlight with from and to markers
+> - `lsep` (line separator), and `tsep` (text separator) parameter for text highlight
+> - Default themes are modifiable now. You also have two options for restoring the selected or all default theme
+> - Added two command for indenting and unindenting the code block, where the cursor is in
+> - Added a button for selecting all the code block content in editing mode
+> - Added a button for wrapping/unwrapping code block content in reading mode
+> - Added option to always display the Copy code button
+>   Added option to disable folding for code blocks, where `fold` or `unfold` was NOT defined
 >   
 > Modified:
-> - Semi-fold does not count start and end lines (line with opening and closing backticks) in editing mode anymore
-> - Hide inactive options on settings page
-> - Performance improvements
-> - CSS copy and delete code positioning fix
-> - Moved border colors to language specific colors
-> - Language specific colors can now be set for code blocks without a language as well (specify `nolang` as a language)
-> - Fixed a few smaller bugs
+> - Line highlight and text highlight has been separated! Please read the README for more details
+> - For text highlight and header title it is now possible to define a `"` or `'` inside the text. To do this you have to escape it with a backslash e.g.: `file:"Hello \" World!"`
+> - Folded code blocks in editing mode now display the Copy code button in the header when hovering over the header. 
+>
+> BugFix:
+> - Fixed, if the first line of the code block was too long, it was not displayed correctly. The end was cut off.
+> - Fixed an issue with Tasks plugin, where the Tasks plugin kept refreshing the tasks, when editing the document
+> - Fixed a bug, where leading spaces (3 or less) were automatically removed in reading mode
+> - Fixed a bug in reading mode, which wrapped lines incorrectly
 
 
 This is a plugin for Obsidian (https://obsidian.md).
@@ -57,26 +59,33 @@ Parameters can be defined in the opening line of a code block (after the three o
 All parameters can be defined using `:` or `=`.  
 Available parameters:
 
-| Name    | Value           | Description                                                                                                                                                                                                                                                             |
-| ------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| fold    |                 | Defines that the code block is in folded state when the document is opened.                                                                                                                                                                                             |
-| unfold  |                 | Defined that the code block is in unfolded state when the document is opened and the `Inverse fold behavior` option is enabled, otherwise ignored.                                                                                                                      |
-| exclude |                 | Exclude the code block from the plugin.                                                                                                                                                                                                                                 |
-| hl      | Multiple        | **Everything that applies to the `hl` parameter also applies to alternative highlight colors!**<br>Multiple values can be combined with a `,` (e.g: `hl:test,3,5-6,9\|abc,test1,test2,10-15\|test3`)<br>Highlights specified lines or words based on different formats: |
-|         | hl:5            | Highlights line 5.                                                                                                                                                                                                                                                      |
-|         | hl:5-7          | Highlights lines from 5 to 7.                                                                                                                                                                                                                                           |
-|         | hl:test         | Highlights all lines containing the word "test", or the word itself, if the option `Highlight words instead of lines` is enabled. (hl:test,abc)                                                                                                                         |
-|         | hl:5\|test      | Highlights line 5 if it contains the word "test", or the word itself in line 5 if, the option `Highlight words instead of lines` is enabled.                                                                                                                         |
-|         | hl:5-7\|test    | Highlights lines 5 to 7 if they contain the word "test", or the word itself in lines 5 to 7 if the option `Highlight words instead of lines` is enabled.                                                                                                            |
-|         | hl:abc:xyz      | Highlights lines containing text starting with "abc" and ending with "xyz", or the text itself if the option `Highlight words instead of lines` is enabled.                                                                                                         |
-|         | hl:5\|abc:xyz   | Highlights line 5 if it contains text starting with "abc" and ending with "xyz", or the text itself in line 5 if the option `Highlight words instead of lines` is enabled.                                                                                          |
-|         | hl:5-7\|abc:xyz | Highlights lines 5 to 7 if they contain text starting with "abc" and ending with "xyz", or the text itself in lines 5 to 7 if the option `Highlight words instead of lines` is enabled.                                                                             |
-| file    | {string}        | Sets the display text for the header. (e.g: `file:hello` or `file:"Hello World!"`)                                                                                                                                                                                          |
-| title   | {string}        | Alias for `file`                                                                                                                                                                                                                                                        |
-| ln      | Multiple        |                                                                                                                                                                                                                                                                         |
-|         | true            | Displays line numbers for that specific code block, even if `Enable line numbers` is disabled                                                                                                                                                                           |
-|         | false           | Does not display line numbers for that specific code block, even if  `Enable line numbers` is enabled                                                                                                                                                                   |
-|         | {number}        | Sets the offset for line number to start (e.g: `ln:5` -> line numbering starts from 5)                                                                                                                                                                                     |
+| Name    | Value                 | Description                                                                                                                                                                                                                                                  |
+| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| fold    |                       | Defines that the code block is in folded state when the document is opened.                                                                                                                                                                                  |
+| unfold  |                       | Defined that the code block is in unfolded state when the document is opened and the `Inverse fold behavior` option is enabled, otherwise ignored.                                                                                                           |
+| exclude |                       | Exclude the code block from the plugin.                                                                                                                                                                                                                      |
+| hl      | Multiple              | **Everything that applies to the `hl` parameter also applies to alternative highlight colors!**<br>Multiple values can be combined with a `,` (e.g: `hl:test,3,5-6,9\|abc,test1,test2,10-15\|test3`)<br>Highlights specified **lines** on different formats: |
+|         | hl:{number}           | `hl:5` - Highlights line 5.                                                                                                                                                                                                                                  |
+|         | hl:{range}            | `hl:5-7` - Highlights lines from 5 to 7.                                                                                                                                                                                                                     |
+|         | hl:{string}           | `hl:test` - Highlights all lines containing the word `test`.                                                                                                                                                                                                 |
+|         | hl:{number}\|{string} | `hl:5\|test` - Highlights line 5 if it contains the word `test`.                                                                                                                                                                                             |
+|         | hl:{range}\|{string}  | `hl:5-7\|test` - Highlights lines 5 to 7 if they contain the word `test`.                                                                                                                                                                                    |
+| hlt     | Multiple              | **Everything that applies to the `hlt` parameter also applies to alternative highlight colors!**<br>Multiple values can be combined with a `,` just like for the `hl` parameter.<br>Highlights specified **text** on different formats:                      |
+|         | hlt:{string}          | `hlt:test` - Highlights the word `test` in every line it is found.                                                                                                                                                                                           |
+|         | hlt:{number}          | `hlt:5` - Highlights all the text in line 5.                                                                                                                                                                                                                 |
+|         | hlt::{string}         | `hlt::xyz` - If the start position is not defined but the end position is, the text will be highlighted from the beginning of the line up to the end position.                                                                                               |
+|         | hlt:{string}:         | `hlt:abc:` - If the start position is defined, but the end position is not, the text will be highlighted from the start position, until the end of the line.                                                                                                 |
+|         | hlt:{string}:{string} | `hlt:abc:xyz` - Highlights text in lines starting with `abc` and ending with `xyz`.                                                                                                                                                                          |
+|         | hlt:{number}\|...     | All the above options can be prepended with an optional number and a `\|` to specify in which line to highlight the text.                                                                                                                                    |
+|         | hlt:{range}\|...      | All the above options can be prepended with an optional range and a `\|` to specify in which range to highlight the text.                                                                                                                                    |
+| lsep    | char                  | Line separator. Optionally you can define a line separator (a single character) for text highlight instead of the default `\|`. Useful, if you want to highlight text starting and/or ending with `\|`. This can be set globally as well.                    |
+| tsep    | char                  | Text separator. Optionally you can define a text separator (a single character) for text highlight instead of the default `:`. Useful, if you want to highlight text starting and/or ending with `:`. This can be set globally as well.                      |
+| file    | {string}              | Sets the display text for the header. (e.g: `file:hello` or `file:"Hello World!"`)                                                                                                                                                                           |
+| title   | {string}              | Alias for `file`                                                                                                                                                                                                                                             |
+| ln      | Multiple              |                                                                                                                                                                                                                                                              |
+|         | true                  | Displays line numbers for that specific code block, even if `Enable line numbers` is disabled                                                                                                                                                                |
+|         | false                 | Does not display line numbers for that specific code block, even if  `Enable line numbers` is enabled                                                                                                                                                        |
+|         | {number}              | Sets the offset for line number to start (e.g: `ln:5` -> line numbering starts from 5)                                                                                                                                                                       |
 
 ## Themes
 
@@ -92,8 +101,8 @@ Default Solarized theme (light mode):
 
 How the themes work:
 - Every setting and color is saved in the theme, except the excluded languages.
-- You can't modify or delete the default themes.
-- When you switch themes, all unsaved changes are lost. Therefore it is recommended to create your own theme (unless you are happy with the default settings and will never change the theme), and always save your changes. If you made a change, and did not save it, the theme will not include it! 
+- You can modify the default themes (there is an option to restore them to default), but you can't delete them.
+- Save your changes!
 - Each theme has its own light and dark colors. To customize the light/dark colors, just switch Obsidian to light/dark mode, and you can change the colors for that mode.
 - When creating a new theme the currently selected theme will be taken as a template for the new theme.
 - After saving changes in a theme, these become the new default values. Example: You select a color (red) and save the theme. Now, this color is the default value. This means, that if you click the "restore default color" icon next to the color picker the color red will be restored.
@@ -103,9 +112,10 @@ How the themes work:
 ### Main highlight
 
 To highlight lines specify `hl:` followed by line numbers in the first line of the code block. 
-- You can specify either single line numbers separated with a comma e.g.: `hl:1,3,5,7`.
+- You can specify a single line numbers separated with a comma e.g.: `hl:1,3,5,7`. This would highlight the specified lines
 - You can specify ranges e.g.: `hl:2-5` This would highlight lines from 2 to 5. 
-- You can also combine the methods e.g.: `hl:1,3,4-6` This would highlight lines 1, 3 and lines from 4 to 6.
+- You can specify a string e.g.: `hl:test`. This would highlight all lines containing the word test. You can also prepend this value with a line number, or range and a `|` like this: `hl:5|test,5-7|test2`
+- You can also combine the methods e.g.: `hl:1,3,4-6,test,5|test,7-9|test3` This would highlight lines 1, 3 and lines from 4 to 6.
 
 Example:  
 ` ```cpp hl:1,3,4-6`
@@ -128,18 +138,24 @@ Example code block with multiple highlight colors:
 
 ### Text highlight
 
-It is possible now to highlight text instead of lines. To use this option you have to enable the `Highlight words instead of lines` option in the settingstab on the "Codeblock" settings page. You can still use the normal highlight as before, but the option got extended:
-* If after the `hl:` parameter a string is defined, then the string is highlighted in every line it is present in the code block. Example: `hl:extension`
-* If after the `hl:` parameter a number is defined, followed by a pipe "|", followed by a string, then the word is highlighted only in this line if it is present. Example: `hl:9|print`
-* If after the `hl:` parameter a range is defined, followed by a pipe "|" character, followed by a string, then the word is highlighted only in these line ranges, if it present. Example: `hl:6-7|print`
-* If after the `hl:` parameter a string, followed by a `:`, followed by a string is defined, then the string will be highlighted which starts with the string before the `:`, and ends with the string after `:`. Example: 
-    * `hl:abc:xyz` -> highlights text starting with `abc` and ending with `xyz`
-    * `hl:5|abc:xyz` -> highlights text starting with `abc` and ending with `xyz` only on line 5
-    * `hl:5-7|abc:xyz` -> highlights text starting with `abc` and ending with `xyz` only in lines from 5 to 7
+It is possible now to highlight text instead of lines. To use this feature use the `hlt` parameter. 
+* If after the `hlt:` parameter a string is defined, then the string is highlighted in every line it is present in the code block. Example: `hl:extension`
+* If after the `hlt:` parameter a number is defined, then all words in the specified lines are highlighted . Example: `hl:5`
+* If after the `hlt:` parameter a number is defined, followed by a pipe `|`, followed by a string, then the word is highlighted only in this line if it is present. Example: `hl:9|print`
+* If after the `hlt:` parameter a range is defined, followed by a pipe `|` character, followed by a string, then the word is highlighted only in these line ranges, if it present. Example: `hl:6-7|print`
+* If after the `hlt:` parameter a string, followed by a `:`, followed by a string is defined, then the string will be highlighted which starts with the string before the `:`, and ends with the string after `:` e.g.: `hlt:<startString>:<endString>`. Example: 
+    * `hlt:abc:` -> startString is defined, but endString is not defined. This will highlight the text starting with `startString` until the end of the line
+    * `hlt::xyz` -> startString is not defined, but endString is defined. This will highlight the text starting from the beginning of the line until `endString` 
+    * `hlt:abc:xyz` -> highlights text starting with `abc` and ending with `xyz` in all lines it is present
+
+All the above options can be prepended with an optional number or range and a `|` to specify in which line to highlight the text.
 
 > [!note]
 > - You can use the text highlighting with alternative highlight colors as well!
-> - If the setting `Highlight words instead of lines` is disabled, then lines will be highlighted not words. Please note, that if you used multiple colors in one line, and the option `Highlight words instead of lines` is disabled, it may result in an unexpected line highlight, since obviously only one color can be used to highlight a line.
+> - For every alternative highlight color a new text highlight parameter can be used. For example, if you created an alternative highlight color called `error`, then you can use the `error` parameter for line highlighting. To highlight text simply append a `t` after the alternative color name. This means that if you want to highlight text using the `error` color, you'll have to use the `errort` (note the `t` at the end) of the parameter.
+> - If you want to highlight text which contains a `"` or `'` you'll have to escape it with a basckslash. For example: `hlt:start\"text:end\"text` or `hlt:"start \" text:end \" text"`
+> - If you want to highlight text which contains default line separator `|` or the default text separator `:`, you can redefine them, with the `lsep` and `tsep` parameters. For example: `hlt:5^|ˇ: lsep:^ tsep:ˇ` would highlight text from `|` to `:`. You can also globally define them
+
 
 An example code block with text highlight, using three different colors is shown below:  
 
@@ -147,7 +163,7 @@ An example code block with text highlight, using three different colors is shown
 
 An example code block with text highlight, using from and to markers:  
 
-![[Pasted_image_20240613130412.png]](attachments/Pasted_image_20240613130412.png)
+![[Pasted image 20240923203830.png]]
 
 ## Language specific coloring
 
@@ -191,6 +207,8 @@ Example:
 ` ```cpp file:"long filename.cpp"`  
 
 ![Pasted_image_20230125230351.png](attachments/Pasted_image_20230125230351.png)
+
+If you want to display text which contains a `"` or `'` you'll have to escape it with a backslash. For example: `file:"Hello \" World!"`
 
 ## Folding
 

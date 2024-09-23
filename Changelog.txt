@@ -1,3 +1,24 @@
+- 1.2.8 (2024.09.23):
+  New:
+    - `lsep` (line separator), and `tsep` (text separator) parameter for text highlight
+    - Default themes are modifiable now. You also have two options for restoring the selected or all default theme
+    - Added two command for indenting and unindenting the code block, where the cursor is in
+    - Added a button for selecting all the code block content in editing mode
+    - Added a button for wrapping/unwrapping code block content in reading mode
+    - Added option to always display the Copy code button
+    - Added option to disable folding for code blocks, where `fold` or `unfold` was NOT defined
+   
+  Modified:
+    - Line highlight and text highlight has been separated! Please read the README for more details
+    - For text highlight and header title it is now possible to define a `"` or `'` inside the text. To do this you have to escape it with a backslash e.g.: `file:"Hello \" World!"`
+    - Folded code blocks in editing mode now display the Copy code button in the header when hovering over the header. 
+
+  BugFix:
+    - Fixed, if the first line of the code block was too long, it was not displayed correctly. The end was cut off.
+    - Fixed an issue with Tasks plugin, where the Tasks plugin kept refreshing the tasks, when editing the document
+    - Fixed a bug, where leading spaces (3 or less) were automatically removed in reading mode
+    - Fixed a bug in reading mode, which wrapped lines incorrectly
+
 - 1.2.7 (2024.06.13):
   New:
     - Custom SVGs

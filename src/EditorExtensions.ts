@@ -186,8 +186,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
       container.appendChild(buttonContainer);
       
-      const collapse = createCodeblockCollapse(this.parameters.fold);
-      container.appendChild(collapse);
+      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.fold) ||
+          (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.unfold)) {
+        container.classList.add(`noCollapseIcon`);
+      } else {
+        const collapse = createCodeblockCollapse(this.parameters.fold);
+        container.appendChild(collapse);
+      }
   
       if (this.parameters.indentLevel > 0) {
         container.setAttribute("style", `--level:${this.parameters.indentLevel}; `);

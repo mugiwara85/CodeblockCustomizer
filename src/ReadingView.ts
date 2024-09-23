@@ -381,8 +381,15 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
     container.appendChild(createCodeblockLang(parameters.language));
   }
   container.appendChild(createFileName(parameters.headerDisplayText, settings.SelectedTheme.settings.codeblock.enableLinks, sourcePath, plugin));
+
   const collapseEl = createCodeblockCollapse(parameters.fold);
-  container.appendChild(collapseEl);
+  if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.fold) ||
+      (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.unfold)) {
+    container.classList.add(`noCollapseIcon`);
+  } else {
+    container.appendChild(collapseEl);
+  }
+  
   if (parent)
     parent.insertBefore(container, preElements);
   

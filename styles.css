@@ -567,18 +567,18 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 }
 
 /* shift button container to the left when collapse icon is displayed on the right side */
-.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-show-langicons-always.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-show-langnames-always.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container-specific .codeblock-customizer-header-button-container,
-.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container .codeblock-customizer-header-button-container {
+.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container-specific:not(.noCollapseIcon) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langicons-always.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']):not(.noCollapseIcon) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langnames-always.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']):not(.noCollapseIcon) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-header-collapse-command.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not(.noCollapseIcon) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container-specific:not(.noCollapseIcon) .codeblock-customizer-header-button-container,
+.codeblock-customizer-collapseIconRight .markdown-source-view .codeblock-customizer-header-container:not(.noCollapseIcon) .codeblock-customizer-header-button-container {
   right: 38px;
 }
-.codeblock-customizer-collapseIconRight .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific) .codeblock-customizer-button-container,
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-langicons-always .markdown-rendered .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-button-container,
-.codeblock-customizer-collapseIconRight.codeblock-customizer-show-langnames-always .markdown-rendered .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) ~ .codeblock-customizer-button-container,
-.codeblock-customizer-collapseIconRight.codeblock-customizer-header-collapse-command .markdown-rendered .codeblock-customizer-header-container ~ .codeblock-customizer-button-container {
+.codeblock-customizer-collapseIconRight .markdown-rendered .codeblock-customizer-pre:has(.codeblock-customizer-header-container-specific:not(.noCollapseIcon)) .codeblock-customizer-button-container,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-langicons-always .markdown-rendered .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']):not(.noCollapseIcon) ~ .codeblock-customizer-button-container,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-show-langnames-always .markdown-rendered .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']):not(.noCollapseIcon) ~ .codeblock-customizer-button-container,
+.codeblock-customizer-collapseIconRight.codeblock-customizer-header-collapse-command .markdown-rendered .codeblock-customizer-header-container:not(.noCollapseIcon) ~ .codeblock-customizer-button-container {
   right: 38px;
 }
 
