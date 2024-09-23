@@ -145,6 +145,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     pos: CodeBlockPositions
     buttonConfigs: Array<ButtonConfig>;
     sourcePath: string;
+    disableFoldUnlessSpecified: boolean;
     plugin: CodeBlockCustomizerPlugin;
   
     constructor(parameters: Parameters, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
@@ -155,6 +156,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.enableLinks = plugin.settings.SelectedTheme.settings.codeblock.enableLinks;
       this.languageSpecificColors = createObjectCopy(plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.parameters.language.length > 0 ? this.parameters.language : "nolang"] || {});
       this.sourcePath = sourcePath;
+      this.disableFoldUnlessSpecified = plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified;
       this.plugin = plugin;
     }
   
@@ -163,7 +165,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       other.parameters.specificHeader === this.parameters.specificHeader && other.parameters.fold === this.parameters.fold && 
       other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
       other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
-      other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs);
+      other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) &&
+      other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified;
     }
   
     toDOM(view: EditorView): HTMLElement {
@@ -192,6 +195,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       container.onclick = (event) => {
+        if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.fold) ||
+            (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.unfold)) {
+          return;
+        }
         handleClick(view, container, this.pos);
       };
       //EditorView.requestMeasure;
@@ -1189,6 +1196,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const changes: StateEffect<any>[] = [];
 
     processCodeBlocks(view.state.doc, (start, end, lineText, isDefaultFold, isDefaultUnFold) => {
+      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.fold) ||
+        (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.unfold)) {
+        return;
+      }
       const lineCount = view.state.doc.lineAt(end.to).number - view.state.doc.lineAt(start.from).number + 1;
 
       if (fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !isDefaultUnFold)) {

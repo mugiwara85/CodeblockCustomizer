@@ -388,9 +388,14 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
   
   const semiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
   const visibleLines = settings.SelectedTheme.settings.semiFold.visibleLines;
+
   // Add event listener to the widget element
   container.addEventListener("click", function() {
     //collapseEl.innerText = preElements.classList.contains(`codeblock-customizer-codeblock-collapsed`) ? "-" : "+";
+    if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.fold) ||
+        (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.unfold)) {
+      return;
+    }
     if (semiFold) {
       const codeElements = preElements.getElementsByTagName("CODE");
       const lines = convertHTMLCollectionToArray(codeElements);
@@ -422,7 +427,7 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
       preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
     preElements.classList.add(`codeblock-customizer-codeblock-default-collapse`);
   }
-  
+
   return container
 }// HeaderWidget
 
@@ -1252,6 +1257,7 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCusto
   }
 }// PDFExport
 
+// does not support if folding is disabled
 export function foldAllReadingView(fold: boolean, settings: CodeblockCustomizerSettings) {
   const preParents = document.querySelectorAll('.codeblock-customizer-pre-parent');
   preParents.forEach((preParent) => {

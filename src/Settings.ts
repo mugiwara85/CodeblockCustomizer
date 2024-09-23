@@ -78,6 +78,7 @@ export interface ThemeSettings {
     alwaysDisplayCodeblockIcon: boolean;
     displayCodeBlockLanguage: boolean;
     displayCodeBlockIcon: boolean;
+    disableFoldUnlessSpecified: boolean;
   },
   gutter: {
     highlightActiveLineNr: boolean;
@@ -262,6 +263,7 @@ const Solarized: Theme = {
       alwaysDisplayCodeblockIcon: false,
       displayCodeBlockLanguage: true,
       displayCodeBlockIcon: false,
+      disableFoldUnlessSpecified: false,
     },
     gutter: {
       highlightActiveLineNr: false,
@@ -397,6 +399,7 @@ const Obsidian: Theme = {
       alwaysDisplayCodeblockIcon: false,
       displayCodeBlockLanguage: true,
       displayCodeBlockIcon: false,
+      disableFoldUnlessSpecified: false,
     },
     gutter: {
       highlightActiveLineNr: true,

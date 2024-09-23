@@ -448,7 +448,7 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(codeblockDiv)
       .setName('Always show \'Copy Code\' button for collapsed code blocks')
-      .setDesc('If enabled, the \'Copy Code\' button will always be visible on collapsed code blocks in the header. Otherwise, it will only appear when hovering over the header (in editing mode) or the code block (in reading mode).')
+      .setDesc('If enabled, in editing mode the \'Copy Code\' button will always be visible on collapsed code blocks in the header. In reading mode the \'Copy Code\' button will always be visible on collapsed and uncollapsed code blocks as well. Otherwise, it will only appear when hovering over the header (in editing mode) or the code block (in reading mode).')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.alwaysShowCopyCodeButton)
         .onChange(async (value) => {
@@ -666,17 +666,29 @@ export class SettingsTab extends PluginSettingTab {
     this.createPickrSetting(headerDiv, 'Header line color', '', "header.lineColor");
     
     new Setting(headerDiv)
-    .setName('Collapse icon position')
-    .setDesc('If enabled a collapse icon will be displayed in the header. Select the position of the collapse icon.')
-    .addDropdown((dropdown) => dropdown
-      .addOptions({"hide": "Hide", "middle": "Middle", "right": "Right"})
-      .setValue(this.plugin.settings.SelectedTheme.settings.header.collapseIconPosition)
-      .onChange((value) => {
-        this.plugin.settings.SelectedTheme.settings.header.collapseIconPosition = value;
-        (async () => {await this.plugin.saveSettings()})();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
+      .setName('Disable folding for code blocks without fold or unfold specified')
+      .setDesc('If enabled, code blocks without "fold" or "unfold" specified will not collapse when clicking the header.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    new Setting(headerDiv)
+      .setName('Collapse icon position')
+      .setDesc('If enabled a collapse icon will be displayed in the header. Select the position of the collapse icon.')
+      .addDropdown((dropdown) => dropdown
+        .addOptions({"hide": "Hide", "middle": "Middle", "right": "Right"})
+        .setValue(this.plugin.settings.SelectedTheme.settings.header.collapseIconPosition)
+        .onChange((value) => {
+          this.plugin.settings.SelectedTheme.settings.header.collapseIconPosition = value;
+          (async () => {await this.plugin.saveSettings()})();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
 
     new Setting(headerDiv)
     .setName('Collapsed code text')
