@@ -163,7 +163,7 @@ An example code block with text highlight, using three different colors is shown
 
 An example code block with text highlight, using from and to markers:  
 
-![[Pasted image 20240923203830.png]]
+![[Pasted_image_20240923203830.png]](attachments/Pasted_image_20240923203830.png)
 
 ## Language specific coloring
 
