@@ -302,14 +302,16 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
   class buttonWidget extends WidgetType {
     buttonsConfig: Array<ButtonConfig>;
+    pos: CodeBlockPositions
 
-    constructor(buttonsConfig: Array<ButtonConfig>) {
+    constructor(buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions) {
       super();
       this.buttonsConfig = buttonsConfig;
+      this.pos = pos;
     }
   
     eq(other: buttonWidget): boolean {
-      return compareButtonConfigs(this.buttonsConfig, other.buttonsConfig);
+      return compareButtonConfigs(this.buttonsConfig, other.buttonsConfig) && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos;
     }
     
     toDOM(view: EditorView): HTMLElement {
@@ -451,7 +453,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           spanClass = `codeblock-customizer-line-number-first`;
           
           // first-line buttons
-          decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs), side: -1}).range(lineStartPos));
+          decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, pos), side: -1}).range(lineStartPos));
         }
   
         if (endLine) {

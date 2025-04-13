@@ -87,7 +87,7 @@ function trackIndentation(lines: string[]): IndentationInfo[] {
   const spaceIndentRegex = /^( {0,4}|\t)*/;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i] ?? "";
     const match = line.match(spaceIndentRegex);
     let currentIndentLevel = 0;
 
@@ -96,7 +96,7 @@ function trackIndentation(lines: string[]): IndentationInfo[] {
       currentIndentLevel = calculateIndentLevel(indentation);
     }
 
-    const nextLine = lines[i + 1];
+    const nextLine = lines[i + 1] ?? "";
     let nextIndentLevel = 0;
 
     if (nextLine) {
@@ -1303,12 +1303,15 @@ export function toggleFoldClasses(preElement: HTMLPreElement, linesLength: numbe
 }// toggleFoldClasses
 
 function getCodeBlocksFirstLines(array: string[]): string[] {
+  if (!array || !Array.isArray(array)) 
+    return [];
+
   const codeBlocks: string[] = [];
   let inCodeBlock = false;
   let openingBackticks = 0;
 
   for (let i = 0; i < array.length; i++) {
-    let line = array[i].trim();
+    let line = array[i] ?? "";
     line = removeCharFromStart(line.trim(), ">");
 
     const backtickMatch = line.match(/^`+(?!.*`)/);

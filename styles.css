@@ -388,6 +388,10 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .markdown-rendered .codeblock-customizer-pre > code > div:only-child > .codeblock-customizer-line-number-specific { /* Maintain gutter color when padded */
   box-shadow: 0px calc(-1 * var(--code-padding)) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)),0px var(--code-padding) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
 }
+/*.codeblock-customizer-line-number .codeblock-customizer-line-number-element,
+.codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element {
+  left: 0;
+}*/
 .codeblock-customizer-line-number,
 .codeblock-customizer-line-number-specific {
   padding-top: 2px;
@@ -406,6 +410,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   position: sticky;
   left: 0;
   z-index: 1;
+  margin-bottom: -1px; /* fix for 1–2px "seam" (where the two lines meet) shows the background through */
 }
 .markdown-source-view .codeblock-customizer-line-number,
 .markdown-source-view .codeblock-customizer-line-number-specific {
@@ -827,7 +832,7 @@ body .codeblock-customizer-header-container-specific:not(:has( [class^="codebloc
 body:not(:not([class*='codeblock-customizer-show-langnames'])) .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
 body:not(:not([class*='codeblock-customizer-show-langicons'])) .codeblock-customizer-header-container-specific:has(.codeblock-customizer-icon) .codeblock-customizer-header-text,
 body:not(:not([class*='codeblock-customizer-header-collapse-command'])):not(:not([class*='codeblock-customizer-show-langnames-always'])) .codeblock-customizer-header-container .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
-body:not(:not([class*='codeblock-customizer-header-collapse-command'])):not(:not([class*='codeblock-customizer-show-langicons-always'])) .codeblock-customizer-header-container:has(.codeblock-customizer-icon) .codeblock-customizer-header-text
+body:not(:not([class*='codeblock-customizer-header-collapse-command'])):not(:not([class*='codeblock-customizer-show-langicons-always'])) .codeblock-customizer-header-container:has(.codeblock-customizer-icon) .codeblock-customizer-header-text,
 .codeblock-customizer-show-langicons-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text,
 .codeblock-customizer-show-langnames-always .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text,
 body:not(:not([class*='codeblock-customizer-show-langicons-always'])).codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not([class*='codeblock-customizer-language-nolang']) .codeblock-customizer-header-text,

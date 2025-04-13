@@ -273,7 +273,7 @@ const Solarized: Theme = {
       enableInlineCodeStyling: false,
     },
     printing: {
-      enablePrintToPDFStyling: false,
+      enablePrintToPDFStyling: true,
       forceCurrentColorUse: false,
       uncollapseDuringPrint: true,
     },
@@ -409,7 +409,7 @@ const Obsidian: Theme = {
       enableInlineCodeStyling: false,
     },
     printing: {
-      enablePrintToPDFStyling: false,
+      enablePrintToPDFStyling: true,
       forceCurrentColorUse: false,
       uncollapseDuringPrint: true,
     },
