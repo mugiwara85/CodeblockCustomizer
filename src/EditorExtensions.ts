@@ -471,16 +471,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   
     update(update: ViewUpdate) {
-      console.log("settingsUpdated = " + settingsUpdated);
       if (update.docChanged || update.viewportChanged || update.startState.field(codeBlockPositions) !== update.state.field(codeBlockPositions) || settingsUpdated) {
         this.decorations = this.buildDecorations(update.view);
       }
-      console.log("Decorations applied, current settings:", settingsUpdated);
     }
   
     buildDecorations(view: EditorView): DecorationSet {
       updateValue(false);
-      console.log("Apply decorations");
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
