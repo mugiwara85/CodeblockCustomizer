@@ -1,5 +1,5 @@
 import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Line, Text, EditorSelection } from "@codemirror/state";
-import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
+import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
@@ -9,6 +9,11 @@ import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
+
+let settingsUpdated = false;
+export function updateValue(newValue: boolean) {
+  settingsUpdated = newValue;
+}
 
 export interface ReplaceFadeOutRanges {
   replaceStart: Line;
@@ -42,26 +47,66 @@ interface ButtonConfig {
 export function extensions(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   /* StateFields */
   
-  const decorations = StateField.define<DecorationSet>({
+  const header = StateField.define<DecorationSet>({
     create(state: EditorState): DecorationSet {
       document.body.classList.remove('codeblock-customizer-header-collapse-command');
       settings.foldAllCommand = false;
       return Decoration.none;
     },
     update(value: DecorationSet, transaction: Transaction): DecorationSet {
-      return buildDecorations(transaction.state);
+      return insertHeader(transaction.state);
     },
     provide(field: StateField<DecorationSet>): Extension {
       return EditorView.decorations.from(field);
     }
-  });// decorations
+  });// header
 
   const codeBlockPositions = StateField.define<CodeBlockPositions[]>({
     create(state: EditorState): CodeBlockPositions[] {
-      return [];
+      return findCodeBlockPositions(state); //return [];
     },
     update(value: CodeBlockPositions[], transaction: Transaction): CodeBlockPositions[] {
-      return findCodeBlockPositions(transaction.state);
+      //return findCodeBlockPositions(transaction.state);
+      const { state, startState } = transaction;
+
+      if (settingsUpdated) {
+        return findCodeBlockPositions(state);
+      }
+
+      if (!transaction.docChanged && (!startState.selection.eq(state.selection) || syntaxTree(startState) !== syntaxTree(state))) {
+        // selection change(click) or scroll
+        return findCodeBlockPositions(state);
+      } else if (transaction.docChanged) {
+        // document change
+        const changed = transaction.changes;
+      
+        // remove blocks that intersect the change
+        const filtered = value.filter(pos =>
+          !changed.touchesRange(pos.codeBlockStartPos, pos.codeBlockEndPos)
+        );
+      
+        // determine where to re-scan from
+        let from = 0;
+        changed.iterChangedRanges((fromA, toA, fromB, toB) => {
+          const precedingBlock = filtered.slice().reverse().find(
+            block => block.codeBlockStartPos <= fromB
+          );
+          from = precedingBlock ? precedingBlock.codeBlockStartPos : 0;
+        });
+        
+        // re-scan
+        const updatedBlocks = findCodeBlockPositions(state, from, state.doc.length);
+
+        // remove any overlapping blocks from the filtered set
+        const preserved = filtered.filter(block =>
+          block.codeBlockStartPos < from
+        );
+      
+        return preserved.concat(updatedBlocks);
+      } else {
+        // no scroll/click change and no document change
+        return value;
+      }
     }
   });// codeBlockPositions
 
@@ -96,17 +141,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     },
     provide: f => EditorView.decorations.from(f)
   })// collapseField
-
-  /* update listeners */
-
-  const viewportChangedListener = EditorView.updateListener.of((update) => {
-    if (update.viewportChanged) {
-      update.view.dispatch({
-        effects: StateEffect.appendConfig.of([codeBlockPositions]),  // Rebuild decorations when the viewport changes
-        //effects: StateEffect.reconfigure.of([codeBlockPositions, decorations])
-      });
-    }
-  });// viewportChangedListener
 
   /* Extensions */
 
@@ -339,13 +373,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   /* functions */
 
-  function findCodeBlockPositions(state: EditorState): CodeBlockPositions[] {
+  function findCodeBlockPositions(state: EditorState, from: number = 0, to: number = state.doc.length): CodeBlockPositions[] {
     const positions: CodeBlockPositions[] = [];
     let codeBlockStartPos = -1;
     let codeBlockEndPos = -1;
     let parameters: Parameters = getDefaultParameters();
-  
-    syntaxTree(state).iterate({
+
+    syntaxTree(state).iterate({ from, to, 
       enter: (node) => {
         if (node.type.name.includes("HyperMD-codeblock-begin")) {
           const startLine = state.doc.lineAt(node.from);
@@ -389,13 +423,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return end?.to;
   }// findCodeBlockEnd
   
-  function buildDecorations(state: EditorState): DecorationSet {
+  function insertHeader(state: EditorState): DecorationSet {
     if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
       return Decoration.none;
 
     const sourcePath = state.field(editorInfoField)?.file?.path ?? "";
     const positions = state.field(codeBlockPositions, false) ?? [];
-    const defaultCharWidth = state.field(editorEditorField).defaultCharacterWidth;
     const decorations: Array<Range<Decoration>> = [];
 
     /*console.log(state.field(editorEditorField));
@@ -414,10 +447,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     });*/
 
     for (const pos of positions) {
-    //  console.log("Start = " + pos.codeBlockStartPos + " - End = " + pos.codeBlockEndPos);
       const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
-      const firstCodeBlockLine = state.doc.lineAt(codeBlockStartPos).number;
-      const lastCodeBlockLine = state.doc.lineAt(codeBlockEndPos).number;
 
       if (parameters.exclude)
         continue;
@@ -426,58 +456,105 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       //if (settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon || settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang || pos.parameters.fold || pos.parameters.headerDisplayText)
       const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, state, parameters);
       decorations.push(Decoration.widget({ widget: new TextAboveCodeblockWidget(parameters, pos, buttonConfigs, sourcePath, plugin), block: true }).range(codeBlockStartPos));
-  
-      if (settings.SelectedTheme.settings.codeblock.enableLinks)
-        checkForLinks(state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
-  
-      let lineNumber = 0;
-      const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
-      const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
-      const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
-      
-      for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
-        const startLine = line === firstCodeBlockLine;
-        const endLine = line === lastCodeBlockLine;
-        const currentLine = state.doc.line(line);
-        const lineStartPos = currentLine.from;
 
-        // lines
-        const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);        
-        decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
-        
-        /*if ((!pos.defaultFolded) && (pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !pos.parameters.unfold)))
-          defaultFold(state, decorations);*/
-
-        let spanClass = "";
-        if (startLine) {
-          spanClass = `codeblock-customizer-line-number-first`;
-          
-          // first-line buttons
-          decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, pos), side: -1}).range(lineStartPos));
-        }
-  
-        if (endLine) {
-          spanClass = `codeblock-customizer-line-number-last`;
-        }
-        
-        // line number
-        if (settings.SelectedTheme.settings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
-          decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : (lineNumber + parameters.lineNumberOffset).toString(), parameters, spanClass),}).range(lineStartPos));
-        }
-  
-        // indentation
-        if (parameters.indentLevel > 0) {
-          if (currentLine.text.length > parameters.indentCharacter) {
-            decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter)); 
-          }
-          decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
-        }
-        lineNumber++;
-      }
     }
     return RangeSet.of(decorations, true);
-  }// buildDecorations
+  }// insertHeader
 
+  const viewPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+    //settings: CodeblockCustomizerSettings;
+  
+    constructor(view: EditorView) {
+      //this.settings = settings;
+      this.decorations = this.buildDecorations(view);
+    }
+  
+    update(update: ViewUpdate) {
+      console.log("settingsUpdated = " + settingsUpdated);
+      if (update.docChanged || update.viewportChanged || update.startState.field(codeBlockPositions) !== update.state.field(codeBlockPositions) || settingsUpdated) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+      console.log("Decorations applied, current settings:", settingsUpdated);
+    }
+  
+    buildDecorations(view: EditorView): DecorationSet {
+      updateValue(false);
+      console.log("Apply decorations");
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
+        return Decoration.none;
+
+      const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
+      const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
+      const positions = view.state.field(codeBlockPositions, false) ?? [];
+      const visibleRanges = view.visibleRanges;
+      const decorations: Array<Range<Decoration>> = [];
+      const visibleBlocks = positions.filter(pos => {
+        return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
+      });
+
+      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
+        const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
+        const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
+  
+        if (parameters.exclude)
+          continue;
+    
+        if (settings.SelectedTheme.settings.codeblock.enableLinks)
+          checkForLinks(view.state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
+    
+        let lineNumber = 0;
+        const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
+        const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
+        const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
+        
+        for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
+          const startLine = line === firstCodeBlockLine;
+          const endLine = line === lastCodeBlockLine;
+          const currentLine = view.state.doc.line(line);
+          const lineStartPos = currentLine.from;
+            
+          // lines
+          const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);        
+          decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
+          
+          /*if ((!pos.defaultFolded) && (pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !pos.parameters.unfold)))
+            defaultFold(state, decorations);*/
+  
+          let spanClass = "";
+          if (startLine) {
+            spanClass = `codeblock-customizer-line-number-first`;
+            
+            // first-line buttons
+            const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
+            decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, { codeBlockStartPos, codeBlockEndPos, parameters } ), side: -1}).range(lineStartPos));
+          }
+    
+          if (endLine) {
+            spanClass = `codeblock-customizer-line-number-last`;
+          }
+          
+          // line number
+          if (settings.SelectedTheme.settings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
+            decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : (lineNumber + parameters.lineNumberOffset).toString(), parameters, spanClass),}).range(lineStartPos));
+          }
+    
+          // indentation
+          if (parameters.indentLevel > 0) {
+            if (currentLine.text.length > parameters.indentCharacter) {
+              decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter)); 
+            }
+            decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
+          }
+          lineNumber++;
+        }
+      }
+      return RangeSet.of(decorations, true);
+    }
+  }, {
+    decorations: v => v.decorations
+  });// viewPlugin
+  
   function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: Parameters){
     const cursorPos = state.selection.main.head;
     const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
@@ -1247,7 +1324,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositions, decorations, collapseField/*, viewportChangedListener*/];
+  const extensions = [codeBlockPositions, header, collapseField, viewPlugin];
 
   const result = {
     extensions,

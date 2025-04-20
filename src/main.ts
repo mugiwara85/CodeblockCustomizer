@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock } from "./Utils";
-import { CodeBlockPositions, extensions } from "./EditorExtensions";
+import { CodeBlockPositions, extensions, updateValue } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
 interface codeBlock {
@@ -381,6 +381,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+    updateValue(true);
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
   }// saveSettings
@@ -405,5 +406,5 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         }
       }
     });
-  }// renderReadingView
+  }// renderReadingViewOnStart
 }
