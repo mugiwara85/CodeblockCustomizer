@@ -5,7 +5,7 @@ import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
 import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock} from "./Utils";
 import { CodeBlockPositions, extensions, updateValue } from "./EditorExtensions";
 // npm i @simonwep/pickr
 
@@ -374,13 +374,31 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
         userTheme.settings = _.merge({}, defaultObsidianSettings.settings, userTheme.settings);
       }
+
+      userTheme.colors.light.prompts.promptColors = {};
+      userTheme.colors.light.prompts.rootPromptColors = {};
+      userTheme.colors.dark.prompts.promptColors = {};
+      userTheme.colors.dark.prompts.rootPromptColors = {};
     });
+
+    this.settings.SelectedTheme.colors.light.prompts.promptColors = {};
+    this.settings.SelectedTheme.colors.light.prompts.rootPromptColors = {};
+    this.settings.SelectedTheme.colors.dark.prompts.promptColors = {};
+    this.settings.SelectedTheme.colors.dark.prompts.rootPromptColors = {};
 
     this.saveSettings();
   }// loadSettings
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    const clonedSettings = structuredClone(this.settings);
+
+    // Strip base colors before saving to avoid bloat and overwrite
+    delete clonedSettings.SelectedTheme.colors.light.prompts.promptColors;
+    delete clonedSettings.SelectedTheme.colors.dark.prompts.promptColors;
+    delete clonedSettings.SelectedTheme.colors.light.prompts.rootPromptColors;
+    delete clonedSettings.SelectedTheme.colors.dark.prompts.rootPromptColors;
+
+    await this.saveData(clonedSettings);
     updateValue(true);
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);

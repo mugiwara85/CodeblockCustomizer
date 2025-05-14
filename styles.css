@@ -100,35 +100,47 @@
 
 /* Semi-folding */
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .cm-hmd-codeblock,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .prompt-part,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-prompt-cmd-output,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .prompt-part {
   opacity: 0.5;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .cm-hmd-codeblock,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .prompt-part,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-prompt-cmd-output,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .prompt-part {
   opacity: 0.3;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .cm-hmd-codeblock,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .prompt-part,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-prompt-cmd-output,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .prompt-part {
   opacity: 0.1;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .cm-hmd-codeblock,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .prompt-part,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-prompt-cmd-output,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .prompt-part {
   opacity: 0.05;
 }
 
@@ -184,10 +196,11 @@
   padding-bottom: 0px;
 }
 
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 {
   position: relative;
   /*overflow: hidden;*/
 }
+/*.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3*/
 .codeblock-customizer-show-uncollapse-code-button .markdown-source-view .codeblock-customizer-uncollapse-code {
   position: absolute;
   right: 50%;
@@ -207,7 +220,7 @@
   position: absolute;
   right: 50%;
   transform: translateX(50%);
-  top: 6px;
+  top: -6px;
   z-index: 1;
   display: inline-block;
   /*padding: var(--size-4-1) var(--size-4-2);*/
@@ -877,7 +890,8 @@ div:has(> img.codeblock-customizer-icon) {
 }
 .markdown-rendered pre.codeblock-customizer-pre code {
   display: grid;/*block;*/  /* Fix for highlighting the whole line, when a vertical scrollbar is displayed */
-  overflow: auto;           /* Fix for "Copy" button moving when vertical scrollbar is displayed */
+  /*overflow: auto;*/           /* Fix for "Copy" button moving when vertical scrollbar is displayed */
+  overflow-y: hidden;
   padding-top: var(--code-padding);
   padding-bottom: var(--code-padding);
   padding-left: 0px;
@@ -907,6 +921,10 @@ pre.codeblock-customizer-pre [class^=codeblock-customizer-line-number] {
 .markdown-rendered .codeblock-customizer-line-text {
   flex-basis: 100%;
   padding-left: var(--line-number-gutter-padding);             /* originalVal:0px, add padding between the line numbers and the text */
+}
+/* don't apply padding to line text, when prompt is present */
+.markdown-rendered .has-prompt .codeblock-customizer-line-text {
+  padding-left: 0;
 }
 
 /* Border radius styling */
@@ -954,45 +972,166 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   border-top-right-radius: 0px !important;
 }
 
+/* Prompts */
+.markdown-rendered .has-prompt [class*="codeblock-customizer-prompt-"],
+.markdown-rendered .has-prompt .codeblock-customizer-prompt-cmd-output  {
+  padding-left: var(--line-number-gutter-padding);
+}
+
+[class^="codeblock-customizer-prompt-"] {
+  /*font-weight: bold;*/
+  white-space: pre;
+  user-select: none;
+  /*font-family: var(--font-monospace, monospace);*/
+}
+
 /* Settings page */
 .codeblock-customizer-basic-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-codeblock-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-languageSpecific-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-alternative-highlight-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-header-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-header-language-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-gutter-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-inlineCode-settingsDiv-hide {
   display: none;
 }
-
 .codeblock-customizer-printToPDF-settingsDiv-hide {
   display: none;
 }
+.codeblock-customizer-prompts-settingsDiv-hide {
+  display: none;
+}
+
+/* Settings page (prompts) - Prompt preview */
+.codeblock-customizer-prompt-preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 12px 0;
+  margin-bottom: 24px;
+}
+.codeblock-customizer-prompt-preview {
+  margin: 12px 0;
+  padding: 12px;
+  background-color: var(--codeblock-customizer-codeblock-background-color, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+  font-family: var(--font-monospace, monospace);
+}
+.prompt-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 3em;
+  gap: 0.25em;
+  position: relative;
+}
+.normal-preview, 
+.root-preview {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.root-preview {
+  visibility: hidden;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+}
+.root-preview.is-visible {
+  visibility: visible;
+  opacity: 1;
+  height: auto;
+  animation: slideFadeIn 200ms ease-out;
+}
+@keyframes slideFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.normal-preview {
+  animation: slideFadeIn 200ms ease-out;
+}
+/* Settings page (prompts) - highlightgroups */
+.codeblock-customizer-highlightgroups-textarea {
+  /*width: 50%;
+  max-width: 250px;*/
+  width: 100%;
+  max-width: 250px;
+  min-height: 120px;
+  /*font-family: monospace;*/
+  font-size: 0.9em;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.codeblock-customizer-highlightgroups-setting .setting-item-info {
+  max-width: 300px;
+}
+/* Settings page (prompts) - settings groups */
+.codeblock-customizer-prompt-settings-group,
+.codeblock-customizer-prompt-colors-settings-group {
+  margin: 12px 0;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.codeblock-customizer-prompt-settings-group summary,
+.codeblock-customizer-prompt-colors-settings-group summary {
+  font-weight: bold;
+  font-size: 1em;
+  cursor: pointer;
+  padding: 6px 0;
+}
+/* Settings page (prompts) - regex input */
+.codeblock-customizer-regex-input {
+  width: 100%;
+}
+
+/* wrap long prompt lines in reading view */
+.markdown-rendered div.has-prompt:has(> .codeblock-customizer-line-text) {
+  display: flow-root;
+}
+.markdown-rendered .has-prompt .codeblock-customizer-line-number {
+  float: left;
+  height: 100%;
+}
+.markdown-rendered [class*="codeblock-customizer-prompt-"] {
+  float: left;
+}
+.codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-rendered [class*="codeblock-customizer-line"].has-prompt .codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output) {
+  padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
+  white-space-collapse: break-spaces;
+}
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .markdown-rendered [class*="codeblock-customizer-line"].has-prompt .codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output) {
+  padding-left: var(--line-number-gutter-padding);
+  white-space-collapse: break-spaces;
+}
 
 /* disabled button */
-.clickable-icon.extra-setting-button.is-disabled {
+.clickable-icon.extra-setting-button.is-disabled,
+.codeblock-customizer-prompt-name input[disabled] {
   color: #666666;
   cursor: not-allowed;
   opacity: 0.6;

@@ -1,3 +1,5 @@
+import { PromptDefinition } from "./Utils";
+
 export interface Colors {
   codeblock: {
     activeLineColor: string;
@@ -27,6 +29,12 @@ export interface Colors {
   inlineCode: {
     backgroundColor: string;
     textColor: string;
+  },
+  prompts: {
+    promptColors?: Record<string, Record<string, string>>;
+    rootPromptColors?: Record<string, Record<string, string>>;
+    editedPromptColors: Record<string, Record<string, string>>;
+    editedRootPromptColors: Record<string, Record<string, string>>;
   },
   editorActiveLineColor: string;
   languageSpecificColors: Record<string, Record<string, string>>;
@@ -95,6 +103,10 @@ export interface ThemeSettings {
   common: {
     enableInSourceMode: boolean;
   },
+  prompts: {
+    editedDefaults: Record<string, Partial<PromptDefinition>>;
+    customPrompts: Record<string, PromptDefinition>;
+  },
   enableEditorActiveLineHighlight: boolean;
 }
 
@@ -110,6 +122,7 @@ export interface CodeblockCustomizerSettings {
   ThemeName: string;
   SelectedTheme: Theme;
   newThemeName: string;
+  newPromptName: string;
   alternateHighlightColorName: string;
   languageBorderColorName: string;
   foldAllCommand: boolean;
@@ -152,6 +165,347 @@ export const L_INLINE_CODE_TEXT_COLOR = '#866704';
 
 const SELECTION_MATCH_COLOR = '#99ff7780';
 
+const DarkPromptColors: Record<string, Record<string, string>> = {
+  "bash": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#e5c07b",
+    "prompt-path": "#98c379",
+  },
+  "bashalt": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#d19a66",
+    "prompt-path": "#56b6c2",
+    "prompt-hash": "#ff5555",
+  },
+  "kali": {
+    "prompt-user": "#2679F2",
+    "prompt-host": "#2679F2",
+    "prompt-path": "#F3F3F4",
+    "prompt-kali-symbol": "#2679F2",
+    "prompt-dollar": "#2679F2",
+    "prompt-dash": "#56AA9B",
+    "prompt-bracket-open": "#56AA9B",
+    "prompt-bracket-close": "#56AA9B",
+    "prompt-square-open": "#56AA9B",
+    "prompt-square-close": "#56AA9B",
+  },
+  "zshgit": {
+    "prompt-path": "#61afef",
+    "prompt-branch": "#c678dd",
+    "prompt-zsh-status-error": "#ff5555",
+    "prompt-zsh-status-ok": "#50fa7b",
+    "prompt-zsh-symbol": "#00ff00",
+    "prompt-symbol": "#8be9fd",
+  },
+  "zsh": {
+    "prompt-user": "#56b6c2",
+    "prompt-host": "#e06c75",
+    "prompt-path": "#98c379",
+    "prompt-percent": "#abb2bf",
+  },
+  "fish": {
+    "prompt-path": "#61afef",
+  },
+  "ps": {
+    "prompt-path": "#5b9bd5",
+    "prompt-symbol": "#e5c07b",
+    "prompt-greater-than": "#e5c07b",
+  },
+  "cmd": {
+    "prompt-path": "#87ceeb ",
+    "prompt-greater-than": "#aaaaaa",
+  },
+  "docker": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#e06c75",
+    "prompt-path": "#98c379",
+  },
+  "postgres": {
+    "prompt-db": "#fabd2f",
+  },
+  "global": {
+    "prompt-at": "#777777",
+    "prompt-colon": "#777777",
+    "prompt-dollar": "#777777",
+    "prompt-hash": "#777777",
+    "prompt-dash":"#777777",
+    "prompt-bracket-open": "#777777",
+    "prompt-bracket-close": "#777777",
+    "prompt-square-open": "#777777",
+    "prompt-square-close": "#777777",
+    "prompt-greater-than": "#777777",
+    "prompt-symbol": "#888888",
+    "prompt-user": "#777777",
+    "prompt-host": "#777777",
+    "prompt-path": "#777777",
+    "prompt-branch": "#777777",
+    "prompt-db": "#777777",
+    "prompt-zsh-symbol": "#777777",
+    "prompt-zsh-status-error": "#777777",
+    "prompt-zsh-status-ok": "#777777",
+    "prompt-kali-symbol": "#777777",
+    "prompt-percent": "#777777"
+  }
+};
+
+const SolarizedLightPromptColors: Record<string, Record<string, string>> = {
+  "bash": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#e5c07b",
+    "prompt-path": "#98c379",
+  },
+  "bashalt": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#d19a66",
+    "prompt-path": "#56b6c2",
+    "prompt-hash": "#ff5555",
+  },
+  "kali": {
+    "prompt-user": "#2679F2",
+    "prompt-host": "#2679F2",
+    "prompt-path": "#586e75",
+    "prompt-kali-symbol": "#2679F2",
+    "prompt-dollar": "#2679F2",
+    "prompt-dash": "#56AA9B",
+    "prompt-bracket-open": "#56AA9B",
+    "prompt-bracket-close": "#56AA9B",
+    "prompt-square-open": "#56AA9B",
+    "prompt-square-close": "#56AA9B",
+  },
+  "zshgit": {
+    "prompt-path": "#61afef",
+    "prompt-branch": "#c678dd",
+    "prompt-zsh-status-error": "#ff5555",
+    "prompt-zsh-status-ok": "#50fa7b",
+    "prompt-zsh-symbol": "#00ff00",
+    "prompt-symbol": "#8be9fd",
+  },
+  "zsh": {
+    "prompt-user": "#56b6c2",
+    "prompt-host": "#e06c75",
+    "prompt-path": "#98c379",
+    "prompt-percent": "#abb2bf",
+  },
+  "fish": {
+    "prompt-path": "#61afef",
+  },
+  "ps": {
+    "prompt-path": "#5b9bd5",
+    "prompt-symbol": "#e5c07b",
+    "prompt-greater-than": "#e5c07b",
+  },
+  "cmd": {
+    "prompt-path": "#87ceeb ",
+    "prompt-greater-than": "#aaaaaa",
+  },
+  "docker": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#e06c75",
+    "prompt-path": "#98c379",
+  },
+  "postgres": {
+    "prompt-db": "#fabd2f",
+  },
+  "global": {
+    "prompt-at": "#777777",
+    "prompt-colon": "#777777",
+    "prompt-dollar": "#777777",
+    "prompt-hash": "#777777",
+    "prompt-dash":"#777777",
+    "prompt-bracket-open": "#777777",
+    "prompt-bracket-close": "#777777",
+    "prompt-square-open": "#777777",
+    "prompt-square-close": "#777777",
+    "prompt-greater-than": "#777777",
+    "prompt-symbol": "#888888",
+    "prompt-user": "#777777",
+    "prompt-host": "#777777",
+    "prompt-path": "#777777",
+    "prompt-branch": "#777777",
+    "prompt-db": "#777777",
+    "prompt-zsh-symbol": "#777777",
+    "prompt-zsh-status-error": "#777777",
+    "prompt-zsh-status-ok": "#777777",
+    "prompt-kali-symbol": "#777777",
+    "prompt-percent": "#777777"
+  }
+};
+
+const ObsidianLightPromptPromptColors: Record<string, Record<string, string>> = {
+  "bash": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#e5c07b",
+    "prompt-path": "#98c379",
+  },
+  "bashalt": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#d19a66",
+    "prompt-path": "#56b6c2",
+    "prompt-hash": "#ff5555",
+  },
+  "kali": {
+    "prompt-user": "#2679F2",
+    "prompt-host": "#2679F2",
+    "prompt-path": "#5c6370",
+    "prompt-kali-symbol": "#2679F2",
+    "prompt-dollar": "#2679F2",
+    "prompt-dash": "#56AA9B",
+    "prompt-bracket-open": "#56AA9B",
+    "prompt-bracket-close": "#56AA9B",
+    "prompt-square-open": "#56AA9B",
+    "prompt-square-close": "#56AA9B",
+  },
+  "zshgit": {
+    "prompt-path": "#61afef",
+    "prompt-branch": "#c678dd",
+    "prompt-zsh-status-error": "#ff5555",
+    "prompt-zsh-status-ok": "#50fa7b",
+    "prompt-zsh-symbol": "#00ff00",
+    "prompt-symbol": "#8be9fd",
+  },
+  "zsh": {
+    "prompt-user": "#56b6c2",
+    "prompt-host": "#e06c75",
+    "prompt-path": "#98c379",
+    "prompt-percent": "#abb2bf",
+  },
+  "fish": {
+    "prompt-path": "#61afef",
+  },
+  "ps": {
+    "prompt-path": "#5b9bd5",
+    "prompt-symbol": "#e5c07b",
+    "prompt-greater-than": "#e5c07b",
+  },
+  "cmd": {
+    "prompt-path": "#87ceeb ",
+    "prompt-greater-than": "#aaaaaa",
+  },
+  "docker": {
+    "prompt-user": "#61afef",
+    "prompt-host": "#e06c75",
+    "prompt-path": "#98c379",
+  },
+  "postgres": {
+    "prompt-db": "#fabd2f",
+  },
+  "global": {
+    "prompt-at": "#777777",
+    "prompt-colon": "#777777",
+    "prompt-dollar": "#777777",
+    "prompt-hash": "#777777",
+    "prompt-dash":"#777777",
+    "prompt-bracket-open": "#777777",
+    "prompt-bracket-close": "#777777",
+    "prompt-square-open": "#777777",
+    "prompt-square-close": "#777777",
+    "prompt-greater-than": "#777777",
+    "prompt-symbol": "#888888",
+    "prompt-user": "#777777",
+    "prompt-host": "#777777",
+    "prompt-path": "#777777",
+    "prompt-branch": "#777777",
+    "prompt-db": "#777777",
+    "prompt-zsh-symbol": "#777777",
+    "prompt-zsh-status-error": "#777777",
+    "prompt-zsh-status-ok": "#777777",
+    "prompt-kali-symbol": "#777777",
+    "prompt-percent": "#777777"
+  }
+};
+
+export const RootPromptColors: Record<string, Record<string, string>> = {
+  "bash": {
+    "prompt-user": "#e63946",
+    "prompt-host": "#e5c07b",
+    "prompt-path": "#ffb347",
+    "prompt-hash": "#ff5555",
+  },
+  "bashalt": {
+    "prompt-user": "#e63946",
+    "prompt-host": "#d19a66",
+    "prompt-path": "#ffb347",
+    "prompt-hash": "#ff5555",
+  },
+  "kali": {
+    "prompt-user": "#e63946",
+    "prompt-host": "#e63946",
+    "prompt-path": "#ffb347",
+    "prompt-kali-symbol": "#e63946",
+    "prompt-hash": "#ff5555",
+    "prompt-dash":"#3370D7",
+    "prompt-bracket-open": "#3370D7",
+    "prompt-bracket-close": "#3370D7",
+    "prompt-square-open": "#3370D7",
+    "prompt-square-close": "#3370D7",
+  },
+  "zsh": {
+    "prompt-user": "#e63946",
+    "prompt-path": "#ffb347",
+    "prompt-hash": "#ff5555",
+    "prompt-end": "#ff5555",
+  },
+  "docker": {
+    "prompt-user": "#e63946",
+    "prompt-container": "#e06c75",
+    "prompt-path": "#ffb347",
+    "prompt-hash": "#ff5555",
+  },
+  "global": {}
+};
+
+/*const ObsidianPromptColors: Record<string, Record<string, string>> = {
+"bash": {
+    "prompt-user": "#5c99f5",
+    "prompt-host": "#b3b3b3",
+    "prompt-path": "#86b300",
+  },
+  "bashalt": {
+    "prompt-user": "#e63946",
+    "prompt-host": "#d19a66",
+    "prompt-path": "#56b6c2",
+    "prompt-hash": "#cb4b16",
+  },
+  "kali": {
+    "prompt-user": "#ff5555",
+    "prompt-host": "#ff79c6",
+    "prompt-path": "#8be9fd",
+    "prompt-kali-symbol": "#5c99f5",
+    "prompt-dollar": "#5c99f5",
+  },
+  "zshgit": {
+    "prompt-path": "#5c99f5",
+    "prompt-branch": "#c678dd",
+    "prompt-zsh-error": "#e06c75",
+    "prompt-zsh-symbol": "#86b300",
+  },
+  "ps": {
+    "prompt-path": "#5294e2",
+  },
+  "cmd": {
+    "prompt-path": "#3FC1FF",
+  },
+  "docker": {
+    "prompt-user": "#5c99f5",
+    "prompt-host": "#b3b3b3",
+    "prompt-path": "#86b300",
+  },
+  "postgres": {
+    "prompt-db": "#d19a66",
+  },
+  "global": {
+    "prompt-at": "#999999",
+    "prompt-colon": "#999999",
+    "prompt-dollar": "#aaaaaa",
+    "prompt-hash": "#aaaaaa",
+    "prompt-bracket-open": "#999999",
+    "prompt-bracket-close": "#999999",
+    "prompt-square-open": "#999999",
+    "prompt-square-close": "#999999",
+    "prompt-greater-than": "#999999",
+  }
+};*/
+
 const SolarizedDarkColors = {
   codeblock: {
     activeLineColor: D_ACTIVE_CODEBLOCK_LINE_COLOR,
@@ -181,6 +535,12 @@ const SolarizedDarkColors = {
   inlineCode: {
     backgroundColor: D_INLINE_CODE_BACKGROUND_COLOR,
     textColor: D_INLINE_CODE_TEXT_COLOR,
+  },
+  prompts: {
+    promptColors: DarkPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
   },
   editorActiveLineColor: D_ACTIVE_LINE_COLOR,
   languageSpecificColors: {},
@@ -215,6 +575,12 @@ const SolarizedLightColors = {
   inlineCode: {
     backgroundColor: L_INLINE_CODE_BACKGROUND_COLOR,
     textColor: L_INLINE_CODE_TEXT_COLOR,
+  },
+  prompts: {
+    promptColors: SolarizedLightPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
   },
   editorActiveLineColor: L_ACTIVE_LINE_COLOR,
   languageSpecificColors: {},
@@ -280,6 +646,10 @@ const Solarized: Theme = {
     common: {
       enableInSourceMode: false,
     },
+    prompts: {
+      editedDefaults: {},
+      customPrompts: {}
+    },
     enableEditorActiveLineHighlight: true,
   },
   colors: {
@@ -318,6 +688,12 @@ const ObsidianDarkColors = {
     backgroundColor: "--code-background",
     textColor: "--code-normal",
   },
+  prompts: {
+    promptColors: DarkPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
   editorActiveLineColor: "--color-base-20",
   languageSpecificColors: {},
 }
@@ -351,6 +727,12 @@ const ObsidianLightColors = {
   inlineCode: {
     backgroundColor: "--code-background",
     textColor: "--code-normal",
+  },
+  prompts: {
+    promptColors: ObsidianLightPromptPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
   },
   editorActiveLineColor: "--color-base-20",
   languageSpecificColors: {},
@@ -416,6 +798,10 @@ const Obsidian: Theme = {
     common: {
       enableInSourceMode: false,
     },
+    prompts: {
+      editedDefaults: {},
+      customPrompts: {}
+    },
     enableEditorActiveLineHighlight: true,
   },
   colors: {
@@ -435,6 +821,7 @@ export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
   SelectedTheme: structuredClone(Obsidian),
   ThemeName: "Obsidian",
   newThemeName: "",
+  newPromptName: "",
   alternateHighlightColorName: "",
   languageBorderColorName: "",
   foldAllCommand: false,

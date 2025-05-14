@@ -2,7 +2,7 @@ import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, 
 import { EditorState } from "@codemirror/state";
 
 import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR } from "./Const";
-import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, Theme, ThemeColors, ThemeSettings } from "./Settings";
 import validator from 'validator';
 import CodeBlockCustomizerPlugin from "./main";
 
@@ -215,6 +215,20 @@ interface AlternativeTextHighlight {
   lineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
 }
 
+interface PromptLines {
+  lineNumbers: number[];
+  text: string;
+  values: PromptValues;
+}
+
+interface PromptValues {
+  user: string | null;
+  host: string | null;
+  path: string | null;
+  db: string | null;
+  branch: string | null;
+}
+
 export interface Parameters {
   defaultLinesToHighlight: LinesToHighlight;
   defaultTextToHighlight: TextHighlight;
@@ -236,6 +250,7 @@ export interface Parameters {
   indentCharacter: number;
   lineSeparator: string;
   textSeparator: string;
+  prompt: PromptLines;
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
@@ -301,6 +316,16 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     hasLangBorderColor = getBorderColorByLanguage(language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
   }
 
+  // prompt
+  const prompt = getPromptLines(parsedParameters, "prompt", textSeparator, lineSeparator);
+  prompt.values = prompt.values = {
+    user: extractParameter(parsedParameters, "user"),
+    host: extractParameter(parsedParameters, "host"),
+    path: extractParameter(parsedParameters, "path"),
+    db: extractParameter(parsedParameters, "db"),
+    branch: extractParameter(parsedParameters, "branch")
+  };
+
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
     defaultTextToHighlight: defaultTextToHighlight,
@@ -321,7 +346,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     indentLevel: level,
     indentCharacter: characters,
     lineSeparator,
-    textSeparator
+    textSeparator,
+    prompt
   };
 }// getParameters
 
@@ -347,6 +373,8 @@ export function getDefaultParameters() {
     indentCharacter: 0,
     lineSeparator: '',
     textSeparator: '',
+    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null}
+    }
   }
 }// getDefaultParameters
 
@@ -361,6 +389,44 @@ function sortAndRemoveDuplicates(numbers: number[]): number[] {
 
   return uniqueNumbers;
 }// sortAndRemoveDuplicates
+
+function getPromptLines(parsedParameters: ParsedParams, parameter: string, textSeparator: string, lineSeparator: string) {
+  const result: PromptLines = {
+    lineNumbers: [],
+    text: "",
+    values: {
+      user: null,
+      host: null,
+      path: null,
+      db: null,
+      branch: null
+    }
+  };  
+
+  const parameterValue = extractParameter(parsedParameters, parameter);
+  if (!parameterValue) {
+    return result;
+  }
+
+  const trimmedParams = parameterValue.trim();
+  const separatorIndex = trimmedParams.indexOf(lineSeparator);
+  if (separatorIndex === -1) {
+    // no | present, treat as only prompt text
+    result.text = trimmedParams;
+    return result;
+  }
+
+  const beforeSeparator = trimmedParams.substring(0, separatorIndex).trim();  // line numbers or ranges
+  const afterSeparator = trimmedParams.substring(separatorIndex + 1).trim();  // promptText
+
+  const ranges = getLineRanges(beforeSeparator);
+  result.lineNumbers.push(...ranges);
+  result.text = afterSeparator;
+
+  result.lineNumbers = sortAndRemoveDuplicates(result.lineNumbers);
+
+  return result;
+}// getPromptLines
 
 function getHighlightedLines(parsedParameters: ParsedParams, parameter: string, textSeparator: string, lineSeparator: string) {
   const result: LinesToHighlight = {
@@ -674,7 +740,7 @@ function processRange<T>(segment: string, segmentValue: string, result: T): void
       });
     }
   });
-}//processRange
+}// processRange
 
 export function getLineRanges(params: string | null): number[] {
   if (!params) {
@@ -1029,10 +1095,87 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
     `;
   }
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling).trim().replace(/[\r\n\s]+/g, ' ');
+  const promptColorStyles = generatePromptColorStyles(settings);
+
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling + promptColorStyles).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
+
+export function generatePromptColorStyles(settings: CodeblockCustomizerSettings) {
+  const baseThemeName = settings.SelectedTheme.baseTheme ?? 'Obsidian';
+  const baseTheme = settings.Themes[baseThemeName];
+
+  const allPromptIds = new Set<string>();
+  const modes: ('light' | 'dark')[] = ['light', 'dark'];
+
+  // gather all prompt IDs (regular + root)
+  for (const mode of modes) {
+    const light = settings.SelectedTheme.colors[mode].prompts;
+    const base = baseTheme.colors[mode].prompts;
+
+    Object.keys(base.promptColors ?? {}).forEach(id => allPromptIds.add(id));
+    Object.keys(base.rootPromptColors ?? {}).forEach(id => allPromptIds.add(id));
+    Object.keys(light.editedPromptColors ?? {}).forEach(id => allPromptIds.add(id));
+    Object.keys(light.editedRootPromptColors ?? {}).forEach(id => allPromptIds.add(id));
+  }
+
+  const permanentClassRules = new Set<string>();
+  const lightVars: string[] = [];
+  const darkVars: string[] = [];
+
+  for (const promptId of allPromptIds) {
+    for (const mode of modes) {
+      const isLight = mode === 'light';
+
+      // regular prompt
+      const resolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, mode, false);
+      for (const [cls, color] of Object.entries(resolved)) {
+        const selector = promptId === "global" ? `.${cls}` : `.codeblock-customizer-prompt-${promptId} .${cls}`;
+        const varName = selectorToVariable(selector);
+        const css = `--${varName}: ${color};`;
+        if (isLight) 
+          lightVars.push(css);
+        else 
+          darkVars.push(css);
+        permanentClassRules.add(`${selector} { color: var(--${varName}); }`);
+      }
+
+      // root prompt (if applicable)
+      const rootResolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, mode, true);
+      for (const [cls, color] of Object.entries(rootResolved)) {
+        const selector = promptId === "global" ? `.root .${cls}` : `.codeblock-customizer-prompt-${promptId}.is-root .${cls}`;
+        const varName = selectorToVariable(selector);
+        const css = `--${varName}: ${color};`;
+        if (isLight) 
+          lightVars.push(css);
+        else 
+          darkVars.push(css);
+        permanentClassRules.add(`${selector} { color: var(--${varName}); }`);
+      }
+    }
+  }
+
+  return `
+    ${Array.from(permanentClassRules).join('\n')}
+    
+    body.codeblock-customizer.theme-light {
+      ${lightVars.join('\n')}
+    }
+
+    body.codeblock-customizer.theme-dark {
+      ${darkVars.join('\n')}
+    }
+  `.trim();
+}// generatePromptColorStyles
+
+function selectorToVariable(selector: string): string {
+  return selector
+    .replace(/^\./, '')
+    .replace(/\s*\.\s*/g, '-')
+    .replace(/\s+/g, '-')
+    .toLowerCase();
+}// selectorToVariable
 
 function updateSettingClasses(settings: ThemeSettings) {
   document.body.classList.remove("codeblock-customizer-active-line-highlight", "codeblock-customizer-active-line-highlight-codeblock", "codeblock-customizer-active-line-highlight-editor")
@@ -1152,7 +1295,7 @@ function updateSettingClasses(settings: ThemeSettings) {
 
 }// updateSettingStyles
 
-function formatStyles(colors: ThemeColors, settings: ThemeSettings, alternateColors: Record<string, string>, forceCurrentColorUse: boolean) {
+function formatStyles(colors: ThemeColors, settings: ThemeSettings, forceCurrentColorUse: boolean) {
   return `
     body.codeblock-customizer {
       --wrap-code:${settings.codeblock.unwrapcode ? 'pre' : 'pre-wrap'}
@@ -1170,7 +1313,7 @@ function formatStyles(colors: ThemeColors, settings: ThemeSettings, alternateCol
         } else {
           return variables;
         }
-      },addAltHighlightColors(alternateColors, true))}
+      },addAltHighlightColors(colors.light.codeblock.alternateHighlightColors))}
     } 
     body.codeblock-customizer.theme-dark {
       ${Object.keys(stylesDict).reduce((variables, key) => {
@@ -1185,7 +1328,7 @@ function formatStyles(colors: ThemeColors, settings: ThemeSettings, alternateCol
         } else {
           return variables;
         }
-      },addAltHighlightColors(alternateColors, false))}
+      },addAltHighlightColors(colors.dark.codeblock.alternateHighlightColors))}
     }
   `;
 }// formatStyles
@@ -1325,7 +1468,7 @@ function hslToHex(hslColor: string, alpha: number): string {
   return hexColor;
 }// hslToHex
 
-function addAltHighlightColors(alternateColors: Record<string, string>, lightTheme: boolean) {
+function addAltHighlightColors(alternateColors: Record<string, string>) {
   const altHighlightStyles = Object.entries(alternateColors).reduce((altHighlightStyles, [colorName, hexValue]) => {
     return altHighlightStyles + `--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color: ${hexValue};`;
   }, '');
@@ -1588,3 +1731,931 @@ export async function unIndentCodeBlock(editor: Editor, view: MarkdownView) {
     }
   }
 }// unIndentCodeBlock
+
+export type ParsedPrompt = Record<string, string>;
+
+export type PromptDefinition = {
+  name: string;
+  basePrompt: string;                         // Optional: example prompt for preview or fallback
+  highlightGroups?: Record<string, string>;   // e.g., { user: "user", host: "host" }
+  supportsRootStyling?: boolean;
+  parsePromptRegex?: RegExp;                  // optional named-group regex
+  parsePromptRegexString?: string;            // regex as string
+  defaultDir?: string;
+  defaultDb?: string;
+  defaultUser?: string;
+  defaultHost?: string;
+  defaultBranch?: string;
+  isWindowsShell: boolean;
+};// PromptDefinition
+
+export const defaultPrompts: Record<string, PromptDefinition> = {
+  bash: {
+    name: "Bash",
+    basePrompt: "{user}@{host}:{path}$",
+    defaultDir: "~/",
+    defaultUser: "user",
+    defaultHost: "localhost",
+    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)([$#])$/,
+    highlightGroups: {
+      user: "user",
+      host: "host",
+      path: "path"
+    },
+    supportsRootStyling: true,
+    isWindowsShell: false,
+  },
+
+  bashalt: {
+    name: "Bash (alt)",
+    basePrompt: "[{user}@{host} {path}]$",
+    defaultDir: "~",
+    defaultUser: "user",
+    defaultHost: "localhost",
+    parsePromptRegex: /^\[(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)\]([$#])$/,
+    highlightGroups: {
+      user: "user",
+      host: "host",
+      path: "path"
+    },
+    supportsRootStyling: true,
+    isWindowsShell: false,
+  },
+
+  zshgit: {
+    name: "Zsh + Git",
+    basePrompt: "➜ {path} git:({branch}) ✗",
+    defaultDir: "~/projects",
+    defaultBranch: "main",
+    defaultUser: "user",
+    defaultHost: "localhost",
+    parsePromptRegex: /^\s*(?<symbol>➜)\s+(?<path>.+?)\s+git:\((?<branch>.+?)\)(\s+(?<status>[✗✓]))?\s*$/,
+    highlightGroups: {
+      symbol: "zsh-symbol",
+      path: "path",
+      branch: "branch",
+    },
+    isWindowsShell: false,
+  },
+
+  zsh: {
+    name: "Zsh",
+    basePrompt: "{user}@{host} {path} %",
+    defaultDir: "~/myapp",
+    defaultUser: "user",
+    defaultHost: "localhost",
+    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)[%#]$/,
+    highlightGroups: {
+      user: "user",
+      host: "host",
+      path: "path",
+    },
+    supportsRootStyling: true,
+    isWindowsShell: false,
+  },
+
+  kali: {
+    name: "Kali Linux",
+    basePrompt: "({user}㉿{host})-[{path}] $",
+    defaultDir: "~",
+    defaultUser: "kali",
+    defaultHost: "kali",
+    parsePromptRegex: /^\((?<user>[^㉿]+)㉿(?<host>[^)]+)\)-\[(?<path>[^\]]+)\]\s*([$#])$/,
+    highlightGroups: {
+      user: "user",
+      host: "host",
+      path: "path"
+    },
+    supportsRootStyling: true,
+    isWindowsShell: false,
+  },
+
+  fish: {
+    name: "Fish",
+    basePrompt: "{path}>",
+    defaultUser: "user",
+    defaultHost: "localhost",
+    defaultDir: "~/projects/myapp",
+    parsePromptRegex: /^(?<path>.+)>$/,
+    highlightGroups: {
+      path: "path"
+    },
+    isWindowsShell: false,
+  },
+
+  ps: {
+    name: "PowerShell",
+    basePrompt: "PS {path}>",
+    defaultUser: "Administrator",
+    defaultHost: "localhost",
+    defaultDir: "C:\\Users\\Administrator",
+    parsePromptRegex: /^PS (?<path>.+)>$/,
+    highlightGroups: {
+      path: "path"
+    },
+    isWindowsShell: true,
+  },
+
+  cmd: {
+    name: "CMD",
+    basePrompt: "{path}>",
+    defaultUser: "Administrator",
+    defaultHost: "localhost",
+    defaultDir: "C:\\Users\\Administrator",
+    parsePromptRegex: /^(?<path>.+)>$/,
+    highlightGroups: {
+      path: "path"
+    },
+    isWindowsShell: true,
+  },
+
+  docker: {
+    name: "Docker shell",
+    basePrompt: "{user}@{host}:{path}$",
+    defaultDir: "/var/www/html",
+    defaultUser: "user",
+    defaultHost: "container",
+    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)([$#])$/,
+    highlightGroups: {
+      user: "user",
+      host: "host",
+      path: "path"
+    },
+    supportsRootStyling: true,
+    isWindowsShell: false,
+  },
+
+  postgres: {
+    name: "PostgreSQL",
+    basePrompt: "{db}=#",
+    defaultDb: "postgres",
+    parsePromptRegex: /^(?<db>.+)=#$/,
+    highlightGroups: {
+      db: "db"
+    },
+    isWindowsShell: false,
+  }
+};// defaultPrompts
+
+// used for settingspage
+export const promptClassDisplayNames: Record<string, string> = {
+  "prompt-user": "User",
+  "prompt-host": "Host",
+  "prompt-path": "Path",
+  "prompt-db": "Database",
+  "prompt-branch": "Branch",
+  "prompt-symbol": "Symbol (fallback)",
+  "prompt-dollar": "Dollar ($)",
+  "prompt-at": "At (@)",
+  "prompt-colon": "Colon (:)",
+  "prompt-dash": "Dash (-)",
+  "prompt-hash": "Hash (#)",
+  "prompt-greater-than": "Greater Than (>)",
+  "prompt-zsh-symbol": "ZSH Arrow (➜)",
+  "prompt-zsh-status-error": "ZSH Error (✗)",
+  "prompt-zsh-status-ok": "ZSH Ok (✓)",
+  "prompt-kali-symbol": "Kali Symbol (㉿)",
+  "prompt-square-open": "Square Bracket [",
+  "prompt-square-close": "Square Bracket ]",
+  "prompt-bracket-open": "Round Bracket (",
+  "prompt-bracket-close": "Round Bracket )",
+  "prompt-percent": "Percentage (%)",
+};// promptClassDisplayNames
+
+export const symbolClassMap: Record<string, string> = {
+  "(": "prompt-bracket-open",
+  ")": "prompt-bracket-close",
+  "[": "prompt-square-open",
+  "]": "prompt-square-close",
+  "$": "prompt-dollar",
+  ":": "prompt-colon",
+  "@": "prompt-at",
+  "-": "prompt-dash",
+  "➜": "prompt-zsh-symbol",
+  "✗": "prompt-zsh-status-error",
+  "✓": "prompt-zsh-status-ok",
+  ">": "prompt-greater-than",
+  "#": "prompt-hash",
+  "㉿": "prompt-kali-symbol",
+  "%": "prompt-percent",
+};// symbolClassMap
+
+const highlightMapCache = new WeakMap<PromptDefinition, Record<string, string>>();
+
+function getCachedHighlightMap(def: PromptDefinition): Record<string, string> {
+  let map = highlightMapCache.get(def);
+
+  if (!map) {
+    map = resolveHighlightClassMap(def);
+    highlightMapCache.set(def, map);
+  }
+
+  return map;
+}// getCachedHighlightMap
+
+export function addClassesToPrompt(promptData: string | { text: string; class?: string }[], promptType: string, promptDef: PromptDefinition | undefined, settings: CodeblockCustomizerSettings, isRoot = false): HTMLElement {
+  const meta = getPromptDetails(promptType, settings);
+  const { kind, baseClass } = meta;
+  const promptWrapper = createSpan({ cls: baseClass });
+  const fragment = document.createDocumentFragment();
+
+  const endsWithSpace = Array.isArray(promptData) ? promptData.length > 0 && promptData[promptData.length - 1].text?.endsWith(" ") : (promptData as string).endsWith(" ");
+
+  if (Array.isArray(promptData)) {
+    if (isRoot && promptDef?.supportsRootStyling) {
+      promptWrapper.classList.add("is-root");
+    }
+
+    const parts = mergeAdjacentParts(promptData);
+    for (const part of parts) {
+      fragment.appendChild(createSpan({ cls: part.class ?? "prompt-symbol", text: part.text }));
+    }
+
+    if (!endsWithSpace) {
+      fragment.appendChild(createSpan({ cls: "prompt-part prompt-space", text: " " }));
+    }
+
+    promptWrapper.appendChild(fragment);
+    return promptWrapper;
+  }
+
+  const promptStr = promptData as string;
+
+  if (kind === PromptKind.Predefined) {
+    if (!promptDef) promptDef = defaultPrompts[promptType];
+
+    const match = promptDef?.parsePromptRegex?.exec(promptStr);
+    const parts: HTMLElement[] = [];
+
+    if (match?.groups?.user?.trim() === "root" && promptDef?.supportsRootStyling) {
+      promptWrapper.classList.add("is-root");
+    }
+
+    if (match) {
+      const resolvedMap = getCachedHighlightMap(promptDef);
+      const ranges = getMatchRanges(promptStr, match, promptDef.highlightGroups ?? {});
+      let cursor = 0;
+
+      const classCache: Record<string, string> = {};
+      const getSymbolClass = (char: string): string =>
+        classCache[char] ??= (symbolClassMap[char] ?? "prompt-symbol") + " prompt-part";
+
+      for (const { start, end, groupName } of ranges) {
+        if (groupName === "status") continue;
+
+        if (cursor < start) {
+          parts.push(...batchSpans(promptStr.slice(cursor, start), getSymbolClass));
+        }
+
+        const slice = promptStr.slice(start, end);
+        const cls = resolvedMap[groupName] ?? `prompt-part prompt-${groupName}`;
+        parts.push(createSpan({ cls, text: slice }));
+        cursor = end;
+      }
+
+      if (cursor < promptStr.length) {
+        parts.push(...batchSpans(promptStr.slice(cursor), getSymbolClass));
+      }
+    } else {
+      parts.push(...batchSpans(promptStr, (char) =>
+        resolvePromptClass(char, { type: "symbol" })
+      ));
+    }
+
+    fragment.append(...parts);
+    if (!endsWithSpace) {
+      fragment.appendChild(createSpan({ cls: "prompt-part prompt-space", text: " " }));
+    }
+
+    promptWrapper.appendChild(fragment);
+    return promptWrapper;
+  }
+
+  if (kind === PromptKind.Plain) {
+    fragment.append(
+      ...batchSpans(promptStr, (char) => resolvePromptClass(char, { type: "symbol" }))
+    );
+    if (!endsWithSpace) {
+      fragment.appendChild(createSpan({ cls: "prompt-part prompt-space", text: " " }));
+    }
+
+    promptWrapper.appendChild(fragment);
+    return promptWrapper;
+  }
+
+  return promptWrapper;
+}// addClassesToPrompt
+
+function batchSpans(text: string, getClass: (char: string) => string): HTMLElement[] {
+  const spans: HTMLElement[] = [];
+  
+  if (!text) 
+    return spans;
+
+  let buffer = "";
+  let currentClass = getClass(text[0]);
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const cls = getClass(char);
+    if (cls === currentClass) {
+      buffer += char;
+    } else {
+      spans.push(createSpan({ cls: currentClass, text: buffer }));
+      buffer = char;
+      currentClass = cls;
+    }
+  }
+
+  if (buffer) {
+    spans.push(createSpan({ cls: currentClass, text: buffer }));
+  }
+
+  return spans;
+}// batchSpans
+
+function mergeAdjacentParts(parts: { text: string; class?: string }[]): { text: string; class?: string }[] {
+  const merged: { text: string; class?: string }[] = [];
+
+  for (const p of parts) {
+    const cls = p.class ?? "prompt-symbol";
+    if (merged.length > 0 && merged[merged.length - 1].class === cls) {
+      merged[merged.length - 1].text += p.text;
+    } else {
+      merged.push({ text: p.text, class: cls });
+    }
+  }
+  return merged;
+}// mergeAdjacentParts
+
+export enum PromptKind {
+  Predefined = "predefined",
+  Template = "template",
+  Plain = "plain",
+}// PromptKind
+
+export function getPromptType(promptText: string): PromptKind {
+  const promptDef = defaultPrompts[promptText];
+
+  if (promptDef) 
+    return PromptKind.Predefined;
+
+  if (/\{.*?\}/.test(promptText)) 
+    return PromptKind.Template;
+
+  return PromptKind.Plain;
+}// getPromptType
+
+export function getPromptDetails(promptType: string, settings: CodeblockCustomizerSettings): { kind: PromptKind, name: string, baseClass: string, isCustom: boolean } {
+  const { isCustom } = getPromptDefinition(promptType, settings);
+
+  const isCustomTemplate = /\{.+?\}/.test(promptType);
+  const isDefinedPrompt = promptType in defaultPrompts || isCustom;
+
+  if (isDefinedPrompt) {
+    // predefined or saved custom
+    return {kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${promptType}`, isCustom: isCustom};
+  }
+
+  if (isCustomTemplate) {
+    // on the fly, custom with template
+    return {kind: PromptKind.Template, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true};
+  } else {
+    // on the fly, custom plain (without template)
+    return {kind: PromptKind.Plain, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true};
+  }
+}// getPromptDetails
+
+export function resolvePromptClass(token: string, context: {type: 'symbol' | 'template' | 'regex'; groupName?: string;}): string {
+  if (context.type === 'symbol') {
+    const baseCls = symbolClassMap[token] ?? 'prompt-symbol';
+    return `prompt-part ${baseCls}`;
+  }
+
+  if ((context.type === 'template' || context.type === 'regex') && context.groupName) {
+    return `prompt-part prompt-${context.groupName}`;
+  }
+
+  return 'prompt-symbol';
+}// resolvePromptClass
+
+function getMatchRanges(promptText: string, match: RegExpExecArray, groupMap: Record<string, string>): { start: number; end: number; groupName: string }[] {
+  const ranges: { start: number; end: number; groupName: string }[] = [];
+  let lastIndex = 0;
+
+  for (const key of Object.keys(groupMap)) {
+    const value = match.groups?.[key];
+    if (!value) 
+      continue;
+
+    const idx = promptText.indexOf(value, lastIndex);
+    if (idx === -1) 
+      continue;
+
+    ranges.push({
+      start: idx,
+      end: idx + value.length,
+      groupName: groupMap[key] ?? key,
+    });
+
+    lastIndex = idx + value.length;
+  }
+
+  return ranges.sort((a, b) => a.start - b.start);
+}// getMatchRanges
+
+export function resolvePath(current: string, target: string, homeDir?: string): string {
+  if (!target || target === "~") 
+    return "~";
+
+  const isWindows = /^[a-zA-Z]:[\\/]/.test(current);
+  const separator = isWindows ? "\\" : "/";
+
+  const normalize = (path: string): string => {
+    let preservedPrefix = "";
+  
+    if (isWindows && path.startsWith("\\\\")) {
+      preservedPrefix = "\\\\";
+      path = path.slice(2);
+    }
+  
+    path = path.replace(/[\\/]+/g, separator);
+  
+    // prevent stripping the only slash (root)
+    if (path === separator) 
+      return preservedPrefix + separator;
+  
+    // otherwise strip trailing slashes
+    return preservedPrefix + path.replace(new RegExp(`${escapeForRegex(separator)}+$`), "");
+  };
+    
+  // handle ~
+  if (target.startsWith("~")) {
+    /*const home = "~";
+    const suffix = target.length > 1 ? target.slice(1) : "";
+    return normalize(home + separator + suffix);*/
+    const suffix = target.length > 1 ? target.slice(1) : "";
+    if (homeDir) {
+      return normalize(homeDir + suffix);
+    }
+    return normalize("/home/user" + suffix);
+  }
+  
+  // handle network paths
+  if (isWindows) {
+    if (/^\\\\[^\\]+\\[^\\]+/.test(target)) {
+      return normalize(target); // proper UNC
+    }
+  
+    // UNC with forward slashes (e.g., //server/share)
+    if (/^\/\/[^/]+\/[^/]+/.test(target)) {
+      return normalize(current + "\\" + target.replace(/[\\/]+/g, "\\"));
+    }
+  } else {
+    // linux shell: replace backslashes with forward slashes
+    target = target.replace(/\\/g, "/");
+  }  
+
+  // absolute paths
+  if (/^[a-zA-Z]:[\\/]/.test(target) || (!isWindows && target.startsWith("/"))) {
+    return normalize(target);
+  }
+
+  // normalize current path
+  const normalizedCurrent = normalize(current);
+  /*const isAtHome = normalizedCurrent === "~";
+  if (isAtHome && homeDir) {
+    normalizedCurrent = normalize(homeDir);
+  }*/
+
+  let drive = "";
+  let currentParts: string[];
+
+  if (isWindows) {
+    const match = normalizedCurrent.match(/^([a-zA-Z]:)(.*)/);
+    drive = match?.[1] ?? "";
+    currentParts = match?.[2].split(separator).filter(Boolean) ?? [];
+  } else {
+    currentParts = normalizedCurrent.split(separator).filter(Boolean);
+  }
+
+  const targetParts = target.split(/[\\/]/).filter(Boolean);
+  const resolvedParts: string[] = [...currentParts];
+
+  for (const part of targetParts) {
+    if (part === "..") {
+      if (resolvedParts.length > 0) {
+        resolvedParts.pop();
+      }
+      // if empty, stay at root (C:\ for Windows, / for Unix)
+    } else if (part !== ".") {
+      resolvedParts.push(part);
+    }
+  }
+
+  if (isWindows) {
+    return drive + (resolvedParts.length > 0 ? "\\" + resolvedParts.join("\\") : "\\");
+  } else {
+    return "/" + resolvedParts.join("/");
+  }
+}// resolvePath
+
+function escapeForRegex(s: string): string {
+  return s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+}// escapeForRegex
+
+export function simplifyHomePath(path: string, homeDir: string | undefined): string {
+  if (!homeDir) 
+    return path;
+
+  // handle / or \ correctly
+  const sep = homeDir.includes("\\") ? "\\" : "/";
+
+  if (path === homeDir) 
+    return "~";
+
+  if (path.startsWith(homeDir + sep)) 
+    return "~" + path.slice(homeDir.length);
+
+  return path; // do not simplify if not inside new home
+}// simplifyHomePath
+
+export function shouldSimplifyHomePath(promptDef: PromptDefinition | undefined): boolean {
+  if (!promptDef) 
+    return true; // assume Linux
+  
+  // if promptDef is Windows don't simplify
+  return !(promptDef.isWindowsShell);
+}// shouldSimplifyHomePath
+
+type PromptReplacement = string | { text: string; class?: string }[];
+
+export function replacePromptTemplate(promptKind: PromptKind, promptType: string, promptDef: PromptDefinition | undefined, env: PromptEnvironment): PromptReplacement {
+  const simplify = shouldSimplifyHomePath(promptDef);
+  const dir = env.dir ?? "~";
+  const finalPath = simplify ? simplifyHomePath(dir, env.homeDir) : dir;
+
+  if (promptKind === PromptKind.Predefined) {
+    let promptText = promptDef?.basePrompt ?? promptType;
+
+    promptText = promptText
+      .replace("{user}", env.user)
+      .replace("{host}", env.host)
+      .replace("{path}", finalPath)
+      .replace("{db}", env.db)
+      .replace("{branch}", env.branch);
+
+    if (env.user === "root" && /[$%](?!\S)/.test(promptText)) {
+      promptText = promptText
+        .replace(/\$(?!\S)/, "#")
+        .replace(/%(?!\S)/, "#");
+    }
+
+    return promptText;
+  }
+
+  if (promptKind === PromptKind.Template) {
+    const parts: { text: string; class?: string }[] = [];
+
+    const placeholderMap: Record<string, string> = {
+      user: env.user,
+      host: env.host,
+      path: finalPath,
+      db: env.db,
+      branch: env.branch,
+    };
+
+    for (const token of parsePromptTemplate(promptType)) {
+      if (token.isPlaceholder) {
+        const value = placeholderMap[token.text] ?? `{${token.text}}`;
+        parts.push({text: value, class: resolvePromptClass(value, { type: "template", groupName: token.text })});
+      } else {
+        for (let i = 0; i < token.text.length; i++) {
+          const char = token.text[i];
+          const cls = resolvePromptClass(char, { type: "symbol" });
+          parts.push({ text: char, class: cls });
+        }
+      }
+    }
+
+    return parts;
+  }
+
+  // plain prompt
+  return promptType;
+}// replacePromptTemplate
+
+function* parsePromptTemplate(template: string): Generator<{ text: string; isPlaceholder: boolean }> {
+  let cursor = 0;
+
+  while (cursor < template.length) {
+    const start = template.indexOf("{", cursor);
+    if (start === -1) {
+      yield { text: template.slice(cursor), isPlaceholder: false };
+      break;
+    }
+
+    if (start > cursor) {
+      yield { text: template.slice(cursor, start), isPlaceholder: false };
+    }
+
+    const end = template.indexOf("}", start);
+    if (end === -1) {
+      yield { text: template.slice(start), isPlaceholder: false };
+      break;
+    }
+
+    yield { text: template.slice(start + 1, end), isPlaceholder: true };
+    cursor = end + 1;
+  }
+}// parsePromptTemplate
+
+export function getPromptDefinition(promptId: string, settings: CodeblockCustomizerSettings): { def: PromptDefinition, isCustom: boolean } {
+  const customs = settings.SelectedTheme.settings.prompts.customPrompts;
+  const edits  = settings.SelectedTheme.settings.prompts.editedDefaults;
+  const base   = defaultPrompts[promptId];
+
+  let def: PromptDefinition;
+  const isCustom = !!customs[promptId];
+
+  if (isCustom && customs[promptId]) {
+    //def = structuredClone(customs[promptId]);
+    def = { ...customs[promptId] };
+  } else if (edits[promptId] && base) {
+    // merge only the changed fields onto a clone of the base
+    //def = structuredClone({ ...base, ...edits[promptId] });
+    def = { ...base, ...edits[promptId] };
+  } else if (base) {
+    //def = structuredClone(base);
+    def = { ...base };
+  } else {
+    // ultimate fallback
+    def = {
+      name: promptId,
+      basePrompt: promptId,
+      isWindowsShell: false
+    };
+  }
+
+  // rebuild the RegExp if it is stored as a string
+  if (def.parsePromptRegexString) {
+    try { 
+      def.parsePromptRegex = new RegExp(def.parsePromptRegexString); 
+    }
+    catch { 
+      def.parsePromptRegex = undefined; 
+    }
+  }
+
+  return { def, isCustom };
+}// getPromptDefinition
+
+export type PromptEnvironment = {
+  dir: string;
+  previousDir: string;
+  user: string;
+  host: string;
+  db: string;
+  branch: string;
+  userStack?: string[];
+  homeDir: string;
+  originalHomeDir: string;
+};// PromptEnvironment
+
+export function parsePromptCommands(lineText: string, promptDef: PromptDefinition | undefined, env: PromptEnvironment): PromptEnvironment {
+  const envCopy = { ...env };
+  envCopy.userStack = [...(env.userStack ?? [])];
+
+  const isWindowsShell = promptDef?.isWindowsShell ?? false;
+
+  // cd
+  const cdMatch = lineText.match(/^\s*cd\s*(.*)$/i);
+  if (cdMatch) {
+    let cdTarget = cdMatch[1].trim();
+    if ((cdTarget.startsWith('"') && cdTarget.endsWith('"')) || (cdTarget.startsWith("'") && cdTarget.endsWith("'"))) {
+      cdTarget = cdTarget.slice(1, -1);
+    }
+
+    let newDir = env.dir;
+    if (cdTarget === "" || cdTarget === "~") {
+      newDir = env.homeDir;
+    } else if (cdTarget === "-") {
+      const temp = env.dir;
+      newDir = env.previousDir;
+      envCopy.previousDir = temp;
+    } else if (cdTarget === ".." || cdTarget === "cd..") {
+      newDir = resolvePath(env.dir, "..");
+    } else {
+      newDir = resolvePath(env.dir, cdTarget, env.homeDir);
+    }
+
+    if (newDir !== env.dir && cdTarget !== "-") {
+      envCopy.previousDir = env.dir;
+    }
+    envCopy.dir = newDir;
+  }
+
+  // su
+  const suMatch = lineText.match(/^\s*su\s*(\S*)/i);
+  if (suMatch) {
+    if (envCopy.userStack.length < 5) {
+      envCopy.userStack.push(env.user);
+    }
+    
+    envCopy.user = suMatch[1] || "root";
+    if (isWindowsShell) {
+      envCopy.homeDir = `C:\\Users\\${envCopy.user}`;
+    } else {
+      envCopy.homeDir = `/home/${envCopy.user}`;
+    }
+  }
+
+  // exit
+  if (/^\s*exit\s*$/i.test(lineText)) {
+    if (envCopy.userStack.length > 0) {
+      const prevUser = envCopy.userStack.pop();
+      if (prevUser !== undefined) {
+        envCopy.user = prevUser;
+        if (isWindowsShell) {
+          envCopy.homeDir = `C:\\Users\\${prevUser}`;
+        } else {
+          envCopy.homeDir = `/home/${prevUser}`;
+        }
+      }
+    }
+  }
+
+  // db switch
+  const dbMatch = lineText.match(/^\\c\s+(\S+)/);
+  if (dbMatch) {
+    envCopy.db = dbMatch[1];
+  }
+
+  // git branch switch
+  const gitCheckout = lineText.match(/^\s*git\s+(checkout|switch)\s+(\S+)/i);
+  if (gitCheckout) {
+    envCopy.branch = gitCheckout[2];
+  }
+
+  return envCopy;
+}// parsePromptCommands
+
+export function getPWD(env: PromptEnvironment) {
+  let path = env.dir ?? "~";
+
+  if (path === "~" && env.originalHomeDir) {
+    path = env.originalHomeDir;
+  } else if (path.startsWith("~/") && env.originalHomeDir) {
+    path = env.originalHomeDir + path.slice(1);
+  }
+
+  return path;
+}// getPWD
+
+export function collectAllPromptClasses(settings: CodeblockCustomizerSettings): string[] {
+  const classSet = new Set<string>();
+
+  // highlightGroups
+  const allPromptDefs = {
+    ...defaultPrompts,
+    ...settings.SelectedTheme.settings.prompts.customPrompts
+  };
+  for (const def of Object.values(allPromptDefs)) {
+    for (const cls of Object.values(def.highlightGroups ?? {})) {
+      classSet.add(`prompt-${cls}`);
+    }
+  }
+
+  // basePrompt placeholders
+  const placeholders = ['user', 'host', 'path', 'db', 'branch'];
+  for (const key of Object.keys(allPromptDefs)) {
+    const basePrompt = allPromptDefs[key].basePrompt;
+    for (const ph of placeholders) {
+      if (basePrompt.includes(`{${ph}}`)) {
+        classSet.add(`prompt-${ph}`);
+      }
+    }
+  }
+
+  // symbol class map
+  for (const cls of Object.values(symbolClassMap)) {
+    classSet.add(cls);
+  }
+
+  // fallback
+  classSet.add("prompt-symbol");
+
+  return Array.from(classSet).sort();
+}// collectAllPromptClasses
+
+export function resolveHighlightClassMap(def: PromptDefinition): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const [group, className] of Object.entries(def.highlightGroups ?? {})) {
+    map[group] = `prompt-part prompt-${className}`;
+  }
+  return map;
+}// resolveHighlightClassMap
+
+function getResolvedPromptColorsForMode(settings: CodeblockCustomizerSettings, baseTheme: Theme, promptId: string, mode: 'light' | 'dark', editingRoot: boolean): Record<string, string> {
+  const base = baseTheme.colors[mode].prompts;
+
+  const edited = editingRoot
+    ? settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors?.[promptId] ?? {}
+    : settings.SelectedTheme.colors[mode].prompts.editedPromptColors?.[promptId] ?? {};
+
+  const defaults = editingRoot
+    ? base?.rootPromptColors?.[promptId] ?? {}
+    : base?.promptColors?.[promptId] ?? {};
+
+  return { ...defaults, ...edited };
+}// getResolvedPromptColorsForMode
+
+export type PromptCache = { key: string; node: HTMLElement | null };
+
+interface PromptContext {
+  promptType: string;
+  promptDef: PromptDefinition;
+  isCustom: boolean;
+  actualPrompt: string;
+  promptKind: PromptKind;
+  settings: CodeblockCustomizerSettings;
+}// PromptContext
+
+interface PromptResult {
+  promptData: string | { text: string; class?: string }[];
+  newEnv: PromptEnvironment;
+  newCache: PromptCache;
+  node: HTMLElement;
+}// PromptResult
+
+export function createPromptContext(parameters: Parameters, settings: CodeblockCustomizerSettings): { context: PromptContext; initialEnv: PromptEnvironment } {
+  const promptType = parameters.prompt.text;
+  const { def: promptDef, isCustom } = getPromptDefinition(promptType, settings);
+  const promptKind = getPromptType(!isCustom ? promptType : promptDef.basePrompt);
+  const actualPrompt = promptDef.basePrompt ?? promptType;
+  const isWindowsShell = promptDef.isWindowsShell ?? false;
+  const user = parameters.prompt.values?.user ?? promptDef.defaultUser ?? "user";
+  const homeDir = isWindowsShell ? `C:\\Users\\${user}` : `/home/${user}`;
+  const defaultDir = parameters.prompt.values?.path ?? promptDef.defaultDir ?? homeDir;
+
+  const initialEnv: PromptEnvironment = {
+    user,
+    host: parameters.prompt.values?.host ?? promptDef.defaultHost ?? "localhost",
+    dir: defaultDir,
+    previousDir: defaultDir,
+    db: parameters.prompt.values?.db ?? promptDef.defaultDb ?? "postgres",
+    branch: parameters.prompt.values?.branch ?? "main",
+    homeDir,
+    originalHomeDir: homeDir,
+    userStack: [],
+  };
+
+  return { context: { promptType, promptDef, isCustom, actualPrompt, promptKind, settings, }, initialEnv, };
+}// createPromptContext
+
+export function renderPromptLine(lineText: string, snapshotEnv: PromptEnvironment, cache: PromptCache, ctx: PromptContext): PromptResult {
+  const shellCmdRegex = /\b(cd|su|exit|git|\\c)\b/;
+
+  // cache key
+  const key = `${ctx.actualPrompt}|${promptEnvKey(snapshotEnv)}`;
+
+  // re-render promptData
+  const promptContent = replacePromptTemplate(ctx.promptKind, ctx.actualPrompt, ctx.promptDef, snapshotEnv);
+
+  let node: HTMLElement;
+  if (cache.key === key && cache.node) {
+    node = cache.node.cloneNode(true) as HTMLElement;
+  } else {
+    const isRoot = snapshotEnv.user === "root";
+    const newNode = addClassesToPrompt(promptContent, ctx.isCustom ? ctx.promptDef.name : ctx.promptType, ctx.promptDef, ctx.settings, isRoot);
+    cache = { key, node: newNode };
+    node = newNode.cloneNode(true) as HTMLElement;
+  }
+
+  const newEnv = shellCmdRegex.test(lineText) ? parsePromptCommands(lineText, ctx.promptDef, snapshotEnv) : snapshotEnv;
+
+  return { promptData: promptContent, newEnv, newCache: cache, node};
+}// renderPromptLine
+
+function promptEnvKey(env: PromptEnvironment): string {
+  return [env.user, env.dir, env.db, env.branch, env.host, env.previousDir].join('|');
+}// promptEnvKey
+
+export function computePromptLines(parameters: Parameters, totalLines: number): Set<number> {
+  const lines = new Set<number>();
+  
+  if (!parameters.prompt.text) 
+    return lines;
+
+  if (parameters.prompt.lineNumbers.length > 0) {
+    for (const ln of parameters.prompt.lineNumbers) {
+      lines.add(ln);
+    }
+  } else {
+    for (let i = 1; i <= totalLines; i++) {
+      lines.add(i);
+    }
+  }
+
+  return lines;
+}// computePromptLines

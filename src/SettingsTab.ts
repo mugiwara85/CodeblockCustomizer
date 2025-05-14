@@ -1,7 +1,7 @@
-import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
+import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent, ColorComponent, setIcon } from "obsidian";
 import Pickr from "@simonwep/pickr";
 
-import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "./Utils";
+import { addClassesToPrompt, getPromptType, collectAllPromptClasses, defaultPrompts, getColorOfCssVariable, getCurrentMode, getPromptDefinition, promptClassDisplayNames, PromptDefinition, PromptEnvironment, replacePromptTemplate, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
@@ -149,7 +149,7 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Select settings page')
       .setDesc('Select which settings group you want to modify.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
+        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "prompts": "Prompts", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
           this.plugin.settings.settingsType = value;
@@ -162,6 +162,7 @@ export class SettingsTab extends PluginSettingTab {
           gutterDiv.toggleClass("codeblock-customizer-gutter-settingsDiv-hide", this.plugin.settings.settingsType !== "gutter");
           inlineDiv.toggleClass("codeblock-customizer-inlineCode-settingsDiv-hide", this.plugin.settings.settingsType !== "inlineCode");
           printToPDFDiv.toggleClass("codeblock-customizer-printToPDF-settingsDiv-hide", this.plugin.settings.settingsType !== "printToPDF");
+          promptsDIV.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
           (async () => {await this.plugin.saveSettings()})();
         })
       );
@@ -170,7 +171,7 @@ export class SettingsTab extends PluginSettingTab {
 
       containerEl.createEl("hr");
 
-      const basicDiv = containerEl.createEl("div", { cls: "codeblock-customizer-basic-settingsDiv-hide" });
+      const basicDiv = containerEl.createDiv({ cls: "codeblock-customizer-basic-settingsDiv-hide" });
       basicDiv.toggleClass("codeblock-customizer-basic-settingsDiv-hide", this.plugin.settings.settingsType !== "basic");
       basicDiv.createEl('h3', {text: 'Basic settings'});
 
@@ -228,7 +229,7 @@ export class SettingsTab extends PluginSettingTab {
           });
         });
 
-    const codeblockDiv = containerEl.createEl("div", { cls: "codeblock-customizer-codeblock-settingsDiv-hide" });
+    const codeblockDiv = containerEl.createDiv({ cls: "codeblock-customizer-codeblock-settingsDiv-hide" });
     codeblockDiv.toggleClass("codeblock-customizer-codeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "codeblock");
     codeblockDiv.createEl('h3', {text: 'Codeblock settings'});
     
@@ -528,7 +529,7 @@ export class SettingsTab extends PluginSettingTab {
       );
     updateDependentSettings();
 
-    const languageSpecificDiv = containerEl.createEl("div", { cls: "codeblock-customizer-languageSpecific-settingsDiv-hide" });
+    const languageSpecificDiv = containerEl.createDiv({ cls: "codeblock-customizer-languageSpecific-settingsDiv-hide" });
     languageSpecificDiv.toggleClass("codeblock-customizer-languageSpecific-settingsDiv-hide", this.plugin.settings.settingsType !== "languageSpecific");
     languageSpecificDiv.createEl('h3', {text: 'Codeblock language specific colors', cls: 'codeblock-customizer-lang-specific-color'});
 
@@ -579,12 +580,12 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
-    const languageSpecificContainer = languageSpecificDiv.createEl("div", { cls: "codeblock-customizer-languageSpecificColorContainer" });
+    const languageSpecificContainer = languageSpecificDiv.createDiv({ cls: "codeblock-customizer-languageSpecificColorContainer" });
 
     // Update the color container on page load
     this.updateLanguageSpecificColorContainer(languageSpecificContainer);
 
-    const alternateHighlightDiv = containerEl.createEl("div", { cls: "codeblock-customizer-alternative-highlight-settingsDiv-hide" });
+    const alternateHighlightDiv = containerEl.createDiv({ cls: "codeblock-customizer-alternative-highlight-settingsDiv-hide" });
     alternateHighlightDiv.toggleClass("codeblock-customizer-alternative-highlight-settingsDiv-hide", this.plugin.settings.settingsType !== "alternateHighlight");
     alternateHighlightDiv.createEl('h3', {text: 'Alternative highlight colors', cls: 'codeblock-customizer-alternative-highlight-color'});
 
@@ -629,12 +630,12 @@ export class SettingsTab extends PluginSettingTab {
         });
       });
       
-    const colorContainer = alternateHighlightDiv.createEl("div", { cls: "codeblock-customizer-alternateHLcolorContainer" });
+    const colorContainer = alternateHighlightDiv.createDiv({ cls: "codeblock-customizer-alternateHLcolorContainer" });
 
     // Update the color container on page load
     this.updateColorContainer(colorContainer);
     
-    const headerDiv = containerEl.createEl("div", { cls: "codeblock-customizer-header-settingsDiv-hide" });
+    const headerDiv = containerEl.createDiv({ cls: "codeblock-customizer-header-settingsDiv-hide" });
     headerDiv.toggleClass("codeblock-customizer-header-settingsDiv-hide", this.plugin.settings.settingsType !== "header");
     headerDiv.createEl('h3', {text: 'Header settings'});
     
@@ -702,7 +703,7 @@ export class SettingsTab extends PluginSettingTab {
       })
     );
 
-    const headerLanguageDiv = containerEl.createEl("div", { cls: "codeblock-customizer-header-language-settingsDiv-hide" });
+    const headerLanguageDiv = containerEl.createDiv({ cls: "codeblock-customizer-header-language-settingsDiv-hide" });
     headerLanguageDiv.toggleClass("codeblock-customizer-header-language-settingsDiv-hide", this.plugin.settings.settingsType !== "headerLanguage");
     headerLanguageDiv.createEl('h3', {text: 'Header language settings'});
         
@@ -803,7 +804,7 @@ export class SettingsTab extends PluginSettingTab {
         });
       }
     }
-    const gutterDiv = containerEl.createEl("div", { cls: "codeblock-customizer-gutter-settingsDiv-hide" });
+    const gutterDiv = containerEl.createDiv({ cls: "codeblock-customizer-gutter-settingsDiv-hide" });
     gutterDiv.toggleClass("codeblock-customizer-gutter-settingsDiv-hide", this.plugin.settings.settingsType !== "gutter");
     gutterDiv.createEl('h3', {text: 'Gutter settings'});
     
@@ -838,7 +839,7 @@ export class SettingsTab extends PluginSettingTab {
       this.createPickrSetting(gutterDiv, 'Active line number color', 'To set this color enable the option "Hihglight active line number" first.', "gutter.activeLineNrColor");
     }
     
-    const inlineDiv = containerEl.createEl("div", { cls: "codeblock-customizer-inlineCode-settingsDiv-hide" });
+    const inlineDiv = containerEl.createDiv({ cls: "codeblock-customizer-inlineCode-settingsDiv-hide" });
     inlineDiv.toggleClass("codeblock-customizer-inlineCode-settingsDiv-hide", this.plugin.settings.settingsType !== "inlineCode");
     inlineDiv.createEl('h3', {text: 'Inline code settings'});
 
@@ -859,7 +860,7 @@ export class SettingsTab extends PluginSettingTab {
       this.createPickrSetting(inlineDiv, 'Inline code text color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.textColor");
     }
 
-    const printToPDFDiv = containerEl.createEl("div", { cls: "codeblock-customizer-printToPDF-settingsDiv-hide" });
+    const printToPDFDiv = containerEl.createDiv({ cls: "codeblock-customizer-printToPDF-settingsDiv-hide" });
     printToPDFDiv.toggleClass("codeblock-customizer-printToPDF-settingsDiv-hide", this.plugin.settings.settingsType !== "printToPDF");
     printToPDFDiv.createEl('h3', {text: 'Print to PDF settings '});
 
@@ -899,8 +900,138 @@ export class SettingsTab extends PluginSettingTab {
       );
     }
 
+    const promptsDIV = containerEl.createDiv({ cls: "codeblock-customizer-prompts-settingsDiv-hide" });
+    promptsDIV.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
+    promptsDIV.createEl('h3', {text: 'Prompt settings '});
+
+    let selectedPromptId = Object.keys(defaultPrompts)[0]; // default to first prompt
+
+    let promptDropdown: DropdownComponent;
+    let promptRestoreButton: ExtraButtonComponent;
+    let promptDeleteButton: ExtraButtonComponent;
+    new Setting(promptsDIV)
+      .setName("Select Prompt")
+      .setDesc("Choose a prompt to edit or preview.")
+      .addDropdown(dropdown => {
+        this.refreshPromptDropdown(dropdown, selectedPromptId);
+        dropdown.onChange(async (value) => {
+          selectedPromptId = value;
+          this.createPromptSettings(promptEditorContainer, selectedPromptId);
+          promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
+          promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
+          await this.plugin.saveSettings();
+        });
+        promptDropdown = dropdown;
+      })
+      .addExtraButton(button => {
+        promptRestoreButton = button;
+        button.setTooltip("Restore default prompt to its original state");
+        button.setIcon('reset');
+        button.onClick(async () => {
+          this.restorePromptColor(selectedPromptId);
+          await this.plugin.saveSettings();
+          new Notice(`All settings and colors of prompt "${selectedPromptId}" restored to its original state!`);
+        });
+        button.setDisabled(!(selectedPromptId in defaultPrompts))
+        //restoreButton = button;
+      })// addExtraButton
+      .addExtraButton(button => {
+        promptDeleteButton = button
+        button.setTooltip("Delete prompt");
+        button.setIcon('trash');
+        button.onClick(async () => {
+          if (!selectedPromptId) {
+            new Notice('Select a prompt first to delete.');
+            return;
+          }
+          if (selectedPromptId in defaultPrompts) {
+            new Notice('You cannot delete default prompts.');
+            return;
+          }
+          if (!(selectedPromptId in this.plugin.settings.SelectedTheme.settings.prompts.customPrompts)) {
+            new Notice('Prompt not found.');
+            return;
+          }
+          delete this.plugin.settings.SelectedTheme.settings.prompts.customPrompts[selectedPromptId];
+          delete this.plugin.settings.SelectedTheme.colors.light.prompts.promptColors?.[selectedPromptId];
+          delete this.plugin.settings.SelectedTheme.colors.dark.prompts.promptColors?.[selectedPromptId];
+          delete this.plugin.settings.SelectedTheme.colors.light.prompts.editedPromptColors?.[selectedPromptId];
+          delete this.plugin.settings.SelectedTheme.colors.dark.prompts.editedPromptColors?.[selectedPromptId];
+          delete this.plugin.settings.SelectedTheme.colors.light.prompts.editedRootPromptColors?.[selectedPromptId];
+          delete this.plugin.settings.SelectedTheme.colors.dark.prompts.editedRootPromptColors?.[selectedPromptId];
+
+          new Notice(`Prompt "${selectedPromptId}" deleted successfully!`);
+          selectedPromptId = Object.keys(defaultPrompts)[0];
+          this.refreshPromptDropdown(promptDropdown, selectedPromptId);
+          this.createPromptSettings(promptEditorContainer, selectedPromptId);
+          await this.plugin.saveSettings();
+        });// onClick
+        button.setDisabled(selectedPromptId in defaultPrompts)
+      })// addExtraButton
+
+    let promptName: TextComponent;
+    this.plugin.settings.newPromptName = "";
+    new Setting(promptsDIV)
+      .setName('Create your custom prompt')
+      .setDesc('Give your prompt a name and click the button to save it. You can use your prompt using this name e.g. "prompt:myPromptName".')
+      .addText(input => {
+        promptName = input;
+        promptName.setPlaceholder('Name for your prompt')
+          .setValue(this.plugin.settings.newPromptName)
+          .onChange(async (value) => {
+            this.plugin.settings.newPromptName = value;
+          });
+      })
+      .addExtraButton(button => {
+        button.setTooltip("Save prompt");
+        button.setIcon('plus');
+        button.onClick(async () => {
+          const newPromptId = this.plugin.settings.newPromptName.trim();
+          if (newPromptId.length === 0) {
+            new Notice('Set a name for your prompt!');
+            return;
+          }
+          
+          if (newPromptId in defaultPrompts) {
+            new Notice('You can\'t overwrite default prompts!');
+            return;
+          }
+          
+          this.plugin.settings.SelectedTheme.settings.prompts.customPrompts[this.plugin.settings.newPromptName] = {
+            name: this.plugin.settings.newPromptName,
+            basePrompt: "{user}@{host}:{path}$",
+            defaultUser: "user",
+            defaultHost: "localhost",
+            defaultDir: "~",
+            parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)$/,
+            highlightGroups: {
+              user: "user",
+              host: "host",
+              path: "path",
+            },
+            supportsRootStyling: false,
+            isWindowsShell: false,
+          };
+          selectedPromptId = newPromptId;
+          promptDropdown.addOption(newPromptId, `[Custom] ${newPromptId}`);
+          promptDropdown.setValue(selectedPromptId);
+          const exists = newPromptId in this.plugin.settings.SelectedTheme.settings.prompts.customPrompts;
+          if (exists)
+            new Notice(`Prompt "${this.plugin.settings.newPromptName}" updated successfully!`);
+          else
+            new Notice(`Prompt "${this.plugin.settings.newPromptName}" saved successfully!`);
+          this.plugin.settings.newPromptName = "";
+          promptName.setValue("");
+          await this.plugin.saveSettings();
+          this.createPromptSettings(promptEditorContainer, selectedPromptId);
+      });
+    });
+
+    const promptEditorContainer = promptsDIV.createDiv({cls: 'codeblock-customizer-prompt-editor-container'});
+    this.createPromptSettings(promptEditorContainer, selectedPromptId);
+   
     // donation
-    const cDonationDiv = containerEl.createEl("div", { cls: "codeblock-customizer-Donation", });    
+    const cDonationDiv = containerEl.createDiv({ cls: "codeblock-customizer-Donation", });    
     const credit = createEl("p");
     const donateText = createEl("p");
     donateText.appendText("If you like this plugin, and would like to help support continued development, use the button below!");
@@ -913,6 +1044,398 @@ export class SettingsTab extends PluginSettingTab {
       this.createDonateButton("https://www.buymeacoffee.com/ThePirateKing")
     ); 
   }// display
+  
+  restorePromptColor(promptId: string) {
+    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
+    const baseTheme = this.plugin.settings.Themes[baseThemeName];
+  
+    if (!baseTheme) {
+      console.warn(`Base theme "${baseThemeName}" not found.`);
+      return;
+    }
+  
+    const modes: ('light' | 'dark')[] = ['light', 'dark'];
+  
+    for (const mode of modes) {
+      delete this.plugin.settings.SelectedTheme.colors[mode].prompts.editedPromptColors?.[promptId];
+      delete this.plugin.settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors?.[promptId];
+    }
+  
+    delete this.plugin.settings.SelectedTheme.settings.prompts.editedDefaults?.[promptId];
+  
+    this.display();
+  }
+  // restorePromptColor
+  
+  createPromptSettings (promptEditorContainer: HTMLElement, selectedPromptId: string) {
+    const wasSettingsOpen = promptEditorContainer.querySelector('details')?.open ?? false;
+    const wasColorsOpen = (promptEditorContainer.querySelector('.codeblock-customizer-prompt-colors-settings-group') as HTMLDetailsElement)?.open ?? false;
+
+    promptEditorContainer.empty();
+  
+    const { def: currentPromptData } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+
+    // prompt preview
+    const previewWrapper = promptEditorContainer.createDiv({ cls: 'codeblock-customizer-prompt-preview-wrapper' });
+    previewWrapper.createDiv({text: 'Prompt preview'});
+    const previewEl = previewWrapper.createDiv({ cls: 'codeblock-customizer-prompt-preview' });
+  
+    const promptSettingsDetails = promptEditorContainer.createEl('details', { cls: 'codeblock-customizer-prompt-settings-group' });
+    //promptSettingsDetails.setAttribute('open', ''); // to make it open by default
+    if (wasSettingsOpen) 
+      promptSettingsDetails.open = true;
+
+    promptSettingsDetails.createEl('summary', { text: 'Prompt Settings' });
+    promptSettingsDetails.appendChild(document.createElement("br"));
+
+    const updatePreview = () => {
+      const { def: promptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+      this.updatePromptPreview(previewEl, selectedPromptId, promptData, isCustom);
+    };
+    
+    updatePreview();
+  
+    // read only
+    new Setting(promptSettingsDetails)
+    .setName("Prompt Name (for codeblock language)")
+    .setClass("codeblock-customizer-prompt-name")
+    .setDesc(`This what you have to define in the code block e.g.: prompt:${selectedPromptId}`)
+    .addText(text => {
+      text.setValue(selectedPromptId);
+      text.setDisabled(true);
+    });
+  
+    // editable
+    new Setting(promptSettingsDetails)
+      .setName("Base Prompt")
+      .setDesc("Template for the prompt.")
+      .addText(text => text
+        .setValue(currentPromptData.basePrompt)
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.basePrompt = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+  
+    new Setting(promptSettingsDetails)
+      .setName("Default User")
+      .addText(text => text
+        .setPlaceholder("e.g. root, admin etc.")
+        .setValue(currentPromptData.defaultUser ?? "")
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.defaultUser = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+  
+    new Setting(promptSettingsDetails)
+      .setName("Default Host")
+      .addText(text => text
+        .setPlaceholder("e.g. localhost")
+        .setValue(currentPromptData.defaultHost ?? "")
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.defaultHost = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+  
+    new Setting(promptSettingsDetails)
+      .setName("Default Directory")
+      .addText(text => text
+        .setPlaceholder("e.g. /var/www/html")
+        .setValue(currentPromptData.defaultDir ?? "")
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.defaultDir = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+  
+    new Setting(promptSettingsDetails)
+      .setName("Default Database")
+      .addText(text => text
+        .setPlaceholder("e.g. postgres")
+        .setValue(currentPromptData.defaultDb ?? "")
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.defaultDb = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+    
+    new Setting(promptSettingsDetails)
+      .setName("Default Branch")
+      .addText(text => text
+        .setPlaceholder("e.g. main, dev etc.")
+        .setValue(currentPromptData.defaultBranch ?? "")
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.defaultBranch = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+  
+    new Setting(promptSettingsDetails)
+      .setName("Highlight Groups")
+      .setDesc("Define the groups which are returned by the regex.\nYou can use user, host, path, db and branch as keys.\nThe values are the classes which will be used to style the prompt.")
+      .setClass("codeblock-customizer-highlightgroups-setting")
+      .addTextArea(textarea => {
+        textarea.inputEl.rows = 6;
+        textarea.inputEl.classList.add('codeblock-customizer-highlightgroups-textarea');
+        textarea.setValue(JSON.stringify(currentPromptData.highlightGroups ?? {}, null, 2));
+        textarea.onChange(async (value) => {
+          try {
+            const parsed = JSON.parse(value);
+            const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+            currentPromptData.highlightGroups = parsed;
+            await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+            updatePreview();
+          } catch (e) {
+            new Notice("⚠️ Invalid JSON, not saved");
+          }
+        });
+      });
+  
+    new Setting(promptSettingsDetails)
+      .setName("Parse Prompt Regex")
+      .setDesc("Regex string for parsing the prompt.")
+      .addText(text => text
+        .setValue(currentPromptData.parsePromptRegex?.source ?? "")
+        .onChange(async (value) => {
+          try {
+            const compiled = new RegExp(value);
+            const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+            currentPromptData.parsePromptRegexString = value;
+            currentPromptData.parsePromptRegex = compiled; // live version for runtime use!
+            await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+            new Notice(`Regex saved for prompt "${selectedPromptId}"`);
+          } catch (e) {
+            new Notice("⚠️ Invalid regex, not saved");
+          }
+        }).inputEl.classList.add("codeblock-customizer-regex-input"));
+  
+    new Setting(promptSettingsDetails)
+      .setName("Is Windows Shell")
+      .setDesc("Only enable for Windows prompts, otherwise this should remain false.")
+      .addToggle(toggle => toggle
+        .setValue(currentPromptData.isWindowsShell)
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.isWindowsShell = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+        }));
+
+    new Setting(promptSettingsDetails)
+      .setName("Supports root styling")
+      .setDesc("Only enable for prompts, when you want to set different colors for the root prompt (linux prompts only).")
+      .addToggle(toggle => toggle
+        .setValue(currentPromptData.supportsRootStyling ?? false)
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.supportsRootStyling = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl); // refresh color settings to immediately reflect the root color switch
+        }));
+
+    const colorsSettingsDetails = promptEditorContainer.createEl('details', {cls: 'codeblock-customizer-prompt-colors-settings-group'});
+    
+    if (wasColorsOpen) 
+      colorsSettingsDetails.open = true;
+
+    colorsSettingsDetails.createEl('summary', { text: 'Prompt Colors' });
+    
+    const promptColorSettingsContainer = colorsSettingsDetails.createDiv();
+    
+    this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl);
+  } // createPromptSettings
+
+  createPromptColorSettings(promptColorSettingsContainer: HTMLElement, selectedPromptId: string, previewEl: HTMLElement, showRootColor = false) {
+    promptColorSettingsContainer.empty();
+    promptColorSettingsContainer.appendChild(document.createElement("br"));
+
+    const allGroups = Array.from(collectAllPromptClasses(this.plugin.settings));
+    const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+    let editingRootColors = showRootColor ?? false; 
+    
+    if (currentPromptData.supportsRootStyling) {
+      new Setting(promptColorSettingsContainer)
+        .setName("Configure Root Colors")
+        .setDesc("Enable to edit root-specific colors for this prompt.")
+        .addToggle(toggle => toggle
+          .setValue(editingRootColors)
+          .onChange(value => {
+            editingRootColors = value;
+            this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl, editingRootColors);
+            this.updatePromptPreview(previewEl, selectedPromptId, currentPromptData, isCustom, editingRootColors);
+          })
+      );
+    }
+
+    for (const part of allGroups) {
+      const partClass = part.startsWith("prompt-") ? part : `prompt-${part}`;
+      const label = promptClassDisplayNames[partClass] ?? `${partClass} (returned by RegEx)`;
+      const resolvedColors = this.getResolvedPromptColors(selectedPromptId, editingRootColors); // normal/root colors
+      const fallbackColors = this.getResolvedPromptColors(selectedPromptId, false); // normal colors
+      const currentColor = resolvedColors[partClass] ?? fallbackColors[partClass] ?? "#777777";
+      const isDefaultPrompt = selectedPromptId in defaultPrompts;  
+
+      new Setting(promptColorSettingsContainer)
+        .setName(label)
+        .then(setting => {
+          const colorPicker = new ColorComponent(setting.controlEl)
+            .setValue(currentColor)
+            .onChange(async (value) => {
+              this.setPromptColorDiff(selectedPromptId, partClass, value, editingRootColors);
+              await this.plugin.saveSettings();
+            });
+
+          if (isDefaultPrompt) { // no restore color button for custom prompts
+            const resetButton = setting.controlEl.createDiv({cls: 'clickable-icon extra-setting-button'});
+            setIcon(resetButton, "reset");
+            resetButton.addEventListener('click', async () => {
+              const defaultColor = this.getDefaultPromptColor(selectedPromptId, partClass, editingRootColors);
+              colorPicker.setValue(defaultColor);
+              this.setPromptColorDiff(selectedPromptId, partClass, defaultColor, editingRootColors);
+              await this.plugin.saveSettings();
+            });
+          }
+        });
+    }
+  }// createPromptColorSettings
+
+  getDefaultPromptColor(promptId: string, partClass: string, editingRootColors: boolean): string {
+    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
+    const defaultTheme = this.plugin.settings.Themes[baseThemeName];
+    const mode = getCurrentMode();
+  
+    if (!defaultTheme) 
+      return "#777777";
+  
+    if (editingRootColors) {
+      return defaultTheme.colors[mode].prompts.rootPromptColors?.[promptId]?.[partClass]
+          ?? defaultTheme.colors[mode].prompts.promptColors?.[promptId]?.[partClass]
+          ?? "#777777";
+    }
+  
+    return defaultTheme.colors[mode].prompts.promptColors?.[promptId]?.[partClass] ?? "#777777";
+  }// getDefaultPromptColor
+  
+  updatePromptPreview(previewEl: HTMLElement, selectedPromptId: string, promptData: PromptDefinition, isCustom: boolean, editingRootColors = false) {
+    previewEl.empty();
+    
+    const promptEnv: PromptEnvironment = {
+      user: promptData.defaultUser ?? "user",
+      host: promptData.defaultHost ?? "host",
+      dir: promptData.defaultDir ?? "~",
+      previousDir: promptData.defaultDir ?? "~",
+      db: promptData.defaultDb ?? "postgres",
+      branch: promptData.defaultBranch ?? "main",
+      homeDir: "~",
+      originalHomeDir: "~",
+    };
+  
+    const promptKind = getPromptType(isCustom ? promptData.basePrompt : selectedPromptId);
+    const promptText = isCustom ? promptData.basePrompt : selectedPromptId;
+    const promptParts = replacePromptTemplate(promptKind, promptText, promptData, promptEnv);
+    const { def } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+
+    const normalPreview  = addClassesToPrompt(promptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings);
+    normalPreview .classList.add("normal-preview");
+
+    const container = createDiv({ cls: "prompt-preview-container" });
+    container.appendChild(normalPreview);
+
+    const rootEnv = { ...promptEnv, user: "root" };
+    const rootPromptParts = replacePromptTemplate(promptKind, promptText, promptData, rootEnv);
+    const rootPreview = addClassesToPrompt(rootPromptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings, true);
+    rootPreview.classList.add("root-preview");
+
+    if (editingRootColors && promptData.supportsRootStyling) {
+      rootPreview.classList.add("is-visible");
+    }
+
+    container.appendChild(rootPreview);
+
+    previewEl.appendChild(container);
+    previewEl.classList.toggle("only-normal", !editingRootColors);
+  }// updatePromptPreview
+  
+  
+  async savePromptData(isCustom: boolean, selectedPromptId: string, promptData: PromptDefinition) {
+    if (isCustom) {
+      const clone = structuredClone(promptData);
+      delete clone.parsePromptRegex; // don't store RegExp instance
+      this.plugin.settings.SelectedTheme.settings.prompts.customPrompts[selectedPromptId] = clone;
+    } else {
+      const basePromptDef = defaultPrompts[selectedPromptId];
+      const diff: Partial<PromptDefinition> = {};
+  
+      if (promptData.basePrompt !== basePromptDef.basePrompt) 
+        diff.basePrompt = promptData.basePrompt;
+      if (promptData.defaultUser !== basePromptDef.defaultUser) 
+        diff.defaultUser = promptData.defaultUser;
+      if (promptData.defaultHost !== basePromptDef.defaultHost) 
+        diff.defaultHost = promptData.defaultHost;
+      if (promptData.defaultDir !== basePromptDef.defaultDir) 
+        diff.defaultDir = promptData.defaultDir;
+      if (promptData.defaultDb !== basePromptDef.defaultDb) 
+        diff.defaultDb = promptData.defaultDb;
+      if (promptData.defaultBranch !== basePromptDef.defaultBranch) 
+        diff.defaultBranch = promptData.defaultBranch;
+      if (JSON.stringify(promptData.highlightGroups ?? {}) !== JSON.stringify(basePromptDef.highlightGroups ?? {})) 
+        diff.highlightGroups = promptData.highlightGroups;
+      //if (promptData.parsePromptRegex?.source !== basePromptDef.parsePromptRegex?.source) 
+      // diff.parsePromptRegex = promptData.parsePromptRegex;
+      if (promptData.parsePromptRegexString !== basePromptDef.parsePromptRegexString) 
+        diff.parsePromptRegexString = promptData.parsePromptRegexString;
+      if (promptData.isWindowsShell !== basePromptDef.isWindowsShell) 
+        diff.isWindowsShell = promptData.isWindowsShell;
+      if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling) 
+        diff.supportsRootStyling = promptData.supportsRootStyling;
+  
+      this.plugin.settings.SelectedTheme.settings.prompts.editedDefaults[selectedPromptId] = diff;
+    }
+    await this.plugin.saveSettings();
+  }
+
+  getResolvedPromptColors(promptId: string, editingRoot: boolean): Record<string, string> {
+    const mode = getCurrentMode();
+    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
+    const base = this.plugin.settings.Themes[baseThemeName]?.colors[mode].prompts;
+    const edited = editingRoot
+      ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors?.[promptId] ?? {}
+      : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors?.[promptId] ?? {};
+    const defaults = editingRoot
+      ? base?.rootPromptColors?.[promptId] ?? {}
+      : base?.promptColors?.[promptId] ?? {};
+    return { ...defaults, ...edited };
+  }
+
+  setPromptColorDiff(promptId: string, className: string, color: string, editingRoot: boolean) {
+    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
+    const mode = getCurrentMode();
+    const baseColors = this.plugin.settings.Themes[baseThemeName].colors[mode].prompts;
+    const defaultColor = editingRoot
+      ? baseColors.rootPromptColors?.[promptId]?.[className]
+      : baseColors.promptColors?.[promptId]?.[className];
+    
+    const diffObj = editingRoot
+      ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors
+      : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors;
+  
+    if (color === defaultColor) {
+      delete diffObj?.[promptId]?.[className];
+      if (Object.keys(diffObj?.[promptId] ?? {}).length === 0)
+        delete diffObj?.[promptId];
+    } else {
+      if (!diffObj[promptId]) diffObj[promptId] = {};
+      diffObj[promptId][className] = color;
+    }
+  }
+  
   
   restoreThemes(themeName: string, cloneAll: boolean) {
     if (cloneAll){
@@ -939,6 +1462,22 @@ export class SettingsTab extends PluginSettingTab {
     })
     dropdown.setValue(settings.ThemeName);
 	}// refreshDropdown
+
+  refreshPromptDropdown(promptDropdown: DropdownComponent, selectedPromptId: string) {
+    //promptDropdown.selectEl.innerHTML = "";
+    promptDropdown.selectEl.empty();
+
+    // default prompts
+    for (const [key, prompt] of Object.entries(defaultPrompts)) {
+      promptDropdown.addOption(key, `[Default] ${prompt.name}`);
+    }
+
+    // custom prompts
+    for (const [key, prompt] of Object.entries(this.plugin.settings.SelectedTheme.settings.prompts.customPrompts)) {
+      promptDropdown.addOption(key, `[Custom] ${prompt.name}`);
+    }
+    promptDropdown.setValue(selectedPromptId);
+  }// refreshPromptDropdown
 
   getRandomColor() {
     const letters = "0123456789ABCDEF";
@@ -1274,7 +1813,7 @@ export class SettingsTab extends PluginSettingTab {
   };// createDonateButton
 
   createReadMeLink = (container: HTMLElement) => {
-    const divElement = container.createEl("div", { cls: "codeblock-customizer-readMe", });
+    const divElement = container.createDiv({ cls: "codeblock-customizer-readMe", });
 
     const spanElement = createSpan();
     spanElement.style.whiteSpace = "pre"; // Preserve whitespace

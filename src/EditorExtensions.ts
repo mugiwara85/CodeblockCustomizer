@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, getBacktickCount, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters, addClassesToPrompt, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines } from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount } from "./Const";
@@ -169,6 +169,118 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const matchHighlightOptions = { maxMatches: 750, wholeWords: false };
   const selectionMatching = highlightSelectionMatches(matchHighlightOptions);
+
+  /* ViewPlugins */
+
+  const viewPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+    //settings: CodeblockCustomizerSettings;
+  
+    constructor(view: EditorView) {
+      //this.settings = settings;
+      this.decorations = this.buildDecorations(view);
+    }
+  
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged || update.startState.field(codeBlockPositions) !== update.state.field(codeBlockPositions) || settingsUpdated) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+    }
+  
+    buildDecorations(view: EditorView): DecorationSet {
+      updateValue(false);
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
+        return Decoration.none;
+
+      const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
+      const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
+      const positions = view.state.field(codeBlockPositions, false) ?? [];
+      const visibleRanges = view.visibleRanges;
+      const decorations: Array<Range<Decoration>> = [];
+      const visibleBlocks = positions.filter(pos => {
+        return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
+      });
+
+      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
+        const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
+        const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
+  
+        if (parameters.exclude)
+          continue;
+    
+        if (settings.SelectedTheme.settings.codeblock.enableLinks)
+          checkForLinks(view.state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
+    
+        let lineNumber = 0;
+        const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
+        const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
+        const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
+        
+        const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
+        const promptLines = computePromptLines(parameters, rawLineCount);
+        const { context, initialEnv } = createPromptContext(parameters, settings);
+        let promptEnv = { ...initialEnv };
+        let cache: PromptCache = { key: "", node: null };
+
+        for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
+          const startLine = line === firstCodeBlockLine;
+          const endLine = line === lastCodeBlockLine;
+          const currentLine = view.state.doc.line(line);
+          const lineStartPos = currentLine.from;
+
+          // lines
+          const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);
+          decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
+          
+          /*if ((!pos.defaultFolded) && (pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !pos.parameters.unfold)))
+            defaultFold(state, decorations);*/
+  
+          let spanClass = "";
+          if (startLine) {
+            spanClass = `codeblock-customizer-line-number-first`;
+            
+            // first-line buttons
+            const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
+            decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, { codeBlockStartPos, codeBlockEndPos, parameters } ), side: -1}).range(lineStartPos));
+          }
+    
+          if (endLine) {
+            spanClass = `codeblock-customizer-line-number-last`;
+          }
+          
+          // line number
+          if (settings.SelectedTheme.settings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
+            decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : (lineNumber + parameters.lineNumberOffset).toString(), parameters, spanClass),}).range(lineStartPos));
+          }
+
+          // prompt
+          const isPromptLine = promptLines.has(lineNumber + parameters.lineNumberOffset) && !startLine && !endLine;
+          if (isPromptLine) {
+            const snapshot = { ...promptEnv };
+            const lineText = currentLine.text;
+            addCommandOutput(lineText, decorations, currentLine, promptEnv, context.promptDef);
+            const { promptData, newEnv, newCache/*, node*/ } = renderPromptLine(lineText, snapshot, cache, context);
+            decorations.push(Decoration.widget({widget: new PromptWidget({promptData, promptType: context.promptType, promptDef: context.promptDef, promptEnv: snapshot, settings: context.settings,}),}).range(lineStartPos));
+            //decorations.push(Decoration.widget({widget: new NodeWidget(node)}).range(lineStartPos));
+            promptEnv = newEnv;
+            cache = newCache;
+          }
+
+          // indentation
+          if (parameters.indentLevel > 0) {
+            if (currentLine.text.length > parameters.indentCharacter) {
+              decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter)); 
+            }
+            decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
+          }
+          lineNumber++;
+        }
+      }
+      return RangeSet.of(decorations, true);
+    }
+  }, {
+    decorations: v => v.decorations
+  });// viewPlugin
 
   /* Widgets */
 
@@ -371,9 +483,69 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// createLink
 
+ interface PromptWidgetOptions {
+  promptData: string | { text: string; class?: string }[];
+  promptType: string;
+  promptDef: PromptDefinition;
+  promptEnv: PromptEnvironment;
+  settings: CodeblockCustomizerSettings;
+}
+
+class PromptWidget extends WidgetType {
+  constructor(private opts: PromptWidgetOptions) {
+    super();
+  }
+
+  eq(other: PromptWidget): boolean {
+    return (
+      this.opts.promptType === other.opts.promptType &&
+      JSON.stringify(this.opts.promptData) === JSON.stringify(other.opts.promptData) &&
+      this.opts.promptEnv.user === other.opts.promptEnv.user &&
+      this.opts.promptEnv.host === other.opts.promptEnv.host &&
+      this.opts.promptEnv.dir === other.opts.promptEnv.dir
+    );
+  }
+
+  toDOM(): HTMLElement {
+    const isRoot = this.opts.promptEnv.user === "root";
+    return addClassesToPrompt(this.opts.promptData, this.opts.promptType, this.opts.promptDef, this.opts.settings, isRoot);
+  }
+}// PromptWidget
+  
+/*class NodeWidget extends WidgetType {
+  constructor(private node: HTMLElement) { super(); }
+  eq(other: NodeWidget): boolean {
+    // only reuse if it’s literally the same node instance
+    return other.node === this.node;
+  }
+  toDOM(): HTMLElement {
+    return this.node;
+  }
+}*/
+
+  class LineWidget extends WidgetType {
+    output: string;
+    className: string;
+  
+    constructor(output: string, className: string) {
+      super();
+      this.output = output;
+      this.className = className;
+    }
+  
+    eq(other: LineWidget): boolean {
+      return this.output === other.output && this.className === other.className;
+    }
+  
+    toDOM(view: EditorView): HTMLElement {
+      const span = createSpan({ cls: `${this.className}`, text: `\n${this.output}` });
+      return span
+    }
+  }// LineWidget
+
   /* functions */
 
-  function findCodeBlockPositions(state: EditorState, from: number = 0, to: number = state.doc.length): CodeBlockPositions[] {
+  function findCodeBlockPositions(state: EditorState, from = 0, to: number = state.doc.length): CodeBlockPositions[] {
     const positions: CodeBlockPositions[] = [];
     let codeBlockStartPos = -1;
     let codeBlockEndPos = -1;
@@ -461,96 +633,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return RangeSet.of(decorations, true);
   }// insertHeader
 
-  const viewPlugin = ViewPlugin.fromClass(class {
-    decorations: DecorationSet;
-    //settings: CodeblockCustomizerSettings;
-  
-    constructor(view: EditorView) {
-      //this.settings = settings;
-      this.decorations = this.buildDecorations(view);
+  function addCommandOutput(lineText: string, decorations: Array<Range<Decoration>>, currentLine: Line, env: PromptEnvironment, promptDef: PromptDefinition | undefined) {
+    // pwd command
+    if (/^\s*pwd\s*$/.test(lineText)){
+      /*const shouldSimplify = shouldSimplifyHomePath(promptDef);
+      const pwdOutput = shouldSimplify ? simplifyHomePath(env.dir, env.homeDir) : (env.dir === "~" ? env.homeDir : env.dir);*/
+      decorations.push(Decoration.widget({ widget: new LineWidget(getPWD(env), `codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir`), side: 1 }).range(currentLine.to));
     }
-  
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged || update.startState.field(codeBlockPositions) !== update.state.field(codeBlockPositions) || settingsUpdated) {
-        this.decorations = this.buildDecorations(update.view);
-      }
-    }
-  
-    buildDecorations(view: EditorView): DecorationSet {
-      updateValue(false);
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
-        return Decoration.none;
-
-      const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
-      const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
-      const positions = view.state.field(codeBlockPositions, false) ?? [];
-      const visibleRanges = view.visibleRanges;
-      const decorations: Array<Range<Decoration>> = [];
-      const visibleBlocks = positions.filter(pos => {
-        return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
-      });
-
-      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
-        const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
-        const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
-  
-        if (parameters.exclude)
-          continue;
     
-        if (settings.SelectedTheme.settings.codeblock.enableLinks)
-          checkForLinks(view.state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
-    
-        let lineNumber = 0;
-        const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
-        const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
-        const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
-        
-        for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
-          const startLine = line === firstCodeBlockLine;
-          const endLine = line === lastCodeBlockLine;
-          const currentLine = view.state.doc.line(line);
-          const lineStartPos = currentLine.from;
-            
-          // lines
-          const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);        
-          decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
-          
-          /*if ((!pos.defaultFolded) && (pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !pos.parameters.unfold)))
-            defaultFold(state, decorations);*/
-  
-          let spanClass = "";
-          if (startLine) {
-            spanClass = `codeblock-customizer-line-number-first`;
-            
-            // first-line buttons
-            const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
-            decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, { codeBlockStartPos, codeBlockEndPos, parameters } ), side: -1}).range(lineStartPos));
-          }
-    
-          if (endLine) {
-            spanClass = `codeblock-customizer-line-number-last`;
-          }
-          
-          // line number
-          if (settings.SelectedTheme.settings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
-            decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : (lineNumber + parameters.lineNumberOffset).toString(), parameters, spanClass),}).range(lineStartPos));
-          }
-    
-          // indentation
-          if (parameters.indentLevel > 0) {
-            if (currentLine.text.length > parameters.indentCharacter) {
-              decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter)); 
-            }
-            decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
-          }
-          lineNumber++;
-        }
-      }
-      return RangeSet.of(decorations, true);
-    }
-  }, {
-    decorations: v => v.decorations
-  });// viewPlugin
+    // whoami command
+    if (/^\s*whoami\s*$/.test(lineText))
+      decorations.push(Decoration.widget({ widget: new LineWidget(env.user, `codeblock-customizer-prompt-cmd-output codeblock-customizer-whoami`), side: 1 }).range(currentLine.to));
+  }// addCommandOutput
   
   function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: Parameters){
     const cursorPos = state.selection.main.head;

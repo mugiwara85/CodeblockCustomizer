@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -208,6 +208,9 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (!preCodeElm)
       return;
 
+    if (preCodeElm.querySelector("code [class*='codeblock-customizer-line']"))
+      continue;
+
     if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className)))
       while(!preCodeElm.classList.contains("is-loaded"))
         await sleep(2);
@@ -224,11 +227,9 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
 }// processCodeBlockFirstLines
 
 async function addClasses(preElement: HTMLElement, parameters: Parameters, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string) {
-  preElement.classList.add(`codeblock-customizer-pre`);
-
-  const buttons = createButtons(parameters);
-  preElement.appendChild(buttons);
+  const frag = document.createDocumentFragment();
   
+  preElement.classList.add(`codeblock-customizer-pre`);  
   preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
 
   if (codeblockLanguageSpecificClass)
@@ -237,9 +238,14 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
   if (preElement.parentElement)
     preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
 
+  const buttons = createButtons(parameters);
+  frag.appendChild(buttons);
+
   const header = HeaderWidget(preElement as HTMLPreElement, parameters, plugin.settings, sourcePath, plugin);
-  preElement.insertBefore(header, preElement.childNodes[0]);
+  frag.insertBefore(header, frag.firstChild);
 	
+  preElement.insertBefore(frag, preElement.firstChild);
+
   const lines = Array.from(preCodeElm.innerHTML.split('\n')) || 0;
   if (parameters.fold) {
     toggleFoldClasses(preElement as HTMLPreElement, lines.length - 1, parameters.fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
@@ -251,7 +257,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-  highlightLines(preCodeElm, parameters, plugin.settings.SelectedTheme.settings, indentationLevels, sourcePath, plugin);
+  await highlightLines(preCodeElm, parameters, plugin.settings.SelectedTheme.settings, indentationLevels, sourcePath, plugin);
 }// addClasses
 
 function createCopyButton(displayLanguage: string) {
@@ -272,15 +278,17 @@ function createCopyButton(displayLanguage: string) {
 
 function createButtons(parameters: Parameters){
   const container = createDiv({cls: `codeblock-customizer-button-container`});
+  const frag = document.createDocumentFragment();
 
   const copyButton = createCopyButton(parameters.displayLanguage);
   copyButton.addEventListener("click", copyCode);
-  container.appendChild(copyButton);
+  frag.appendChild(copyButton);
 
   const wrapCodeButton = createWrapCodeButton();
   wrapCodeButton.addEventListener("click", wrapCode);
-  container.appendChild(wrapCodeButton);
+  frag.appendChild(wrapCodeButton);
 
+  container.appendChild(frag);
   return container;
 }// createButtons
 
@@ -303,7 +311,8 @@ function copyCode(event: Event) {
   const codeTextArray: string[] = [];
 
   lines.forEach((line, index) => {
-    const codeElements = line.querySelectorAll('.codeblock-customizer-line-text');
+    //const codeElements = line.querySelectorAll('.codeblock-customizer-line-text');
+    const codeElements = line.querySelectorAll('.codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output)');
     codeElements.forEach((codeElement, codeIndex) => {
       const textContent = codeElement.textContent || "";
       codeTextArray.push(textContent);
@@ -372,24 +381,27 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
   const parent = preElements.parentNode;
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
   const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
+  const frag = document.createDocumentFragment();
 
   if (parameters.displayLanguage){
     const Icon = getLanguageIcon(parameters.displayLanguage)
     if (Icon) {
-      container.appendChild(createCodeblockIcon(parameters.displayLanguage));
+      frag.appendChild(createCodeblockIcon(parameters.displayLanguage));
     }
-    container.appendChild(createCodeblockLang(parameters.language));
+    frag.appendChild(createCodeblockLang(parameters.language));
   }
-  container.appendChild(createFileName(parameters.headerDisplayText, settings.SelectedTheme.settings.codeblock.enableLinks, sourcePath, plugin));
+  frag.appendChild(createFileName(parameters.headerDisplayText, settings.SelectedTheme.settings.codeblock.enableLinks, sourcePath, plugin));
 
   const collapseEl = createCodeblockCollapse(parameters.fold);
   if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.fold) ||
       (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.unfold)) {
     container.classList.add(`noCollapseIcon`);
   } else {
-    container.appendChild(collapseEl);
+    frag.appendChild(collapseEl);
   }
   
+  container.appendChild(frag);
+
   if (parent)
     parent.insertBefore(container, preElements);
   
@@ -405,7 +417,7 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
     }
     if (semiFold) {
       const codeElements = preElements.getElementsByTagName("CODE");
-      const lines = convertHTMLCollectionToArray(codeElements);
+      const lines = convertHTMLCollectionToArray(codeElements, true);
       if (lines.length >= visibleLines + fadeOutLineCount) {
         toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-semi-collapsed`);
       } else
@@ -448,7 +460,7 @@ function createLineNumberElement(lineNumber: number, showNumbers: string) {
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number`);
 
   const lineNumberElement = createSpan({cls : `codeblock-customizer-line-number-element`});
-  lineNumberElement.setText(lineNumber.toString());
+  lineNumberElement.setText(lineNumber === -1 ? '' : lineNumber.toString());
   
   lineNumberWrapper.appendChild(lineNumberElement);
 
@@ -487,7 +499,7 @@ function addIndentLine(inputString: string, insertCollapse = false): string {
   return insertCollapse ? modifiedString.replace(indentRegex, spans) : stringWithSpans;
 }// addIndentLine
 
-function extractLinesFromHTML(preCodeElm: HTMLElement): Array<string> {
+function extractLinesFromHTML(preCodeElm: HTMLElement): { htmlLines: string[]; textLines: string[] } {
   const tree = fromHtml(preCodeElm.innerHTML.replace(/\n/g, "<br>"), { fragment: true });
   let htmlContent = preCodeElm.innerHTML;
 
@@ -500,12 +512,18 @@ function extractLinesFromHTML(preCodeElm: HTMLElement): Array<string> {
   const splitTree = fromHtml(htmlContent);
   htmlContent = toHtml(splitTree);
 
-  let lines = htmlContent.split("<br>");
-  if (lines.length === 1)
-    lines = ["", ""];
+  let htmlLines = htmlContent.split("<br>");
+  if (htmlLines.length === 1)
+    htmlLines = ["", ""];
+
+  let textLines = preCodeElm.textContent?.split("\n") ?? [];
+  if (textLines.length === 1 && htmlLines.length === 2 && htmlLines[0] === "" && htmlLines[1] === "") {
+    textLines = ["", ""];
+  }
+
   preCodeElm.innerHTML = "";
 
-  return lines;
+  return { htmlLines, textLines };
 }// extractLinesFromHTML
 
 function replaceNewlineWithBr(htmlContent: string, parents: any[]): string {
@@ -597,63 +615,55 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
 }// isLineHighlighted
 
 async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
-  if (!preCodeElm)
+  if (!preCodeElm) 
     return;
-
-  const codeblockLines = extractLinesFromHTML(preCodeElm);
-  const codeblockLen = codeblockLines.length - 1;
-  let useSemiFold = false;
-  if (codeblockLen >= settings.semiFold.visibleLines + fadeOutLineCount) {
-    useSemiFold = true;
-  }
+  
+  const { htmlLines, textLines } = extractLinesFromHTML(preCodeElm);
+  const codeblockLen = htmlLines.length - 1;
+  const useSemiFold = codeblockLen >= settings.semiFold.visibleLines + fadeOutLineCount;
 
   let fadeOutLineIndex = 0;
-  codeblockLines.forEach((line, index) => {
-    if (index === codeblockLines.length - 1)
+
+  const totalLines = htmlLines.length - 1;
+  const promptLines = computePromptLines(parameters, totalLines);
+
+  const { context, initialEnv } = createPromptContext(parameters, plugin.settings);
+  let promptEnv = { ...initialEnv };
+  let cache: PromptCache = { key: "", node: null };
+  
+  const frag = document.createDocumentFragment();
+  
+  htmlLines.forEach((htmlLine, index) => {
+    if (index === htmlLines.length - 1)
       return;
 
     const lineNumber = index + 1;
-    const caseInsensitiveLineText = line.toLowerCase();
-    
-    // create line element
-    const lineWrapper = createDiv();
+    const caseInsensitiveLineText = htmlLine.toLowerCase();
+    const hideCommandOutput = useSemiFold && lineNumber > settings.semiFold.visibleLines;
 
-    const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
-    if (result.isHighlighted) {
-      if (result.color) {
-        lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`);
-      } else {
-        lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
-      }
-    } else {
-      lineWrapper.classList.add(`codeblock-customizer-line`);
-    }
+    const { lineWrapper, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
+    fadeOutLineIndex = updatedFadeOutLineIndex;
 
-    if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
-      lineWrapper.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
-      fadeOutLineIndex++;
-      if (fadeOutLineIndex === fadeOutLineCount - 1) {
-        const uncollapseCodeButton = createUncollapseCodeButton();
-        uncollapseCodeButton.addEventListener("click", handleUncollapseClick);
-        lineWrapper.appendChild(uncollapseCodeButton);
-      }
-    }
-
-    if (useSemiFold && lineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
-      lineWrapper.classList.add(`codeblock-customizer-fade-out-line-hide`);
-    }
-
-    preCodeElm.appendChild(lineWrapper);
-
-    // create line number element
     const lineNumberEl = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
     lineWrapper.appendChild(lineNumberEl);
-    
-    const indentedLine = addIndentLine(line, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
-    // create line text element
-    const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine);
+    const textLine = textLines[index];
+    const isPromptLine = promptLines.has(lineNumber + parameters.lineNumberOffset);
+    if (isPromptLine) {
+      lineWrapper.classList.add("has-prompt");
+      const snapshot = { ...promptEnv };
+      const { /*promptData,*/ newEnv, newCache, node } = renderPromptLine(textLine, snapshot, cache, context);
+      //const promptNode = addClassesToPrompt(promptData, context.isCustom ? context.promptDef.name : context.promptType, context.promptDef, plugin.settings, snapshot.user === "root");
+      //lineWrapper.appendChild(promptNode);
+      lineWrapper.appendChild(node);
 
+      promptEnv = newEnv;
+      cache = newCache;
+    }
+      
+    const indentedLine = addIndentLine(htmlLine, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
+    const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine);
     textHighlight(parameters, lineNumber, lineTextEl);
+
     if (indentationLevels && indentationLevels[lineNumber - 1]) {
       const collapseIcon = lineTextEl.querySelector(".codeblock-customizer-collapse-icon");
       if (collapseIcon) {
@@ -661,10 +671,91 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
         collapseIcon.addEventListener("click", handleClick);
       }
     }
+
     lineWrapper.appendChild(lineTextEl);
-    lineWrapper.setAttribute("indentLevel", (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
+    lineWrapper.setAttribute("indentLevel", indentationLevels && indentationLevels[lineNumber - 1] ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
+    frag.appendChild(lineWrapper);
+
+    if (isPromptLine) {
+      const outputLines = addCommandOutput(textLine, parameters, promptEnv, hideCommandOutput, lineNumber);
+      for (const outputLine of outputLines) {
+        frag.appendChild(outputLine);
+      }
+    }
   });
+  preCodeElm.appendChild(frag);
 }// highlightLines
+
+function addCommandOutput(lineText: string, parameters: Parameters, env: PromptEnvironment, hideCommandOutput: boolean, lineNumber: number) {
+  const outputElements: HTMLElement[] = [];
+  // pwd command
+  if (/^\s*pwd\s*$/.test(lineText)) {
+    outputElements.push(appendCommandOutputLine(getPWD(env), 'codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir', parameters, hideCommandOutput, lineText.toLowerCase(), lineNumber));
+  }
+  
+  // whoami command
+  if (/^\s*whoami\s*$/.test(lineText)) 
+    outputElements.push(appendCommandOutputLine(env.user, 'codeblock-customizer-prompt-cmd-output codeblock-customizer-whoami', parameters, hideCommandOutput, lineText.toLowerCase(), lineNumber));
+
+  return outputElements;
+}// addCommandOutput
+
+function appendCommandOutputLine(text: string, cls: string, parameters: Parameters, hideCommandOutput: boolean, caseInsensitiveLineText: string, lineNumber: number) {
+  const classes = ['has-prompt', 'codeblock-customizer-line', 'codeblock-customizer-cmdoutput-line'];
+  
+  if (hideCommandOutput) {
+    classes.push('codeblock-customizer-fade-out-line-hide');
+  }
+
+  const outputLine = createDiv({ cls: classes.join(' ') });
+  const outputText = createDiv({ cls: `${cls} codeblock-customizer-line-text`, text });
+  const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
+  if (result.isHighlighted) {
+    if (result.color) {
+      outputLine.classList.add(`codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`);
+    } else {
+      outputLine.classList.add(`codeblock-customizer-line-highlighted`);
+    }
+  }
+
+  const emptyLineNumber = createLineNumberElement(-1, parameters.showNumbers);
+  outputLine.appendChild(emptyLineNumber);
+  outputLine.appendChild(outputText);
+
+  return outputLine;
+}// appendCommandOutputLine
+
+function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: Parameters, settings: ThemeSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
+  const lineWrapper = createDiv();
+  let updatedFadeOutLineIndex = fadeOutLineIndex;
+
+  const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
+  if (result.isHighlighted) {
+    if (result.color) {
+      lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`);
+    } else {
+      lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
+    }
+  } else {
+    lineWrapper.classList.add(`codeblock-customizer-line`);
+  }
+
+  if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
+    lineWrapper.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
+    updatedFadeOutLineIndex++;
+    if (fadeOutLineIndex === fadeOutLineCount - 1) {
+      const uncollapseCodeButton = createUncollapseCodeButton();
+      uncollapseCodeButton.addEventListener("click", handleUncollapseClick);
+      lineWrapper.appendChild(uncollapseCodeButton);
+    }
+  }
+
+  if (useSemiFold && lineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
+    lineWrapper.classList.add(`codeblock-customizer-fade-out-line-hide`);
+  }
+
+  return { lineWrapper, updatedFadeOutLineIndex };
+}// getLineClass
 
 interface RangeToHighlight {
   nodesToHighlight: Node[];
@@ -1204,9 +1295,9 @@ function getParentWithClassStartingWith(element: HTMLElement, classNamePrefix: s
 function handleUncollapseClick(event: Event) {
   const button = event.target as HTMLElement;
   const codeElement = button.parentElement?.parentElement;
-  const header = button.parentElement?.parentElement?.previousSibling as HTMLElement;
+  const header = button.parentElement?.parentElement?.previousSibling?.previousSibling as HTMLElement;
   const pre = button.parentElement?.parentElement?.previousSibling?.parentElement;
-
+    
   if (!codeElement)
     return;
     
@@ -1229,10 +1320,15 @@ function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: st
   pre?.classList.toggle(toggleClass);
 }// toggleFold
 
-export function convertHTMLCollectionToArray(elements: HTMLCollection) {
+export function convertHTMLCollectionToArray(elements: HTMLCollection, excludeCmdOutput = false) {
   const result: Element[] = [];
-  for (let i = 0; i < elements.length;i++ ){
-    result.push(...Array.from(elements[i].children));
+  for (let i = 0; i < elements.length; i++ ){
+    const children = Array.from(elements[i].children);
+    if (excludeCmdOutput) {
+      result.push(...children.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line')));
+    } else {
+      result.push(...children);
+    }
   }
   return result;
 }// convertHTMLCollectionToArray
@@ -1273,7 +1369,7 @@ export function foldAllReadingView(fold: boolean, settings: CodeblockCustomizerS
     let lines: Element[] = [];
     if (preElement){
       const codeElements = preElement?.getElementsByTagName("CODE");
-      lines = convertHTMLCollectionToArray(codeElements);
+      lines = convertHTMLCollectionToArray(codeElements, true);
     }
 
     toggleFoldClasses(preElement as HTMLPreElement, lines.length, fold, settings.SelectedTheme.settings.semiFold.enableSemiFold, settings.SelectedTheme.settings.semiFold.visibleLines);
