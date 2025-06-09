@@ -36,6 +36,11 @@ export interface Colors {
     editedPromptColors: Record<string, Record<string, string>>;
     editedRootPromptColors: Record<string, Record<string, string>>;
   },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: string;
+    hoverTabBackgroundColor: string;
+    hoverTabTextColor: string;
+  },
   editorActiveLineColor: string;
   languageSpecificColors: Record<string, Record<string, string>>;
 }
@@ -542,6 +547,11 @@ const SolarizedDarkColors = {
     editedPromptColors: {},
     editedRootPromptColors: {}
   },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#B58900',
+    hoverTabBackgroundColor: '#00AAAA',
+    hoverTabTextColor: '#FFFFFF',
+  },
   editorActiveLineColor: D_ACTIVE_LINE_COLOR,
   languageSpecificColors: {},
 }
@@ -581,6 +591,11 @@ const SolarizedLightColors = {
     rootPromptColors: RootPromptColors,
     editedPromptColors: {},
     editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#FFD700',
+    hoverTabBackgroundColor: '#A6A18F',//'#CFCAB3',
+    hoverTabTextColor: '#C25F30',
   },
   editorActiveLineColor: L_ACTIVE_LINE_COLOR,
   languageSpecificColors: {},
@@ -694,6 +709,11 @@ const ObsidianDarkColors = {
     editedPromptColors: {},
     editedRootPromptColors: {}
   },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#3A3A3A',
+    hoverTabBackgroundColor: '#333333',
+    hoverTabTextColor: '#CCCCCC',
+  },
   editorActiveLineColor: "--color-base-20",
   languageSpecificColors: {},
 }
@@ -733,6 +753,11 @@ const ObsidianLightColors = {
     rootPromptColors: RootPromptColors,
     editedPromptColors: {},
     editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#E6E6E6',
+    hoverTabBackgroundColor: '#F0F0F0',
+    hoverTabTextColor: '#888888',
   },
   editorActiveLineColor: "--color-base-20",
   languageSpecificColors: {},

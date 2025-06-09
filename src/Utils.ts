@@ -72,7 +72,7 @@ export function getCodeBlockLanguage(str: string): string {
       word = originalStr.substring(startIndex);
     }
 
-    if (!word.includes(":")) {
+    if (!word.includes(":") && !word.includes("=")) {
       if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold") 
         return '';
       else
@@ -251,6 +251,8 @@ export interface Parameters {
   lineSeparator: string;
   textSeparator: string;
   prompt: PromptLines;
+  group: string;
+  tab: string;
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings) {
@@ -304,6 +306,12 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   // isExcluded
   const exclude = isExcluded(lineText, settings.ExcludeLangs);
 
+  // group 
+  const group = extractParameter(parsedParameters, "group") ?? '';
+  
+  // tab
+  const tab = extractParameter(parsedParameters, "tab") ?? '';
+
   // specificHeader and hasLangBorderColor
   let specificHeader = true;
   let hasLangBorderColor = false;
@@ -312,6 +320,9 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
       headerDisplayText = settings.SelectedTheme.settings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
       if (!fold && !(language.length > 0 && (settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon || settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang)))
         specificHeader = false;
+      if (group)
+        headerDisplayText = ''; // if tabs are in use, header should not display any text by default
+
     }
     hasLangBorderColor = getBorderColorByLanguage(language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
   }
@@ -347,7 +358,9 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     indentCharacter: characters,
     lineSeparator,
     textSeparator,
-    prompt
+    prompt,
+    group,
+    tab
   };
 }// getParameters
 
@@ -373,8 +386,9 @@ export function getDefaultParameters() {
     indentCharacter: 0,
     lineSeparator: '',
     textSeparator: '',
-    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null}
-    }
+    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null}},
+    group: '',
+    tab: '',
   }
 }// getDefaultParameters
 
@@ -907,9 +921,9 @@ function registerEditorSyntaxHighlightingForLanguage(codeblockLanguage: string, 
 }// registerEditorSyntaxHighlightingForLanguage
 
 // Functions for displaying header BEGIN
-export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string) {
+export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string, cls?: string) {
   const lang = languageName.length > 0 ? languageName.toLowerCase() : "nolang"
-  const container = createDiv({cls: `codeblock-customizer-header-container${specific ? '-specific' : ''}`});
+  const container = createDiv({cls: cls ? cls : `codeblock-customizer-header-container${specific ? '-specific' : ''}`});
   container.classList.add(`codeblock-customizer-language-${lang.toLowerCase()}`);
 
   if (codeblockLanguageSpecificClass)
@@ -921,9 +935,16 @@ export function createContainer(specific: boolean, languageName: string, hasLang
   return container;
 }// createContainer
 
-export function createCodeblockLang(lang: string) {
-  const codeblockLang = createDiv({cls: `codeblock-customizer-header-language-tag`, text: getDisplayLanguageName(lang)});
-  //codeblockLang.innerText = getDisplayLanguageName(lang);
+export function createCodeblockLang(lang: string, langClass?: string, tabName?: string) {
+  let textToDisplay: string;
+
+  if (tabName !== undefined) {
+    textToDisplay = tabName;
+  } else {
+    textToDisplay = getDisplayLanguageName(lang);
+  }
+  const codeblockLang = createDiv({cls: langClass ?? `codeblock-customizer-header-language-tag`, text: textToDisplay || ""});
+
   return codeblockLang;
 }// createCodeblockLang
 
@@ -1009,6 +1030,9 @@ const stylesDict: StylesDict = {
   "gutter.activeLineNrColor": 'gutter-active-linenr-color',
   "inlineCode.backgroundColor": 'inline-code-background-color',
   "inlineCode.textColor": 'inline-code-text-color',
+  "groupedCodeBlocks.activeTabBackgroundColor": 'groupedcodeblock-active-tab-color',
+  "groupedCodeBlocks.hoverTabBackgroundColor": 'groupedcodeblock-hover-tab-background-color',
+  "groupedCodeBlocks.hoverTabTextColor": 'groupedcodeblock-hover-tab-text-color'
 }// stylesDict
 
 export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
@@ -1067,7 +1091,8 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   }, '');
 
   const textSettingsStyles = `
-    body.codeblock-customizer .codeblock-customizer-header-language-tag {
+    body.codeblock-customizer .codeblock-customizer-header-language-tag,
+    body.codeblock-customizer .codeblock-customizer-header-group-tab {
       --codeblock-customizer-language-tag-text-bold: ${settings.SelectedTheme.settings.header.codeblockLangBoldText ? 'bold' : 'normal'};
       --codeblock-customizer-language-tag-text-italic: ${settings.SelectedTheme.settings.header.codeblockLangItalicText ? 'italic' : 'normal'};
     }

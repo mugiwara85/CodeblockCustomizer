@@ -149,7 +149,7 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Select settings page')
       .setDesc('Select which settings group you want to modify.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "prompts": "Prompts", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
+        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "prompts": "Prompts", "groupedCodeBlock": "Grouped code blocks", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
           this.plugin.settings.settingsType = value;
@@ -163,6 +163,7 @@ export class SettingsTab extends PluginSettingTab {
           inlineDiv.toggleClass("codeblock-customizer-inlineCode-settingsDiv-hide", this.plugin.settings.settingsType !== "inlineCode");
           printToPDFDiv.toggleClass("codeblock-customizer-printToPDF-settingsDiv-hide", this.plugin.settings.settingsType !== "printToPDF");
           promptsDIV.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
+          groupedCodeBlockDiv.toggleClass("codeblock-customizer-groupedcodeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "groupedCodeBlock");
           (async () => {await this.plugin.saveSettings()})();
         })
       );
@@ -1030,6 +1031,14 @@ export class SettingsTab extends PluginSettingTab {
     const promptEditorContainer = promptsDIV.createDiv({cls: 'codeblock-customizer-prompt-editor-container'});
     this.createPromptSettings(promptEditorContainer, selectedPromptId);
    
+    const groupedCodeBlockDiv = containerEl.createDiv({ cls: "codeblock-customizer-groupedcodeblock-settingsDiv-hide" });
+    groupedCodeBlockDiv.toggleClass("codeblock-customizer-groupedcodeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "groupedCodeBlock");
+    groupedCodeBlockDiv.createEl('h3', {text: 'Grouped code block settings '});
+
+    this.createPickrSetting(groupedCodeBlockDiv, 'Active tab background color', 'Background color of the currently active tab.', "groupedCodeBlocks.activeTabBackgroundColor");
+    this.createPickrSetting(groupedCodeBlockDiv, 'Tab hover background color', 'Background color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabBackgroundColor");
+    this.createPickrSetting(groupedCodeBlockDiv, 'Tab hover text color', 'Text color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabTextColor");
+
     // donation
     const cDonationDiv = containerEl.createDiv({ cls: "codeblock-customizer-Donation", });    
     const credit = createEl("p");
@@ -1714,6 +1723,12 @@ export class SettingsTab extends PluginSettingTab {
       this.plugin.settings.SelectedTheme.colors[currentMode].inlineCode.backgroundColor = savedColor;
     } else if (className === 'inlineCode.textColor') {
       this.plugin.settings.SelectedTheme.colors[currentMode].inlineCode.textColor = savedColor;
+    } else if (className === 'groupedCodeBlocks.hoverTabTextColor') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].groupedCodeBlocks.hoverTabTextColor = savedColor;
+    } else if (className === 'groupedCodeBlocks.hoverTabBackgroundColor') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].groupedCodeBlocks.hoverTabBackgroundColor = savedColor;
+    } else if (className === 'groupedCodeBlocks.activeTabBackgroundColor') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].groupedCodeBlocks.activeTabBackgroundColor = savedColor;
     }
     this.plugin.saveSettings();
   }// setAndSavePickrSetting

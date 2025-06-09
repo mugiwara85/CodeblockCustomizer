@@ -219,6 +219,14 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (parameters.exclude)
       continue;
 
+    if (parameters.group && parameters.group.length > 0) {
+      preElement.setAttribute('groupname', parameters.group);
+      preElement.setAttribute('sourcepath', sourcepath);
+      const paramsJsonString = JSON.stringify(parameters);
+      preElement.dataset.parameters = paramsJsonString;
+      preElement.classList.add('codeblock-customizer-grouped');
+    }
+
     await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
@@ -276,16 +284,26 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
-function createButtons(parameters: Parameters){
+export function createButtons(parameters: Parameters, targetPreElement?: HTMLElement){
   const container = createDiv({cls: `codeblock-customizer-button-container`});
   const frag = document.createDocumentFragment();
 
   const copyButton = createCopyButton(parameters.displayLanguage);
-  copyButton.addEventListener("click", copyCode);
+    copyButton.addEventListener("click", (event) => {
+    const preEl = targetPreElement || (event.currentTarget as HTMLElement).parentNode?.parentNode as HTMLElement;
+    if (preEl) {
+      copyCode(preEl, event);
+    }
+  });
   frag.appendChild(copyButton);
 
   const wrapCodeButton = createWrapCodeButton();
-  wrapCodeButton.addEventListener("click", wrapCode);
+    wrapCodeButton.addEventListener("click", (event) => {
+    const preEl = targetPreElement || (event.currentTarget as HTMLElement).parentNode?.parentNode as HTMLElement;
+    if (preEl) {
+      wrapCode(preEl, event);
+    }
+  });
   frag.appendChild(wrapCodeButton);
 
   container.appendChild(frag);
@@ -301,12 +319,12 @@ function createWrapCodeButton() {
   return container;
 }// createWrapCodeButton
 
-function copyCode(event: Event) {
-  const button = event.currentTarget as HTMLElement;
-  const preElement = button.parentNode?.parentNode;
+function copyCode(preElement: HTMLElement, event: Event) {
+  event.stopPropagation();
+
   if (!preElement)
     return;
-
+  
   const lines = preElement.querySelectorAll("code");
   const codeTextArray: string[] = [];
 
@@ -325,9 +343,9 @@ function copyCode(event: Event) {
   addTextToClipboard(concatenatedCodeText);
 }// copyCode
 
-function wrapCode(event: Event) {
-  const button = event.currentTarget as HTMLElement;
-  const preElement = button.parentNode?.parentNode;
+function wrapCode(preElement: HTMLElement, event: Event) {
+  event.stopPropagation();
+
   if (!preElement)
     return;
 
@@ -1294,14 +1312,24 @@ function getParentWithClassStartingWith(element: HTMLElement, classNamePrefix: s
 
 function handleUncollapseClick(event: Event) {
   const button = event.target as HTMLElement;
+
   const codeElement = button.parentElement?.parentElement;
-  const header = button.parentElement?.parentElement?.previousSibling?.previousSibling as HTMLElement;
-  const pre = button.parentElement?.parentElement?.previousSibling?.parentElement;
-    
   if (!codeElement)
     return;
-    
-  //removeFadeEffect(codeElement.children, false);
+
+  const pre = codeElement?.parentElement;
+  if (!pre)
+    return;
+
+  let header: HTMLElement;
+  if (pre.classList.contains("displayedInGroup")) {
+    // grouped code blocks
+    const group = pre.getAttribute("groupname");
+    header = document.querySelector(`.markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[group="${group}"]`) as HTMLElement;
+  } else {
+    // ungrouped code blocks
+    header = button.parentElement?.parentElement?.previousSibling?.previousSibling as HTMLElement;
+  }
 
   if (header) {
     const collapseIcon = header.querySelector(".codeblock-customizer-header-collapse") as HTMLElement;
@@ -1311,7 +1339,7 @@ function handleUncollapseClick(event: Event) {
   }
 }// handleUncollapseClick
 
-function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string) {
+export function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string) {
   if (pre?.classList.contains(toggleClass)) {
     setIcon(collapseIcon, "chevrons-up-down");
   } else {

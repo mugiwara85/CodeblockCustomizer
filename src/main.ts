@@ -7,6 +7,7 @@ import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAl
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock} from "./Utils";
 import { CodeBlockPositions, extensions, updateValue } from "./EditorExtensions";
+import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
 // npm i @simonwep/pickr
 
 interface codeBlock {
@@ -25,7 +26,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     selectionMatching: Extension;
   }
   customLanguageConfig: customLanguageConfig | null;
-  
+  groupedChildrenMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
+  activeEditorTabs: Map<string, Map<string, number>> = new Map();
+
   async onload() {
     document.body.classList.add('codeblock-customizer');
     await this.loadSettings();
@@ -36,6 +39,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     // npm install eslint@8.39.0 -g
     // eslint main.ts
     
+    this.groupedChildrenMap = new Map<MarkdownView, GroupedCodeBlockRenderChild>();
+
   /* Problems to solve:
     - if a language is excluded then:
       - header needs to unfold before removing it,
@@ -166,6 +171,30 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       await ReadingView(el, ctx, this)
     });
+
+    // process existing open preview views when the plugin loads
+    this.app.workspace.onLayoutReady(() => {
+      this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
+        if (leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+          this.registerGroupedRenderChildForView(leaf.view);
+        }
+      });
+    });
+
+    // process new active leaves (e.g. note switches)
+    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf: WorkspaceLeaf) => {
+      if (leaf && leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+        this.registerGroupedRenderChildForView(leaf.view);
+      }
+    }));
+
+    // process layout-change (editor mode -> reading mode)
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (markdownView && markdownView.getMode() === 'preview') {
+        this.registerGroupedRenderChildForView(markdownView);
+      }
+    }));
     
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       await calloutPostProcessor(el, ctx, this)
@@ -179,7 +208,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// onload
 
   handleCssChange(settingsTab: SettingsTab) {
-      this.updateTheme(settingsTab);
+    this.updateTheme(settingsTab);
   }// handleCssChange
     
   updateTheme(settingsTab: SettingsTab) {
@@ -189,12 +218,41 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   
   onunload() {
     console.log("unloading CodeBlock Customizer plugin");
+
+    // remove GroupedCodeBlockRenderChild
+    this.groupedChildrenMap.forEach((child, view) => {
+      view.removeChild(child); // onunload()
+    });
+    this.groupedChildrenMap.clear();
+
     // unload icons
     for (const url of Object.values(BLOBS)) {
       URL.revokeObjectURL(url)
     }
-    loadSyntaxHighlightForCustomLanguages(this, true); // unload syntax highlight
+
+    // unload syntax highlight
+    loadSyntaxHighlightForCustomLanguages(this, true);
   }// onunload
+  
+  registerGroupedRenderChildForView(markdownView: MarkdownView) {
+    if (!markdownView || !markdownView.containerEl) {
+      return;
+    }
+
+    const child = this.groupedChildrenMap.get(markdownView);
+
+    if (child) {
+      //console.log("Existing GroupedCodeBlockRenderChild found for this view. Re-processing.");
+      // if the view already has the child, just tell it to re-process its content
+      child.processGroupedCodeBlocks(); // Make sure this method is public in GroupedCodeBlockRenderChild
+    } else {
+      // create a new child if one doesn't exist for this view
+      const renderChild = new GroupedCodeBlockRenderChild(markdownView.containerEl, markdownView, this.groupedChildrenMap, this);
+      markdownView.addChild(renderChild);
+      this.groupedChildrenMap.set(markdownView, renderChild);
+      //console.log("Registered NEW GroupedCodeBlockRenderChild for view:", markdownView);
+    }
+  }// registerGroupedRenderChildForView
   
   async handleFileRename(file: TAbstractFile, oldPath: string) {
     const markdownFiles = this.app.vault.getMarkdownFiles();
@@ -386,6 +444,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.settings.SelectedTheme.colors.dark.prompts.promptColors = {};
     this.settings.SelectedTheme.colors.dark.prompts.rootPromptColors = {};
 
+    if (this.settings.Themes[this.settings.ThemeName]) {
+      this.settings.SelectedTheme = structuredClone(this.settings.Themes[this.settings.ThemeName]);
+    }
+    
     this.saveSettings();
   }// loadSettings
 
