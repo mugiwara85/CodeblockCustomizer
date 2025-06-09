@@ -643,7 +643,7 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
   let fadeOutLineIndex = 0;
 
   const totalLines = htmlLines.length - 1;
-  const promptLines = computePromptLines(parameters, totalLines);
+  const promptLines = computePromptLines(parameters, totalLines, plugin.settings);
 
   const { context, initialEnv } = createPromptContext(parameters, plugin.settings);
   let promptEnv = { ...initialEnv };

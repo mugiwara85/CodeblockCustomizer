@@ -408,13 +408,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     const userThemeNames = _.difference(currentThemeNames, defaultThemeNames);
 
-    // if the currently selected Theme does not have a basename, then delete the property from SelectedTheme to avoid setting wrong basename when creating a new theme
-    //const selectedThemeBaseName = this.settings.SelectedTheme.baseTheme;
-    const inUseThemeBaseName = this.settings.Themes[this.settings.ThemeName].baseTheme;
-    if (inUseThemeBaseName === undefined) {
-      delete this.settings.SelectedTheme.baseTheme;
-    }
-
     userThemeNames.forEach(themeName => {
       const userTheme = this.settings.Themes[themeName];
       const baseThemeName = userTheme.baseTheme;
@@ -423,16 +416,27 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         // copy new settings from corresponding Theme to user themes which do have a baseTheme (created after this change)
         const baseTheme = this.settings.Themes[baseThemeName];
         if (baseTheme) {
-          userTheme.colors = _.merge({}, baseTheme.colors, userTheme.colors);
-          userTheme.settings = _.merge({}, baseTheme.settings, userTheme.settings);
+          _.merge(userTheme.settings, baseTheme.settings, userTheme.settings);
+          _.merge(userTheme.colors, baseTheme.colors, userTheme.colors);
         }
       } else {
         // copy new settings from Obsidian Theme to user themes which do not have a baseTheme (created before this change)
         const defaultObsidianSettings = this.settings.Themes["Obsidian"];
-        userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
-        userTheme.settings = _.merge({}, defaultObsidianSettings.settings, userTheme.settings);
+        _.merge(userTheme.settings, defaultObsidianSettings.settings, userTheme.settings);
+        _.merge(userTheme.colors, defaultObsidianSettings.colors, userTheme.colors);
       }
+    });
+    
+    // merge master theme with SelectedTheme
+    const masterTheme = this.settings.Themes[this.settings.ThemeName];
+    const workingCopyTheme = loadedData?.SelectedTheme;
+    if (masterTheme) {
+      this.settings.SelectedTheme = _.merge({}, masterTheme, workingCopyTheme);
+    }
 
+    // prevent bloating, remove unchnged colors
+    userThemeNames.forEach(themeName => {
+      const userTheme = this.settings.Themes[themeName];
       userTheme.colors.light.prompts.promptColors = {};
       userTheme.colors.light.prompts.rootPromptColors = {};
       userTheme.colors.dark.prompts.promptColors = {};
@@ -443,12 +447,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.settings.SelectedTheme.colors.light.prompts.rootPromptColors = {};
     this.settings.SelectedTheme.colors.dark.prompts.promptColors = {};
     this.settings.SelectedTheme.colors.dark.prompts.rootPromptColors = {};
-
-    if (this.settings.Themes[this.settings.ThemeName]) {
-      this.settings.SelectedTheme = structuredClone(this.settings.Themes[this.settings.ThemeName]);
-    }
-    
-    this.saveSettings();
   }// loadSettings
 
   async saveSettings() {

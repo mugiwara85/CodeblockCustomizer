@@ -1249,6 +1249,73 @@ export class SettingsTab extends PluginSettingTab {
           this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl); // refresh color settings to immediately reflect the root color switch
         }));
 
+    let languagesTextComponent: TextComponent;
+    let autoUseToggle: ToggleComponent;
+    
+    new Setting(promptSettingsDetails)
+      .setName("Auto-use Prompt")
+      .setDesc("If enabled, this prompt will be used automatically for the specified languages.")
+      .addToggle(toggle => {
+        autoUseToggle = toggle;
+        toggle
+          .setValue(currentPromptData.autoUsePrompt ?? false)
+          .onChange(async (isEnabling) => {
+            autoUseLanguagesSetting.settingEl.style.display = isEnabling ? '' : 'none';
+            const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+            updatedPromptData.autoUsePrompt = isEnabling;
+            await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+            // if enabling, focus the text input for convenience
+            if (isEnabling) {
+              languagesTextComponent.inputEl.focus();
+            }
+          });
+      });
+    
+    const autoUseLanguagesSetting = new Setting(promptSettingsDetails)
+      .setName("Languages for Auto-use")
+      .setDesc("Comma-separated list of code block languages for which the promptshould be used\n(e.g., bash, python etc.).")
+      .addText(text => {
+        languagesTextComponent = text;
+        text.setValue((currentPromptData.autoUseLanguages ?? []).join(', '));
+        text.inputEl.onblur = async () => {
+          const isEnabled = autoUseToggle.getValue();
+          if (!isEnabled) 
+            return;
+
+          const newLangs = languagesTextComponent.getValue().split(',').map(s => s.trim()).filter(Boolean);
+          if (newLangs.length === 0) {
+            new Notice("⚠️ Auto-use is enabled, but no languages are specified. Disabling feature.");
+            autoUseToggle.setValue(false);
+            return;
+          }
+
+          const allPrompts = { ...defaultPrompts, ...this.plugin.settings.SelectedTheme.settings.prompts.customPrompts };
+          for (const lang of newLangs) {
+            for (const promptId in allPrompts) {
+              if (promptId === selectedPromptId) 
+                continue;
+              const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
+              if (pDef.autoUsePrompt && pDef.autoUseLanguages?.includes(lang)) {
+                new Notice(`⚠️ Can't save. Language '${lang}' is already set for auto-use by prompt '${pDef.name}'.`);
+                // revert to last saved value
+                const { def: currentDef } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+                languagesTextComponent.setValue((currentDef.autoUseLanguages ?? []).join(', '));
+                autoUseToggle.setValue(false);
+                return; 
+              }
+            }
+          }
+          
+          const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          updatedPromptData.autoUsePrompt = true;
+          updatedPromptData.autoUseLanguages = newLangs;
+          await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+          new Notice("Auto-use settings saved.");
+        };
+      });
+
+    autoUseLanguagesSetting.settingEl.style.display = (currentPromptData.autoUsePrompt ?? false) ? '' : 'none';
+
     const colorsSettingsDetails = promptEditorContainer.createEl('details', {cls: 'codeblock-customizer-prompt-colors-settings-group'});
     
     if (wasColorsOpen) 
@@ -1404,6 +1471,10 @@ export class SettingsTab extends PluginSettingTab {
         diff.isWindowsShell = promptData.isWindowsShell;
       if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling) 
         diff.supportsRootStyling = promptData.supportsRootStyling;
+      if (promptData.autoUsePrompt !== basePromptDef.autoUsePrompt)
+        diff.autoUsePrompt = promptData.autoUsePrompt;
+      if (JSON.stringify(promptData.autoUseLanguages ?? []) !== JSON.stringify(basePromptDef.autoUseLanguages ?? []))
+        diff.autoUseLanguages = promptData.autoUseLanguages;
   
       this.plugin.settings.SelectedTheme.settings.prompts.editedDefaults[selectedPromptId] = diff;
     }

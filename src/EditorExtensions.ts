@@ -438,7 +438,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
         
         const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
-        const promptLines = computePromptLines(parameters, rawLineCount);
+        const promptLines = computePromptLines(parameters, rawLineCount, settings);
         const { context, initialEnv } = createPromptContext(parameters, settings);
         let promptEnv = { ...initialEnv };
         let cache: PromptCache = { key: "", node: null };
@@ -480,9 +480,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             const snapshot = { ...promptEnv };
             const lineText = currentLine.text;
             addCommandOutput(lineText, decorations, currentLine, promptEnv, context.promptDef);
-            const { promptData, newEnv, newCache/*, node*/ } = renderPromptLine(lineText, snapshot, cache, context);
-            decorations.push(Decoration.widget({widget: new PromptWidget({promptData, promptType: context.promptType, promptDef: context.promptDef, promptEnv: snapshot, settings: context.settings,}),}).range(lineStartPos));
-            //decorations.push(Decoration.widget({widget: new NodeWidget(node)}).range(lineStartPos));
+            const { newEnv, newCache, node, key } = renderPromptLine(lineText, snapshot, cache, context);
+            decorations.push(Decoration.widget({ widget: new NodeWidget(node, key) }).range(lineStartPos));
             promptEnv = newEnv;
             cache = newCache;
           }
@@ -727,7 +726,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// createLink
 
-  interface PromptWidgetOptions {
+  /*interface PromptWidgetOptions {
     promptData: string | { text: string; class?: string }[];
     promptType: string;
     promptDef: PromptDefinition;
@@ -754,17 +753,21 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const isRoot = this.opts.promptEnv.user === "root";
       return addClassesToPrompt(this.opts.promptData, this.opts.promptType, this.opts.promptDef, this.opts.settings, isRoot);
     }
-  }// PromptWidget
+  }// PromptWidget*/
   
-  /*class NodeWidget extends WidgetType {
-    constructor(private node: HTMLElement) { super(); }
-    eq(other: NodeWidget): boolean {
-      return other.node === this.node;
+  class NodeWidget extends WidgetType {
+    constructor(private readonly node: HTMLElement, private readonly key: string) {
+      super();
     }
+
+    eq(other: NodeWidget): boolean {
+      return this.key === other.key;
+    }
+
     toDOM(): HTMLElement {
       return this.node;
     }
-  }*/
+  }// NodeWidget
 
   class LineWidget extends WidgetType {
     output: string;

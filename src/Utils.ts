@@ -251,6 +251,8 @@ export interface Parameters {
   lineSeparator: string;
   textSeparator: string;
   prompt: PromptLines;
+  noprompt: boolean;
+  nopromptLines: number[];
   group: string;
   tab: string;
 }
@@ -322,7 +324,6 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
         specificHeader = false;
       if (group)
         headerDisplayText = ''; // if tabs are in use, header should not display any text by default
-
     }
     hasLangBorderColor = getBorderColorByLanguage(language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
   }
@@ -336,6 +337,10 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     db: extractParameter(parsedParameters, "db"),
     branch: extractParameter(parsedParameters, "branch")
   };
+
+  // noprompt
+  const noprompt = isParameterDefined("noprompt", lineText);
+  const nopromptLines = getLineRanges(extractParameter(parsedParameters, "noprompt"));
 
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
@@ -359,6 +364,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     lineSeparator,
     textSeparator,
     prompt,
+    noprompt,
+    nopromptLines,
     group,
     tab
   };
@@ -387,6 +394,8 @@ export function getDefaultParameters() {
     lineSeparator: '',
     textSeparator: '',
     prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null}},
+    noprompt: false,
+    nopromptLines: [],
     group: '',
     tab: '',
   }
@@ -1772,6 +1781,8 @@ export type PromptDefinition = {
   defaultHost?: string;
   defaultBranch?: string;
   isWindowsShell: boolean;
+  autoUsePrompt?: boolean;
+  autoUseLanguages?: string[];
 };// PromptDefinition
 
 export const defaultPrompts: Record<string, PromptDefinition> = {
@@ -1789,6 +1800,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     },
     supportsRootStyling: true,
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   bashalt: {
@@ -1805,6 +1818,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     },
     supportsRootStyling: true,
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   zshgit: {
@@ -1821,6 +1836,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
       branch: "branch",
     },
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   zsh: {
@@ -1837,6 +1854,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     },
     supportsRootStyling: true,
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   kali: {
@@ -1853,6 +1872,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     },
     supportsRootStyling: true,
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   fish: {
@@ -1866,6 +1887,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
       path: "path"
     },
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   ps: {
@@ -1879,6 +1902,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
       path: "path"
     },
     isWindowsShell: true,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   cmd: {
@@ -1892,6 +1917,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
       path: "path"
     },
     isWindowsShell: true,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   docker: {
@@ -1908,6 +1935,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     },
     supportsRootStyling: true,
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   },
 
   postgres: {
@@ -1919,6 +1948,8 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
       db: "db"
     },
     isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
   }
 };// defaultPrompts
 
@@ -2189,105 +2220,87 @@ function getMatchRanges(promptText: string, match: RegExpExecArray, groupMap: Re
   return ranges.sort((a, b) => a.start - b.start);
 }// getMatchRanges
 
-export function resolvePath(current: string, target: string, homeDir?: string): string {
-  if (!target || target === "~") 
-    return "~";
-
-  const isWindows = /^[a-zA-Z]:[\\/]/.test(current);
+export function resolvePath(current: string, target: string, isWindows: boolean, homeDir?: string): string {
   const separator = isWindows ? "\\" : "/";
+  const home = homeDir || (isWindows ? "C:\\Users\\User" : "/home/user");
 
-  const normalize = (path: string): string => {
-    let preservedPrefix = "";
-  
-    if (isWindows && path.startsWith("\\\\")) {
-      preservedPrefix = "\\\\";
-      path = path.slice(2);
-    }
-  
-    path = path.replace(/[\\/]+/g, separator);
-  
-    // prevent stripping the only slash (root)
-    if (path === separator) 
-      return preservedPrefix + separator;
-  
-    // otherwise strip trailing slashes
-    return preservedPrefix + path.replace(new RegExp(`${escapeForRegex(separator)}+$`), "");
-  };
-    
-  // handle ~
-  if (target.startsWith("~")) {
-    /*const home = "~";
-    const suffix = target.length > 1 ? target.slice(1) : "";
-    return normalize(home + separator + suffix);*/
-    const suffix = target.length > 1 ? target.slice(1) : "";
-    if (homeDir) {
-      return normalize(homeDir + suffix);
-    }
-    return normalize("/home/user" + suffix);
+  // cd "" or cd " " should do nothing, just return the current path
+  if (target.trim() === "") {
+    return current;
   }
   
-  // handle network paths
-  if (isWindows) {
-    if (/^\\\\[^\\]+\\[^\\]+/.test(target)) {
-      return normalize(target); // proper UNC
-    }
-  
-    // UNC with forward slashes (e.g., //server/share)
-    if (/^\/\/[^/]+\/[^/]+/.test(target)) {
-      return normalize(current + "\\" + target.replace(/[\\/]+/g, "\\"));
-    }
+  // cd (with no argument) or cd ~ should go to the home directory
+  if (target === null || target === undefined || target.trim() === "~") {
+    return "~";
+  }
+
+  let path_to_process: string;
+  const isUNC = isWindows && (target.startsWith("\\\\") || target.startsWith("//"));
+
+  if (isUNC) {
+    path_to_process = "\\\\" + target.slice(2).replace(/[\\/]+/g, separator);
   } else {
-    // linux shell: replace backslashes with forward slashes
-    target = target.replace(/\\/g, "/");
-  }  
+    let resolvingTarget = target.replace(/[\\/]+/g, separator);
+    if (resolvingTarget.startsWith("~" + separator)) {
+      resolvingTarget = home + resolvingTarget.slice(1);
+    }
 
-  // absolute paths
-  if (/^[a-zA-Z]:[\\/]/.test(target) || (!isWindows && target.startsWith("/"))) {
-    return normalize(target);
-  }
-
-  // normalize current path
-  const normalizedCurrent = normalize(current);
-  /*const isAtHome = normalizedCurrent === "~";
-  if (isAtHome && homeDir) {
-    normalizedCurrent = normalize(homeDir);
-  }*/
-
-  let drive = "";
-  let currentParts: string[];
-
-  if (isWindows) {
-    const match = normalizedCurrent.match(/^([a-zA-Z]:)(.*)/);
-    drive = match?.[1] ?? "";
-    currentParts = match?.[2].split(separator).filter(Boolean) ?? [];
-  } else {
-    currentParts = normalizedCurrent.split(separator).filter(Boolean);
-  }
-
-  const targetParts = target.split(/[\\/]/).filter(Boolean);
-  const resolvedParts: string[] = [...currentParts];
-
-  for (const part of targetParts) {
-    if (part === "..") {
-      if (resolvedParts.length > 0) {
-        resolvedParts.pop();
+    const isTargetAbsolute = isWindows ? /^[a-zA-Z]:\\/.test(resolvingTarget) || resolvingTarget.startsWith(separator) : resolvingTarget.startsWith(separator);
+    if (isTargetAbsolute) {
+      if (isWindows && resolvingTarget.startsWith(separator)) {
+        path_to_process = current.substring(0, 2) + resolvingTarget;
+      } else {
+        path_to_process = resolvingTarget;
       }
-      // if empty, stay at root (C:\ for Windows, / for Unix)
-    } else if (part !== ".") {
-      resolvedParts.push(part);
+    } else {
+      let absoluteCurrent = current;
+      if (current === "~" || current.startsWith("~" + separator)) {
+        absoluteCurrent = home + current.slice(1);
+      }
+      path_to_process = absoluteCurrent + separator + resolvingTarget;
+    }
+  }
+ 
+  let prefix: string;
+  let parts: string[];
+  const stack: string[] = [];
+
+  if (isWindows && path_to_process.startsWith("\\\\")) { // UNC Path
+    const pathParts = path_to_process.slice(2).split(separator);
+    prefix = `\\\\${pathParts.shift() || ""}\\${pathParts.shift() || ""}`;
+    parts = pathParts;
+  } else if (isWindows) { // Standard Windows Path
+    prefix = path_to_process.substring(0, path_to_process.indexOf(separator) + 1); // C:\
+    parts = path_to_process.substring(prefix.length).split(separator);
+  } else { // Linux Path
+    prefix = "/";
+    parts = path_to_process.substring(1).split(separator);
+  }
+
+  if(isWindows && !path_to_process.startsWith("\\\\")){
+    stack.push(...prefix.split(separator).filter(p=>p && p.includes(':') === false));
+  } else if (!isWindows){
+      stack.push(...prefix.split(separator).filter(p=>p));
+  }
+
+  for (const part of parts) {
+    if (part === ".." && stack.length > 0) {
+      stack.pop();
+    } else if (part && part !== "." && part !== "..") {
+      stack.push(part);
     }
   }
 
   if (isWindows) {
-    return drive + (resolvedParts.length > 0 ? "\\" + resolvedParts.join("\\") : "\\");
-  } else {
-    return "/" + resolvedParts.join("/");
+    if (path_to_process.startsWith("\\\\")) { // rebuild UNC path
+      return prefix + (stack.length > 0 ? separator + stack.join(separator) : separator);
+    }
+    // rebuild windows path, and ensure C:\ for root.
+    return prefix.substring(0,2) + separator + stack.join(separator);
+  } else { // rebuild linux path
+    return prefix + stack.join(separator);
   }
 }// resolvePath
-
-function escapeForRegex(s: string): string {
-  return s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-}// escapeForRegex
 
 export function simplifyHomePath(path: string, homeDir: string | undefined): string {
   if (!homeDir) 
@@ -2469,9 +2482,9 @@ export function parsePromptCommands(lineText: string, promptDef: PromptDefinitio
       newDir = env.previousDir;
       envCopy.previousDir = temp;
     } else if (cdTarget === ".." || cdTarget === "cd..") {
-      newDir = resolvePath(env.dir, "..");
+      newDir = resolvePath(env.dir, "..", isWindowsShell, env.homeDir);
     } else {
-      newDir = resolvePath(env.dir, cdTarget, env.homeDir);
+      newDir = resolvePath(env.dir, cdTarget, isWindowsShell, env.homeDir);
     }
 
     if (newDir !== env.dir && cdTarget !== "-") {
@@ -2611,6 +2624,7 @@ interface PromptResult {
   newEnv: PromptEnvironment;
   newCache: PromptCache;
   node: HTMLElement;
+  key: string;
 }// PromptResult
 
 export function createPromptContext(parameters: Parameters, settings: CodeblockCustomizerSettings): { context: PromptContext; initialEnv: PromptEnvironment } {
@@ -2659,17 +2673,34 @@ export function renderPromptLine(lineText: string, snapshotEnv: PromptEnvironmen
 
   const newEnv = shellCmdRegex.test(lineText) ? parsePromptCommands(lineText, ctx.promptDef, snapshotEnv) : snapshotEnv;
 
-  return { promptData: promptContent, newEnv, newCache: cache, node};
+  return { promptData: promptContent, newEnv, newCache: cache, node, key};
 }// renderPromptLine
 
 function promptEnvKey(env: PromptEnvironment): string {
   return [env.user, env.dir, env.db, env.branch, env.host, env.previousDir].join('|');
 }// promptEnvKey
 
-export function computePromptLines(parameters: Parameters, totalLines: number): Set<number> {
+export function computePromptLines(parameters: Parameters, totalLines: number, settings: CodeblockCustomizerSettings): Set<number> {
+  if (parameters.noprompt && parameters.nopromptLines.length === 0) {
+    return new Set<number>();
+  }
+
   const lines = new Set<number>();
-  
-  if (!parameters.prompt.text) 
+  let promptText = parameters.prompt.text;
+
+  if (!promptText && parameters.language) {
+    const allPrompts = { ...defaultPrompts, ...settings.SelectedTheme.settings.prompts.customPrompts };
+    for (const promptId in allPrompts) {
+      const { def: promptDef } = getPromptDefinition(promptId, settings);
+      if (promptDef.autoUsePrompt && promptDef.autoUseLanguages?.includes(parameters.language)) {
+        promptText = promptId;
+        parameters.prompt.text = promptId;
+        break;
+      }
+    }
+  }
+
+  if (!promptText) 
     return lines;
 
   if (parameters.prompt.lineNumbers.length > 0) {
@@ -2679,6 +2710,13 @@ export function computePromptLines(parameters: Parameters, totalLines: number): 
   } else {
     for (let i = 1; i <= totalLines; i++) {
       lines.add(i);
+    }
+  }
+
+  // remove lines specified by noprompt
+  if (parameters.nopromptLines.length > 0) {
+    for (const ln of parameters.nopromptLines) {
+      lines.delete(ln);
     }
   }
 

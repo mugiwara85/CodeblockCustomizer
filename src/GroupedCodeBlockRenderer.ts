@@ -12,7 +12,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private debouncedProcess: () => void;
   private plugin: CodeBlockCustomizerPlugin;
   private hoverListeners: Array<() => void> = [];
-  //private activeGroupedTabs: Map<string, number> = new Map();
   private activeReadingViewTabs: Map<string, Map<string, number>> = new Map();
 
   constructor(containerEl: HTMLElement, view: MarkdownView, childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>, plugin: CodeBlockCustomizerPlugin) {
@@ -37,7 +36,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   public processGroupedCodeBlocks() {
     this.cleanup();
 
-    //const allPreElements: NodeListOf<HTMLPreElement> = this.containerEl.querySelectorAll('pre.codeblock-customizer-grouped, pre:not(.codeblock-customizer-grouped)');
     const allCodeBlockContainers: NodeListOf<HTMLPreElement> = this.containerEl.querySelectorAll('.el-pre.codeblock-customizer-pre-parent');
     if (allCodeBlockContainers.length === 0) {
       this.reconnectObserver(['class']);
@@ -75,9 +73,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
   private processGroup(group: HTMLPreElement[], groupName: string) {
     const firstBlock = group[0];
-    /*const groupName = firstBlock.getAttribute('groupname');
-    if (!groupName) 
-      return; */
 
     this.hideGroupedCodeBlocks(group);
 
@@ -354,117 +349,75 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// removeLanguageSpecificClasses
 
   private getConsecutiveGroups(allCodeBlockContainers: NodeListOf<HTMLPreElement>): HTMLPreElement[][] {
-    /*const distinctConsecutiveGroups: HTMLPreElement[][] = [];
-    let currentConsecutiveGroup: HTMLPreElement[] = [];
-    let previousGroupName: string | null = null;
-
-    Array.from(allPreElements).forEach(preElement => {
-      const currentGroupName = preElement.getAttribute('groupname');
-
-      if (currentGroupName) {
-        if (currentGroupName === previousGroupName || currentConsecutiveGroup.length === 0) {
-          currentConsecutiveGroup.push(preElement);
-        } else {
-          if (currentConsecutiveGroup.length > 0) {
-            distinctConsecutiveGroups.push(currentConsecutiveGroup);
-          }
-          currentConsecutiveGroup = [preElement];
-        }
-        previousGroupName = currentGroupName;
-      } else {
-        if (currentConsecutiveGroup.length > 0) {
-          distinctConsecutiveGroups.push(currentConsecutiveGroup);
-        }
-        currentConsecutiveGroup = [];
-        previousGroupName = null;
-      }
-    });
-
-    if (currentConsecutiveGroup.length > 0) {
-      distinctConsecutiveGroups.push(currentConsecutiveGroup);
-    }
-
-    return distinctConsecutiveGroups;*/
     const distinctConsecutiveGroups: HTMLPreElement[][] = [];
     let currentConsecutiveGroup: HTMLPreElement[] = [];
 
     const containerArray = Array.from(allCodeBlockContainers);
 
     for (let i = 0; i < containerArray.length; i++) {
-        const currentContainer = containerArray[i];
-        const currentPreElement = currentContainer.querySelector('pre.codeblock-customizer-grouped') as HTMLPreElement | null;
+      const currentContainer = containerArray[i];
+      const currentPreElement = currentContainer.querySelector('pre.codeblock-customizer-grouped') as HTMLPreElement | null;
 
-        if (!currentPreElement) {
-            // If the container doesn't have a grouped pre element, it breaks any ongoing sequence
-            if (currentConsecutiveGroup.length > 0) {
-                distinctConsecutiveGroups.push(currentConsecutiveGroup);
-                currentConsecutiveGroup = [];
-            }
-            continue; // Move to the next container
+      if (!currentPreElement) {
+        if (currentConsecutiveGroup.length > 0) {
+          distinctConsecutiveGroups.push(currentConsecutiveGroup);
+          currentConsecutiveGroup = [];
         }
+        continue;
+      }
 
-        const currentGroupName = currentPreElement.getAttribute('groupname');
+      const currentGroupName = currentPreElement.getAttribute('groupname');
 
-        if (currentGroupName) {
-            if (currentConsecutiveGroup.length === 0) {
-                // Start a new group with the current pre element
-                currentConsecutiveGroup.push(currentPreElement);
-            } else {
-                // Check if the current container is a direct sibling of the last container in the group
-                const lastContainerInGroup = currentConsecutiveGroup[currentConsecutiveGroup.length - 1].closest('.el-pre.codeblock-customizer-pre-parent');
-                if (!lastContainerInGroup) {
-                    // This should not happen if currentConsecutiveGroup is populated correctly
-                    // but as a safeguard, reset if parent not found.
-                    if (currentConsecutiveGroup.length > 0) {
-                        distinctConsecutiveGroups.push(currentConsecutiveGroup);
-                    }
-                    currentConsecutiveGroup = [currentPreElement];
-                    continue;
-                }
-
-                let nextNode: ChildNode | null = lastContainerInGroup.nextSibling;
-                let foundDirectConsecutiveContainer = false;
-
-                while (nextNode) {
-                    if (nextNode === currentContainer) {
-                        foundDirectConsecutiveContainer = true;
-                        break;
-                    }
-
-                    // If it's an element node and not the target container, it breaks the sequence
-                    if (nextNode.nodeType === Node.ELEMENT_NODE) {
-                        break;
-                    }
-
-                    // If it's a text node and contains non-whitespace characters, it breaks the sequence
-                    if (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent && nextNode.textContent.trim().length > 0) {
-                        break;
-                    }
-
-                    nextNode = nextNode.nextSibling;
-                }
-
-                // If found directly consecutive AND group names match
-                if (foundDirectConsecutiveContainer && currentGroupName === currentConsecutiveGroup[0].getAttribute('groupname')) {
-                    currentConsecutiveGroup.push(currentPreElement);
-                } else {
-                    // Sequence broken, finalize current group and start a new one
-                    distinctConsecutiveGroups.push(currentConsecutiveGroup);
-                    currentConsecutiveGroup = [currentPreElement];
-                }
-            }
+      if (currentGroupName) {
+        if (currentConsecutiveGroup.length === 0) {
+          currentConsecutiveGroup.push(currentPreElement);
         } else {
-            // If the current pre element is not grouped (or has no groupname), it breaks any ongoing grouped sequence.
-            if (currentConsecutiveGroup.length > 0) {
+            const lastContainerInGroup = currentConsecutiveGroup[currentConsecutiveGroup.length - 1].closest('.el-pre.codeblock-customizer-pre-parent');
+            if (!lastContainerInGroup) {
+              if (currentConsecutiveGroup.length > 0) {
                 distinctConsecutiveGroups.push(currentConsecutiveGroup);
-                currentConsecutiveGroup = [];
+              }
+              currentConsecutiveGroup = [currentPreElement];
+              continue;
             }
+
+            let nextNode: ChildNode | null = lastContainerInGroup.nextSibling;
+            let foundDirectConsecutiveContainer = false;
+
+            while (nextNode) {
+              if (nextNode === currentContainer) {
+                foundDirectConsecutiveContainer = true;
+                break;
+              }
+
+              if (nextNode.nodeType === Node.ELEMENT_NODE) {
+                break;
+              }
+
+              if (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent && nextNode.textContent.trim().length > 0) {
+                break;
+              }
+
+              nextNode = nextNode.nextSibling;
+            }
+
+          if (foundDirectConsecutiveContainer && currentGroupName === currentConsecutiveGroup[0].getAttribute('groupname')) {
+            currentConsecutiveGroup.push(currentPreElement);
+          } else {
+            distinctConsecutiveGroups.push(currentConsecutiveGroup);
+            currentConsecutiveGroup = [currentPreElement];
+          }
         }
+      } else {
+        if (currentConsecutiveGroup.length > 0) {
+          distinctConsecutiveGroups.push(currentConsecutiveGroup);
+          currentConsecutiveGroup = [];
+        }
+      }
     }
 
-    // Add any remaining group
     if (currentConsecutiveGroup.length > 0) {
-        distinctConsecutiveGroups.push(currentConsecutiveGroup);
+      distinctConsecutiveGroups.push(currentConsecutiveGroup);
     }
 
     return distinctConsecutiveGroups;
@@ -478,17 +431,17 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         return storedIndex;
       }
     }
-    return 0; // Default to the first tab
-  }
+    return 0; // default to the first tab
+  }/// getStoredTabIndex
 
-    private setStoredTabIndex(groupName: string, documentPath: string, index: number) {
+  private setStoredTabIndex(groupName: string, documentPath: string, index: number) {
     let documentState = this.activeReadingViewTabs.get(documentPath);
     if (!documentState) {
       documentState = new Map<string, number>();
       this.activeReadingViewTabs.set(documentPath, documentState);
     }
     documentState.set(groupName, index);
-  }
+  }// setStoredTabIndex
 
   private addTabs(frag: DocumentFragment, groupMembers: HTMLPreElement[], updateGroupHeader: (currentBlock: HTMLPreElement, tabsContainer: HTMLElement) => void, groupName: string, documentPath: string): HTMLElement {
     const tabsContainer = document.createElement('div');
@@ -497,7 +450,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     let activeTabIndex = this.getStoredTabIndex(groupName, documentPath);
     // Ensure the stored index is within bounds
     if (activeTabIndex >= groupMembers.length) {
-        activeTabIndex = 0;
+      activeTabIndex = 0;
     }
 
     const activeBlock = groupMembers[activeTabIndex];
