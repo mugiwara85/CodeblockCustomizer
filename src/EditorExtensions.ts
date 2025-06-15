@@ -4,10 +4,10 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
-import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount } from "./Const";
+import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 
 let settingsUpdated = false;
@@ -502,6 +502,84 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     decorations: v => v.decorations
   });// viewPlugin
 
+  const inlineCodeViewPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+    prevEnableSyntaxHighlight: boolean;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+      this.prevEnableSyntaxHighlight = settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight;
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet || this.prevEnableSyntaxHighlight != settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
+        this.decorations = this.buildDecorations(update.view);
+        this.prevEnableSyntaxHighlight = settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight;
+      }
+    }
+
+    buildDecorations(view: EditorView): DecorationSet {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
+        return Decoration.none;
+
+      if (!settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight)
+        return Decoration.none;
+
+      const builder = new RangeSetBuilder<Decoration>();
+      const selection = view.state.selection.main;
+
+      for (const { from, to } of view.visibleRanges) {
+        syntaxTree(view.state).iterate({ from, to,
+          enter: (node) => {
+            if (!node.type.name.startsWith('inline-code'))
+              return;
+
+            const inlineCodeText = view.state.sliceDoc(node.from, node.to);
+            const match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
+            if (!match) 
+              return;
+
+            const fullMatchText = match[0];
+            const langName = match[1].toLowerCase();
+            const code = match[2];
+            if (!code)
+              return;
+
+            const prefixLength = fullMatchText.length - code.length;
+            const codeStartPos = node.from + prefixLength;
+            const isCursorNextToBacktick = selection.from === node.from - 1 || selection.to === node.to + 1;
+            const isCursorInside = selection.from >= node.from && selection.to <= node.to;
+            if (isCursorInside || isCursorNextToBacktick) { 
+              builder.add(node.from, codeStartPos, Decoration.mark({ class: "codeblock-customizer-inline-code-langauge" }));
+            } else {
+              const displayLanguage = getDisplayLanguageName(langName);
+              const Icon = getLanguageIcon(displayLanguage);
+              if (Icon) {
+                builder.add(node.from, codeStartPos, Decoration.replace({ widget: new inlineCodeIconWidget(displayLanguage) }));
+              }
+              else {
+                builder.add(node.from, codeStartPos, Decoration.replace({}));
+              }
+            }
+
+            const tokens = getCM5Tokens(code, langName);
+            let currentPos = codeStartPos;
+            for (const token of tokens) {
+              if (token.style) {
+                const classes = token.style.split(' ').map(s => `cm-${s}`).join(' ');
+                builder.add(currentPos, currentPos + token.text.length, Decoration.mark({ class: classes }));
+              }
+              currentPos += token.text.length;
+            }
+          },
+        });
+      }
+      return builder.finish();
+    }
+  }, {
+    decorations: v => v.decorations,
+  });// inlineCodeViewPlugin
+
   /* Widgets */
 
   class TextAboveCodeblockWidget extends WidgetType {
@@ -613,6 +691,20 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return false;
     }  
   }// TextAboveCodeblockWidget
+
+  class inlineCodeIconWidget extends WidgetType {
+    constructor(readonly displayLanguage: string) {
+      super();
+    }
+
+    eq(other: inlineCodeIconWidget) {
+      return other.displayLanguage === this.displayLanguage;
+    }
+
+    toDOM() {
+      return getInlineCodeIcon(this.displayLanguage, `cm-inline-code`);
+    }
+  }// inlineCodeIconWidget
 
   class uncollapseCodeWidget extends WidgetType {
     pos: CodeBlockPositions;
@@ -790,6 +882,32 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// LineWidget
 
   /* functions */
+
+  interface CM5Token {
+    text: string;
+    style: string | null;
+  }
+
+  function getCM5Tokens(code: string, modeSpec: string): CM5Token[] {
+    const tokens: CM5Token[] = [];
+    //const mode = window.CodeMirror.getMode({}, modeSpec);
+
+    // @ts-ignore
+    const mode = window.CodeMirror.getMode(window.CodeMirror.defaults, window.CodeMirror.findModeByName(modeSpec)?.mime);
+    if (!mode || mode.name === 'null') {
+      return [{ text: code, style: null }];
+    }
+    
+    const state = mode.startState ? mode.startState() : null;
+    const stream = new window.CodeMirror.StringStream(code);
+    while (!stream.eol()) {
+      const style = mode.token(stream, state);
+      tokens.push({ text: stream.current(), style: style || null });
+      stream.start = stream.pos;
+    }
+
+    return tokens;
+  }// getCM5Tokens
 
   function areParametersDeepEqual(params1: Parameters, params2: Parameters): boolean {
     if (params1.isSpecificNumber !== params2.isSpecificNumber) 
@@ -1834,7 +1952,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return semiUnFade.of({filterFrom: CollapseStart, filterTo: CollapseEnd});
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, viewPlugin];
+  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, viewPlugin, inlineCodeViewPlugin];
 
   const result = {
     extensions,

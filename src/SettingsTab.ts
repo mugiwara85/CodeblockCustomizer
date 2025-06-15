@@ -845,6 +845,32 @@ export class SettingsTab extends PluginSettingTab {
     inlineDiv.createEl('h3', {text: 'Inline code settings'});
 
     new Setting(inlineDiv)
+    .setName('Enable inline code syntax highlighting')
+    .setDesc('If enabled, syntax highlighting will be added to inline code (if specified).')
+    .addToggle(toggle => toggle
+      .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight)
+      .onChange(async (value) => {
+        this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight = value;
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+        this.display();
+      })
+    );
+
+    if (this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
+      new Setting(inlineDiv)
+      .setName('Show icons for syntax highlighted inline code (if available)')
+      .setDesc('If enabled, icons will be shown for syntax highlighted inline code.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.showIcons)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.inlineCode.showIcons = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    }
+
+    new Setting(inlineDiv)
     .setName('Enable inline code styling')
     .setDesc('If enabled, the background color, and the text color of inline code can be styled.')
     .addToggle(toggle => toggle
@@ -1438,7 +1464,6 @@ export class SettingsTab extends PluginSettingTab {
     previewEl.appendChild(container);
     previewEl.classList.toggle("only-normal", !editingRootColors);
   }// updatePromptPreview
-  
   
   async savePromptData(isCustom: boolean, selectedPromptId: string, promptData: PromptDefinition) {
     if (isCustom) {

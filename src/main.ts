@@ -3,7 +3,7 @@ import { Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 import * as _ from 'lodash';
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
-import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, toggleFoldClasses } from "./ReadingView";
+import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, inlineCodeProcessor, toggleFoldClasses } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock} from "./Utils";
 import { CodeBlockPositions, extensions, updateValue } from "./EditorExtensions";
@@ -172,6 +172,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       await ReadingView(el, ctx, this)
     });
 
+    // inline code
+    this.registerMarkdownPostProcessor((element, context) => {
+      inlineCodeProcessor(element, context, this);
+    });
+
     // process existing open preview views when the plugin loads
     this.app.workspace.onLayoutReady(() => {
       this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
@@ -188,7 +193,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }));
 
-    // process layout-change (editor mode -> reading mode)
+    // process layout-change (editor mode <--> reading mode)
     this.registerEvent(this.app.workspace.on('layout-change', () => {
       const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (markdownView && markdownView.getMode() === 'preview') {
@@ -416,14 +421,14 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         // copy new settings from corresponding Theme to user themes which do have a baseTheme (created after this change)
         const baseTheme = this.settings.Themes[baseThemeName];
         if (baseTheme) {
-          _.merge(userTheme.settings, baseTheme.settings, userTheme.settings);
-          _.merge(userTheme.colors, baseTheme.colors, userTheme.colors);
+          userTheme.settings = _.merge({}, baseTheme.settings, userTheme.settings);
+          userTheme.colors = _.merge({}, baseTheme.colors, userTheme.colors);
         }
       } else {
         // copy new settings from Obsidian Theme to user themes which do not have a baseTheme (created before this change)
         const defaultObsidianSettings = this.settings.Themes["Obsidian"];
-        _.merge(userTheme.settings, defaultObsidianSettings.settings, userTheme.settings);
-        _.merge(userTheme.colors, defaultObsidianSettings.colors, userTheme.colors);
+        userTheme.settings = _.merge({}, defaultObsidianSettings.settings, userTheme.settings);
+        userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
       }
     });
     
@@ -463,6 +468,15 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
   }// saveSettings
+
+  renderReadingViews(): void {
+    this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
+      if (leaf.view instanceof MarkdownView && leaf.view.getMode() === "preview") {
+        // @ts-ignore
+        leaf.view.previewMode.rerender(true);
+      }
+    });
+  }// renderReadingViews
 
   restoreDefaultFold() {
     const preElements = document.querySelectorAll('.codeblock-customizer-pre.codeblock-customizer-codeblock-default-collapse');

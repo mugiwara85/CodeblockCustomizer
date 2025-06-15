@@ -1,9 +1,9 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
-import { fadeOutLineCount } from "./Const";
+import { fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
 
 import { visitParents } from "unist-util-visit-parents";
 import { fromHtml } from "hast-util-from-html";
@@ -47,7 +47,24 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   if (!sectionInfo)
     return;
 
-  const codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
+  let codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
+  // if codeblockLines is undefined, then fallback to getFileCacheAndContentLines
+  const allLinesUndefined = codeblockLines.every(line => line === undefined);
+  if (codeblockLines.length === 0 || allLinesUndefined) {
+    console.warn("`codeblockLines` is empty or undefined. Falling back to `getFileCacheAndContentLines`.");
+    const { cache, fileContentLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
+    if (!cache || !fileContentLines) {
+      console.error(`Fallback failed: Could not get file cache or content for ${context.sourcePath}`);
+      return;
+    }
+
+    codeblockLines = fileContentLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1);
+    if (codeblockLines.length === 0 || codeblockLines.every(line => line === undefined)) {
+      console.error("Fallback did not yield valid code block lines. Skipping processing.");
+      return;
+    }
+  }
+
   const codeLines = Array.from(codeblockLines);
   if (codeLines.length >= 2) {
     codeLines.shift();
@@ -1482,3 +1499,97 @@ function getCallouts(array: string[]): string[] {
   else
     return [];
 }// getCallouts
+
+export async function inlineCodeProcessor(element: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
+  const allInlineCodeElements = element.querySelectorAll("code:not(pre > code)");
+  if (allInlineCodeElements.length === 0) {
+    return;
+  }
+
+  // add class for styling
+  allInlineCodeElements.forEach(codeEl => {
+    codeEl.classList.add('codeblock-customizer-inline-code');
+  });
+
+  const firstInlineCodeElm: HTMLElement | null = element.querySelector('code:not(pre > code)');
+  const isPdfExport = firstInlineCodeElm ? !context.getSectionInfo(firstInlineCodeElm) : true
+
+  if (isPdfExport && !plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling) {
+    // remove class during printing, so it does not gets styled
+    allInlineCodeElements.forEach(codeEl => {
+      codeEl.classList.remove('codeblock-customizer-inline-code');
+    });
+    return;
+  }
+
+  if (!plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
+    return;
+  }
+
+  const prism = await loadPrism();
+
+  allInlineCodeElements.forEach(codeEl => {
+    processSingleInlineCodeElement(codeEl, prism);
+  });
+}// inlineCodeProcessor
+
+function processSingleInlineCodeElement(codeEl: Element, prism: any) {
+  const text = codeEl.textContent?.trim();
+  if (!text) {
+    return;
+  }
+
+  const match = text.match(INLINE_CODE_LANG_REGEX);
+
+  if (match && match[1] && match[2]) {
+    // {lang} was specified
+    const language = match[1].toLowerCase();
+    const code = match[2];
+
+    const displayLanguage = getDisplayLanguageName(language);
+    const newCodeEl = createCode({ cls: "codeblock-customizer-inline-code" });
+
+    const iconSpan = createInlineCodeIcon(displayLanguage);
+    if (iconSpan) {
+      newCodeEl.appendChild(iconSpan);
+    }
+
+    const codeContentSpan = createCodeContentSpan(code, language, prism);
+    newCodeEl.appendChild(codeContentSpan);
+
+    codeEl.replaceWith(newCodeEl);
+  }
+}// processSingleInlineCodeElement
+
+function createInlineCodeIcon(displayLanguage: string): HTMLSpanElement | null {
+  const Icon = getLanguageIcon(displayLanguage);
+  if (Icon) {
+    return getInlineCodeIcon(displayLanguage);
+  }
+  return null;
+}// createInlineCodeIcon
+
+function createCodeContentSpan(code: string, language: string, prism: any): HTMLSpanElement {
+  const codeContentSpan = createSpan({ cls: `codeblock-customizer-inline-code-content language-${language}` });
+  const isLanguageSupportedByPrism = prism.languages[language];
+
+  if (isLanguageSupportedByPrism) {
+    const highlightedHtml = prism.highlight(code, prism.languages[language], language);
+    codeContentSpan.innerHTML = highlightedHtml;
+  } else {
+    codeContentSpan.textContent = code;
+    //codeContentSpan.classList.add('codeblock-customizer-no-highlight');
+  }
+  return codeContentSpan;
+}// createCodeContentSpan
+
+function createCode(options?: { cls?: string, text?: string }): HTMLElement {
+  const code = document.createElement('code');
+  if (options?.cls) {
+    code.classList.add(...options.cls.split(' '));
+  }
+  if (options?.text) {
+    code.textContent = options.text;
+  }
+  return code;
+}// createCode

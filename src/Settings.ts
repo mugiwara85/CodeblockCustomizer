@@ -99,6 +99,8 @@ export interface ThemeSettings {
   },
   inlineCode: {
     enableInlineCodeStyling: boolean;
+    enableSyntaxHighlight: boolean;
+    showIcons: boolean;
   },
   printing: {
     enablePrintToPDFStyling: boolean;
@@ -651,7 +653,9 @@ const Solarized: Theme = {
       enableHighlight: false,
     },
     inlineCode: {
-      enableInlineCodeStyling: false,
+      enableInlineCodeStyling: true,
+      enableSyntaxHighlight: true,
+      showIcons: false,
     },
     printing: {
       enablePrintToPDFStyling: true,
@@ -813,7 +817,9 @@ const Obsidian: Theme = {
       enableHighlight: true,
     },
     inlineCode: {
-      enableInlineCodeStyling: false,
+      enableInlineCodeStyling: true,
+      enableSyntaxHighlight: true,
+      showIcons: false,
     },
     printing: {
       enablePrintToPDFStyling: true,

@@ -10,6 +10,8 @@ export const DEFAULT_COLLAPSE_TEXT = 'Collapsed Code';
 export const DEFAULT_LINE_SEPARATOR = '|';
 export const DEFAULT_TEXT_SEPARATOR = ':';
 
+export const INLINE_CODE_LANG_REGEX = /^{\s*([^}]+?)\s*}\s*(.*)$/s;
+
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",
   "plain": "Plain text",

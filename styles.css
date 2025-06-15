@@ -7,6 +7,8 @@
   --header-padding: 0px;
   --header-spacing: 15px;
   --language-icon-size: 32px;
+  --inline-code-padding-vertical: 0.2em;
+  --inline-code-padding-horizontal: 0.4em;
 }
 
 /* Codeblock background colors */
@@ -267,19 +269,78 @@
 /* Inline code editor */
 .codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code {
   color: var(--codeblock-customizer-inline-code-text-color);
-  font-size: var(--code-size);
   background-color: var(--codeblock-customizer-inline-code-background-color);
-  vertical-align: baseline;
 }
-
+.cm-s-obsidian span.cm-inline-code {
+  font-size: var(--code-size);
+  padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
+  margin: 0px 0px !important;
+  border-radius: var(--border-radius) !important;
+}
+/* Inline code editor - language */
+.markdown-source-view .codeblock-customizer-inline-code-langauge {
+  color: var(--code-comment);
+}
+/* remove margin and padding for first backtick when editing */
+body.codeblock-customizer-show-inline-code-icons .cm-s-obsidian span.codeblock-customizer-inline-code-icon-container, 
+.cm-s-obsidian span.cm-formatting-code:has(+ span.cm-inline-code:not(.cm-formatting-code)){
+  border-radius: var(--border-radius) 0px 0px var(--border-radius) !important;
+  padding-left: var(--inline-code-padding-horizontal) !important;
+  padding-right: 0px !important;
+  margin-left: 0px !important;
+  margin-right: 0px !important;
+}
+/* remove margin and padding for code when editing */
+.cm-s-obsidian span.cm-formatting-code + span.cm-inline-code:not(.cm-formatting-code){
+  border-radius: 0px !important;
+  margin: 0px 0px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+}
+/* remove margin and padding for last backtick when editing */
+.cm-s-obsidian span.cm-inline-code:not(.cm-formatting-code) + span.cm-formatting-code{
+  border-radius: 0px var(--border-radius) var(--border-radius) 0px !important;
+  padding-right: var(--inline-code-padding-horizontal) !important;
+  padding-left: 0px !important;
+  margin-left: 0px !important;
+  margin-right: 0px !important;
+}
+/* set border radius for inline code, if an icon is displayed */
+.cm-s-obsidian span.codeblock-customizer-inline-code-icon-container ~ span.cm-inline-code:not(.cm-formatting-code) {
+  border-radius: 0px var(--border-radius) var(--border-radius) 0px !important;
+  padding-left: 0px !important;
+  margin-left: 0px !important;
+}
+/* inline code icon container */
+body.codeblock-customizer-show-inline-code-icons .cm-s-obsidian span.codeblock-customizer-inline-code-icon-container,
+.codeblock-customizer.codeblock-customizer-show-inline-code-icons .markdown-rendered code.codeblock-customizer-inline-code:has(.codeblock-customizer-icon-container) {
+  padding-left: 0px !important; 
+}
+body:not(.codeblock-customizer-show-inline-code-icons) span.codeblock-customizer-inline-code-icon-container,
+body:not(.codeblock-customizer-show-inline-code-icons) .markdown-rendered code .codeblock-customizer-icon-container {
+  display:none;
+}
+body:not(.codeblock-customizer-show-inline-code-icons) div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code ~ span.cm-inline-code {
+  padding-left: var(--inline-code-padding-horizontal) !important;
+  border-radius: var(--border-radius) var(--border-radius) var(--border-radius) var(--border-radius) !important;
+}
+/* Inline code icon */
+.codeblock-customizer-inline-code-icon-container .codeblock-customizer-inline-code-icon {
+  display: inline !important;
+  height: calc(var(--code-size) * 1.4);
+  margin-bottom: 2px !important;
+  vertical-align: middle;
+}
 /* Inline code reading view */
-.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre) > code {
+.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre) > code.codeblock-customizer-inline-code {
   color: var(--codeblock-customizer-inline-code-text-color);
   font-family: var(--font-monospace);
   background-color: var(--codeblock-customizer-inline-code-background-color);
   border-radius: var(--radius-s);
   font-size: var(--code-size);
-  padding: 0.1em 0.25em;
+  padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
+  margin: 0px 0px !important;
+  border-radius: var(--border-radius) !important;
 }
 
 /* Link */

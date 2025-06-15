@@ -957,10 +957,10 @@ export function createCodeblockLang(lang: string, langClass?: string, tabName?: 
   return codeblockLang;
 }// createCodeblockLang
 
-export function createCodeblockIcon(displayLang: string) {
+export function createCodeblockIcon(displayLang: string, cls?: string) {
   const div = createDiv({cls: `codeblock-customizer-icon-container`});
   const img = document.createElement("img");
-  img.classList.add("codeblock-customizer-icon");
+  img.classList.add(cls ? cls : "codeblock-customizer-icon");
   img.width = 28; //32
   img.src = BLOBS[displayLang.replace(/\s/g, "_")];
 
@@ -1325,6 +1325,12 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.add('codeblock-customizer-always-show-copy-code-button');
   } else{
     document.body.classList.remove('codeblock-customizer-always-show-copy-code-button');
+  }
+
+  if (settings.inlineCode.showIcons) {
+    document.body.classList.add('codeblock-customizer-show-inline-code-icons');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-inline-code-icons');
   }
 
 }// updateSettingStyles
@@ -2722,3 +2728,18 @@ export function computePromptLines(parameters: Parameters, totalLines: number, s
 
   return lines;
 }// computePromptLines
+
+export function getInlineCodeIcon(displayLanguage: string, additionalClass?: string) {
+  const container = createSpan({ cls: `codeblock-customizer-inline-code-icon-container` });
+  if (additionalClass)
+    container.classList.add(additionalClass);
+  
+  const iconSpan = createSpan({cls: `codeblock-customizer-icon-container`}); // these icons must be in an SPAN not a DIV... have to change this later
+  const iconDiv = createCodeblockIcon(displayLanguage, `codeblock-customizer-inline-code-icon`);
+  if (iconDiv.firstChild) {
+    iconSpan.appendChild(iconDiv.firstChild);
+  }
+  container.appendChild(iconSpan);
+
+  return container;
+}// getInlineCodeIcon
