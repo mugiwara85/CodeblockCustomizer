@@ -1,11 +1,11 @@
-import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Line, Text, EditorSelection, Annotation } from "@codemirror/state";
+import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Line, EditorSelection, Annotation } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, isExcluded, isFoldDefined, isUnFoldDefined, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
-import { CodeblockCustomizerSettings } from "./Settings";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
+import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
@@ -21,12 +21,6 @@ export interface ReplaceFadeOutRanges {
   fadeOutStart: Line;
   fadeOutEnd: Line;
   firstLine: Line;
-}
-
-interface RangeWithDecoration {
-  from: number;
-  to: number;
-  decoration: Decoration;
 }
 
 export interface CodeBlockPositions {
@@ -48,9 +42,23 @@ interface ButtonConfig {
   enabled: boolean;
 }
 
+export enum FoldingState {
+  Unfolded = 'unfolded',
+  FullyFolded = 'fully-folded',
+  SemiFolded = 'semi-folded',
+}
+
+export enum FoldCommand {
+  Default,
+  FoldAll,
+  UnfoldAll,
+}
+
 export function extensions(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   /* annotations, effects */
 
+  const setFoldCommandState = StateEffect.define<FoldCommand>();
+  const setFoldState = Annotation.define<{ docPath: string; startPos: number; state: FoldingState | null }>();
   const setGroupTab = Annotation.define<{ group: string; startPos: number }>();
   const CollapsedDecoration = Decoration.replace({block: true, attributes: { "code-folded": "true" }});  
   const Collapse = StateEffect.define<Range<Decoration>>();
@@ -73,8 +81,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const headerField = StateField.define<DecorationSet>({
     create(state: EditorState): DecorationSet {
-      document.body.classList.remove('codeblock-customizer-header-collapse-command');
-      settings.foldAllCommand = false;
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
@@ -153,21 +159,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       // case 2: scroll or selection change
-      if (!startState.selection.eq(state.selection) || syntaxTree(startState) !== syntaxTree(state)) {
-        // re-scan
-        const newBlocks = findCodeBlockPositions(state);
-
-        // merge the new findings with the existing state
-        const merged = new Map<number, CodeBlockPositions>();
-        
-        // add existing blocks
-        value.forEach(block => merged.set(block.codeBlockStartPos, block));
-        
-        // add/overwrite with newly found blocks
-        newBlocks.forEach(block => merged.set(block.codeBlockStartPos, block));
-
-        const result = Array.from(merged.values()).sort((a,b) => a.codeBlockStartPos - b.codeBlockStartPos);
-        return result;
+      //if (!startState.selection.eq(state.selection) || syntaxTree(startState) !== syntaxTree(state)) {
+      if (syntaxTree(startState) !== syntaxTree(state)) {
+        return findCodeBlockPositions(state);
       }
 
       // nothing changed => return values
@@ -180,7 +174,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
-      return defaultFold(state);
+      return Decoration.none;
     },
     update(value, tr) {
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(tr.state))
@@ -232,6 +226,83 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           });
         }
       }
+
+      const oldCodeBlockPositions = tr.startState.field(codeBlockPositionsField, false) ?? [];
+      const newCodeBlockPositions = tr.state.field(codeBlockPositionsField, false) ?? [];
+
+      const oldFoldState = tr.startState.field(rememberedFoldField, false) ?? [];
+      const newFoldState = tr.state.field(rememberedFoldField, false) ?? [];
+
+      const globalFoldCmd = tr.state.field(foldCommandField, false) ?? [];
+      const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
+
+      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState|| settingsUpdated || tr.reconfigured) {
+        const decorationsToAdd: Range<Decoration>[] = [];
+        const state = tr.state;
+        const rememberedFolds = newFoldState ?? {};
+        const unfoldedBlocks = state.field(defaultFoldUnfoldedField, false) ?? new Set<number>();
+
+        if (globalFoldCmdChanged) {
+          value = Decoration.none;
+        }
+
+        for (const pos of newCodeBlockPositions) {
+          // check if a fold decoration already exists for this block
+          if (isBlockCurrentlyFoldedInSet(value, pos.codeBlockStartPos, pos.codeBlockEndPos)) {
+            continue;
+          }
+
+          const shouldFoldByDefault = pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.folding.inverseFold && !pos.parameters.unfold);
+          let foldNow = false;
+          let useSemiFold = false;
+          
+          // if unfolded by user action, never fold.
+          if (unfoldedBlocks.has(pos.codeBlockStartPos)) {
+            foldNow = false;
+          } else {
+            // apply commands
+            switch (globalFoldCmd) {
+              case FoldCommand.FoldAll:
+                foldNow = true;
+                useSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
+                break;
+              case FoldCommand.UnfoldAll:
+                foldNow = false;
+                break;
+              case FoldCommand.Default:
+              default: {
+                // apply remembered state or default parameters
+                const rememberedState = rememberedFolds[pos.codeBlockStartPos];
+                if (rememberedState === FoldingState.FullyFolded) {
+                  foldNow = true; useSemiFold = false;
+                } else if (rememberedState === FoldingState.SemiFolded) {
+                  foldNow = true; useSemiFold = true;
+                } else if (rememberedState === FoldingState.Unfolded) {
+                  foldNow = false;
+                } else if (rememberedState === undefined && shouldFoldByDefault) {
+                  foldNow = true;
+                  useSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
+                }
+                break;
+              }
+            }
+          }
+          if (foldNow) {
+            const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
+            if (useSemiFold && lineCount >= settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount + 2) {
+              const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.SelectedTheme.settings.semiFold.visibleLines);
+              decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map(e => e.value));
+            } else {
+              decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
+            }
+          }
+        }
+
+        if (decorationsToAdd.length > 0) {
+          value = value.update({ add: decorationsToAdd, sort: true });
+        }
+      }
+
       return value;
     },
     provide: f => EditorView.decorations.from(f)
@@ -364,6 +435,149 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return grouped;
     },
   });// groupedCodeBlocksField
+
+  const rememberedFoldField = StateField.define<Record<number, FoldingState>>({
+    create(state: EditorState): Record<number, FoldingState> {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+        return {};
+
+      const foldSettings = settings.SelectedTheme.settings.codeblock.folding;
+      if (!foldSettings.rememberFoldState)
+        return {};
+
+      const docPath = state.field(editorInfoField)?.file?.path;
+      if (!docPath) 
+        return {};
+
+      let savedStatesForFile: Map<number, FoldingState> | undefined;
+      if (foldSettings.persistence === FoldingPersistence.Permanent) {
+        savedStatesForFile = plugin.loadPermanentEditorFolds(docPath);
+      } else {
+        savedStatesForFile = plugin.activeEditorFolds.get(docPath);
+      }
+
+      return savedStatesForFile ? Object.fromEntries(savedStatesForFile) : {};
+    },
+    update(value: Record<number, FoldingState>, transaction: Transaction): Record<number, FoldingState> {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+        return {};
+
+      const foldSettings = settings.SelectedTheme.settings.codeblock.folding;
+      if (!foldSettings.rememberFoldState) {
+        return Object.keys(value).length > 0 ? {} : value;
+      }
+
+      const docPath = transaction.state.field(editorInfoField)?.file?.path;
+      let newFoldedState = { ...value };
+
+      if (transaction.docChanged && docPath) {
+        plugin.remapFolds(docPath, transaction.changes);
+
+        const tempMappedState: Record<number, FoldingState> = {};
+        for (const startPosStr in newFoldedState) {
+          const oldStartPos = Number(startPosStr);
+          const newStartPos = transaction.changes.mapPos(oldStartPos);
+          tempMappedState[newStartPos] = newFoldedState[oldStartPos];
+        }
+        newFoldedState = tempMappedState;
+      }
+
+      // handle a fold/unfold action
+      const foldStateUpdate = transaction.annotation(setFoldState);
+      if (foldStateUpdate) {
+        const { docPath: updatedDocPath, startPos, state } = foldStateUpdate;
+        if (updatedDocPath && state) {
+          const allBlocks = transaction.state.field(codeBlockPositionsField, false);
+          const currentBlock = allBlocks?.find(b => b.codeBlockStartPos === startPos);
+          if (currentBlock) {
+            const currentBlockParameters = currentBlock.parameters;
+            const shouldRemember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !currentBlockParameters.fold && !currentBlockParameters.unfold);
+            if (shouldRemember) {
+              const startLine = transaction.state.doc.lineAt(currentBlock.codeBlockStartPos).number;
+              const endLine = transaction.state.doc.lineAt(currentBlock.codeBlockEndPos).number;
+              const lineCount = endLine - startLine + 1;
+
+              plugin.setFoldState(updatedDocPath, startPos, state, 'editor', currentBlockParameters, lineCount);
+
+              if (state === FoldingState.Unfolded) {
+                delete newFoldedState[startPos];
+              } else {
+                newFoldedState[startPos] = state;
+              }
+            }
+          }
+        }
+      }
+
+      return newFoldedState;
+    },
+  });// rememberedFoldField
+
+  const defaultFoldUnfoldedField = StateField.define<Set<number>>({
+    create(state: EditorState): Set<number> {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+        return new Set();
+      
+      const initiallyUnfolded = new Set<number>();
+      const rememberedFolds = state.field(rememberedFoldField, false) ?? {};
+
+      for (const startPosStr in rememberedFolds) {
+        const startPos = Number(startPosStr);
+        const foldState = rememberedFolds[startPos];
+        if (foldState === null) {
+          initiallyUnfolded.add(startPos);
+        }
+      }
+      
+      return initiallyUnfolded;
+    },
+    update(value: Set<number>, transaction: Transaction): Set<number> {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+        return new Set();
+
+      const newValue = new Set(value);
+
+      if (transaction.docChanged) {
+        const newUnfolded = new Set<number>();
+        for (const pos of newValue) {
+          const mappedPos = transaction.changes.mapPos(pos);
+          const newCodeBlocks = transaction.state.field(codeBlockPositionsField, false) || [];
+          if (newCodeBlocks.some(block => block.codeBlockStartPos === mappedPos)) {
+            newUnfolded.add(mappedPos);
+          }
+        }
+        newValue.clear();
+        newUnfolded.forEach(pos => newValue.add(pos));
+      }
+
+      for (const effect of transaction.effects) {
+        if (effect.is(Collapse)) {
+          newValue.delete(effect.value.from);
+        } else if (effect.is(UnCollapse)) {
+          newValue.add(effect.value.filterFrom);
+        } else if (effect.is(semiCollapse)) { 
+          newValue.delete(effect.value.from);
+        } else if (effect.is(semiUnCollapse)) {
+          newValue.add(effect.value.filterFrom);
+        }
+      }
+      return newValue;
+    },
+  });// defaultFoldUnfoldedField
+
+  const foldCommandField = StateField.define<FoldCommand>({
+    create(): FoldCommand {
+      return FoldCommand.Default;
+    },
+    update(value: FoldCommand, tr: Transaction): FoldCommand {
+      for (const effect of tr.effects) {
+        if (effect.is(setFoldCommandState)) {
+          return effect.value;
+        }
+      }
+      return value;
+    },
+  });// foldCommandField
 
   /* Extensions */
 
@@ -644,8 +858,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
       container.appendChild(buttonContainer);
       
-      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.fold) ||
-          (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.unfold)) {
+      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.fold) ||
+          (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
         container.classList.add(`noCollapseIcon`);
       } else {
         const collapse = createCodeblockCollapse(this.parameters.fold);
@@ -671,14 +885,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           return;
         }
 
-        if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.fold) ||
-            (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !this.parameters.unfold)) {
+        if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.fold) ||
+            (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
           return;
         }
 
-        const effects = toggleCodeBlockFold(view, this.pos);
-        if (effects.length > 0) {
-          view.dispatch({ effects: effects });
+        const { effects, annotations } = toggleCodeBlockFold(view, this.pos);
+        if (effects.length > 0 || annotations.length > 0) {
+          view.dispatch({ effects, annotations });
         }
       };
       //EditorView.requestMeasure;
@@ -725,10 +939,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         event.preventDefault();
         event.stopPropagation();
 
-        const effects = toggleCodeBlockFold(view, this.pos);
+        const { effects, annotations } = toggleCodeBlockFold(view, this.pos);
 
-        if (effects.length > 0) {
-          view.dispatch({ effects: effects });
+        if (effects.length > 0 || annotations.length > 0) {
+          view.dispatch({ effects: effects, annotations });
         }
       };
 
@@ -802,7 +1016,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// buttonWidget
 
   class createLink extends WidgetType {
-  
     constructor(private link: string, private sourcePath: string, private plugin: CodeBlockCustomizerPlugin) {
       super();
     }
@@ -817,35 +1030,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return span;
     }
   }// createLink
-
-  /*interface PromptWidgetOptions {
-    promptData: string | { text: string; class?: string }[];
-    promptType: string;
-    promptDef: PromptDefinition;
-    promptEnv: PromptEnvironment;
-    settings: CodeblockCustomizerSettings;
-  }
-
-  class PromptWidget extends WidgetType {
-    constructor(private opts: PromptWidgetOptions) {
-      super();
-    }
-
-    eq(other: PromptWidget): boolean {
-      return (
-        this.opts.promptType === other.opts.promptType &&
-        JSON.stringify(this.opts.promptData) === JSON.stringify(other.opts.promptData) &&
-        this.opts.promptEnv.user === other.opts.promptEnv.user &&
-        this.opts.promptEnv.host === other.opts.promptEnv.host &&
-        this.opts.promptEnv.dir === other.opts.promptEnv.dir
-      );
-    }
-
-    toDOM(): HTMLElement {
-      const isRoot = this.opts.promptEnv.user === "root";
-      return addClassesToPrompt(this.opts.promptData, this.opts.promptType, this.opts.promptDef, this.opts.settings, isRoot);
-    }
-  }// PromptWidget*/
   
   class NodeWidget extends WidgetType {
     constructor(private readonly node: HTMLElement, private readonly key: string) {
@@ -882,6 +1066,22 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// LineWidget
 
   /* functions */
+
+  function isBlockCurrentlyFoldedInSet(decorations: DecorationSet, startPos: number, endPos: number): boolean {
+    let folded = false;
+    decorations.between(startPos, endPos, (decoFrom, decoTo, decoration) => {
+      if (decoration.spec.attributes?.['code-folded'] === 'true' || decoration.spec.block === true) {
+        folded = true;
+        return false;
+      }
+
+      if (decoration.spec.widget?.constructor.name === 'uncollapseCodeWidget' || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
+        folded = true;
+      }
+      return undefined;
+    });
+    return folded;
+  }// isBlockCurrentlyFoldedInSet
 
   interface CM5Token {
     text: string;
@@ -1025,21 +1225,24 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const isClickedTabActive = member.codeBlockStartPos === activeStartPos;
     
     const annotations = [setGroupTab.of({ group: groupName, startPos: member.codeBlockStartPos })];
-    let effects: CodeBlockFoldEffect[] = [];
+    const effects: CodeBlockFoldEffect[] = [];
 
     if (isClickedTabActive) {
-      // if active tab is clicked do collapse/uncollapse
-      effects = toggleCodeBlockFold(view, member);
+      const foldChanges = toggleCodeBlockFold(view, member);
+      effects.push(...foldChanges.effects);
+      annotations.push(...foldChanges.annotations);
     }
 
     view.dispatch({ annotations, effects });
   }// handleTabClick
 
-  function toggleCodeBlockFold(view: EditorView, pos: CodeBlockPositions): CodeBlockFoldEffect[] {
+  function toggleCodeBlockFold(view: EditorView, pos: CodeBlockPositions): { effects: CodeBlockFoldEffect[], annotations: Annotation<any>[] } {
     const effects: CodeBlockFoldEffect[] = [];
+    const annotations: Annotation<any>[] = [];
     const { codeBlockStartPos, codeBlockEndPos } = pos;
     const start = view.state.doc.lineAt(codeBlockStartPos);
     const end = view.state.doc.lineAt(codeBlockEndPos);
+    const docPath = view.state.field(editorInfoField)?.file?.path;
 
     const enableSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
     const visibleLines = settings.SelectedTheme.settings.semiFold.visibleLines;
@@ -1064,13 +1267,19 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const ranges: ReplaceFadeOutRanges = {firstLine: firstLine, fadeOutStart: fadeOutStartLine as Line, fadeOutEnd: fadeOutEndLine as Line, replaceStart: replaceStartLine as Line, replaceEnd: end};
         const semiFoldEffects = generateSemiFoldEffects(view.state, pos, ranges);
         effects.push(...semiFoldEffects);
+        if (docPath)
+          annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.SemiFolded }));
       } else {
         // normal fold
         effects.push(Collapse.of(CollapsedDecoration.range(start.from, end.to)));
+        if (docPath) 
+          annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.FullyFolded }));
       }
     } else if (currentFoldState === FoldingState.FullyFolded) {
       // unfold
       effects.push(UnCollapse.of({ filter: (from: number, to: number) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to }));
+      if (docPath) 
+        annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
     } else if (currentFoldState === FoldingState.SemiFolded) {
       // semi unfold
       const clearFade = clearFadeEffect(start.from, end.to);
@@ -1078,13 +1287,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         effects.push(clearFade);
       }
       effects.push(semiUnCollapse.of({ filterFrom: start.from, filterTo: end.to }));
+      if (docPath) 
+        annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
     }
 
-    if (effects.length > 0) {
-      view.dispatch({ effects: effects });
-    }
-
-    return effects;
+    return { effects, annotations };
   }// toggleCodeBlockFold
 
   function findCodeBlockPositions(state: EditorState, from = 0, to: number = state.doc.length): CodeBlockPositions[] {
@@ -1658,99 +1865,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       decorations.push(Decoration.mark({class: `cm-url`}).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
     }
   }// handleHTTPLink
-
-  function defaultFold(state: EditorState) {
-    const builder = new RangeSetBuilder<Decoration>();
-  
-    const addFoldDecoration = (from: number, to: number) => {
-      builder.add(from, to, CollapsedDecoration);
-    };
-  
-    const processSemiFold = (start: { from: number }, end: { to: number }) => {
-      const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
-      if (lineCount >= settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount + 2) { // +2 to ignore the first and last lines
-        const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
-        const currentPos: CodeBlockPositions = { codeBlockStartPos: start.from, codeBlockEndPos: end.to, parameters: getDefaultParameters()}; // parameters are not needed
-        const decos = addFadeOutEffect(state, currentPos, ranges);
-        for (const { from, to, decoration } of decos || []) {
-          builder.add(from, to, decoration);
-        }
-      } else {
-        addFoldDecoration(start.from, end.to);
-      }
-    };
-  
-    // process codeBlocks
-    processCodeBlocks(state.doc, (start, end, lineText, fold, unfold) => { // need to get rid of this
-      if (fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !unfold)) {
-        if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
-          processSemiFold(start, end);
-        } else {
-          addFoldDecoration(start.from, end.to);
-        }
-      }
-    });
-  
-    return builder.finish();
-  }// defaultFold
-
-  /*function defaultFold(state: EditorState, decorations: Array<Range<Decoration>>) {
-    //const builder = new RangeSetBuilder<Decoration>();
-  
-    const addFoldDecoration = (from: number, to: number) => {
-      const decoration = Decoration.replace({ effect: Collapse.of(Decoration.replace({ block: true }).range(from, to)), block: true, side: -1 });
-      //builder.add(from, to, decoration);
-      decorations.push(decoration.range(from, to));
-    };
-  
-    const processSemiFold = (start: { from: number }, end: { to: number }) => {
-      const lineCount = state.doc.lineAt(end.to).number - state.doc.lineAt(start.from).number + 1;
-      if (lineCount >= settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount + 2) { // +2 to ignore the first and last lines
-        const ranges = getRanges(state, start.from, end.to, settings.SelectedTheme.settings.semiFold.visibleLines);
-        const decos = addFadeOutEffect(null, state, ranges, settings.SelectedTheme.settings.semiFold.visibleLines, null);
-        for (const { from, to, decoration } of decos || []) {
-          //builder.add(from, to, decoration);
-          decorations.push(decoration.range(from, to));
-        }
-      } else {
-        addFoldDecoration(start.from, end.to);
-      }
-    };
-  
-    // process codeBlocks
-    const positions = state.field(codeBlockPositions, false) ?? [];
-    for (const pos of positions) {
-      if (pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !pos.parameters.unfold)) {
-        if (settings.SelectedTheme.settings.semiFold.enableSemiFold) {
-          processSemiFold({from: pos.codeBlockStartPos}, {to: pos.codeBlockEndPos});
-        } else {
-          addFoldDecoration(pos.codeBlockStartPos, pos.codeBlockEndPos);
-        }
-      }
-    }
-  
-    //return builder.finish();
-  }// defaultFold*/
-
-  function addFadeOutEffect(state: EditorState, pos: CodeBlockPositions, ranges: ReplaceFadeOutRanges): RangeWithDecoration[] {
-    const effects: StateEffect<Range<Decoration>>[] = generateSemiFoldEffects(state, pos, ranges);
-
-    // convert StateEffect<Range<Decoration>>[] to RangeWithDecoration[]
-    const decorations: RangeWithDecoration[] = effects.map(effect => {
-      const rangeDecoration = effect.value;
-      return {from: rangeDecoration.from, to: rangeDecoration.to, decoration: rangeDecoration.value};
-    });
-
-    return decorations;
-  }// addFadeOutEffect
     
-  enum FoldingState {
-    Unfolded = 'unfolded',
-    FullyFolded = 'fully-folded',
-    SemiFolded = 'semi-folded',
-  }
-
   function getFoldingState(view: EditorView, startPos: number, endPos: number): FoldingState {
+    const currentFoldedStates = view.state.field(rememberedFoldField, false) ?? {};
+    const storedState = currentFoldedStates[startPos];
+
+    if (storedState) {
+      return storedState;
+    }
+
     const decorations = view.state.field(collapseField, false);
     if (!decorations || decorations.size === 0) {
       return FoldingState.Unfolded; // no decorations ==> it's unfolded
@@ -1767,11 +1890,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       // check if it is semi-folded
-      if (decoration.spec.widget?.constructor.name === 'uncollapseCodeWidget' ||
-        decoration.spec.attributes?.class?.includes('semi-folded') ||
-        decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
-          isSemiFolded = true;
-          return undefined;
+      if (decoration.spec.widget?.constructor.name === 'uncollapseCodeWidget' || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
+        isSemiFolded = true;
+        return undefined;
       }
 
       return undefined;
@@ -1847,116 +1968,32 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, firstLine};
   }// getRanges
 
-  function processCodeBlocks(doc: Text, callback: (start: Line, end: Line, lineText: string, fold: boolean, unfold: boolean) => void) {
-    let CollapseStart: Line | null = null;
-    let CollapseEnd: Line | null = null;
-    let blockFound = false;
-    let bExclude = false;
-    let isDefaultFold = false;
-    let isDefaultUnFold = false;
-    let inCodeBlock = false;
-    let openingBackticks = 0;
-    
-    for (let i = 1; i <= doc.lines; i++) {
-      const lineText = doc.line(i).text.toString().trim();
-      const line = doc.line(i);
-      bExclude = isExcluded(lineText, settings.ExcludeLangs);
-      const backtickMatch = lineText.match(/^`+(?!.*`)/);
-      if (backtickMatch) {
-        if (!inCodeBlock) {
-          inCodeBlock = true;
-          openingBackticks = backtickMatch[0].length;
-          if (bExclude)
-            continue;
-          if (CollapseStart === null) {
-            isDefaultFold = isFoldDefined(lineText);
-            isDefaultUnFold = isUnFoldDefined(lineText);
-            CollapseStart = line;
-          }
-        } else {
-          if (backtickMatch[0].length === openingBackticks) {
-            inCodeBlock = false;
-            openingBackticks = 0; // Reset the opening backticks count
-            blockFound = true;
-            CollapseEnd = line;
-          } else {
-            // Nested code block with different number of backticks
-          }
-        }
-      } else if (inCodeBlock) {
-        // Lines inside the code block
-      } else {
-        // Lines outside the code block
-      }
-  
-      if (blockFound) {
-        if (CollapseStart != null && CollapseEnd != null) {
-          callback(CollapseStart, CollapseEnd, lineText, isDefaultFold, isDefaultUnFold);
-          CollapseStart = null;
-          CollapseEnd = null;
-          isDefaultFold = false;
-          isDefaultUnFold = false;
-        }
-        blockFound = false;
-      }
-    }
-  }// processCodeBlocks
-
-  function foldAll(view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) {
-    const { enableSemiFold, visibleLines } = settings.SelectedTheme.settings.semiFold;
-    const changes: CodeBlockFoldEffect[] = [];
-    const disableFoldUnlessSpecified = settings.SelectedTheme.settings.header.disableFoldUnlessSpecified;
-    const inverseFoldGloballyEnabled = settings.SelectedTheme.settings.codeblock.inverseFold;
-
-    processCodeBlocks(view.state.doc, (start, end, lineText) => {
-      const codeBlockStartPos = start.from;
-      const codeBlockEndPos = end.to;
-      const currentBlockParameters = getAllParameters(lineText, settings);
-
-      if ((disableFoldUnlessSpecified && !inverseFoldGloballyEnabled && !currentBlockParameters.fold) ||
-          (disableFoldUnlessSpecified && inverseFoldGloballyEnabled && !currentBlockParameters.unfold)) {
-        return;
-      }
-
-      const lineCount = view.state.doc.lineAt(codeBlockEndPos).number - view.state.doc.lineAt(codeBlockStartPos).number + 1;
-      const foldBlock = fold || (inverseFoldGloballyEnabled && !currentBlockParameters.unfold);
-      
-      if (foldBlock) {
-        if (enableSemiFold && lineCount >= visibleLines + fadeOutLineCount + 2) { // +2 to account for first and last lines of the code block
-          const ranges = getRanges(view.state, codeBlockStartPos, codeBlockEndPos, visibleLines);
-          const pos: CodeBlockPositions = {codeBlockStartPos: codeBlockStartPos, codeBlockEndPos: codeBlockEndPos, parameters: currentBlockParameters};
-          const semiFoldEffects = generateSemiFoldEffects(view.state, pos, ranges);
-          changes.push(...semiFoldEffects);
-        } else {
-          changes.push(Collapse.of(CollapsedDecoration.range(codeBlockStartPos, codeBlockEndPos)));
-        }
-      } else {
-        if (enableSemiFold) {
-          const clearFade = clearFadeEffect(codeBlockStartPos, codeBlockEndPos); 
-          if (clearFade) {
-            changes.push(clearFade);
-          }
-          changes.push(semiUnCollapse.of({ filterFrom: codeBlockStartPos, filterTo: codeBlockEndPos }));
-        }
-        changes.push(UnCollapse.of({ filter: (from: number, to: number) => to <= codeBlockStartPos || from >= codeBlockEndPos, filterFrom: codeBlockStartPos, filterTo: codeBlockEndPos }));
-      }
-    });
-
-    if (changes.length > 0) {
-      view.dispatch({ effects: changes });
-      view.requestMeasure();
-    }
+  function foldAll(view: EditorView) {
+    view.dispatch({ effects: setFoldCommandState.of(FoldCommand.FoldAll) });
+    view.requestMeasure();
   }// foldAll
+
+  function unfoldAll(view: EditorView) {
+    view.dispatch({ effects: setFoldCommandState.of(FoldCommand.UnfoldAll) });
+    view.requestMeasure();
+  }// unfoldAll
+
+  function restoreDefaultFold(view: EditorView) {
+    view.dispatch({ effects: setFoldCommandState.of(FoldCommand.Default) });
+    view.requestMeasure();
+  }// restoreDefaultFold
 
   function clearFadeEffect(CollapseStart: number, CollapseEnd: number): StateEffect<SemiUncollapseEffect> | undefined {
     return semiUnFade.of({filterFrom: CollapseStart, filterTo: CollapseEnd});
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, viewPlugin, inlineCodeViewPlugin];
+  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, defaultFoldUnfoldedField, rememberedFoldField, foldCommandField, viewPlugin, inlineCodeViewPlugin];
 
   const result = {
     extensions,
     foldAll,
+    unfoldAll,
+    restoreDefaultFold,
     customBracketMatching,
     selectionMatching
   };

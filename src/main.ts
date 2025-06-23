@@ -1,13 +1,15 @@
 import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice, Editor } from "obsidian";
-import { Extension, StateField } from "@codemirror/state";
+import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 import * as _ from 'lodash';
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings } from './Settings';
-import { ReadingView, calloutPostProcessor, convertHTMLCollectionToArray, foldAllReadingView, inlineCodeProcessor, toggleFoldClasses } from "./ReadingView";
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
+import { ReadingView, calloutPostProcessor, inlineCodeProcessor } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock} from "./Utils";
-import { CodeBlockPositions, extensions, updateValue } from "./EditorExtensions";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, Parameters} from "./Utils";
+import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
+import { fadeOutLineCount } from "./Const";
+
 // npm i @simonwep/pickr
 
 interface codeBlock {
@@ -16,124 +18,45 @@ interface codeBlock {
   to: number;
 }
 
+interface PermanentFoldData {
+  [filePath: string]: Record<number, FoldingState>;
+}
+
 export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
   extensions: Extension[];
   theme: string;
   editorExtensions: { extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]> | Extension)[];
-    foldAll: (view: EditorView, settings: CodeblockCustomizerSettings, fold: boolean, defaultState: boolean) => void;
+    foldAll: (view: EditorView) => void;
+    unfoldAll: (view: EditorView) => void;
+    restoreDefaultFold: (view: EditorView) => void;
     customBracketMatching: Extension;
     selectionMatching: Extension;
   }
   customLanguageConfig: customLanguageConfig | null;
   groupedChildrenMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
   activeEditorTabs: Map<string, Map<string, number>> = new Map();
+  activeEditorFolds: Map<string, Map<number, FoldingState>> = new Map();
+  permanentEditorFolds: PermanentFoldData = {};
+  activeReadingViewFolds: Map<string, Map<number, FoldingState>> = new Map();
+  permanentReadingViewFolds: PermanentFoldData = {};
+  debounceTimer: NodeJS.Timeout | null = null;
+  foldCommandTrigger: FoldCommand = FoldCommand.Default;
 
   async onload() {
     document.body.classList.add('codeblock-customizer');
     await this.loadSettings();
+    await this.loadAllPermanentData();
     updateSettingStyles(this.settings, this.app);
 
     this.extensions = [];
     this.customLanguageConfig = null;
     // npm install eslint@8.39.0 -g
-    // eslint main.ts
     
     this.groupedChildrenMap = new Map<MarkdownView, GroupedCodeBlockRenderChild>();
 
-  /* Problems to solve:
-    - if a language is excluded then:
-      - header needs to unfold before removing it,
-  */
-
-  // add fold all command
-    this.addCommand({
-      id: 'codeblock-customizer-foldall-editor',
-      name: 'Fold all code blocks',
-      callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          // @ts-ignore
-          const mode = markdownView.currentMode.type;
-          document.body.classList.add('codeblock-customizer-header-collapse-command');
-          this.settings.foldAllCommand = true;
-          if (mode === "source") {
-            // @ts-ignore
-            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
-            foldAllReadingView(true, this.settings);
-          } else if (mode === "preview") {
-            foldAllReadingView(true, this.settings);
-          }
-        }
-      }
-    });
-
-    // add unfold all command
-    this.addCommand({
-      id: 'codeblock-customizer-unfoldall-editor',
-      name: 'Unfold all code blocks',
-      callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          // @ts-ignore
-          const mode = markdownView.currentMode.type;
-          document.body.classList.add('codeblock-customizer-header-collapse-command');
-          this.settings.foldAllCommand = true;
-          if (mode === "source") {
-            // @ts-ignore
-            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, false);
-            foldAllReadingView(false, this.settings);
-          } else if (mode === "preview") {
-            foldAllReadingView(false, this.settings);
-          }
-        }
-      }
-    });
-
-    // restore default state
-    this.addCommand({
-      id: 'codeblock-customizer-restore-fold-editor',
-      name: 'Restore folding state of all code blocks to default',
-      callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          // @ts-ignore
-          const mode = markdownView.currentMode.type;
-          document.body.classList.remove('codeblock-customizer-header-collapse-command');
-          this.settings.foldAllCommand = false;
-          if (mode === "source") {
-            // @ts-ignore
-            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, true, false);
-            // @ts-ignore
-            this.editorExtensions.foldAll(markdownView.editor.cm, this.settings, false, true);
-            foldAllReadingView(false, this.settings);
-            this.restoreDefaultFold();
-          } else if (mode === "preview") {
-            foldAllReadingView(false, this.settings);
-            this.restoreDefaultFold();
-          }
-        }
-      }
-    });
-
-    // indent code block
-    this.addCommand({
-      id: 'codeblock-customizer-indent-codeblock',
-      name: 'Indent code block by one level',
-      editorCallback: async (editor: Editor, view: MarkdownView) => {
-        indentCodeBlock(editor, view);
-      }
-    });
-
-    // unindent code block
-    this.addCommand({
-      id: 'codeblock-customizer-unindent-codeblock',
-      name: 'Unindent code block by one level',
-      editorCallback: async (editor: Editor, view: MarkdownView) => {
-        unIndentCodeBlock(editor, view);
-      }
-    });
-
+    this.addCommands();
+    
     await loadIcons(this);
     loadSyntaxHighlightForCustomLanguages(this); // load syntax highlight
     
@@ -159,24 +82,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       updateSettingStyles(this.settings, this.app);
     }
     
-    this.registerEvent(this.app.workspace.on('css-change', this.handleCssChange.bind(this, settingsTab), this));
+    this.registerPostProcessors();
+
+    this.registerEvents(settingsTab);
     
-    this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
-      if (this.settings.SelectedTheme.settings.codeblock.enableLinks && this.settings.SelectedTheme.settings.codeblock.enableLinkUpdate) {
-        this.handleFileRename(file, oldPath); // until Obsidian doesn't adds code block links to metadatacache
-      }
-    }, this));
-
-    // reading mode
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      await ReadingView(el, ctx, this)
-    });
-
-    // inline code
-    this.registerMarkdownPostProcessor((element, context) => {
-      inlineCodeProcessor(element, context, this);
-    });
-
     // process existing open preview views when the plugin loads
     this.app.workspace.onLayoutReady(() => {
       this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
@@ -184,33 +93,219 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.registerGroupedRenderChildForView(leaf.view);
         }
       });
-    });
-
-    // process new active leaves (e.g. note switches)
-    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf: WorkspaceLeaf) => {
-      if (leaf && leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
-        this.registerGroupedRenderChildForView(leaf.view);
-      }
-    }));
-
-    // process layout-change (editor mode <--> reading mode)
-    this.registerEvent(this.app.workspace.on('layout-change', () => {
-      const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-      if (markdownView && markdownView.getMode() === 'preview') {
-        this.registerGroupedRenderChildForView(markdownView);
-      }
-    }));
-    
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      await calloutPostProcessor(el, ctx, this)
-    });
-
-    this.app.workspace.onLayoutReady(() => {
       this.renderReadingViewOnStart();
     });
 
     console.log("loading CodeBlock Customizer plugin");
   }// onload
+
+  setFoldState(filePath: string, key: number, newState: FoldingState, viewType: 'editor' | 'reading', parameters: Parameters, lineCount: number): void {
+    const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (markdownView) {
+      const isGlobalCommandActive = (markdownView.getMode() === 'source' && markdownView.containerEl.classList.contains('codeblock-customizer-header-collapse-command')) || 
+                                    (markdownView.getMode() === 'preview' && this.foldCommandTrigger !== FoldCommand.Default);
+
+      if (isGlobalCommandActive) {
+        return;
+      }
+    }
+
+    const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
+    const semiFoldSettings = this.settings.SelectedTheme.settings.semiFold;
+
+    if (!foldSettings.rememberFoldState) 
+      return;
+
+    let defaultState: FoldingState = FoldingState.Unfolded;
+    const foldByDefault = parameters.fold || (foldSettings.inverseFold && !parameters.unfold);
+    
+    if (foldByDefault) {
+      const canSemiFold = semiFoldSettings.enableSemiFold && (lineCount >= semiFoldSettings.visibleLines + fadeOutLineCount);
+      defaultState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
+    }
+
+    const shouldDelete = (newState === defaultState);
+    const isPermanent = foldSettings.persistence === FoldingPersistence.Permanent;
+    const store = isPermanent ? (viewType === 'editor' ? this.permanentEditorFolds : this.permanentReadingViewFolds) : (viewType === 'editor' ? this.activeEditorFolds : this.activeReadingViewFolds);
+
+    if (isPermanent) {
+      // save to file file
+      const permanentStore = store as PermanentFoldData;
+      if (!permanentStore[filePath] && !shouldDelete) {
+        permanentStore[filePath] = {};
+      }
+
+      if (permanentStore[filePath]) {
+        const fileRecord = permanentStore[filePath];
+        if (shouldDelete) {
+          delete fileRecord[key];
+        } else {
+          fileRecord[key] = newState;
+        }
+        
+        if (Object.keys(fileRecord).length === 0) {
+          delete permanentStore[filePath];
+        }
+        this.requestSavePermanentData();
+      }
+    } else {
+      // save to session
+      const sessionStore = store as Map<string, Map<number, FoldingState>>;
+      if (!sessionStore.has(filePath) && !shouldDelete) {
+        sessionStore.set(filePath, new Map());
+      }
+
+      const fileMap = sessionStore.get(filePath);
+      if (fileMap) {
+        if (shouldDelete) {
+          fileMap.delete(key);
+        } else {
+          fileMap.set(key, newState);
+        }
+      }
+    }
+  }// setFoldState
+
+  remapFolds(filePath: string, changes: ChangeSet): void {
+    const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
+    if (!foldSettings.rememberFoldState) 
+      return;
+
+    const remapRecord = (record: Record<number, FoldingState>): Record<number, FoldingState> => {
+      const newRecord: Record<number, FoldingState> = {};
+      for (const oldPosStr in record) {
+        const newPos = changes.mapPos(Number(oldPosStr));
+        newRecord[newPos] = record[oldPosStr];
+      }
+      return newRecord;
+    };
+    
+    const remapMap = (map: Map<number, FoldingState>): Map<number, FoldingState> => {
+      const newMap = new Map<number, FoldingState>();
+      for (const [oldPos, state] of map.entries()) {
+        const newPos = changes.mapPos(oldPos);
+        newMap.set(newPos, state);
+      }
+      return newMap;
+    };
+
+    if (this.activeEditorFolds.has(filePath)) {
+      const editorFolds = this.activeEditorFolds.get(filePath);
+      if (editorFolds) {
+        this.activeEditorFolds.set(filePath, remapMap(editorFolds));
+      }
+    }
+
+    if (this.activeReadingViewFolds.has(filePath)) {
+      const readingFolds = this.activeReadingViewFolds.get(filePath);
+      if (readingFolds) {
+        this.activeReadingViewFolds.set(filePath, remapMap(readingFolds));
+      }
+    }
+
+    if (foldSettings.persistence === FoldingPersistence.Permanent) {
+      if (this.permanentEditorFolds[filePath]) 
+        this.permanentEditorFolds[filePath] = remapRecord(this.permanentEditorFolds[filePath]);
+      
+      if (this.permanentReadingViewFolds[filePath]) {
+        const newlyRemappedRecord = remapRecord(this.permanentReadingViewFolds[filePath]);
+
+        this.permanentReadingViewFolds[filePath] = newlyRemappedRecord;
+      }
+      
+      this.requestSavePermanentData();
+    }
+  }// remapFolds
+  
+  syncFoldStatesOnViewChange(filePath: string, sourceView: 'editor' | 'reading') {
+    const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
+    if (!foldSettings.rememberFoldState) 
+      return;
+
+    const isPermanent = foldSettings.persistence === FoldingPersistence.Permanent;
+    const sourceStore = isPermanent ? (sourceView === 'editor' ? this.permanentEditorFolds : this.permanentReadingViewFolds) : (sourceView === 'editor' ? this.activeEditorFolds : this.activeReadingViewFolds);
+    const destStore = isPermanent ? (sourceView === 'editor' ? this.permanentReadingViewFolds : this.permanentEditorFolds) : (sourceView === 'editor' ? this.activeReadingViewFolds : this.activeEditorFolds);
+
+    if (isPermanent) {
+      // file
+      const sourceData = (sourceStore as PermanentFoldData)[filePath];
+      if (sourceData) {
+        (destStore as PermanentFoldData)[filePath] = { ...sourceData };
+      } else {
+        delete (destStore as PermanentFoldData)[filePath];
+      }
+    } else { 
+      // session
+      const sourceData = (sourceStore as Map<string, Map<number, FoldingState>>).get(filePath);
+      if (sourceData) {
+        (destStore as Map<string, Map<number, FoldingState>>).set(filePath, new Map(sourceData));
+      } else {
+        (destStore as Map<string, Map<number, FoldingState>>).delete(filePath);
+      }
+    }
+    
+    if (isPermanent) {
+      this.requestSavePermanentData();
+    }
+  }// syncFoldStatesOnViewChange
+  
+  async clearAllFoldData(): Promise<void> {
+    this.activeEditorFolds.clear();
+    this.activeReadingViewFolds.clear();
+
+    this.permanentEditorFolds = {};
+    this.permanentReadingViewFolds = {};
+    
+    await this.savePermanentData();
+    
+    this.app.workspace.updateOptions();
+    this.renderReadingViews();
+  }// clearAllFoldData
+
+  async loadAllPermanentData() {
+    this.permanentEditorFolds = await this.loadPermanentDataFile('permanent-folds.json');
+    this.permanentReadingViewFolds = await this.loadPermanentDataFile('permanent-reading-folds.json');
+  }// loadAllPermanentData
+
+  requestSavePermanentData(): void {
+    if (this.debounceTimer) 
+      clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => this.savePermanentData(), 3000);
+  }// requestSavePermanentData
+  
+  private async savePermanentData(): Promise<void> {
+    await this.writePermanentDataFile('permanent-folds.json', this.permanentEditorFolds);
+    await this.writePermanentDataFile('permanent-reading-folds.json', this.permanentReadingViewFolds);
+  }// savePermanentData
+  
+  async loadPermanentDataFile(fileName: string): Promise<PermanentFoldData> {
+    try {
+      const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
+      const data = await this.app.vault.adapter.read(path);
+      return JSON.parse(data);
+    } catch (e) {
+      return {};
+    }
+  }// loadPermanentDataFile
+
+  private async writePermanentDataFile(fileName: string, data: PermanentFoldData): Promise<void> {
+    try {
+      const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
+      await this.app.vault.adapter.write(path, JSON.stringify(data, null, 2)); // 2 for pretty printing
+    } catch (e) {
+      console.error(`Codeblock Customizer: Error saving ${fileName}:`, e);
+    }
+  }// writePermanentDataFile
+
+  loadPermanentEditorFolds(filePath: string): Map<number, FoldingState> {
+    const foldsRecord = this.permanentEditorFolds[filePath];
+    return foldsRecord ? new Map(Object.entries(foldsRecord).map(([k, v]) => [Number(k), v as FoldingState])) : new Map();
+  }// loadPermanentEditorFolds
+
+  loadPermanentReadingViewFolds(filePath: string): Map<number, FoldingState> {
+    const foldsRecord = this.permanentReadingViewFolds[filePath];
+    return foldsRecord ? new Map(Object.entries(foldsRecord).map(([k, v]) => [Number(k), v as FoldingState])) : new Map();
+  }// loadPermanentReadingViewFolds
 
   handleCssChange(settingsTab: SettingsTab) {
     this.updateTheme(settingsTab);
@@ -221,7 +316,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.saveSettings();
   }// updateTheme
   
-  onunload() {
+  async onunload() {
     console.log("unloading CodeBlock Customizer plugin");
 
     // remove GroupedCodeBlockRenderChild
@@ -237,6 +332,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     // unload syntax highlight
     loadSyntaxHighlightForCustomLanguages(this, true);
+
+    if (this.debounceTimer) 
+      clearTimeout(this.debounceTimer);
+
+    await this.savePermanentData();
   }// onunload
   
   registerGroupedRenderChildForView(markdownView: MarkdownView) {
@@ -467,6 +567,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     updateValue(true);
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
+
+    if (this.settings.SelectedTheme.settings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
+      this.requestSavePermanentData();
+    }
   }// saveSettings
 
   renderReadingViews(): void {
@@ -478,16 +582,159 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
   }// renderReadingViews
 
-  restoreDefaultFold() {
-    const preElements = document.querySelectorAll('.codeblock-customizer-pre.codeblock-customizer-codeblock-default-collapse');
-    preElements.forEach((preElement) => {
-      //preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
-      let lines: Element[] = [];
-      const codeElements = preElement?.getElementsByTagName("CODE");
-      lines = convertHTMLCollectionToArray(codeElements);              
-      toggleFoldClasses(preElement as HTMLPreElement, lines.length, true, this.settings.SelectedTheme.settings.semiFold.enableSemiFold, this.settings.SelectedTheme.settings.semiFold.visibleLines);
+  addCommands() {
+    // add fold all command
+    this.addCommand({
+      id: 'codeblock-customizer-foldall-editor',
+      name: 'Fold all code blocks',
+      callback: () => {
+        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (markdownView) {
+          markdownView.containerEl.classList.add('codeblock-customizer-header-collapse-command');
+          const mode = markdownView.getMode();
+          if (mode === 'source') {
+            // @ts-ignore
+            this.editorExtensions.foldAll(markdownView.editor.cm);
+          } else if (mode === "preview") {
+            this.foldCommandTrigger = FoldCommand.FoldAll;
+            this.renderReadingViews();
+          }
+        }
+      }
     });
-  }// restoreDefaultFold
+
+    // add unfold all command
+    this.addCommand({
+      id: 'codeblock-customizer-unfoldall-editor',
+      name: 'Unfold all code blocks',
+      callback: () => {
+        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (markdownView) {
+          markdownView.containerEl.classList.add('codeblock-customizer-header-collapse-command');
+          const mode = markdownView.getMode(); 
+          if (mode === "source") {
+            // @ts-ignore
+            this.editorExtensions.unfoldAll(markdownView.editor.cm);
+          } else if (mode === "preview") {
+            this.foldCommandTrigger = FoldCommand.UnfoldAll;
+            this.renderReadingViews();
+          }
+        }
+      }
+    });
+
+    // restore default state
+    this.addCommand({
+      id: 'codeblock-customizer-restore-fold-editor',
+      name: 'Restore folding state of all code blocks to default',
+      callback: () => {
+        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (markdownView) {
+          markdownView.containerEl.classList.remove('codeblock-customizer-header-collapse-command');
+          const mode = markdownView.getMode();
+          if (mode === "source") {
+            // @ts-ignore
+            this.editorExtensions.restoreDefaultFold(markdownView.editor.cm);
+          } else if (mode === "preview") {
+            this.foldCommandTrigger = FoldCommand.Default;
+            this.renderReadingViews();
+          }
+        }
+      }
+    });
+
+    // indent code block
+    this.addCommand({
+      id: 'codeblock-customizer-indent-codeblock',
+      name: 'Indent code block by one level',
+      editorCallback: async (editor: Editor, view: MarkdownView) => {
+        indentCodeBlock(editor, view);
+      }
+    });
+
+    // unindent code block
+    this.addCommand({
+      id: 'codeblock-customizer-unindent-codeblock',
+      name: 'Unindent code block by one level',
+      editorCallback: async (editor: Editor, view: MarkdownView) => {
+        unIndentCodeBlock(editor, view);
+      }
+    });
+  }// addCommands
+
+  registerPostProcessors(){
+    // reading mode
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
+      await ReadingView(el, ctx, this)
+    });
+
+    // inline code
+    this.registerMarkdownPostProcessor((element, context) => {
+      inlineCodeProcessor(element, context, this);
+    });
+
+    // callouts
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
+      await calloutPostProcessor(el, ctx, this)
+    });
+  }// registerPostProcessors
+
+  registerEvents(settingsTab: SettingsTab) {
+    this.registerEvent(this.app.workspace.on('css-change', this.handleCssChange.bind(this, settingsTab), this));
+    
+    this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
+      if (this.settings.SelectedTheme.settings.codeblock.enableLinks && this.settings.SelectedTheme.settings.codeblock.enableLinkUpdate) {
+        this.handleFileRename(file, oldPath); // until Obsidian doesn't adds code block links to metadatacache
+      }
+    }, this));
+
+    // process new active leaves (e.g. note switches)
+    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf: WorkspaceLeaf) => {
+      if (leaf && leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+        this.registerGroupedRenderChildForView(leaf.view);
+      }
+
+      // check if there is a pending save operation scheduled by the timer and save it
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null; 
+        this.savePermanentData();
+      }
+    }));
+
+    // process layout-change (editor mode <--> reading mode)
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (markdownView) {
+        // @ts-ignore
+        const previousMode = markdownView.previousMode?.type;
+        const currentMode = markdownView.getMode();
+
+        if (markdownView.file) {
+          if (currentMode === 'preview' && previousMode === 'source') {
+            this.syncFoldStatesOnViewChange(markdownView.file.path, 'editor');
+          } else if (currentMode === 'source' && previousMode === 'preview') {
+            this.syncFoldStatesOnViewChange(markdownView.file.path, 'reading');
+          }
+        }
+        
+        if (currentMode === 'preview') {
+          this.registerGroupedRenderChildForView(markdownView);
+        }
+      }
+    }));
+    
+    this.registerEvent(this.app.workspace.on('file-open', (file) => {
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (!view) {
+        return;
+      }
+      view.containerEl.classList.remove('codeblock-customizer-header-collapse-command');
+      if (this.foldCommandTrigger !== FoldCommand.Default) {
+        this.foldCommandTrigger = FoldCommand.Default;
+      }
+    }));
+  }// registerEvents
 
   async renderReadingViewOnStart() {
     this.app.workspace.iterateRootLeaves((currentLeaf: WorkspaceLeaf) => {

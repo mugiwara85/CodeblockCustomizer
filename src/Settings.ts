@@ -50,6 +50,16 @@ export interface ThemeColors {
   light: Colors;
 }
 
+export enum FoldingScope {
+  All = 'all',
+  NoFoldSpecified = 'nofoldspecified',
+}
+
+export enum FoldingPersistence {
+  Permanent = 'permanent',
+  Session = 'session',
+}
+
 export interface ThemeSettings {
   codeblock: {
     enableLineNumbers: boolean;
@@ -60,7 +70,6 @@ export interface ThemeSettings {
     enableLinkUpdate: boolean;
     enableBracketHighlight: boolean;
     highlightNonMatchingBrackets: boolean;
-    inverseFold: boolean;
     enableSelectionMatching: boolean;
     unwrapcode: boolean;
     buttons: {
@@ -69,6 +78,12 @@ export interface ThemeSettings {
       enableSelectCodeButton: boolean;
       enableWrapCodeButton: boolean;
       enableDeleteCodeButton: boolean;
+    },
+    folding: {
+      inverseFold: boolean;
+      rememberFoldState: boolean;
+      scope: FoldingScope;
+      persistence: FoldingPersistence;
     },
   },
   textHighlight: {
@@ -132,7 +147,6 @@ export interface CodeblockCustomizerSettings {
   newPromptName: string;
   alternateHighlightColorName: string;
   languageBorderColorName: string;
-  foldAllCommand: boolean;
   settingsType: string;
   langSpecificSettingsType: string;
   languageSpecificLanguageName: string;
@@ -615,7 +629,6 @@ const Solarized: Theme = {
       enableLinkUpdate: false,
       enableBracketHighlight: true,
       highlightNonMatchingBrackets: true,
-      inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
       buttons: {
@@ -624,6 +637,12 @@ const Solarized: Theme = {
         enableSelectCodeButton: false,
         enableDeleteCodeButton: false,
         enableWrapCodeButton: false,
+      },
+      folding: {
+        inverseFold: false,
+        rememberFoldState: true,
+        scope: FoldingScope.NoFoldSpecified,
+        persistence: FoldingPersistence.Session,
       },
     },
     textHighlight: {
@@ -779,7 +798,6 @@ const Obsidian: Theme = {
       enableLinkUpdate: false,
       enableBracketHighlight: true,
       highlightNonMatchingBrackets: true,
-      inverseFold: false,
       enableSelectionMatching: false,
       unwrapcode: false,
       buttons: {
@@ -788,6 +806,12 @@ const Obsidian: Theme = {
         enableSelectCodeButton: false,
         enableDeleteCodeButton: false,
         enableWrapCodeButton: false,
+      },
+      folding: {
+        inverseFold: false,
+        rememberFoldState: true,
+        scope: FoldingScope.NoFoldSpecified,
+        persistence: FoldingPersistence.Session,
       },
     },
     textHighlight: {
@@ -855,7 +879,6 @@ export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
   newPromptName: "",
   alternateHighlightColorName: "",
   languageBorderColorName: "",
-  foldAllCommand: false,
   settingsType: "basic",
   langSpecificSettingsType: "",
   languageSpecificLanguageName: "",

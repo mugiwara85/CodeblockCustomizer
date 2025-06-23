@@ -2,7 +2,7 @@ import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponen
 import Pickr from "@simonwep/pickr";
 
 import { addClassesToPrompt, getPromptType, collectAllPromptClasses, defaultPrompts, getColorOfCssVariable, getCurrentMode, getPromptDefinition, promptClassDisplayNames, PromptDefinition, PromptEnvironment, replacePromptTemplate, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 
@@ -358,12 +358,85 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Inverse fold behavior')
       .setDesc('If enabled, all code blocks are folded by default when opening a document. To disable this behavior for a specific code block, use the "unfold" parameter.')
       .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold)
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold)
         .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold = value;
+          this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold = value;
           await this.plugin.saveSettings();
         })
       );
+    
+    new Setting(codeblockDiv)
+      .setName('Save code blocks folded state')
+      .setDesc('Toggles the entire feature on or off. When enabled, the folded or unfolded state of code blocks will be saved based on the options below.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.folding.rememberFoldState)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.folding.rememberFoldState = value;
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      );
+
+    if (this.plugin.settings.SelectedTheme.settings.codeblock.folding.rememberFoldState) {
+      new Setting(codeblockDiv)
+        .setName('Scope')
+        .setDesc('Choose which code blocks are affected. \'Respect\' only saves the state for blocks where `fold` wasn\'t explicitly set. \'All\' saves the state for all blocks.')
+        .addDropdown(dropdown => {
+          dropdown
+            .addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"')
+            .addOption(FoldingScope.All, 'All code blocks')
+            .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.folding.scope)
+            .onChange(async (value: FoldingScope) => {
+              this.plugin.settings.SelectedTheme.settings.codeblock.folding.scope = value;
+              await this.plugin.saveSettings();
+            });
+        });
+
+      new Setting(codeblockDiv)
+        .setName('Persistence')
+        .setDesc('Choose how long the folding state is remembered. \'Permanent\' saves the state even after you restart Obsidian. \'Session\' remembers the state only until you close the app.')
+        .addDropdown(dropdown => {
+          dropdown
+            .addOption(FoldingPersistence.Session, 'Session Only')
+            .addOption(FoldingPersistence.Permanent, 'Permanent')
+            .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.folding.persistence)
+            .onChange(async (value: FoldingPersistence) => {
+              const oldValue = this.plugin.settings.SelectedTheme.settings.codeblock.folding.persistence;
+              if (oldValue !== value) {
+                if (oldValue === FoldingPersistence.Permanent) {
+                  await this.plugin.clearAllFoldData();
+                  new Notice("Cleared permanent fold data.");
+                }
+                if (oldValue === FoldingPersistence.Session) {
+                  this.plugin.activeEditorFolds.clear();
+                  this.app.workspace.updateOptions();
+                  new Notice("Cleared session fold data.");
+                }
+              }
+
+              this.plugin.settings.SelectedTheme.settings.codeblock.folding.persistence = value;
+              await this.plugin.saveSettings();
+              this.display();
+            });
+        });
+
+      if (this.plugin.settings.SelectedTheme.settings.codeblock.folding.persistence === 'permanent') {
+        new Setting(codeblockDiv)
+          .setName('Clear stored folded positions')
+          .setDesc('Clear all stored folded code block state from disk and the current session.')
+          .addButton((button) => {
+            button.setButtonText("Clear cache");
+            button.onClick(async () => {
+              button.setDisabled(true);
+              button.setButtonText("Clearing...");
+              await this.plugin.clearAllFoldData();
+              new Notice("Fold cache successfully cleared!");
+              button.setDisabled(false);
+              button.setButtonText("Clear cache");
+            });
+          });
+      }
+    }
 
     new Setting(codeblockDiv)
       .setName('Enable selection matching')

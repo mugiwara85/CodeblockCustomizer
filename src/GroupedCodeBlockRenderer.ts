@@ -3,6 +3,8 @@ import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLa
 import { createButtons, toggleFold } from "./ReadingView";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
+import { FoldingState } from "./EditorExtensions";
+import { FoldingScope } from "./Settings";
 
 export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private view: MarkdownView;
@@ -177,7 +179,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
 
     const disableFoldUnlessSpecified = this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified;
-    const inverseFold = this.plugin.settings.SelectedTheme.settings.codeblock.inverseFold;
+    const inverseFold = this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold;
     const isCollapseEnabled = !((disableFoldUnlessSpecified && !inverseFold && !parameters.fold) || (disableFoldUnlessSpecified && inverseFold && !parameters.unfold));
     let newCollapseIcon: HTMLElement | null = null;
 
@@ -512,19 +514,41 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private foldCodeBlcok(activeBlock: HTMLPreElement, header: HTMLElement) {
     const lines = activeBlock.querySelectorAll('code > div');
     const codeblockLineCount = lines.length;
-    const semiFold = this.plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold;
-    const visibleLines = this.plugin.settings.SelectedTheme.settings.semiFold.visibleLines;
-
+    const semiFoldSettings = this.plugin.settings.SelectedTheme.settings.semiFold;
+    const foldSettings = this.plugin.settings.SelectedTheme.settings.codeblock.folding;
+    
     const currentCollapseIcon = header.querySelector('.codeblock-customizer-header-collapse') as HTMLElement | null;
     if (!currentCollapseIcon)
       return;
 
-    if (semiFold && codeblockLineCount >= visibleLines + fadeOutLineCount) {
-      toggleFold(activeBlock, currentCollapseIcon, `codeblock-customizer-codeblock-semi-collapsed`);
+    const isCollapsed = activeBlock.classList.contains('codeblock-customizer-codeblock-collapsed');
+    const isSemiCollapsed = activeBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
+    const canSemiFold = semiFoldSettings.enableSemiFold && codeblockLineCount >= semiFoldSettings.visibleLines + fadeOutLineCount;
+
+    let newState: FoldingState;
+    if (isCollapsed || isSemiCollapsed) {
+      newState = FoldingState.Unfolded;
     } else {
-      toggleFold(activeBlock, currentCollapseIcon, `codeblock-customizer-codeblock-collapsed`);
-      if (header)
-        header.classList.toggle("collapsed");
+      newState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
+    }
+
+    if (canSemiFold) {
+      toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-semi-collapsed');
+    } else {
+      toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-collapsed');
+      if (header) header.classList.toggle("collapsed");
+    }
+
+    const sourcePath = activeBlock.getAttribute('sourcepath');
+    const charPosStr = activeBlock.dataset.charPos;
+    const parameters = this.getParametersFromElement(activeBlock);
+    const remember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold);
+
+    if (remember && sourcePath && charPosStr) {
+      const charPos = parseInt(charPosStr, 10);
+      if (!isNaN(charPos)) {
+        this.plugin.setFoldState(sourcePath, charPos, newState, 'reading', parameters, codeblockLineCount);
+      }
     }
   }// foldCodeBlcok
 

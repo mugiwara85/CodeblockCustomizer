@@ -2,8 +2,9 @@ import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon,
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
-import { CodeblockCustomizerSettings, ThemeSettings } from "./Settings";
+import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, ThemeSettings } from "./Settings";
 import { fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
+import { FoldCommand, FoldingState } from "./EditorExtensions";
 
 import { visitParents } from "unist-util-visit-parents";
 import { fromHtml } from "hast-util-from-html";
@@ -47,23 +48,24 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   if (!sectionInfo)
     return;
 
-  let codeblockLines = Array.from({length: sectionInfo.lineEnd - sectionInfo.lineStart + 1}, (_,number) => number + sectionInfo.lineStart).map((lineNumber) => sectionInfo.text.split('\n')[lineNumber]);
-  // if codeblockLines is undefined, then fallback to getFileCacheAndContentLines
-  const allLinesUndefined = codeblockLines.every(line => line === undefined);
-  if (codeblockLines.length === 0 || allLinesUndefined) {
-    console.warn("`codeblockLines` is empty or undefined. Falling back to `getFileCacheAndContentLines`.");
-    const { cache, fileContentLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
-    if (!cache || !fileContentLines) {
+  let fileContentLines: string[];
+  const initialLines = sectionInfo.text.split('\n');
+  const allInitialLinesUndefined = initialLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).every(line => line === undefined);
+
+  if (initialLines.length <= 1 || allInitialLinesUndefined) {
+    console.warn("Line data is insufficient or invalid. Falling back to getFileCacheAndContentLines.");
+    const { cache, fileContentLines: fallbackLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
+    
+    if (!cache || !fallbackLines) {
       console.error(`Fallback failed: Could not get file cache or content for ${context.sourcePath}`);
       return;
     }
-
-    codeblockLines = fileContentLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1);
-    if (codeblockLines.length === 0 || codeblockLines.every(line => line === undefined)) {
-      console.error("Fallback did not yield valid code block lines. Skipping processing.");
-      return;
-    }
+    fileContentLines = fallbackLines;
+  } else {
+    fileContentLines = initialLines;
   }
+
+  const codeblockLines = fileContentLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1);
 
   const codeLines = Array.from(codeblockLines);
   if (codeLines.length >= 2) {
@@ -73,7 +75,19 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   const indentationLevels = trackIndentation(codeLines);
   const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
 
-  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, codeblockLines, context.sourcePath, plugin);
+  let charPos = 0;
+  for (let i = 0; i < sectionInfo.lineStart; i++) {
+    if (typeof fileContentLines[i] !== 'string') {
+      console.error(`Inconsistent data for file ${context.sourcePath}. Could not calculate character position.`);
+      charPos = -1;
+      break;
+    }
+    charPos += fileContentLines[i].length + 1; // +1 for the newline character
+  }
+
+  const validCharPos = charPos !== -1 ? charPos : undefined;
+
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, codeblockLines, context.sourcePath, plugin, sectionInfo, validCharPos);
 }// ReadingView
 
 async function addCustomSyntaxHighlight(codeblockLines: string[], language: string) {
@@ -214,7 +228,7 @@ async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines
   }
 }// checkCustomSyntaxHighlight
 
-async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], sourcepath: string, plugin: CodeBlockCustomizerPlugin ) {
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], sourcepath: string, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number ) {
   if (preElements.length !== codeBlockFirstLines.length)
     return;
 
@@ -242,16 +256,19 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
       const paramsJsonString = JSON.stringify(parameters);
       preElement.dataset.parameters = paramsJsonString;
       preElement.classList.add('codeblock-customizer-grouped');
+      if (charPos !== undefined && charPos !== -1) {
+        preElement.dataset.charPos = String(charPos);
+      }
     }
 
     await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(preElement, parameters, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath);
+    await addClasses(preElement, parameters, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath, sectionInfo, charPos);
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, parameters: Parameters, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string) {
+async function addClasses(preElement: HTMLElement, parameters: Parameters, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
   const frag = document.createDocumentFragment();
   
   preElement.classList.add(`codeblock-customizer-pre`);  
@@ -266,17 +283,64 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
   const buttons = createButtons(parameters);
   frag.appendChild(buttons);
 
-  const header = HeaderWidget(preElement as HTMLPreElement, parameters, plugin.settings, sourcePath, plugin);
+  const header = HeaderWidget(preElement as HTMLPreElement, parameters, plugin.settings, sourcePath, plugin, sectionInfo, charPos);
   frag.insertBefore(header, frag.firstChild);
 	
   preElement.insertBefore(frag, preElement.firstChild);
 
   const lines = Array.from(preCodeElm.innerHTML.split('\n')) || 0;
-  if (parameters.fold) {
-    toggleFoldClasses(preElement as HTMLPreElement, lines.length - 1, parameters.fold, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
-  }/* else {
-    isFoldable(preElement as HTMLPreElement, lines.length - 1, plugin.settings.SelectedTheme.settings.semiFold.enableSemiFold, plugin.settings.SelectedTheme.settings.semiFold.visibleLines);
-  }*/
+  const lineCount = lines.length > 0 ? lines.length - 1 : 0;
+  const keyToUse = charPos ?? sectionInfo?.lineStart;
+  const settings = plugin.settings.SelectedTheme.settings;
+  let rememberedState: FoldingState | undefined;
+  
+  if (settings.codeblock.folding.rememberFoldState && keyToUse !== undefined) {
+    if (settings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
+      const rememberedFolds = plugin.loadPermanentReadingViewFolds(sourcePath);
+      rememberedState = rememberedFolds.get(keyToUse);
+    } else { 
+      // session
+      const rememberedFolds = plugin.activeReadingViewFolds.get(sourcePath);
+      rememberedState = rememberedFolds ? rememberedFolds.get(keyToUse) : undefined;
+    }
+  }
+
+  let shouldFold = false;
+  let useSemiFold = false;
+  const globalCommand = plugin.foldCommandTrigger;
+
+  switch (globalCommand) {
+    case FoldCommand.FoldAll:
+      shouldFold = true;
+      useSemiFold = settings.semiFold.enableSemiFold;
+      break;
+    case FoldCommand.UnfoldAll:
+      shouldFold = false;
+      break;
+    case FoldCommand.Default:
+    default:
+      if (rememberedState !== undefined) {
+        shouldFold = rememberedState === FoldingState.FullyFolded || rememberedState === FoldingState.SemiFolded;
+        useSemiFold = rememberedState === FoldingState.SemiFolded;
+      } else {
+        const inverseFold = settings.codeblock.folding.inverseFold;
+        shouldFold = parameters.fold || (inverseFold && !parameters.unfold);
+        useSemiFold = settings.semiFold.enableSemiFold;
+      }
+      break;
+  }
+  
+  if (shouldFold) {
+    const canSemiFold = lineCount >= settings.semiFold.visibleLines + fadeOutLineCount;
+    if (useSemiFold && canSemiFold) {
+      preElement.classList.add('codeblock-customizer-codeblock-semi-collapsed');
+    } else {
+      preElement.classList.add('codeblock-customizer-codeblock-collapsed');
+    }
+    if (rememberedState === undefined && globalCommand === FoldCommand.Default) { 
+      preElement.classList.add('codeblock-customizer-codeblock-default-collapse');
+    }
+  }
 	
   const borderColor = getBorderColorByLanguage(parameters.language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", plugin.settings));
   if (borderColor.length > 0)
@@ -412,7 +476,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
   return;
 }// handlePDFExport
 
-function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
   const parent = preElements.parentNode;
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
   const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
@@ -428,8 +492,8 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
   frag.appendChild(createFileName(parameters.headerDisplayText, settings.SelectedTheme.settings.codeblock.enableLinks, sourcePath, plugin));
 
   const collapseEl = createCodeblockCollapse(parameters.fold);
-  if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.fold) ||
-      (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.unfold)) {
+  if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.fold) ||
+      (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.unfold)) {
     container.classList.add(`noCollapseIcon`);
   } else {
     frag.appendChild(collapseEl);
@@ -446,41 +510,37 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
   // Add event listener to the widget element
   container.addEventListener("click", function() {
     //collapseEl.innerText = preElements.classList.contains(`codeblock-customizer-codeblock-collapsed`) ? "-" : "+";
-    if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.fold) ||
-        (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.inverseFold && !parameters.unfold)) {
+    if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.fold) ||
+        (plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.unfold)) {
       return;
     }
-    if (semiFold) {
-      const codeElements = preElements.getElementsByTagName("CODE");
-      const lines = convertHTMLCollectionToArray(codeElements, true);
-      if (lines.length >= visibleLines + fadeOutLineCount) {
-        toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-semi-collapsed`);
-      } else
-        toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-collapsed`);
+
+    const codeElements = preElements.getElementsByTagName("CODE");
+    const lines = convertHTMLCollectionToArray(codeElements, true);
+    const canSemiFold = lines.length >= visibleLines + fadeOutLineCount;
+    const useSemiFold = semiFold && canSemiFold;
+
+    const isCollapsed = preElements.classList.contains(`codeblock-customizer-codeblock-collapsed`);
+    const isSemiCollapsed = preElements.classList.contains(`codeblock-customizer-codeblock-semi-collapsed`);
+
+    let newState: FoldingState;
+    if (isCollapsed || isSemiCollapsed) {
+      toggleFold(preElements, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
+      newState = FoldingState.Unfolded;
     } else {
-      toggleFold(preElements, collapseEl, `codeblock-customizer-codeblock-collapsed`);
+      toggleFold(preElements, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
+      newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
+    }
+
+    if (sectionInfo) {
+      const foldSettings = plugin.settings.SelectedTheme.settings.codeblock.folding;
+      const shouldRemember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold);
+      if (shouldRemember) {
+        const keyToUse = charPos ?? sectionInfo.lineStart;
+        plugin.setFoldState(sourcePath, keyToUse, newState, 'reading', parameters, lines.length);
+      }
     }
   });
-  
-  if (parameters.fold) {
-    if (semiFold) {
-      const preCodeElm = preElements.querySelector("pre > code");
-      let codeblockLineCount = 0;
-      if (preCodeElm) {
-        let codeblockLines = preCodeElm.innerHTML.split("\n");
-        if (codeblockLines.length == 1)
-          codeblockLines = ['',''];
-        codeblockLineCount = codeblockLines.length - 1;
-      }
-      if (codeblockLineCount >= visibleLines + fadeOutLineCount) {
-        preElements.classList.add(`codeblock-customizer-codeblock-semi-collapsed`);
-      } else 
-        preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
-    }
-    else
-      preElements.classList.add(`codeblock-customizer-codeblock-collapsed`);
-    preElements.classList.add(`codeblock-customizer-codeblock-default-collapse`);
-  }
 
   return container
 }// HeaderWidget
@@ -1404,44 +1464,6 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCusto
     await addClasses(codeblockPreElement, parameters, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath);
   }
 }// PDFExport
-
-// does not support if folding is disabled
-export function foldAllReadingView(fold: boolean, settings: CodeblockCustomizerSettings) {
-  const preParents = document.querySelectorAll('.codeblock-customizer-pre-parent');
-  preParents.forEach((preParent) => {
-    const preElement = preParent.querySelector('.codeblock-customizer-pre');
-    
-    let lines: Element[] = [];
-    if (preElement){
-      const codeElements = preElement?.getElementsByTagName("CODE");
-      lines = convertHTMLCollectionToArray(codeElements, true);
-    }
-
-    toggleFoldClasses(preElement as HTMLPreElement, lines.length, fold, settings.SelectedTheme.settings.semiFold.enableSemiFold, settings.SelectedTheme.settings.semiFold.visibleLines);
-  });
-}//foldAllreadingView
-
-export function toggleFoldClasses(preElement: HTMLPreElement, linesLength: number, fold: boolean, enableSemiFold: boolean, visibleLines: number) {
-  if (fold) {
-    if (enableSemiFold) {
-      if (linesLength >= visibleLines + fadeOutLineCount) {
-        preElement?.classList.add('codeblock-customizer-codeblock-semi-collapsed');
-      } else
-        preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
-    }
-    else
-      preElement?.classList.add('codeblock-customizer-codeblock-collapsed');
-  }
-  else {
-    if (enableSemiFold) {
-      if (linesLength >= visibleLines + fadeOutLineCount) {
-        preElement?.classList.remove('codeblock-customizer-codeblock-semi-collapsed');
-      } else
-        preElement?.classList.remove('codeblock-customizer-codeblock-collapsed');
-    } else
-      preElement?.classList.remove('codeblock-customizer-codeblock-collapsed');
-  }
-}// toggleFoldClasses
 
 function getCodeBlocksFirstLines(array: string[]): string[] {
   if (!array || !Array.isArray(array)) 
