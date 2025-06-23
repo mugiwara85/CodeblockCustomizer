@@ -295,7 +295,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // unfold
   const unfold = isUnFoldDefined(lineText);
-  if (settings.SelectedTheme.settings.codeblock.inverseFold) {
+  if (settings.SelectedTheme.settings.codeblock.folding.inverseFold) {
     fold = unfold ? false : true;
   }
 
@@ -2659,8 +2659,7 @@ export function createPromptContext(parameters: Parameters, settings: CodeblockC
 }// createPromptContext
 
 export function renderPromptLine(lineText: string, snapshotEnv: PromptEnvironment, cache: PromptCache, ctx: PromptContext): PromptResult {
-  const shellCmdRegex = /\b(cd|su|exit|git|\\c)\b/;
-
+  const shellCmdRegex = /^\s*(cd\b|su\b|exit\b|git\b|\\c)/;
   // cache key
   const key = `${ctx.actualPrompt}|${promptEnvKey(snapshotEnv)}`;
 
