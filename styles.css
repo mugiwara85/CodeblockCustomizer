@@ -1054,6 +1054,79 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   border-top-right-radius: 0px !important;
 }
 
+/* Annotations */
+/* hide comment */
+.codeblock-customizer-hidden-annotation {
+  display: none;
+}
+/* style annotation icon */
+.codeblock-customizer-annotation-icon {
+  transform: translateY(-50%);
+  width: 12px; 
+  height: 12px;
+  cursor: pointer;
+  color: var(--text-faint); 
+}
+.markdown-source-view .codeblock-customizer-annotation-icon {
+  position: absolute;
+  top: 50%;
+}
+.markdown-rendered .codeblock-customizer-annotation-icon {
+  margin-right: -14px;
+  position: relative;
+  top: 8px;
+  margin-left: 2px;
+}
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-hide) .codeblock-customizer-annotation-icon, /* ln false */
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:not(.codeblock-customizer-line-number) .codeblock-customizer-annotation-icon /* linenumbers disabled */ {
+  left: 2px;
+}
+.codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number) .codeblock-customizer-annotation-icon /* normal */ {
+  left: calc(var(--gutter-width, 0px) + var(--line-number-gutter-width) + 2px);
+}
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) .codeblock-customizer-annotation-icon /*ln*/ {
+  left: calc(var(--gutter-width, 0px) + 2px);
+}
+/* style annotation icon on hover */
+.codeblock-customizer-annotation-icon:hover {
+  color: var(--text-normal);
+}
+/* popup tooltip */
+.codeblock-customizer-annotation-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--background-secondary);
+  border-left: 1px solid var(--background-modifier-border);
+  border-right: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  max-width: 450px;
+  font-family: var(--font-ui-sans);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  color: var(--text-normal);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px var(--background-modifier-border);
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
+}
+.codeblock-customizer-popup-icon {
+  flex-shrink: 0; 
+  position: relative;
+  top: 2px; 
+}
+.codeblock-customizer-popup-content p {
+  margin: 0;
+}
+.codeblock-customizer-annotation-tooltip.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
 /* Prompts */
 .markdown-rendered .has-prompt [class*="codeblock-customizer-prompt-"],
 .markdown-rendered .has-prompt .codeblock-customizer-prompt-cmd-output  {
@@ -1068,37 +1141,18 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 
 /* Settings page */
-.codeblock-customizer-basic-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-codeblock-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-languageSpecific-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-alternative-highlight-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-header-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-header-language-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-gutter-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-inlineCode-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-printToPDF-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-prompts-settingsDiv-hide {
-  display: none;
-}
-.codeblock-customizer-groupedcodeblock-settingsDiv-hide {
+.codeblock-customizer-basic-settingsDiv-hide,
+.codeblock-customizer-codeblock-settingsDiv-hide,
+.codeblock-customizer-languageSpecific-settingsDiv-hide,
+.codeblock-customizer-alternative-highlight-settingsDiv-hide,
+.codeblock-customizer-header-settingsDiv-hide,
+.codeblock-customizer-header-language-settingsDiv-hide,
+.codeblock-customizer-gutter-settingsDiv-hide,
+.codeblock-customizer-inlineCode-settingsDiv-hide,
+.codeblock-customizer-printToPDF-settingsDiv-hide,
+.codeblock-customizer-prompts-settingsDiv-hide,
+.codeblock-customizer-groupedcodeblock-settingsDiv-hide,
+.codeblock-customizer-annotation-settingsDiv-hide {
   display: none;
 }
 

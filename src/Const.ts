@@ -12,6 +12,15 @@ export const DEFAULT_TEXT_SEPARATOR = ':';
 
 export const INLINE_CODE_LANG_REGEX = /^{\s*([^}]+?)\s*}\s*(.*)$/s;
 
+export const ANNOTATION_TYPE_ICONS: Record<string, string> = {
+  note: 'info',
+  warn: 'alert-triangle',
+  error: 'alert-octagon',
+  todo: 'check-square',
+  question: 'help-circle',
+  see: 'link',
+};
+
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",
   "plain": "Plain text",

@@ -4,7 +4,7 @@ import Pickr from "@simonwep/pickr";
 import { addClassesToPrompt, getPromptType, collectAllPromptClasses, defaultPrompts, getColorOfCssVariable, getCurrentMode, getPromptDefinition, promptClassDisplayNames, PromptDefinition, PromptEnvironment, replacePromptTemplate, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
-import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
+import { ANNOTATION_TYPE_ICONS, DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 
 interface ColorOptions {
   [key: string]: string;
@@ -149,7 +149,7 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Select settings page')
       .setDesc('Select which settings group you want to modify.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "prompts": "Prompts", "groupedCodeBlock": "Grouped code blocks", "inlineCode": "Inline code", "printToPDF": "Print to PDF"})
+        .addOptions({"basic": "Basic", "codeblock": "Codeblock", "languageSpecific": "Language specific colors", "alternateHighlight": "Alternative highlight colors", "header": "Header", "headerLanguage": "Header language", "gutter": "Gutter", "prompts": "Prompts", "groupedCodeBlock": "Grouped code blocks", "inlineCode": "Inline code", "annotations": "Annotations", "printToPDF": "Print to PDF"})
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
           this.plugin.settings.settingsType = value;
@@ -164,6 +164,7 @@ export class SettingsTab extends PluginSettingTab {
           printToPDFDiv.toggleClass("codeblock-customizer-printToPDF-settingsDiv-hide", this.plugin.settings.settingsType !== "printToPDF");
           promptsDIV.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
           groupedCodeBlockDiv.toggleClass("codeblock-customizer-groupedcodeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "groupedCodeBlock");
+          annotationDiv.toggleClass("codeblock-customizer-annotation-settingsDiv-hide", this.plugin.settings.settingsType !== "annotations");
           (async () => {await this.plugin.saveSettings()})();
         })
       );
@@ -918,46 +919,76 @@ export class SettingsTab extends PluginSettingTab {
     inlineDiv.createEl('h3', {text: 'Inline code settings'});
 
     new Setting(inlineDiv)
-    .setName('Enable inline code syntax highlighting')
-    .setDesc('If enabled, syntax highlighting will be added to inline code (if specified).')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight = value;
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-        this.display();
-      })
-    );
+      .setName('Enable inline code syntax highlighting')
+      .setDesc('If enabled, syntax highlighting will be added to inline code (if specified).')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight = value;
+          await this.plugin.saveSettings();
+          this.plugin.renderReadingViews();
+          this.display();
+        })
+      );
 
     if (this.plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
       new Setting(inlineDiv)
-      .setName('Show icons for syntax highlighted inline code (if available)')
-      .setDesc('If enabled, icons will be shown for syntax highlighted inline code.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.showIcons)
-        .onChange(async (value) => {
-          this.plugin.settings.SelectedTheme.settings.inlineCode.showIcons = value;
-          await this.plugin.saveSettings();
-        })
-      );
+        .setName('Show icons for syntax highlighted inline code (if available)')
+        .setDesc('If enabled, icons will be shown for syntax highlighted inline code.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.showIcons)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.inlineCode.showIcons = value;
+            await this.plugin.saveSettings();
+          })
+        );
     }
 
     new Setting(inlineDiv)
-    .setName('Enable inline code styling')
-    .setDesc('If enabled, the background color, and the text color of inline code can be styled.')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling = value;
-        await this.plugin.saveSettings();
-        this.display();
-      })
-    );
+      .setName('Enable inline code styling')
+      .setDesc('If enabled, the background color, and the text color of inline code can be styled.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling = value;
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      );
 
     if (this.plugin.settings.SelectedTheme.settings.inlineCode.enableInlineCodeStyling) {
       this.createPickrSetting(inlineDiv, 'Inline code background color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.backgroundColor");
       this.createPickrSetting(inlineDiv, 'Inline code text color', 'To set this color enable the option "Enable inline code styling" first.', "inlineCode.textColor");
+    }
+
+    const annotationDiv = containerEl.createDiv({ cls: "codeblock-customizer-annotation-settingsDiv-hide" });
+    annotationDiv.toggleClass("codeblock-customizer-annotation-settingsDiv-hide", this.plugin.settings.settingsType !== "annotations");
+    annotationDiv.createEl('h3', {text: 'Annotation Settings'});
+
+    new Setting(annotationDiv)
+      .setName('Convert all comments to annotations')
+      .setDesc('If enabled, every comment line in a code block will be treated as a default "note" annotation, even if it does not have the [!<type>] syntax.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.annotations.convertAllComments)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.annotations.convertAllComments = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(annotationDiv)
+      .setName('Exclude annotations from copying')
+      .setDesc('Enable to exclude annotation comments (e.g., // [!note] ...) when using the copy code button. Regular comments will always be copied.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    for (const type of Object.keys(ANNOTATION_TYPE_ICONS)) {
+      this.createPickrSetting(annotationDiv, `'${type}' icon color`, '', `annotations.colors.${type}`);
     }
 
     const printToPDFDiv = containerEl.createDiv({ cls: "codeblock-customizer-printToPDF-settingsDiv-hide" });
@@ -1760,7 +1791,10 @@ export class SettingsTab extends PluginSettingTab {
 
     for (const prop of properties) {
       // @ts-ignore
-      colorValue = colorValue[prop];
+      colorValue = colorValue?.[prop];
+      if (colorValue === undefined) {
+        return '#000000'; // return default black
+      }
       if (resolveCSSVar && colorValue.toString().startsWith("--")) {
         colorValue = getColorOfCssVariable(colorValue.toString());
       }
@@ -1898,6 +1932,18 @@ export class SettingsTab extends PluginSettingTab {
       this.plugin.settings.SelectedTheme.colors[currentMode].groupedCodeBlocks.hoverTabBackgroundColor = savedColor;
     } else if (className === 'groupedCodeBlocks.activeTabBackgroundColor') {
       this.plugin.settings.SelectedTheme.colors[currentMode].groupedCodeBlocks.activeTabBackgroundColor = savedColor;
+    } else if (className === 'annotations.colors.note') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].annotations.colors.note = savedColor;
+    } else if (className === 'annotations.colors.warn') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].annotations.colors.warn = savedColor;
+    } else if (className === 'annotations.colors.error') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].annotations.colors.error = savedColor;
+    } else if (className === 'annotations.colors.todo') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].annotations.colors.todo = savedColor;
+    } else if (className === 'annotations.colors.question') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].annotations.colors.question = savedColor;
+    } else if (className === 'annotations.colors.see') {
+      this.plugin.settings.SelectedTheme.colors[currentMode].annotations.colors.see = savedColor;
     }
     this.plugin.saveSettings();
   }// setAndSavePickrSetting

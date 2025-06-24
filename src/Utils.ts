@@ -1,7 +1,7 @@
 import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView } from "obsidian";
 import { EditorState } from "@codemirror/state";
 
-import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR } from "./Const";
+import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR, ANNOTATION_TYPE_ICONS } from "./Const";
 import { CodeblockCustomizerSettings, Colors, Theme, ThemeColors, ThemeSettings } from "./Settings";
 import validator from 'validator';
 import CodeBlockCustomizerPlugin from "./main";
@@ -1041,7 +1041,13 @@ const stylesDict: StylesDict = {
   "inlineCode.textColor": 'inline-code-text-color',
   "groupedCodeBlocks.activeTabBackgroundColor": 'groupedcodeblock-active-tab-color',
   "groupedCodeBlocks.hoverTabBackgroundColor": 'groupedcodeblock-hover-tab-background-color',
-  "groupedCodeBlocks.hoverTabTextColor": 'groupedcodeblock-hover-tab-text-color'
+  "groupedCodeBlocks.hoverTabTextColor": 'groupedcodeblock-hover-tab-text-color',
+  "annotations.colors.note": "annotations-note-color",
+  "annotations.colors.warn": "annotations-warn-color",
+  "annotations.colors.error": "annotations-error-color",
+  "annotations.colors.todo": "annotations-todo-color",
+  "annotations.colors.question": "annotations-question-color",
+  "annotations.colors.see": "annotations-see-color",
 }// stylesDict
 
 export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
@@ -1131,7 +1137,31 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   }
   const promptColorStyles = generatePromptColorStyles(settings);
 
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling + promptColorStyles).trim().replace(/[\r\n\s]+/g, ' ');
+  const annotationColors = settings.SelectedTheme.colors[currentMode].annotations?.colors || {};
+  const annotationVars = Object.entries(annotationColors).map(([type, hexValue]) => {
+    return `--codeblock-customizer-annotation-color-${type}: ${hexValue};`;
+  }).join(' ');
+
+  const annotationRules = Object.keys(annotationColors).map(type => {
+  const varName = `--codeblock-customizer-annotation-color-${type}`;
+  return `
+    .codeblock-customizer-annotation-icon-${type} {
+      color: var(${varName});
+    }
+    .codeblock-customizer-tooltip-${type} {
+      border-top: 3px solid var(${varName});
+    }
+  `;
+  }).join(' ');
+
+  const annotationStyling = `
+    body.theme-${currentMode} {
+      ${annotationVars}
+    }
+    ${annotationRules}
+  `;
+
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
@@ -1345,10 +1375,10 @@ function formatStyles(colors: ThemeColors, settings: ThemeSettings, forceCurrent
         const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
         let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.light);
 
-        if (cssValue.toString().startsWith("--"))
-          cssValue = "var(" + cssValue + ")";
-
         if (cssValue != null) {
+          if (cssValue.toString().startsWith("--")) {
+            cssValue = "var(" + cssValue + ")";
+          }
           return variables + `${cssVariable}: ${cssValue};`;
         } else {
           return variables;
@@ -1360,10 +1390,10 @@ function formatStyles(colors: ThemeColors, settings: ThemeSettings, forceCurrent
         const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
         let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.dark);
 
-        if (cssValue.toString().startsWith("--"))
-          cssValue = "var(" + cssValue + ")";
-
         if (cssValue != null) {
+          if (cssValue.toString().startsWith("--")) {
+            cssValue = "var(" + cssValue + ")";
+          }
           return variables + `${cssVariable}: ${cssValue};`;
         } else {
           return variables;
@@ -2742,3 +2772,79 @@ export function getInlineCodeIcon(displayLanguage: string, additionalClass?: str
 
   return container;
 }// getInlineCodeIcon
+
+export class TooltipManager {
+  private tooltip: HTMLElement | null = null;
+  private hideTimer: number | null = null;
+
+  private readonly HIDE_DELAY = 100;
+  private readonly ANIMATION_DURATION = 150;
+
+  constructor(private iconEl: HTMLElement, private content: string, private type: string, private plugin: CodeBlockCustomizerPlugin, private sourcePath: string) {
+    this.iconEl.addEventListener('mouseenter', this.show);
+    this.iconEl.addEventListener('mouseleave', this.scheduleHide);
+  }
+
+  private show = () => {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+
+    if (this.tooltip) 
+      return;
+
+    this.tooltip = createDiv({ cls: `codeblock-customizer-annotation-tooltip codeblock-customizer-tooltip-${this.type}` });
+
+    const popupIconEl = this.tooltip.createSpan({ cls: `codeblock-customizer-popup-icon codeblock-customizer-annotation-icon-${this.type}` });
+    setIcon(popupIconEl, ANNOTATION_TYPE_ICONS[this.type] || 'pencil');
+    const textContentEl = this.tooltip.createDiv({ cls: 'codeblock-customizer-popup-content' });
+
+    MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);
+    document.body.appendChild(this.tooltip);
+
+    const iconRect = this.iconEl.getBoundingClientRect();
+    this.tooltip.style.position = 'fixed';
+    this.tooltip.style.left = `${iconRect.right + 8}px`;
+    this.tooltip.style.top = `${iconRect.top + (iconRect.height / 2) - (this.tooltip.offsetHeight / 2)}px`;
+
+    this.tooltip.addEventListener('click', this.handleLinkClick);
+    this.tooltip.addEventListener('mouseenter', this.cancelHide);
+    this.tooltip.addEventListener('mouseleave', this.scheduleHide);
+    
+    requestAnimationFrame(() => this.tooltip?.classList.add('is-visible'));
+  }
+
+  private hide = () => {
+    if (this.tooltip) {
+      this.tooltip.classList.remove('is-visible');
+      setTimeout(() => {
+        this.tooltip?.remove();
+        this.tooltip = null;
+      }, this.ANIMATION_DURATION);
+    }
+  }
+
+  private scheduleHide = () => {
+    this.hideTimer = window.setTimeout(this.hide, this.HIDE_DELAY);
+  }
+
+  private cancelHide = () => {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+  }
+
+  private handleLinkClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const link = target.closest('.internal-link');
+    if (link) {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      if (href) {
+        this.plugin.app.workspace.openLinkText(href, this.sourcePath);
+      }
+    }
+  }
+}// TooltipManager

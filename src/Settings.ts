@@ -41,6 +41,9 @@ export interface Colors {
     hoverTabBackgroundColor: string;
     hoverTabTextColor: string;
   },
+  annotations: {
+    colors: Record<string, string>;
+  },
   editorActiveLineColor: string;
   languageSpecificColors: Record<string, Record<string, string>>;
 }
@@ -128,6 +131,10 @@ export interface ThemeSettings {
   prompts: {
     editedDefaults: Record<string, Partial<PromptDefinition>>;
     customPrompts: Record<string, PromptDefinition>;
+  },
+  annotations: {
+    convertAllComments: boolean;
+    excludeAnnotationsFromCopy: boolean;
   },
   enableEditorActiveLineHighlight: boolean;
 }
@@ -568,6 +575,16 @@ const SolarizedDarkColors = {
     hoverTabBackgroundColor: '#00AAAA',
     hoverTabTextColor: '#FFFFFF',
   },
+  annotations: {
+    colors: {
+      note: '#268bd2',
+      warn: '#b58900',
+      error: '#dc322f',
+      todo: '#859900',
+      question: '#6c71c4',
+      see: '#2aa198',
+    }
+  },
   editorActiveLineColor: D_ACTIVE_LINE_COLOR,
   languageSpecificColors: {},
 }
@@ -612,6 +629,16 @@ const SolarizedLightColors = {
     activeTabBackgroundColor: '#FFD700',
     hoverTabBackgroundColor: '#A6A18F',//'#CFCAB3',
     hoverTabTextColor: '#C25F30',
+  },
+  annotations: {
+    colors: {
+      note: '#268bd2',
+      warn: '#b58900',
+      error: '#dc322f',
+      todo: '#859900',
+      question: '#6c71c4',
+      see: '#2aa198',
+    }
   },
   editorActiveLineColor: L_ACTIVE_LINE_COLOR,
   languageSpecificColors: {},
@@ -688,6 +715,10 @@ const Solarized: Theme = {
       editedDefaults: {},
       customPrompts: {}
     },
+    annotations: {
+      convertAllComments: false,
+      excludeAnnotationsFromCopy: false,
+    },
     enableEditorActiveLineHighlight: true,
   },
   colors: {
@@ -737,6 +768,16 @@ const ObsidianDarkColors = {
     hoverTabBackgroundColor: '#333333',
     hoverTabTextColor: '#CCCCCC',
   },
+  annotations: {
+    colors: {
+      note: '#268bd2',
+      warn: '#b58900',
+      error: '#dc322f',
+      todo: '#859900',
+      question: '#6c71c4',
+      see: '#2aa198',
+    }
+  },
   editorActiveLineColor: "--color-base-20",
   languageSpecificColors: {},
 }
@@ -781,6 +822,16 @@ const ObsidianLightColors = {
     activeTabBackgroundColor: '#E6E6E6',
     hoverTabBackgroundColor: '#F0F0F0',
     hoverTabTextColor: '#888888',
+  },
+  annotations: {
+    colors: {
+      note: '#268bd2',
+      warn: '#b58900',
+      error: '#dc322f',
+      todo: '#859900',
+      question: '#6c71c4',
+      see: '#2aa198',
+    }
   },
   editorActiveLineColor: "--color-base-20",
   languageSpecificColors: {},
@@ -856,6 +907,10 @@ const Obsidian: Theme = {
     prompts: {
       editedDefaults: {},
       customPrompts: {}
+    },
+    annotations: {
+      convertAllComments: false,
+      excludeAnnotationsFromCopy: false,
     },
     enableEditorActiveLineHighlight: true,
   },

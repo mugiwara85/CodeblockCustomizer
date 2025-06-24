@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, ThemeSettings } from "./Settings";
 import { fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
@@ -264,11 +264,11 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(preElement, parameters, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath, sectionInfo, charPos);
+    await addClasses(preElement, parameters, codeblockLines, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath, sectionInfo, charPos);
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, parameters: Parameters, plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
+async function addClasses(preElement: HTMLElement, parameters: Parameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
   const frag = document.createDocumentFragment();
   
   preElement.classList.add(`codeblock-customizer-pre`);  
@@ -280,7 +280,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, plugi
   if (preElement.parentElement)
     preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
 
-  const buttons = createButtons(parameters);
+  const buttons = createButtons(parameters, codeblockLines, plugin);
   frag.appendChild(buttons);
 
   const header = HeaderWidget(preElement as HTMLPreElement, parameters, plugin.settings, sourcePath, plugin, sectionInfo, charPos);
@@ -365,7 +365,7 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
-export function createButtons(parameters: Parameters, targetPreElement?: HTMLElement){
+export function createButtons(parameters: Parameters, codeblockLines: string[] | undefined, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement){
   const container = createDiv({cls: `codeblock-customizer-button-container`});
   const frag = document.createDocumentFragment();
 
@@ -373,7 +373,7 @@ export function createButtons(parameters: Parameters, targetPreElement?: HTMLEle
     copyButton.addEventListener("click", (event) => {
     const preEl = targetPreElement || (event.currentTarget as HTMLElement).parentNode?.parentNode as HTMLElement;
     if (preEl) {
-      copyCode(preEl, event);
+      copyCode(preEl, event, plugin, codeblockLines);
     }
   });
   frag.appendChild(copyButton);
@@ -400,28 +400,43 @@ function createWrapCodeButton() {
   return container;
 }// createWrapCodeButton
 
-function copyCode(preElement: HTMLElement, event: Event) {
+function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustomizerPlugin, codeblockLines?: string[]) {
   event.stopPropagation();
 
   if (!preElement)
     return;
   
-  const lines = preElement.querySelectorAll("code");
-  const codeTextArray: string[] = [];
+  let codeText: string;
 
-  lines.forEach((line, index) => {
-    //const codeElements = line.querySelectorAll('.codeblock-customizer-line-text');
-    const codeElements = line.querySelectorAll('.codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output)');
-    codeElements.forEach((codeElement, codeIndex) => {
-      const textContent = codeElement.textContent || "";
-      codeTextArray.push(textContent);
-      if (codeIndex !== codeElements.length - 1)
-        codeTextArray.push('\n');
+  if (plugin && codeblockLines && codeblockLines.length > 0) {
+    const contentLines = codeblockLines.slice(1, -1);
+
+    if (plugin.settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy) {
+      const ANNOTATION_MARKER = '[!';
+      const processedLines = contentLines.map(line => {
+        if (line.includes(ANNOTATION_MARKER)) {
+          const commentRegex = /^(.*?)(\s*(?:\/\/|#|--|\/\*))/;
+          const match = line.match(commentRegex);
+          if (match && match[1] !== undefined) {
+            return match[1].trimEnd();
+          }
+        }
+        return line;
+      });
+      codeText = processedLines.join('\n');
+    } else {
+      codeText = contentLines.join('\n');
+    }
+  } else {
+    const lines = preElement.querySelectorAll("code .codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output)");
+    const codeTextArray: string[] = [];
+    lines.forEach(line => {
+      codeTextArray.push(line.textContent || "");
     });
-  });
+    codeText = codeTextArray.join('\n');
+  }
 
-  const concatenatedCodeText = codeTextArray.join('');
-  addTextToClipboard(concatenatedCodeText);
+  addTextToClipboard(codeText);
 }// copyCode
 
 function wrapCode(preElement: HTMLElement, event: Event) {
@@ -468,7 +483,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
 
   try {
     if (plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling)
-      await PDFExport(preElements, plugin, codeBlockFirstLines, context.sourcePath);
+      await PDFExport(preElements, plugin, codeBlockFirstLines, context.sourcePath, fileContentLines);
   } catch (error) {
     console.error(`Error exporting to PDF: ${error.message}`);
     return;
@@ -736,12 +751,18 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
     const caseInsensitiveLineText = htmlLine.toLowerCase();
     const hideCommandOutput = useSemiFold && lineNumber > settings.semiFold.visibleLines;
 
+    const { lineContent, annotationIcon } = processAnnotations(htmlLine, textLines[index], settings, plugin, sourcePath);
+
     const { lineWrapper, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
     fadeOutLineIndex = updatedFadeOutLineIndex;
 
     const lineNumberEl = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
     lineWrapper.appendChild(lineNumberEl);
     const textLine = textLines[index];
+    if (annotationIcon) {
+      lineWrapper.appendChild(annotationIcon);
+    }
+
     const isPromptLine = promptLines.has(lineNumber + parameters.lineNumberOffset);
     if (isPromptLine) {
       lineWrapper.classList.add("has-prompt");
@@ -755,7 +776,7 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
       cache = newCache;
     }
       
-    const indentedLine = addIndentLine(htmlLine, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
+    const indentedLine = addIndentLine(lineContent, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
     const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine);
     textHighlight(parameters, lineNumber, lineTextEl);
 
@@ -780,6 +801,48 @@ async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, s
   });
   preCodeElm.appendChild(frag);
 }// highlightLines
+
+function processAnnotations(htmlLine: string, textLine: string, settings: ThemeSettings, plugin: CodeBlockCustomizerPlugin, sourcePath: string): { lineContent: string; annotationIcon: HTMLElement | null } {
+  let lineContent = htmlLine;
+  let annotationIcon: HTMLElement | null = null;
+  const commentMatch = textLine.match(/\s*(?:\/\/|#|--|\/\*)/);
+
+  if (commentMatch && commentMatch.index !== undefined) {
+    const fullCommentText = textLine.substring(commentMatch.index);
+    const cleanCommentText = fullCommentText.replace(/^\s*(?:\/\/|#|--|\/\*)\s*|\s*\*\/$/g, '').trim();
+    
+    const ANNOTATION_PATTERN = /\[!(?<type>\w+)\]\s*(?<content>.*)/;
+    const explicitMatch = cleanCommentText.match(ANNOTATION_PATTERN);
+
+    let type: string | undefined;
+    let content: string | undefined;
+
+    if (explicitMatch && explicitMatch.groups) {
+      type = explicitMatch.groups.type;
+      content = explicitMatch.groups.content;
+    } else if (settings.annotations.convertAllComments) {
+      type = 'note';
+      content = cleanCommentText;
+    }
+
+    if (type !== undefined && content !== undefined && content.length > 0) {
+      annotationIcon = createAnnotationIcon(type, content, plugin, sourcePath);
+      const commentHtmlRegex = /<span class="token comment">.*?<\/span>/;
+      lineContent = htmlLine.replace(commentHtmlRegex, '').trimEnd();
+    }
+  }
+  return { lineContent, annotationIcon };
+}// processAnnotations
+
+function createAnnotationIcon(type: string, content: string, plugin: CodeBlockCustomizerPlugin, sourcePath: string): HTMLElement {
+  const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
+  const iconContainer = createSpan({cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${type}`});
+  iconContainer.innerHTML = rhombusSVG;
+
+  new TooltipManager(iconContainer, content, type, plugin, sourcePath);
+
+  return iconContainer;
+}// createAnnotationIcon
 
 function addCommandOutput(lineText: string, parameters: Parameters, env: PromptEnvironment, hideCommandOutput: boolean, lineNumber: number) {
   const outputElements: HTMLElement[] = [];
@@ -1438,7 +1501,7 @@ export function convertHTMLCollectionToArray(elements: HTMLCollection, excludeCm
   return result;
 }// convertHTMLCollectionToArray
 
-async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCustomizerPlugin, codeBlockFirstLines: string[], sourcePath: string) {
+async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCustomizerPlugin, codeBlockFirstLines: string[], sourcePath: string, codeblockLines: string[]) {
   for (const [key, codeblockPreElement] of Array.from(codeBlockElement).entries()) {
     const codeblockParameters = codeBlockFirstLines[key];
     const parameters = getAllParameters(codeblockParameters, plugin.settings);  
@@ -1461,7 +1524,7 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCusto
       parameters.fold = false;
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(codeblockPreElement, parameters, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath);
+    await addClasses(codeblockPreElement, parameters, codeblockLines, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath);
   }
 }// PDFExport
 

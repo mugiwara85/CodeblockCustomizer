@@ -4,7 +4,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, removeFirstLine, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager} from "./Utils";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
@@ -794,6 +794,76 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     decorations: v => v.decorations,
   });// inlineCodeViewPlugin
 
+  const annotationViewPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+    prevConvertAllComments: boolean;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+      this.prevConvertAllComments = plugin.settings.SelectedTheme.settings.annotations.convertAllComments;
+    }
+
+    update(update: ViewUpdate) {
+      const oldCursorLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
+      const newCursorLine = update.state.doc.lineAt(update.state.selection.main.head).number;
+      const settingChanged = this.prevConvertAllComments !== plugin.settings.SelectedTheme.settings.annotations.convertAllComments;
+        
+      if (update.docChanged || update.viewportChanged || oldCursorLine !== newCursorLine || settingChanged) {
+        this.decorations = this.buildDecorations(update.view);
+        if (settingChanged) {
+         this.prevConvertAllComments = plugin.settings.SelectedTheme.settings.annotations.convertAllComments;
+        }
+      }
+    }
+
+    buildDecorations(view: EditorView): DecorationSet {
+      const decorations: Array<Range<Decoration>> = [];
+      const ANNOTATION_PATTERN = /\[!(?<type>\w+)\]\s*(?<content>.*)/;
+      const codeBlockPositions = view.state.field(codeBlockPositionsField, false) ?? [];
+      const cursorPos = view.state.selection.main.head;
+      const cursorLineNumber = view.state.doc.lineAt(cursorPos).number;
+
+      for (const pos of codeBlockPositions) {
+        syntaxTree(view.state).iterate({ from: pos.codeBlockStartPos, to: pos.codeBlockEndPos,
+          enter: (node) => {
+            if (!node.type.name.includes("comment"))
+              return;
+
+            const annotationLineNumber = view.state.doc.lineAt(node.from).number;
+            if (cursorLineNumber === annotationLineNumber) {
+              return;
+            }
+
+            const commentText = view.state.sliceDoc(node.from, node.to);
+            const cleanCommentText = commentText.replace(/^\s*(?:\/\/|#|--|\/\*)\s*|\s*\*\/$/g, '').trim();
+            const match = cleanCommentText.match(ANNOTATION_PATTERN);
+
+            let type: string;
+            let content: string;
+
+            if (match && match.groups) {
+              type = match.groups.type;
+              content = match.groups.content;
+            } else if (plugin.settings.SelectedTheme.settings.annotations.convertAllComments) {
+              type = 'note';
+              content = cleanCommentText;
+            } else {
+              return;
+            }
+            const line = view.state.doc.lineAt(node.from);
+            // hide comment node
+            decorations.push(Decoration.replace({}).range(node.from, node.to));
+            decorations.push(Decoration.widget({ widget: new AnnotationIconWidget(type, content.trim(), plugin), side: -1 }).range(line.from));
+          },
+        });
+      }
+
+      return RangeSet.of(decorations, true);
+    }
+  }, {
+    decorations: v => v.decorations
+  });// annotationViewPlugin
+
   /* Widgets */
 
   class TextAboveCodeblockWidget extends WidgetType {
@@ -1064,6 +1134,29 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return span
     }
   }// LineWidget
+
+  class AnnotationIconWidget extends WidgetType {
+    constructor(readonly type: string, readonly content: string, readonly plugin: CodeBlockCustomizerPlugin) {
+      super();
+    }
+
+    eq(other: AnnotationIconWidget) {
+      return other.type === this.type && other.content === this.content && other.plugin === this.plugin;
+    }
+
+    toDOM(view: EditorView): HTMLElement {
+      const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
+      const iconContainer = createSpan({cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${this.type}`});
+      //iconContainer.setAttribute("aria-label", `Annotation: ${this.type}`);
+      iconContainer.innerHTML = rhombusSVG;
+
+      const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
+
+      new TooltipManager(iconContainer, this.content, this.type, this.plugin, sourcePath);
+
+      return iconContainer;
+    }
+  }// AnnotationIconWidget
 
   /* functions */
 
@@ -1481,10 +1574,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         class: `codeblock-customizer-copy-code`,
         displayText: "Copy code",
         action: (view: EditorView) => {
-          const collapseStart = codeBlockStartPos + parameters.backtickCount;
-          const collapseEnd = codeBlockEndPos - parameters.backtickCount;
-          const lines = view.state.sliceDoc(collapseStart, collapseEnd).toString();
-          addTextToClipboard(removeFirstLine(lines));
+          const from = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length + 1;
+          const to = codeBlockEndPos - parameters.backtickCount - 1;
+          const blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);          
+          addTextToClipboard(blockContent);
         },
         icon: "copy",
         text: parameters.displayLanguage,
@@ -1561,6 +1654,36 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     return container;
   }// createButtonContainer
+
+  function getCodeWithoutAnnotation(view: EditorView, from: number, to: number) {
+    const ANNOTATION_PATTERN = /\[!/;
+    const rangesToRemove: { from: number, to: number }[] = [];
+    const codeText = view.state.sliceDoc(from, to);
+
+    syntaxTree(view.state).iterate({from: from, to: to,
+      enter: (node) => {
+        if (node.type.name.includes("comment")) {
+          const commentText = view.state.sliceDoc(node.from, node.to);
+          if (ANNOTATION_PATTERN.test(commentText)) {
+            rangesToRemove.push({ from: node.from - from, to: node.to - from });
+          }
+        }
+      }
+    });
+    
+    if (rangesToRemove.length > 0) {
+      let newContent = "";
+      let lastIndex = 0;
+      for (const range of rangesToRemove) {
+        newContent += codeText.substring(lastIndex, range.from);
+        lastIndex = range.to;
+      }
+      newContent += codeText.substring(lastIndex);
+      return newContent;
+    }
+
+    return codeText;
+  }// getCodeWithoutAnnotation
 
   function getLineClass(parameters: Parameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>) {
     let codeblockLanguageClass = "";
@@ -1987,7 +2110,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return semiUnFade.of({filterFrom: CollapseStart, filterTo: CollapseEnd});
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, defaultFoldUnfoldedField, rememberedFoldField, foldCommandField, viewPlugin, inlineCodeViewPlugin];
+  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, defaultFoldUnfoldedField, rememberedFoldField, foldCommandField, viewPlugin, inlineCodeViewPlugin, annotationViewPlugin];
 
   const result = {
     extensions,
