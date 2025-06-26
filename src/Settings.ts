@@ -63,6 +63,11 @@ export enum FoldingPersistence {
   Session = 'session',
 }
 
+export enum InlineCodeModifierKeys {
+  CTRL = 'ctrl',
+  ALT = 'alt'
+}
+
 export interface ThemeSettings {
   codeblock: {
     enableLineNumbers: boolean;
@@ -119,6 +124,8 @@ export interface ThemeSettings {
     enableInlineCodeStyling: boolean;
     enableSyntaxHighlight: boolean;
     showIcons: boolean;
+    enableCopyOnClick: boolean;
+    copyModifierKey: InlineCodeModifierKeys;
   },
   printing: {
     enablePrintToPDFStyling: boolean;
@@ -702,6 +709,8 @@ const Solarized: Theme = {
       enableInlineCodeStyling: true,
       enableSyntaxHighlight: true,
       showIcons: false,
+      enableCopyOnClick: true,
+      copyModifierKey: InlineCodeModifierKeys.CTRL,
     },
     printing: {
       enablePrintToPDFStyling: true,
@@ -895,6 +904,8 @@ const Obsidian: Theme = {
       enableInlineCodeStyling: true,
       enableSyntaxHighlight: true,
       showIcons: false,
+      enableCopyOnClick: true,
+      copyModifierKey: InlineCodeModifierKeys.CTRL
     },
     printing: {
       enablePrintToPDFStyling: true,

@@ -2,7 +2,7 @@ import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon,
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
-import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, ThemeSettings } from "./Settings";
+import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, ThemeSettings } from "./Settings";
 import { fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
 
@@ -1607,18 +1607,27 @@ export async function inlineCodeProcessor(element: HTMLElement, context: Markdow
     return;
   }
 
-  if (!plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
-    return;
-  }
-
   const prism = await loadPrism();
 
   allInlineCodeElements.forEach(codeEl => {
-    processSingleInlineCodeElement(codeEl, prism);
+    if ((codeEl as HTMLElement).dataset.cbcProcessed) {
+      return;
+    }
+    const text = codeEl.textContent ?? "";
+    const match = text.match(INLINE_CODE_LANG_REGEX);
+
+    if (plugin.settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight && match) {
+      processSingleInlineCodeElement(codeEl, prism, plugin);
+    } else {
+      if (plugin.settings.SelectedTheme.settings.inlineCode.enableCopyOnClick) {
+        (codeEl as HTMLElement).addEventListener('click', createInlineCodeClickHandler(plugin, () => codeEl.textContent ?? ""));
+        (codeEl as HTMLElement).dataset.cbcProcessed = 'true';
+      }
+    }
   });
 }// inlineCodeProcessor
 
-function processSingleInlineCodeElement(codeEl: Element, prism: any) {
+function processSingleInlineCodeElement(codeEl: Element, prism: any, plugin: CodeBlockCustomizerPlugin) {
   const text = codeEl.textContent?.trim();
   if (!text) {
     return;
@@ -1634,6 +1643,10 @@ function processSingleInlineCodeElement(codeEl: Element, prism: any) {
     const displayLanguage = getDisplayLanguageName(language);
     const newCodeEl = createCode({ cls: "codeblock-customizer-inline-code" });
 
+    if (plugin.settings.SelectedTheme.settings.inlineCode.enableCopyOnClick) {
+      newCodeEl.addEventListener('click', createInlineCodeClickHandler(plugin, () => code), true);
+    }
+
     const iconSpan = createInlineCodeIcon(displayLanguage);
     if (iconSpan) {
       newCodeEl.appendChild(iconSpan);
@@ -1642,9 +1655,24 @@ function processSingleInlineCodeElement(codeEl: Element, prism: any) {
     const codeContentSpan = createCodeContentSpan(code, language, prism);
     newCodeEl.appendChild(codeContentSpan);
 
+    (newCodeEl as HTMLElement).dataset.cbcProcessed = 'true';
+
     codeEl.replaceWith(newCodeEl);
   }
 }// processSingleInlineCodeElement
+
+function createInlineCodeClickHandler(plugin: CodeBlockCustomizerPlugin, getTextToCopy: () => string): (event: MouseEvent) => void {
+  return (event: MouseEvent) => {
+    const requiredKey = plugin.settings.SelectedTheme.settings.inlineCode.copyModifierKey;
+    if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey))
+      return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    
+    addTextToClipboard(getTextToCopy());
+  };
+}// createInlineCodeClickHandler
 
 function createInlineCodeIcon(displayLanguage: string): HTMLSpanElement | null {
   const Icon = getLanguageIcon(displayLanguage);

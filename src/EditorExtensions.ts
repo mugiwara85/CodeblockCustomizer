@@ -1,11 +1,11 @@
-import { StateField, StateEffect, RangeSetBuilder, EditorState, Transaction, Extension, Range, RangeSet, Line, EditorSelection, Annotation } from "@codemirror/state";
+import { StateField, StateEffect, EditorState, Transaction, Extension, Range, RangeSet, Line, EditorSelection, Annotation } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager} from "./Utils";
-import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
+import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys } from "./Settings";
 import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
 import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
@@ -736,10 +736,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
-      if (!settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight)
-        return Decoration.none;
-
-      const builder = new RangeSetBuilder<Decoration>();
+      const decorations: Array<Range<Decoration>> = [];
       const selection = view.state.selection.main;
 
       for (const { from, to } of view.visibleRanges) {
@@ -747,6 +744,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           enter: (node) => {
             if (!node.type.name.startsWith('inline-code'))
               return;
+
+            decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper" }).range(node.from, node.to));
+            if (!settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
+              return;
+            }
 
             const inlineCodeText = view.state.sliceDoc(node.from, node.to);
             const match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
@@ -764,15 +766,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             const isCursorNextToBacktick = selection.from === node.from - 1 || selection.to === node.to + 1;
             const isCursorInside = selection.from >= node.from && selection.to <= node.to;
             if (isCursorInside || isCursorNextToBacktick) { 
-              builder.add(node.from, codeStartPos, Decoration.mark({ class: "codeblock-customizer-inline-code-langauge" }));
+              decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-langauge" }).range(node.from, codeStartPos));
             } else {
               const displayLanguage = getDisplayLanguageName(langName);
               const Icon = getLanguageIcon(displayLanguage);
               if (Icon) {
-                builder.add(node.from, codeStartPos, Decoration.replace({ widget: new inlineCodeIconWidget(displayLanguage) }));
+                decorations.push(Decoration.replace({ widget: new inlineCodeIconWidget(displayLanguage) }).range(node.from, codeStartPos));
               }
               else {
-                builder.add(node.from, codeStartPos, Decoration.replace({}));
+                decorations.push(Decoration.replace({}).range(node.from, codeStartPos));
               }
             }
 
@@ -781,17 +783,59 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             for (const token of tokens) {
               if (token.style) {
                 const classes = token.style.split(' ').map(s => `cm-${s}`).join(' ');
-                builder.add(currentPos, currentPos + token.text.length, Decoration.mark({ class: classes }));
+                if (token.text.length > 0) {
+                  decorations.push(Decoration.mark({ class: classes }).range(currentPos, currentPos + token.text.length));
+                }
               }
               currentPos += token.text.length;
             }
           },
         });
       }
-      return builder.finish();
+      return RangeSet.of(decorations, true);
     }
   }, {
     decorations: v => v.decorations,
+    eventHandlers : {
+      click: (event, view) => {
+        if (!settings.SelectedTheme.settings.inlineCode.enableCopyOnClick) 
+          return;
+
+        const requiredKey = plugin.settings.SelectedTheme.settings.inlineCode.copyModifierKey;
+        if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey))
+          return;
+
+        const target = event.target as HTMLElement;
+        const wrapper = target.closest('.codeblock-customizer-inline-code-wrapper');
+        if (!wrapper) 
+          return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        const pos = view.posAtDOM(target);
+        if (pos === null) 
+          return;
+
+        let found = false;
+        syntaxTree(view.state).iterate({ from: pos, to: pos,
+          enter: (node) => {
+            if (found) 
+              return false;
+
+            if (node.type.name.startsWith('inline-code')) {
+              const text = view.state.sliceDoc(node.from, node.to);
+              const match = text.match(INLINE_CODE_LANG_REGEX);
+              const textToCopy = match && match[2] ? match[2] : text;
+                addTextToClipboard(textToCopy);
+                found = true;
+              
+              return false;
+            }
+          }
+        });
+      }
+    }
   });// inlineCodeViewPlugin
 
   const annotationViewPlugin = ViewPlugin.fromClass(class {
@@ -804,6 +848,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     update(update: ViewUpdate) {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(update.view.state))
+        return Decoration.none;
+
       const oldCursorLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
       const newCursorLine = update.state.doc.lineAt(update.state.selection.main.head).number;
       const settingChanged = this.prevConvertAllComments !== plugin.settings.SelectedTheme.settings.annotations.convertAllComments;

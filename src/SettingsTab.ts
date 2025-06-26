@@ -2,7 +2,7 @@ import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponen
 import Pickr from "@simonwep/pickr";
 
 import { addClassesToPrompt, getPromptType, collectAllPromptClasses, defaultPrompts, getColorOfCssVariable, getCurrentMode, getPromptDefinition, promptClassDisplayNames, PromptDefinition, PromptEnvironment, replacePromptTemplate, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { ANNOTATION_TYPE_ICONS, DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 
@@ -917,6 +917,33 @@ export class SettingsTab extends PluginSettingTab {
     const inlineDiv = containerEl.createDiv({ cls: "codeblock-customizer-inlineCode-settingsDiv-hide" });
     inlineDiv.toggleClass("codeblock-customizer-inlineCode-settingsDiv-hide", this.plugin.settings.settingsType !== "inlineCode");
     inlineDiv.createEl('h3', {text: 'Inline code settings'});
+
+    new Setting(inlineDiv)
+      .setName('Enable click-to-copy for inline code')
+      .setDesc('When enabled, inline code can be copied by clicking it while holding a modifier key.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.enableCopyOnClick)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.inlineCode.enableCopyOnClick = value;
+          await this.plugin.saveSettings();
+          this.display(); 
+        })
+      );
+    
+    if (this.plugin.settings.SelectedTheme.settings.inlineCode.enableCopyOnClick) {
+      new Setting(inlineDiv)
+        .setName('Modifier key for copy')
+        .setDesc('Select the key to hold while clicking to copy.')
+        .addDropdown(dropdown => dropdown
+          .addOption(InlineCodeModifierKeys.CTRL, 'Ctrl')
+          .addOption(InlineCodeModifierKeys.ALT, 'Alt')
+          .setValue(this.plugin.settings.SelectedTheme.settings.inlineCode.copyModifierKey)
+          .onChange(async (value: InlineCodeModifierKeys) => {
+            this.plugin.settings.SelectedTheme.settings.inlineCode.copyModifierKey = value;
+            await this.plugin.saveSettings();
+          })
+        );
+    }
 
     new Setting(inlineDiv)
       .setName('Enable inline code syntax highlighting')
