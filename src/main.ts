@@ -42,6 +42,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   permanentReadingViewFolds: PermanentFoldData = {};
   debounceTimer: NodeJS.Timeout | null = null;
   foldCommandTrigger: FoldCommand = FoldCommand.Default;
+  rerenderQueue: Map<number, { content: string; count: number }> = new Map();
+  rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
 
   async onload() {
     document.body.classList.add('codeblock-customizer');
@@ -219,8 +221,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   
   syncFoldStatesOnViewChange(filePath: string, sourceView: 'editor' | 'reading') {
     const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
-    if (!foldSettings.rememberFoldState) 
+    if (!foldSettings.rememberFoldState) {
       return;
+    }
 
     const isPermanent = foldSettings.persistence === FoldingPersistence.Permanent;
     const sourceStore = isPermanent ? (sourceView === 'editor' ? this.permanentEditorFolds : this.permanentReadingViewFolds) : (sourceView === 'editor' ? this.activeEditorFolds : this.activeReadingViewFolds);
@@ -706,14 +709,17 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('layout-change', () => {
       const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (markdownView) {
-        // @ts-ignore
-        const previousMode = markdownView.previousMode?.type;
         const currentMode = markdownView.getMode();
 
         if (markdownView.file) {
-          if (currentMode === 'preview' && previousMode === 'source') {
+          if (currentMode === 'preview') {
             this.syncFoldStatesOnViewChange(markdownView.file.path, 'editor');
-          } else if (currentMode === 'source' && previousMode === 'preview') {
+            setTimeout(() => {
+              if (markdownView.previewMode) {
+                markdownView.previewMode.rerender(true);
+              }
+            }, 0);
+          } else if (currentMode === 'source') {
             this.syncFoldStatesOnViewChange(markdownView.file.path, 'reading');
           }
         }
@@ -736,6 +742,56 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }));
   }// registerEvents
 
+  rerenderCodeblock(file: TFile, lineStart: number, newParametersLine?: string) {
+    const targets: { renderer: any; section: any }[] = [];
+
+    for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+      const view = leaf.view as MarkdownView;
+      if (view.file?.path !== file.path || view.getMode() !== 'preview') {
+        continue;
+      }
+
+      // @ts-expect-error: undocumented Obsidian API
+      const renderer = view.previewMode.renderer;
+      if (!renderer?.sections) {
+        continue;
+      }
+
+      //const sectionToRerender = renderer.sections.find((s: any) => s.lineStart === lineStart);
+      let sectionToRerender;
+      for (const section of renderer.sections) {
+        if (section.lineStart <= lineStart && section.lineEnd >= lineStart) {
+          if (section.el?.querySelector('pre > code')) {
+            sectionToRerender = section;
+            break;
+          }
+        }
+      }
+
+      if (!sectionToRerender && lineStart === 0 && renderer.sections.length > 0) {
+        const firstSection = renderer.sections[0];
+        if (firstSection.el?.querySelector('pre > code')) {
+          sectionToRerender = firstSection;
+        }
+      }
+      if (sectionToRerender) {
+        targets.push({ renderer, section: sectionToRerender });
+      }
+    }
+
+    if (targets.length > 0) {
+      if (newParametersLine !== undefined) {
+        this.rerenderQueue.set(lineStart, { content: newParametersLine, count: targets.length });
+      }
+      
+      for (const target of targets) {
+        target.section.rendered = false;
+        target.section.html = '';
+        target.renderer.queueRender();
+      }
+    }
+  }// rerenderCodeblock
+  
   async renderReadingViewOnStart() {
     this.app.workspace.iterateRootLeaves((currentLeaf: WorkspaceLeaf) => {
       if (currentLeaf.view instanceof MarkdownView) {

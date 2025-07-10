@@ -1,14 +1,15 @@
-import { MarkdownView, MarkdownPostProcessorContext, sanitizeHTMLToDom, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
+import { MarkdownView, MarkdownPostProcessorContext, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, ThemeSettings } from "./Settings";
-import { fadeOutLineCount, INLINE_CODE_LANG_REGEX } from "./Const";
+import { fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
 
 import { visitParents } from "unist-util-visit-parents";
 import { fromHtml } from "hast-util-from-html";
 import { toHtml } from "hast-util-to-html";
+import detectIndent from 'detect-indent';
 
 interface IndentationInfo {
   indentationLevels: number;
@@ -42,15 +43,12 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
       }
     }
     handlePDFExport(preElements, context, plugin, id);
+    return;
   }
 
-  const sectionInfo: MarkdownSectionInformation | null = context.getSectionInfo(preElements[0]);
-  if (!sectionInfo)
-    return;
-
   let fileContentLines: string[];
-  const initialLines = sectionInfo.text.split('\n');
-  const allInitialLinesUndefined = initialLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).every(line => line === undefined);
+  const initialLines = codeBlockSectionInfo.text.split('\n');
+  const allInitialLinesUndefined = initialLines.slice(codeBlockSectionInfo.lineStart, codeBlockSectionInfo.lineEnd + 1).every(line => line === undefined);
 
   if (initialLines.length <= 1 || allInitialLinesUndefined) {
     console.warn("Line data is insufficient or invalid. Falling back to getFileCacheAndContentLines.");
@@ -65,7 +63,7 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
     fileContentLines = initialLines;
   }
 
-  const codeblockLines = fileContentLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1);
+  const codeblockLines = fileContentLines.slice(codeBlockSectionInfo.lineStart, codeBlockSectionInfo.lineEnd + 1);
 
   const codeLines = Array.from(codeblockLines);
   if (codeLines.length >= 2) {
@@ -76,7 +74,7 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
 
   let charPos = 0;
-  for (let i = 0; i < sectionInfo.lineStart; i++) {
+  for (let i = 0; i < codeBlockSectionInfo.lineStart; i++) {
     if (typeof fileContentLines[i] !== 'string') {
       console.error(`Inconsistent data for file ${context.sourcePath}. Could not calculate character position.`);
       charPos = -1;
@@ -87,7 +85,7 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
 
   const validCharPos = charPos !== -1 ? charPos : undefined;
 
-  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, codeblockLines, context.sourcePath, plugin, sectionInfo, validCharPos);
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, codeblockLines, context, plugin, codeBlockSectionInfo, validCharPos);
 }// ReadingView
 
 async function addCustomSyntaxHighlight(codeblockLines: string[], language: string) {
@@ -114,66 +112,30 @@ async function getPreElements(element: HTMLElement) {
 }// getPreElements
 
 function trackIndentation(lines: string[]): IndentationInfo[] {
+  const codeBlock = lines.join('\n');
+  const indent = detectIndent(codeBlock).indent || '    '; // default to 4 spaces
+
   const result: IndentationInfo[] = [];
-  const spaceIndentRegex = /^( {0,4}|\t)*/;
-
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
-    const match = line.match(spaceIndentRegex);
-    let currentIndentLevel = 0;
+    const currentLevel = getIndentLevel(lines[i], indent);
+    const nextLevel = (i + 1 < lines.length) ? getIndentLevel(lines[i + 1], indent) : 0;
 
-    if (match) {
-      const indentation = match[0];
-      currentIndentLevel = calculateIndentLevel(indentation);
-    }
-
-    const nextLine = lines[i + 1] ?? "";
-    let nextIndentLevel = 0;
-
-    if (nextLine) {
-      const nextMatch = nextLine.match(spaceIndentRegex);
-
-      if (nextMatch) {
-        const nextIndentation = nextMatch[0];
-        nextIndentLevel = calculateIndentLevel(nextIndentation);
-      }
-    }
-
-    const info: IndentationInfo = {
-      indentationLevels: currentIndentLevel,
-      insertCollapse: nextIndentLevel > currentIndentLevel,
-    };
-
-    result.push(info);
+    result.push({
+      indentationLevels: currentLevel,
+      insertCollapse: nextLevel > currentLevel
+    });
   }
-
+  
   return result;
 }// trackIndentation
 
-function calculateIndentLevel(indentation: string): number {
-  let indentLevel = 0;
-  let spaceCount = 0;
-
-  for (const char of indentation) {
-    if (char === '\t') {
-      indentLevel += 1;
-      spaceCount = 0;
-    } else if (char === ' ') {
-      spaceCount += 1;
-      if (spaceCount === 4) {
-        indentLevel += 1;
-        spaceCount = 0;
-      }
-    }
+function getIndentLevel(line: string, indent: string, tabSize = 4): number {
+  let level = 0;
+  while (line.startsWith(indent.repeat(level + 1))) {
+    level++;
   }
-
-  // Handle remaining spaces less than 4
-  if (spaceCount > 0) {
-    indentLevel += 1;
-  }
-
-  return indentLevel;
-}// calculateIndentLevel
+  return level;
+}// getIndentLevel
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
   const callouts: HTMLElement | null = codeBlockElement.querySelector('.callout');
@@ -196,7 +158,7 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
-    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, [], context.sourcePath, plugin);
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, [], context, plugin);
   }
 }// calloutPostProcessor
 
@@ -228,23 +190,42 @@ async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines
   }
 }// checkCustomSyntaxHighlight
 
-async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], sourcepath: string, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number ) {
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
   if (preElements.length !== codeBlockFirstLines.length)
     return;
 
   for (const [key, preElement] of preElements.entries()) {
-    const codeBlockFirstLine = codeBlockFirstLines[key];
-    const preCodeElm = preElement.querySelector('pre > code');
-
-    if (!preCodeElm)
-      return;
-
-    if (preCodeElm.querySelector("code [class*='codeblock-customizer-line']"))
+    if (preElement.classList.contains('codeblock-customizer-pre')) {
       continue;
+    }
+
+    let codeBlockFirstLine = codeBlockFirstLines[key];
+    const preCodeElm = preElement.querySelector('code');
+    if (!preCodeElm) {
+      continue;
+    }
 
     if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className)))
       while(!preCodeElm.classList.contains("is-loaded"))
         await sleep(2);
+
+    const lineStart = sectionInfo?.lineStart;
+    let isParameterRerender = false;
+
+    if (lineStart !== undefined) {
+      const override = plugin.rerenderQueue.get(lineStart);
+      if (override) {
+        isParameterRerender = true;
+        codeBlockFirstLine = override.content;
+        const newCount = override.count - 1;
+
+        if (newCount > 0) {
+          plugin.rerenderQueue.set(lineStart, { content: override.content, count: newCount });
+        } else {
+          plugin.rerenderQueue.delete(lineStart);
+        }
+      }
+    }
 
     const parameters = getAllParameters(codeBlockFirstLine, plugin.settings);
     if (parameters.exclude)
@@ -252,7 +233,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
 
     if (parameters.group && parameters.group.length > 0) {
       preElement.setAttribute('groupname', parameters.group);
-      preElement.setAttribute('sourcepath', sourcepath);
+      preElement.setAttribute('sourcepath', context.sourcePath);
       const paramsJsonString = JSON.stringify(parameters);
       preElement.dataset.parameters = paramsJsonString;
       preElement.classList.add('codeblock-customizer-grouped');
@@ -261,14 +242,14 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
       }
     }
 
-    await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm as HTMLElement, plugin);
+    await checkCustomSyntaxHighlight(parameters, codeblockLines, preCodeElm, plugin);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(preElement, parameters, codeblockLines, plugin, preCodeElm as HTMLElement, indentationLevels, codeblockLanguageSpecificClass, sourcepath, sectionInfo, charPos);
+    await addClasses(preElement, parameters, codeblockLines, plugin, preCodeElm, indentationLevels, codeblockLanguageSpecificClass, context.sourcePath, sectionInfo, charPos, isParameterRerender);
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, parameters: Parameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
+async function addClasses(preElement: HTMLElement, parameters: Parameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number, isParameterRerender = false) {
   const frag = document.createDocumentFragment();
   
   preElement.classList.add(`codeblock-customizer-pre`);  
@@ -346,7 +327,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, codeb
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-  await highlightLines(preCodeElm, parameters, plugin.settings.SelectedTheme.settings, indentationLevels, sourcePath, plugin);
+    await highlightLines(preCodeElm, codeblockLines, parameters, indentationLevels, sourcePath, plugin, isParameterRerender);
 }// addClasses
 
 function createCopyButton(displayLanguage: string) {
@@ -561,29 +542,17 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
 }// HeaderWidget
 
 function createLineNumberElement(lineNumber: number, showNumbers: string) {
-  const lineNumberWrapper = createDiv();
+  let wrapperClass = 'codeblock-customizer-line-number';
   if (showNumbers === "specific")
-    lineNumberWrapper.classList.add(`codeblock-customizer-line-number-specific`);
+    wrapperClass = `codeblock-customizer-line-number-specific`;
   else if (showNumbers === "hide")
-    lineNumberWrapper.classList.add(`codeblock-customizer-line-number-hide`);
-  else 
-    lineNumberWrapper.classList.add(`codeblock-customizer-line-number`);
-
-  const lineNumberElement = createSpan({cls : `codeblock-customizer-line-number-element`});
-  lineNumberElement.setText(lineNumber === -1 ? '' : lineNumber.toString());
+    wrapperClass = `codeblock-customizer-line-number-hide`;
   
-  lineNumberWrapper.appendChild(lineNumberElement);
-
-  return lineNumberWrapper;
+  const numberText = lineNumber === -1 ? '' : lineNumber.toString();
+  const lineNumberElement = `<span class="codeblock-customizer-line-number-element">${numberText}</span>`;
+    
+  return `<div class="${wrapperClass}">${lineNumberElement}</div>`;
 }// createLineNumberElement
-
-function createLineTextElement(line: string) {
-  const lineText = line !== "" ? line : "<br>";
-  const sanitizedText = sanitizeHTMLToDom(lineText);
-  const lineContentWrapper = createDiv({cls: `codeblock-customizer-line-text`, text: sanitizedText});
-  
-  return lineContentWrapper;
-}// createLineTextElement
 
 function addIndentLine(inputString: string, insertCollapse = false): string {
   const indentRegex = /^(?:\t+|( {4})*)/;
@@ -591,22 +560,28 @@ function addIndentLine(inputString: string, insertCollapse = false): string {
   const indent = match ? match[0] : '';
   const isTabIndentation = /\t/.test(indent);
   const numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
-  const indentSpan = createSpan({cls: "codeblock-customizer-indentation-guide", text: isTabIndentation ? "\t" : "    "});
+  const indentSpan = `<span class="codeblock-customizer-indentation-guide">${isTabIndentation ? "\t" : "    "}</span>`;
   
-  const spans = Array(numIndentCharacters).fill(indentSpan.outerHTML).join('');
-  const lastIndentPosition = isTabIndentation ? numIndentCharacters : numIndentCharacters * 4;
-  const indicator = createSpan({cls: "codeblock-customizer-collapse-indicator"});
-  const iconSpan = createSpan({cls: "codeblock-customizer-collapse-icon"});
-  indicator.appendChild(iconSpan);
+  const spans = Array(numIndentCharacters).fill(indentSpan).join('');
+  
+  let stringWithSpans = inputString.replace(indentRegex, spans);
 
-  let modifiedString = "";
   if (insertCollapse) {
-    modifiedString = inputString.slice(0, lastIndentPosition) + indicator.outerHTML + inputString.slice(lastIndentPosition);
+    const lastIndentPosition = isTabIndentation ? numIndentCharacters : numIndentCharacters * 4;
+    const iconSpan = `<span class="codeblock-customizer-collapse-icon"></span>`;
+    const indicator = `<span class="codeblock-customizer-collapse-indicator">${iconSpan}</span>`;
+    
+    const temp = inputString;
+    const stringBeforeIndent = temp.substring(0, temp.search(/\S|$/));
+    const stringAfterIndent = temp.substring(stringBeforeIndent.length);
+    
+    const modifiedIndent = stringBeforeIndent.slice(0, lastIndentPosition) + indicator + stringBeforeIndent.slice(lastIndentPosition);
+    const modifiedString = modifiedIndent + stringAfterIndent;
+
+    stringWithSpans = modifiedString.replace(indentRegex, spans);
   }
   
-  const stringWithSpans = inputString.replace(indentRegex, spans);
-
-  return insertCollapse ? modifiedString.replace(indentRegex, spans) : stringWithSpans;
+  return stringWithSpans;
 }// addIndentLine
 
 function extractLinesFromHTML(preCodeElm: HTMLElement): { htmlLines: string[]; textLines: string[] } {
@@ -712,7 +687,7 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
     result.isHighlighted = true;
   } else if (altHLMatch.length > 0) {
     result.isHighlighted = true;
-    result.color = altHLMatch[0].colorName; // Assuming `colorName` is a property in the `lines` object
+    result.color = altHLMatch[0].colorName;
   } else if (isAlternativeHighlightedByWord) {
     result.isHighlighted = true;
     result.color = isAlternativeHighlightedByWordColor;
@@ -724,87 +699,155 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
   return result;
 }// isLineHighlighted
 
-async function highlightLines(preCodeElm: HTMLElement, parameters: Parameters, settings: ThemeSettings, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
-  if (!preCodeElm) 
+async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], parameters: Parameters, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin, isRerender = false) {
+  if (!preCodeElm) {
     return;
+  }
+
+  let highlightedHtml = "";
+  const settings = plugin.settings.SelectedTheme.settings;
+
+  if (isRerender) {
+    console.log("rerendering");
+    const customLangConfig = getLanguageConfig(parameters.language, plugin);
+    const customFormat = customLangConfig?.format ?? undefined; // custom syntax highlight
+    const codeContentToHighlight = rawCodeLines.slice(1, -1).join('\n');
   
-  const { htmlLines, textLines } = extractLinesFromHTML(preCodeElm);
+    const prism = await loadPrism();
+    const language = parameters.language;
+    const langDefinition = prism.languages[customFormat ? customFormat : language];
+    
+    if (langDefinition) {
+      highlightedHtml = await prism.highlight(codeContentToHighlight, langDefinition, language);
+    } else {
+      const tempDiv = document.createElement('div');
+      tempDiv.textContent = codeContentToHighlight;
+      highlightedHtml = tempDiv.innerHTML;
+    }
+    
+    preCodeElm.innerHTML = "";
+  }
+
+  const container = document.createElement('div');
+  container.innerHTML = highlightedHtml;
+
+  const { htmlLines, textLines } = extractLinesFromHTML(isRerender ? container : preCodeElm);
   const codeblockLen = htmlLines.length - 1;
   const useSemiFold = codeblockLen >= settings.semiFold.visibleLines + fadeOutLineCount;
 
   let fadeOutLineIndex = 0;
 
-  const totalLines = htmlLines.length - 1;
+  const totalLines = isRerender ? htmlLines.length : htmlLines.length - 1;
   const promptLines = computePromptLines(parameters, totalLines, plugin.settings);
 
   const { context, initialEnv } = createPromptContext(parameters, plugin.settings);
   let promptEnv = { ...initialEnv };
   let cache: PromptCache = { key: "", node: null };
   
-  const frag = document.createDocumentFragment();
+  let newHtml = '';
+  const annotationsToProcess: { selector: string, type: string, content: string }[] = [];
   
-  htmlLines.forEach((htmlLine, index) => {
-    if (index === htmlLines.length - 1)
-      return;
+  const tempDiv = document.createElement('div');
 
-    const lineNumber = index + 1;
-    const caseInsensitiveLineText = htmlLine.toLowerCase();
-    const hideCommandOutput = useSemiFold && lineNumber > settings.semiFold.visibleLines;
-
-    const { lineContent, annotationIcon } = processAnnotations(htmlLine, textLines[index], settings, plugin, sourcePath);
-
-    const { lineWrapper, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
-    fadeOutLineIndex = updatedFadeOutLineIndex;
-
-    const lineNumberEl = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
-    lineWrapper.appendChild(lineNumberEl);
-    const textLine = textLines[index];
-    if (annotationIcon) {
-      lineWrapper.appendChild(annotationIcon);
+  for (let index = 0; index < htmlLines.length; index++) {
+    if (index === htmlLines.length - 1 && (!isRerender || htmlLines[index].trim() === '')) {
+      continue;
     }
 
+    const htmlLine = htmlLines[index];
+    const textLine = textLines[index];
+    const lineNumber = index + 1;
+    const caseInsensitiveLineText = htmlLine.toLowerCase();
+
+    const { lineContent, annotationData } = processAnnotations(htmlLine, textLine, settings);
+    const { lineClasses, uncollapseButtonHTML, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
+    fadeOutLineIndex = updatedFadeOutLineIndex;
+    const lineNumberHTML = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
+    
+    let annotationIconHTML = '';
+    if (annotationData) {
+      const selector = `[data-line-number="${lineNumber}"] .codeblock-customizer-annotation-icon`;
+      annotationsToProcess.push({ selector, type: annotationData.type, content: annotationData.content });
+      annotationIconHTML = `<span class="codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${annotationData.type}"></span>`;
+    }
+
+    let promptNodeHTML = '';
     const isPromptLine = promptLines.has(lineNumber + parameters.lineNumberOffset);
     if (isPromptLine) {
-      lineWrapper.classList.add("has-prompt");
       const snapshot = { ...promptEnv };
-      const { /*promptData,*/ newEnv, newCache, node } = renderPromptLine(textLine, snapshot, cache, context);
-      //const promptNode = addClassesToPrompt(promptData, context.isCustom ? context.promptDef.name : context.promptType, context.promptDef, plugin.settings, snapshot.user === "root");
-      //lineWrapper.appendChild(promptNode);
-      lineWrapper.appendChild(node);
+      const { newEnv, newCache, node } = renderPromptLine(textLine, snapshot, cache, context);
+      promptNodeHTML = node.outerHTML;
 
       promptEnv = newEnv;
       cache = newCache;
     }
-      
+
     const indentedLine = addIndentLine(lineContent, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
-    const lineTextEl = createLineTextElement(settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine);
-    textHighlight(parameters, lineNumber, lineTextEl);
+    const parsedLine = settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine;
 
-    if (indentationLevels && indentationLevels[lineNumber - 1]) {
-      const collapseIcon = lineTextEl.querySelector(".codeblock-customizer-collapse-icon");
-      if (collapseIcon) {
-        setIcon(collapseIcon as HTMLElement, "chevron-down");
-        collapseIcon.addEventListener("click", handleClick);
-      }
+    tempDiv.innerHTML = parsedLine;
+    textHighlight(parameters, lineNumber, tempDiv);
+    const highlightedTextHTML = tempDiv.innerHTML;
+
+    const lineTextHTML = `<div class="codeblock-customizer-line-text">${highlightedTextHTML}</div>`;
+    const indentLevel = indentationLevels && indentationLevels[lineNumber - 1] ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1";
+    const lineWrapperClasses = `${lineClasses} ${isPromptLine ? 'has-prompt' : ''}`.trim();
+
+    newHtml += `<div class="${lineWrapperClasses}" data-line-number="${lineNumber}" indentLevel="${indentLevel}">`;
+    newHtml += lineNumberHTML;
+    if (annotationIconHTML) {
+      newHtml += annotationIconHTML;
     }
-
-    lineWrapper.appendChild(lineTextEl);
-    lineWrapper.setAttribute("indentLevel", indentationLevels && indentationLevels[lineNumber - 1] ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1");
-    frag.appendChild(lineWrapper);
-
+    
     if (isPromptLine) {
-      const outputLines = addCommandOutput(textLine, parameters, promptEnv, hideCommandOutput, lineNumber);
-      for (const outputLine of outputLines) {
-        frag.appendChild(outputLine);
+      newHtml += promptNodeHTML;
+    }
+    newHtml += lineTextHTML;
+    
+    if (uncollapseButtonHTML) {
+      newHtml += uncollapseButtonHTML;
+    }
+    
+    if (isPromptLine) {
+      const outputDivs = addCommandOutput(textLine, promptEnv);
+      for (const outputDiv of outputDivs) {
+        newHtml += outputDiv;
       }
     }
-  });
-  preCodeElm.appendChild(frag);
+    newHtml += `</div>`;
+  }
+  preCodeElm.innerHTML = newHtml;
+
+  attachEventListeners(preCodeElm, plugin, sourcePath, annotationsToProcess);
 }// highlightLines
 
-function processAnnotations(htmlLine: string, textLine: string, settings: ThemeSettings, plugin: CodeBlockCustomizerPlugin, sourcePath: string): { lineContent: string; annotationIcon: HTMLElement | null } {
+function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin, sourcePath: string, annotationsToProcess: { selector: string, type: string, content: string }[]) {
+  // annotations
+  annotationsToProcess.forEach(annotation => {
+    const iconContainer = preCodeElm.querySelector(annotation.selector);
+    if (iconContainer) {
+      iconContainer.innerHTML = rhombusSVG;
+      new TooltipManager(iconContainer as HTMLElement, annotation.content, annotation.type, plugin, sourcePath);
+    }
+  });
+
+  // indentation collapse icons
+  const collapseIcons = preCodeElm.querySelectorAll(".codeblock-customizer-collapse-icon");
+  collapseIcons.forEach(icon => {
+    setIcon(icon as HTMLElement, "chevron-down");
+    icon.addEventListener("click", handleClick);
+  });
+  
+  // uncollapse button for semi-folded code blocks
+  const uncollapseButton = preCodeElm.querySelector(".codeblock-customizer-uncollapse-code");
+  if (uncollapseButton) {
+    uncollapseButton.addEventListener("click", handleUncollapseClick);
+  }
+}// attachEventListeners
+
+function processAnnotations(htmlLine: string, textLine: string, settings: ThemeSettings): { lineContent: string; annotationData: { type: string; content: string } | null } {
   let lineContent = htmlLine;
-  let annotationIcon: HTMLElement | null = null;
+  let annotationData: { type: string; content: string } | null = null;
   const commentMatch = textLine.match(/\s*(?:\/\/|#|--|\/\*)/);
 
   if (commentMatch && commentMatch.index !== undefined) {
@@ -826,106 +869,176 @@ function processAnnotations(htmlLine: string, textLine: string, settings: ThemeS
     }
 
     if (type !== undefined && content !== undefined && content.length > 0) {
-      annotationIcon = createAnnotationIcon(type, content, plugin, sourcePath);
+      annotationData = { type, content };
       const commentHtmlRegex = /<span class="token comment">.*?<\/span>/;
       lineContent = htmlLine.replace(commentHtmlRegex, '').trimEnd();
     }
   }
-  return { lineContent, annotationIcon };
+  return { lineContent, annotationData };
 }// processAnnotations
 
-function createAnnotationIcon(type: string, content: string, plugin: CodeBlockCustomizerPlugin, sourcePath: string): HTMLElement {
-  const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
-  const iconContainer = createSpan({cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${type}`});
-  iconContainer.innerHTML = rhombusSVG;
-
-  new TooltipManager(iconContainer, content, type, plugin, sourcePath);
-
-  return iconContainer;
-}// createAnnotationIcon
-
-function addCommandOutput(lineText: string, parameters: Parameters, env: PromptEnvironment, hideCommandOutput: boolean, lineNumber: number) {
-  const outputElements: HTMLElement[] = [];
+function addCommandOutput(lineText: string, env: PromptEnvironment): string[] {
+  const outputElements: string[] = [];
   // pwd command
   if (/^\s*pwd\s*$/.test(lineText)) {
-    outputElements.push(appendCommandOutputLine(getPWD(env), 'codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir', parameters, hideCommandOutput, lineText.toLowerCase(), lineNumber));
+    outputElements.push(appendCommandOutputLine(getPWD(env), 'codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir'));
   }
   
   // whoami command
   if (/^\s*whoami\s*$/.test(lineText)) 
-    outputElements.push(appendCommandOutputLine(env.user, 'codeblock-customizer-prompt-cmd-output codeblock-customizer-whoami', parameters, hideCommandOutput, lineText.toLowerCase(), lineNumber));
+    outputElements.push(appendCommandOutputLine(env.user, 'codeblock-customizer-prompt-cmd-output codeblock-customizer-whoami'));
 
   return outputElements;
 }// addCommandOutput
 
-function appendCommandOutputLine(text: string, cls: string, parameters: Parameters, hideCommandOutput: boolean, caseInsensitiveLineText: string, lineNumber: number) {
-  const classes = ['has-prompt', 'codeblock-customizer-line', 'codeblock-customizer-cmdoutput-line'];
-  
-  if (hideCommandOutput) {
-    classes.push('codeblock-customizer-fade-out-line-hide');
-  }
-
-  const outputLine = createDiv({ cls: classes.join(' ') });
-  const outputText = createDiv({ cls: `${cls} codeblock-customizer-line-text`, text });
-  const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
-  if (result.isHighlighted) {
-    if (result.color) {
-      outputLine.classList.add(`codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`);
-    } else {
-      outputLine.classList.add(`codeblock-customizer-line-highlighted`);
-    }
-  }
-
-  const emptyLineNumber = createLineNumberElement(-1, parameters.showNumbers);
-  outputLine.appendChild(emptyLineNumber);
-  outputLine.appendChild(outputText);
-
-  return outputLine;
+function appendCommandOutputLine(text: string, cls: string): string {
+  return `<div class="${cls} codeblock-customizer-line-text">${text}</div>`;
 }// appendCommandOutputLine
 
 function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: Parameters, settings: ThemeSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
-  const lineWrapper = createDiv();
+  let lineClasses = '';
+  let uncollapseButtonHTML = '';
   let updatedFadeOutLineIndex = fadeOutLineIndex;
 
   const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
   if (result.isHighlighted) {
     if (result.color) {
-      lineWrapper.classList.add(`codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`);
+      lineClasses = `codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`;
     } else {
-      lineWrapper.classList.add(`codeblock-customizer-line-highlighted`);
+      lineClasses = `codeblock-customizer-line-highlighted`;
     }
   } else {
-    lineWrapper.classList.add(`codeblock-customizer-line`);
+    lineClasses = `codeblock-customizer-line`;
   }
 
   if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
-    lineWrapper.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
+    lineClasses += ` codeblock-customizer-fade-out-line${fadeOutLineIndex}`;
     updatedFadeOutLineIndex++;
     if (fadeOutLineIndex === fadeOutLineCount - 1) {
       const uncollapseCodeButton = createUncollapseCodeButton();
-      uncollapseCodeButton.addEventListener("click", handleUncollapseClick);
-      lineWrapper.appendChild(uncollapseCodeButton);
+      uncollapseButtonHTML = uncollapseCodeButton.outerHTML;
     }
   }
 
   if (useSemiFold && lineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
-    lineWrapper.classList.add(`codeblock-customizer-fade-out-line-hide`);
+    lineClasses += ` codeblock-customizer-fade-out-line-hide`;
   }
 
-  return { lineWrapper, updatedFadeOutLineIndex };
+  return { lineClasses: lineClasses.trim(), uncollapseButtonHTML, updatedFadeOutLineIndex };
 }// getLineClass
 
-interface RangeToHighlight {
-  nodesToHighlight: Node[];
-  startNode: Node;
-  startOffset: number;
-  endNode: Node;
-  endOffset: number;
-}
+function findHighlightRanges(fullText: string, from: string, to: string): { start: number, end: number }[] {
+  const ranges: { start: number, end: number }[] = [];
+  const lowerCaseText = fullText.toLowerCase();
+  const lowerCaseFrom = from ? from.toLowerCase() : null;
+  const lowerCaseTo = to ? to.toLowerCase() : null;
+
+  if (lowerCaseFrom && lowerCaseTo) { // from and to are specified
+    let startIndex = 0;
+    while ((startIndex = lowerCaseText.indexOf(lowerCaseFrom, startIndex)) !== -1) {
+      const endIndex = lowerCaseText.indexOf(lowerCaseTo, startIndex + lowerCaseFrom.length);
+      if (endIndex === -1) {
+        break;
+      }
+      ranges.push({ start: startIndex, end: endIndex + lowerCaseTo.length });
+      startIndex = endIndex + lowerCaseTo.length;
+    }
+  } else if (lowerCaseFrom) { // from is specified -> highlight to end
+    let startIndex = 0;
+    if ((startIndex = lowerCaseText.indexOf(lowerCaseFrom, startIndex)) !== -1) {
+    ranges.push({ start: startIndex, end: fullText.length });
+    }
+  } else if (lowerCaseTo) { // to is specified -> highlight from start
+    const endIndex = lowerCaseText.indexOf(lowerCaseTo);
+    if (endIndex !== -1) {
+      ranges.push({ start: 0, end: endIndex + lowerCaseTo.length });
+    }
+  } else { // neither is specified -> highlight entire line
+    if (fullText.trim().length > 0) {
+      ranges.push({ start: 0, end: fullText.length });
+    }
+  }
+  
+  return ranges;
+}// findHighlightRanges
+
+function highlightRangesInNode(node: Node, ranges: { start: number, end: number }[], className: string): void {
+  const createSpan = (text: string): HTMLSpanElement => {
+    const span = document.createElement('span');
+    span.className = className;
+    span.appendChild(document.createTextNode(text));
+    return span;
+  };
+
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode as Text);
+  }
+
+  let textOffset = 0;
+  let rangeIndex = 0;
+
+  for (const currentNode of textNodes) {
+    if (rangeIndex >= ranges.length) 
+      break;
+
+    const parent = currentNode.parentNode;
+    if (!parent) 
+      continue;
+
+    const nodeText = currentNode.textContent || '';
+    const nodeLength = nodeText.length;
+    let lastIndex = 0;
+    const fragment = document.createDocumentFragment();
+
+    while (rangeIndex < ranges.length) {
+      const range = ranges[rangeIndex];
+      const rangeStart = range.start;
+      const rangeEnd = range.end;
+
+      if (rangeEnd <= textOffset) {
+        rangeIndex++;
+        continue;
+      }
+
+      if (rangeStart >= textOffset + nodeLength) {
+        break;
+      }
+      
+      const localStart = Math.max(0, rangeStart - textOffset);
+      const localEnd = Math.min(nodeLength, rangeEnd - textOffset);
+
+      if (localStart > lastIndex) {
+        fragment.appendChild(document.createTextNode(nodeText.substring(lastIndex, localStart)));
+      }
+
+      if (localEnd > localStart) {
+        fragment.appendChild(createSpan(nodeText.substring(localStart, localEnd)));
+      }
+      
+      lastIndex = localEnd;
+
+      if (rangeEnd <= textOffset + nodeLength) {
+        rangeIndex++;
+      } else {
+        break;
+      }
+    }
+
+    if (lastIndex < nodeLength) {
+      fragment.appendChild(document.createTextNode(nodeText.substring(lastIndex)));
+    }
+
+    if (fragment.childNodes.length > 0) {
+      parent.replaceChild(fragment, currentNode);
+    }
+
+    textOffset += nodeLength;
+  }
+}// highlightRangesInNode
 
 function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: HTMLDivElement) {
-  const caseInsensitiveLineText = (lineTextEl.textContent ?? '').toLowerCase();
-
   const wordHighlight = (words: string[], name = '') => {
     const caseInsensitiveWords = words.map(word => word.toLowerCase());
     for (const word of caseInsensitiveWords) {
@@ -934,141 +1047,22 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
   };
 
   const highlightBetween = (from: string, to: string, name = '') => {
-    const caseInsensitiveFrom = from.toLowerCase();
-    const caseInsensitiveTo = to.toLowerCase();
-  
-    const walkAndHighlight = (node: Node, searchTextFrom: string | null, searchTextTo: string | null) => {
-      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
-      let firstNonWhitespaceNode: Node | null = null;
-      let firstNonWhitespaceOffset = 0;
-      let lastNode: Node | null = null;
-      let lastNodeOffset = 0;
-      const nodesToHighlight: Node[] = [];
-      let searchTextToFound = false;
-    
-      while (walker.nextNode()) {
-        const currentNode = walker.currentNode;
-        const textContent = currentNode.textContent?.toLowerCase() || '';
-    
-        if (!firstNonWhitespaceNode && textContent.trim().length > 0) {
-          if (searchTextFrom) {
-            if (textContent.includes(searchTextFrom)) {
-              firstNonWhitespaceNode = currentNode;
-              firstNonWhitespaceOffset = textContent.indexOf(searchTextFrom);
-            }
-          } else {
-            firstNonWhitespaceNode = currentNode;
-            firstNonWhitespaceOffset = textContent.search(/\S/);
-          }
-        }
-    
-        if (firstNonWhitespaceNode) {
-          nodesToHighlight.push(currentNode);
-          if (searchTextTo && textContent.includes(searchTextTo)) {
-            const tempOffset = textContent.indexOf(searchTextTo) + searchTextTo.length;
-            if (tempOffset > firstNonWhitespaceOffset) {
-              lastNode = currentNode;
-              lastNodeOffset = tempOffset;
-              searchTextToFound = true;
-              break;
-            } else {
-              let position = tempOffset;
-              while ((position = textContent.indexOf(searchTextTo, position + 1)) !== -1) {
-                if (position > firstNonWhitespaceOffset) {
-                  lastNode = currentNode;
-                  lastNodeOffset = position + searchTextTo.length;
-                  searchTextToFound = true;
-                  break;
-                }
-              }
-              if (searchTextToFound) 
-                break;
-            }
-          }
-        }
-      }
-    
-      if (nodesToHighlight.length > 0 && firstNonWhitespaceNode && (searchTextFrom || searchTextToFound || (!searchTextFrom && !searchTextTo))) {
-        const startNode = firstNonWhitespaceNode;
-        const endNode = lastNode || nodesToHighlight[nodesToHighlight.length - 1];
-        const startOffset = firstNonWhitespaceOffset;
-        const endOffset = lastNodeOffset || endNode.textContent?.length || 0;
-    
-        const rangeToHighlight: RangeToHighlight = {
-          nodesToHighlight,
-          startNode,
-          startOffset,
-          endNode,
-          endOffset,
-        };
-    
-        highlightNodesRange(rangeToHighlight, name);
-      }
-    };
-
-    const highlightEntireText = (node: Node) => {
-      walkAndHighlight(node, null, null);
-    };
-
-    const highlightFromStart = (node: Node, searchTextFrom: string) => {
-      walkAndHighlight(node, searchTextFrom, null);
-    };
-
-    const highlightUntilEnd = (node: Node, searchTextTo: string) => {
-      walkAndHighlight(node, null, searchTextTo);
-    };
-
-    /*const highlightFromTo = (node: Node, searchTextFrom: string, searchTextTo: string) => {
-      walkAndHighlight(node, searchTextFrom, searchTextTo);
-    };*/
-  
-    if (!caseInsensitiveFrom && !caseInsensitiveTo) {
-      highlightEntireText(lineTextEl);
-    } else if (caseInsensitiveFrom && !caseInsensitiveTo) {
-      highlightFromStart(lineTextEl, caseInsensitiveFrom.toLowerCase());
-    } else if (!caseInsensitiveFrom && caseInsensitiveTo) {
-      highlightUntilEnd(lineTextEl, caseInsensitiveTo.toLowerCase());
-    } else if (caseInsensitiveFrom && caseInsensitiveTo) {
-      //highlightFromTo(lineTextEl, caseInsensitiveFrom.toLowerCase(), caseInsensitiveTo.toLowerCase());
-      highlightFromTo(lineTextEl, from, to, name);
+    const walker = document.createTreeWalker(lineTextEl, NodeFilter.SHOW_TEXT, null);
+    const textNodes: Text[] = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode as Text);
     }
-  };
-  
-  const highlightNodesRange = (range: RangeToHighlight, name: string) => {
-    const { nodesToHighlight, startNode, startOffset, endNode, endOffset } = range;
-    let currentStartOffset = startOffset; // Change this line
-  
-    for (const currentNode of nodesToHighlight) {
-      if (currentNode.nodeType === Node.TEXT_NODE) {
-        const span = createSpan();
-        span.className = name ? `codeblock-customizer-highlighted-text-${name}` : 'codeblock-customizer-highlighted-text';
-        
-        let textToHighlight = '';
-        if (currentNode === startNode && currentNode === endNode) {
-          textToHighlight = currentNode.textContent?.substring(currentStartOffset, endOffset) || '';
-        } else if (currentNode === startNode) {
-          textToHighlight = currentNode.textContent?.substring(currentStartOffset) || '';
-        } else if (currentNode === endNode) {
-          textToHighlight = currentNode.textContent?.substring(0, endOffset) || '';
-        } else {
-          textToHighlight = currentNode.textContent || '';
-        }
-  
-        span.appendChild(document.createTextNode(textToHighlight));
-  
-        const beforeText = document.createTextNode(currentNode.textContent?.substring(0, currentStartOffset) || '');
-        const afterText = currentNode === endNode ? document.createTextNode(currentNode.textContent?.substring(endOffset) || '') : document.createTextNode('');
-  
-        const parentNode = currentNode.parentNode;
-        if (parentNode) {
-          parentNode.replaceChild(afterText, currentNode);
-          parentNode.insertBefore(span, afterText);
-          parentNode.insertBefore(beforeText, span);
-        }
-  
-        currentStartOffset = 0; // Reset startOffset after the first node
-      }
-    }
+    const concatenatedText = textNodes.map(node => node.textContent).join('');
+    if (!concatenatedText) 
+      return;
+
+    const ranges = findHighlightRanges(concatenatedText, from, to);
+    if (ranges.length === 0) 
+      return;
+
+    const className = name ? `codeblock-customizer-highlighted-text-${name}` : 'codeblock-customizer-highlighted-text';
+      
+    highlightRangesInNode(lineTextEl, ranges, className);
   };
 
   // highlight text in every line if linetext contains the specified word hlt:test
@@ -1079,26 +1073,26 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
 
   // highlight text in specific lines if linetext contains the specified word hlt:1|test,3-5|test
   const lineSpecificWords = parameters.defaultTextToHighlight.lineSpecificWords;
-  const lineSpecificWord = lineSpecificWords.find(item => item.lineNumber === lineNumber);
-  if (lineSpecificWord) {
-    wordHighlight(lineSpecificWord.words);
+  const lineSpecificWord = lineSpecificWords.filter(item => item.lineNumber === lineNumber);
+  if (lineSpecificWord.length > 0) {
+    lineSpecificWord.forEach(rule => {
+      wordHighlight(rule.words);
+    });
   }
 
   // highlight text with specific text between markers hlt:start:end
   const textBetween = parameters.defaultTextToHighlight.textBetween;
   for (const { from, to } of textBetween) {
-    if (caseInsensitiveLineText.includes(from.toLowerCase()) && caseInsensitiveLineText.includes(to.toLowerCase())) {
-      highlightBetween(from, to);
-    }
+    highlightBetween(from, to);
   }
 
   // highlight text within specific lines with text between markers hl:5|start:end, hlt:5-7|start:end
   const lineSpecificTextBetween = parameters.defaultTextToHighlight.lineSpecificTextBetween;
-  const specificTextBetween = lineSpecificTextBetween.find(item => item.lineNumber === lineNumber);
-  if (specificTextBetween) {
-    if (caseInsensitiveLineText.includes(specificTextBetween.from.toLowerCase()) && caseInsensitiveLineText.includes(specificTextBetween.to.toLowerCase())) {
-      highlightBetween(specificTextBetween.from, specificTextBetween.to);
-    }
+  const specificTextBetween = lineSpecificTextBetween.filter(item => item.lineNumber === lineNumber);
+  if (specificTextBetween.length > 0) {
+    specificTextBetween.forEach(rule => {
+      highlightBetween(rule.from, rule.to);
+    });
   }
 
   // highlight all words in specified line hlt:1,3-5
@@ -1117,10 +1111,12 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
 
   // highlight text in specific lines if linetext contains the specified word impt:1|test,3-5|test
   const altLineSpecificWords = parameters.alternativeTextToHighlight.lineSpecificWords;
-  const altLineSpecificWord = altLineSpecificWords.find(item => item.lineNumber === lineNumber);
-  if (altLineSpecificWord) {
-    const { colorName, words } = altLineSpecificWord;
-    wordHighlight(words, colorName);
+  const altLineSpecificWord = altLineSpecificWords.filter(item => item.lineNumber === lineNumber);
+  if (altLineSpecificWord.length > 0) {
+    altLineSpecificWord.forEach(rule => {
+      const { colorName, words } = rule;
+      wordHighlight(words, colorName);
+    });
   }
 
   // highlight text with specific text between markers impt:start:end
@@ -1131,12 +1127,10 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
 
   // highlight text within specific lines with text between markers impt:5|start:end, imp:5-7|start:end
   const altLineSpecificTextBetween = parameters.alternativeTextToHighlight.lineSpecificTextBetween;
-  const altSpecificTextBetween = altLineSpecificTextBetween.find(item => item.lineNumber === lineNumber);
-  if (altSpecificTextBetween) {
-    altLineSpecificTextBetween.forEach(({ lineNumber: altLineNumber, from, to, colorName }) => {
-      if (lineNumber === altLineNumber) {
-        highlightBetween(from, to, colorName);
-      }
+  const altSpecificTextBetween = altLineSpecificTextBetween.filter(item => item.lineNumber === lineNumber);
+  if (altSpecificTextBetween.length > 0) {
+    altSpecificTextBetween.forEach(rule => {
+      highlightBetween(rule.from, rule.to, rule.colorName);
     });
   }
 
@@ -1148,103 +1142,10 @@ function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: H
   }
 }// textHighlight
 
-function highlightFromTo(node: Node, from: string, to: string, alternativeName?: string): void {
-  const className = alternativeName 
-    ? `codeblock-customizer-highlighted-text-${alternativeName}` 
-    : `codeblock-customizer-highlighted-text`;
-
-  const createSpan = (text: string): HTMLSpanElement => {
-    const span = document.createElement('span');
-    span.className = className;
-    span.appendChild(document.createTextNode(text));
-    return span;
-  };
-
-  const collectTextNodes = (node: Node, textNodes: Text[]): void => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      textNodes.push(node as Text);
-    } else {
-      node.childNodes.forEach(child => collectTextNodes(child, textNodes));
-    }
-  };
-
-  const highlightRanges = (textNodes: Text[], ranges: { start: number, end: number }[]): void => {
-    let currentIndex = 0;
-    let currentRangeIndex = 0;
-    let currentRange = ranges[currentRangeIndex];
-
-    textNodes.forEach(textNode => {
-      if (!currentRange) return;
-      const textContent = textNode.textContent || '';
-      const fragment = document.createDocumentFragment();
-      let lastIndex = 0;
-
-      while (currentRange && lastIndex < textContent.length) {
-        const rangeStart = currentRange.start - currentIndex;
-        const rangeEnd = currentRange.end - currentIndex;
-
-        if (rangeStart >= 0 && rangeStart < textContent.length) {
-          // Text before the range
-          if (rangeStart > lastIndex) {
-            fragment.appendChild(document.createTextNode(textContent.substring(lastIndex, rangeStart)));
-          }
-
-          // Text within the range
-          if (rangeEnd <= textContent.length) {
-            fragment.appendChild(createSpan(textContent.substring(rangeStart, rangeEnd)));
-            lastIndex = rangeEnd;
-            currentRangeIndex++;
-            currentRange = ranges[currentRangeIndex];
-          } else {
-            fragment.appendChild(createSpan(textContent.substring(rangeStart)));
-            lastIndex = textContent.length;
-            currentRange.start += textContent.length - rangeStart;
-          }
-        } else {
-          break;
-        }
-      }
-
-      // Append remaining text
-      if (lastIndex < textContent.length) {
-        fragment.appendChild(document.createTextNode(textContent.substring(lastIndex)));
-      }
-
-      const parentNode = textNode.parentNode;
-      if (parentNode) {
-        parentNode.replaceChild(fragment, textNode);
-      }
-
-      currentIndex += textContent.length;
-    });
-  };
-
-  const findRanges = (text: string, from: string, to: string): { start: number, end: number }[] => {
-    const ranges = [];
-    let startIndex = text.toLowerCase().indexOf(from.toLowerCase());
-
-    while (startIndex !== -1) {
-      const endIndex = text.toLowerCase().indexOf(to.toLowerCase(), startIndex + from.length);
-      if (endIndex === -1) break;
-
-      ranges.push({ start: startIndex, end: endIndex + to.length });
-      startIndex = text.toLowerCase().indexOf(from.toLowerCase(), endIndex + to.length);
-    }
-
-    return ranges;
-  };
-
-  const textNodes: Text[] = [];
-  collectTextNodes(node, textNodes);
-
-  const concatenatedText = textNodes.map(node => node.textContent).join('');
-  const ranges = findRanges(concatenatedText, from, to);
-
-  highlightRanges(textNodes, ranges);
-}// highlightFromTo
-
 function highlightWords(node: Node, word: string, alternativeName?: string): void {
-  if (!word) return;
+  if (!word) {
+    return;
+  }
 
   const lowerCaseWord = word.toLowerCase();
   const className = alternativeName 
@@ -1307,8 +1208,9 @@ function highlightWords(node: Node, word: string, alternativeName?: string): voi
 }// highlightWords
 
 function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomizerPlugin): string {
-  if (input === "") 
+  if (input === "") {
     return input;
+  }
 
   // #98
   const placeholder = '\u200B'; // Zero-width space

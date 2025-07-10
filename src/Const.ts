@@ -21,6 +21,8 @@ export const ANNOTATION_TYPE_ICONS: Record<string, string> = {
   see: 'link',
 };
 
+export const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
+
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",
   "plain": "Plain text",
