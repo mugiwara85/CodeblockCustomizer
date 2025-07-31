@@ -1,7 +1,8 @@
 import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice, Editor } from "obsidian";
+
 import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
-import * as _ from 'lodash';
+
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
 import { ReadingView, calloutPostProcessor, inlineCodeProcessor } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
@@ -9,6 +10,8 @@ import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpeci
 import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
+
+import * as _ from 'lodash';
 
 // npm i @simonwep/pickr
 
@@ -44,6 +47,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   foldCommandTrigger: FoldCommand = FoldCommand.Default;
   rerenderQueue: Map<number, { content: string; count: number }> = new Map();
   rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
+  modifiedBlocks: Map<string, string> = new Map();
 
   async onload() {
     document.body.classList.add('codeblock-customizer');
@@ -710,15 +714,28 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (markdownView) {
         const currentMode = markdownView.getMode();
+        const file = markdownView.file;
 
         if (markdownView.file) {
           if (currentMode === 'preview') {
             this.syncFoldStatesOnViewChange(markdownView.file.path, 'editor');
-            setTimeout(() => {
-              if (markdownView.previewMode) {
-                markdownView.previewMode.rerender(true);
+            
+            const keysToProcess = Array.from(this.modifiedBlocks.keys());
+
+            for (const key of keysToProcess) {
+              const [filePath, lineStartStr] = key.split('|');
+              
+              if (filePath === file?.path) {
+                const lineStart = parseInt(lineStartStr, 10);
+                const newParametersLine = this.modifiedBlocks.get(key);
+
+                if (newParametersLine !== undefined) {
+                  this.rerenderCodeblock(file, lineStart, newParametersLine);
+                }
+                
+                this.modifiedBlocks.delete(key);
               }
-            }, 0);
+            }
           } else if (currentMode === 'source') {
             this.syncFoldStatesOnViewChange(markdownView.file.path, 'reading');
           }

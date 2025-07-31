@@ -1,10 +1,13 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent, ColorComponent, setIcon } from "obsidian";
-import Pickr from "@simonwep/pickr";
 
-import { addClassesToPrompt, getPromptType, collectAllPromptClasses, defaultPrompts, getColorOfCssVariable, getCurrentMode, getPromptDefinition, promptClassDisplayNames, PromptDefinition, PromptEnvironment, replacePromptTemplate, updateSettingStyles } from "./Utils";
+import {  addClassesToPrompt, collectAllPromptClasses, getColorOfCssVariable, getCurrentMode, getPromptDefinition, getPromptType, replacePromptTemplate, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
-import { ANNOTATION_TYPE_ICONS, DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
+import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
+import { ANNOTATION_TYPE_ICONS } from "./TooltipManager";
+import { defaultPrompts, promptClassDisplayNames, PromptDefinition, PromptEnvironment } from "./PromptManager";
+
+import Pickr from "@simonwep/pickr";
 
 interface ColorOptions {
   [key: string]: string;
@@ -1000,6 +1003,7 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.annotations.convertAllComments = value;
           await this.plugin.saveSettings();
+          this.plugin.renderReadingViews(); 
         })
       );
 

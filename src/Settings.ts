@@ -1,4 +1,4 @@
-import { PromptDefinition } from "./Utils";
+import { PromptDefinition } from "./PromptManager";
 
 export interface Colors {
   codeblock: {
@@ -584,12 +584,12 @@ const SolarizedDarkColors = {
   },
   annotations: {
     colors: {
-      note: '#268bd2',
-      warn: '#b58900',
-      error: '#dc322f',
-      todo: '#859900',
-      question: '#6c71c4',
-      see: '#2aa198',
+      note: '#027aff', //'#268bd2',
+      warn: '#e9973f', //'#b58900',
+      error: '#fb464c', //'#dc322f',
+      todo: '#44cf6e', //'#859900',
+      question: '#a882ff', //'#6c71c4',
+      see: '#53dfdd', //'#2aa198',
     }
   },
   editorActiveLineColor: D_ACTIVE_LINE_COLOR,
@@ -639,12 +639,12 @@ const SolarizedLightColors = {
   },
   annotations: {
     colors: {
-      note: '#268bd2',
-      warn: '#b58900',
-      error: '#dc322f',
-      todo: '#859900',
-      question: '#6c71c4',
-      see: '#2aa198',
+      note: '#086ddd', //'#268bd2',
+      warn: '#ec7500', //'#b58900',
+      error: '#e93147', //'#dc322f',
+      todo: '#08b94e', //'#859900',
+      question: '#7852ee', //'#6c71c4',
+      see: '#00bfbc', //'#2aa198',
     }
   },
   editorActiveLineColor: L_ACTIVE_LINE_COLOR,
@@ -779,12 +779,12 @@ const ObsidianDarkColors = {
   },
   annotations: {
     colors: {
-      note: '#268bd2',
-      warn: '#b58900',
-      error: '#dc322f',
-      todo: '#859900',
-      question: '#6c71c4',
-      see: '#2aa198',
+      note: '#027aff', //'#268bd2',
+      warn: '#e9973f', //'#b58900',
+      error: '#fb464c', //'#dc322f',
+      todo: '#44cf6e', //'#859900',
+      question: '#a882ff', //'#6c71c4',
+      see: '#53dfdd', //'#2aa198',
     }
   },
   editorActiveLineColor: "--color-base-20",
@@ -834,12 +834,12 @@ const ObsidianLightColors = {
   },
   annotations: {
     colors: {
-      note: '#268bd2',
-      warn: '#b58900',
-      error: '#dc322f',
-      todo: '#859900',
-      question: '#6c71c4',
-      see: '#2aa198',
+      note: '#086ddd', //'#268bd2',
+      warn: '#ec7500', //'#b58900',
+      error: '#e93147', //'#dc322f',
+      todo: '#08b94e', //'#859900',
+      question: '#7852ee', //'#6c71c4',
+      see: '#00bfbc', //'#2aa198',
     }
   },
   editorActiveLineColor: "--color-base-20",

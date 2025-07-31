@@ -1,4 +1,5 @@
 import { MarkdownRenderChild, MarkdownView } from "obsidian";
+
 import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLanguageName, Parameters, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors } from "./Utils";
 import { createButtons, toggleFold } from "./ReadingView";
 import { fadeOutLineCount } from "./Const";
@@ -40,7 +41,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     const allCodeBlockContainers: NodeListOf<HTMLPreElement> = this.containerEl.querySelectorAll('.el-pre.codeblock-customizer-pre-parent');
     if (allCodeBlockContainers.length === 0) {
-      this.reconnectObserver(['class']);
+      this.reconnectObserver();
       return;
     }
 
@@ -61,7 +62,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       }
     });
 
-    this.reconnectObserver(['class']);
+    this.reconnectObserver();
   }// processGroupedCodeBlocks
 
   private cleanup() { 
@@ -284,19 +285,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
           process = true;
           break;
         }
-        // 'class' attribute change on a <pre> element, but ONLY if it adds/removes the 'codeblock-customizer-grouped' class
-        else if (mutation.type === 'attributes' && mutation.attributeName === 'class' && mutation.target instanceof HTMLPreElement) {
-          const oldClassList = new Set((mutation.oldValue || '').split(' '));
-          const newClassList = new Set((mutation.target.getAttribute('class') || '').split(' '));
-
-          const wasGrouped = oldClassList.has('codeblock-customizer-grouped');
-          const isGrouped = newClassList.has('codeblock-customizer-grouped');
-
-          if (wasGrouped !== isGrouped) { // if a block became grouped or stopped being grouped
-            process = true;
-            break;
-          }
-        }
       }
 
       if (process) {
@@ -319,10 +307,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
   }// disconnectObserver
 
-  private reconnectObserver(attributes: string[]) {
+  private reconnectObserver() {
     if (this.observer) {
       this.observer.observe(this.containerEl, {
-        childList: true, subtree: true, attributes: true, attributeFilter: attributes, attributeOldValue: true
+        childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'groupname'], attributeOldValue: true
       });
     }
   }// reconnectObserver

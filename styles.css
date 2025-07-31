@@ -855,7 +855,8 @@ body .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) 
 }
 
 .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)),
-.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)),
+/*.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)),*/
+.markdown-source-view .codeblock-customizer-header-container-specific:not(.markdown-rendered *):not(:has(+ .HyperMD-codeblock-begin)),
 .markdown-rendered .codeblock-customizer-header-container:has( + .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed),
 .markdown-rendered .codeblock-customizer-header-container-specific:has( + .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed),
 .markdown-rendered .codeblock-customizer-header-group-container.collapsed {
@@ -889,7 +890,7 @@ body .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) 
   flex-direction: column;
 }
 .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-language-tag,
-.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-language-tag,
+/*.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)) .codeblock-customizer-header-language-tag,*/
 .markdown-rendered .codeblock-customizer-header-container:has( + .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed) .codeblock-customizer-header-language-tag,
 .markdown-rendered .codeblock-customizer-header-container-specific:has( + .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed) .codeblock-customizer-header-language-tag {
   border-radius: var(--border-radius);
@@ -1069,12 +1070,12 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 .markdown-source-view .codeblock-customizer-annotation-icon {
   position: absolute;
-  top: 50%;
+  top: 9px;
 }
 .markdown-rendered .codeblock-customizer-annotation-icon {
   margin-right: -14px;
   position: relative;
-  top: 8px;
+  top: 9px;
   margin-left: 2px;
 }
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-hide) .codeblock-customizer-annotation-icon, /* ln false */
@@ -1100,9 +1101,6 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   border-right: 1px solid var(--background-modifier-border);
   border-bottom: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
   padding: 8px 12px;
   max-width: 450px;
   font-family: var(--font-ui-sans);
@@ -1114,10 +1112,22 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   transform: scale(0.95);
   transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
 }
+.codeblock-customizer-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.codeblock-customizer-popup-type-text {
+  font-weight: bold;
+}
 .codeblock-customizer-popup-icon {
   flex-shrink: 0; 
   position: relative;
   top: 2px; 
+}
+.codeblock-customizer-popup-icon svg {
+  stroke-width: 3px;
 }
 .codeblock-customizer-popup-content p {
   margin: 0;

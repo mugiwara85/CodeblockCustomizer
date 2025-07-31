@@ -1,10 +1,13 @@
 import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView } from "obsidian";
+
 import { EditorState } from "@codemirror/state";
 
-import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR, ANNOTATION_TYPE_ICONS } from "./Const";
+import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR } from "./Const";
+import { defaultPrompts, PromptDefinition, PromptEnvironment, PromptKind, PromptLines, symbolClassMap } from "./PromptManager";
 import { CodeblockCustomizerSettings, Colors, Theme, ThemeColors, ThemeSettings } from "./Settings";
-import validator from 'validator';
 import CodeBlockCustomizerPlugin from "./main";
+
+import validator from 'validator';
 
 export function getCurrentMode() {
   const body = document.querySelector('body');
@@ -110,7 +113,7 @@ export function isParameterDefined(searchTerm: string, str: string): boolean {
   return false;
 }// isParameterDefined
 
-interface ParsedParams {
+export interface ParsedParams {
   [key: string]: string;
 }
 
@@ -213,20 +216,6 @@ interface AlternativeTextHighlight {
   lineSpecificWords: AlternativeLineSpecificWords[];
   textBetween: AlternativeTextBetween[];
   lineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
-}
-
-interface PromptLines {
-  lineNumbers: number[];
-  text: string;
-  values: PromptValues;
-}
-
-interface PromptValues {
-  user: string | null;
-  host: string | null;
-  path: string | null;
-  db: string | null;
-  branch: string | null;
 }
 
 export interface Parameters {
@@ -1145,7 +1134,8 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   const annotationRules = Object.keys(annotationColors).map(type => {
   const varName = `--codeblock-customizer-annotation-color-${type}`;
   return `
-    .codeblock-customizer-annotation-icon-${type} {
+    .codeblock-customizer-annotation-icon-${type},
+    .codeblock-customizer-annotation-title-${type} {
       color: var(${varName});
     }
     .codeblock-customizer-tooltip-${type} {
@@ -1638,15 +1628,20 @@ export function getIndentationLevel(line: string) {
 export function getLanguageSpecificColorClass(codeblockLanguage: string, languageSpecificColors: Record<string, Record<string, string>> | null, languageSpecificColor?: Record<string, string>) {
   let codeblockLanguageSpecificClass = "";
   const language = codeblockLanguage.length > 0 ? codeblockLanguage : "nolang";
+  const lowerCaseLanguage = language.toLowerCase();
 
   // Check if languageSpecificColors contains properties
-  if (languageSpecificColors !== null && languageSpecificColors[language] && Object.keys(languageSpecificColors[language]).length > 0) {
-    codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + language.toLowerCase();
+  if (languageSpecificColors) {
+    const result = Object.keys(languageSpecificColors).find(key => key.toLowerCase() === lowerCaseLanguage);
+    
+    if (result && Object.keys(languageSpecificColors[result]).length > 0) {
+      codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + lowerCaseLanguage;
+    }
   }
 
   // Check if additionalColors contains properties
   if (languageSpecificColor && Object.keys(languageSpecificColor).length > 0) {
-    codeblockLanguageSpecificClass += "codeblock-customizer-languageSpecific-" + language.toLowerCase();
+    codeblockLanguageSpecificClass += "codeblock-customizer-languageSpecific-" + lowerCaseLanguage;
   }
 
   return codeblockLanguageSpecificClass;
@@ -1802,236 +1797,6 @@ export async function unIndentCodeBlock(editor: Editor, view: MarkdownView) {
   }
 }// unIndentCodeBlock
 
-export type ParsedPrompt = Record<string, string>;
-
-export type PromptDefinition = {
-  name: string;
-  basePrompt: string;                         // Optional: example prompt for preview or fallback
-  highlightGroups?: Record<string, string>;   // e.g., { user: "user", host: "host" }
-  supportsRootStyling?: boolean;
-  parsePromptRegex?: RegExp;                  // optional named-group regex
-  parsePromptRegexString?: string;            // regex as string
-  defaultDir?: string;
-  defaultDb?: string;
-  defaultUser?: string;
-  defaultHost?: string;
-  defaultBranch?: string;
-  isWindowsShell: boolean;
-  autoUsePrompt?: boolean;
-  autoUseLanguages?: string[];
-};// PromptDefinition
-
-export const defaultPrompts: Record<string, PromptDefinition> = {
-  bash: {
-    name: "Bash",
-    basePrompt: "{user}@{host}:{path}$",
-    defaultDir: "~/",
-    defaultUser: "user",
-    defaultHost: "localhost",
-    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)([$#])$/,
-    highlightGroups: {
-      user: "user",
-      host: "host",
-      path: "path"
-    },
-    supportsRootStyling: true,
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  bashalt: {
-    name: "Bash (alt)",
-    basePrompt: "[{user}@{host} {path}]$",
-    defaultDir: "~",
-    defaultUser: "user",
-    defaultHost: "localhost",
-    parsePromptRegex: /^\[(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)\]([$#])$/,
-    highlightGroups: {
-      user: "user",
-      host: "host",
-      path: "path"
-    },
-    supportsRootStyling: true,
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  zshgit: {
-    name: "Zsh + Git",
-    basePrompt: "➜ {path} git:({branch}) ✗",
-    defaultDir: "~/projects",
-    defaultBranch: "main",
-    defaultUser: "user",
-    defaultHost: "localhost",
-    parsePromptRegex: /^\s*(?<symbol>➜)\s+(?<path>.+?)\s+git:\((?<branch>.+?)\)(\s+(?<status>[✗✓]))?\s*$/,
-    highlightGroups: {
-      symbol: "zsh-symbol",
-      path: "path",
-      branch: "branch",
-    },
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  zsh: {
-    name: "Zsh",
-    basePrompt: "{user}@{host} {path} %",
-    defaultDir: "~/myapp",
-    defaultUser: "user",
-    defaultHost: "localhost",
-    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)[%#]$/,
-    highlightGroups: {
-      user: "user",
-      host: "host",
-      path: "path",
-    },
-    supportsRootStyling: true,
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  kali: {
-    name: "Kali Linux",
-    basePrompt: "({user}㉿{host})-[{path}] $",
-    defaultDir: "~",
-    defaultUser: "kali",
-    defaultHost: "kali",
-    parsePromptRegex: /^\((?<user>[^㉿]+)㉿(?<host>[^)]+)\)-\[(?<path>[^\]]+)\]\s*([$#])$/,
-    highlightGroups: {
-      user: "user",
-      host: "host",
-      path: "path"
-    },
-    supportsRootStyling: true,
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  fish: {
-    name: "Fish",
-    basePrompt: "{path}>",
-    defaultUser: "user",
-    defaultHost: "localhost",
-    defaultDir: "~/projects/myapp",
-    parsePromptRegex: /^(?<path>.+)>$/,
-    highlightGroups: {
-      path: "path"
-    },
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  ps: {
-    name: "PowerShell",
-    basePrompt: "PS {path}>",
-    defaultUser: "Administrator",
-    defaultHost: "localhost",
-    defaultDir: "C:\\Users\\Administrator",
-    parsePromptRegex: /^PS (?<path>.+)>$/,
-    highlightGroups: {
-      path: "path"
-    },
-    isWindowsShell: true,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  cmd: {
-    name: "CMD",
-    basePrompt: "{path}>",
-    defaultUser: "Administrator",
-    defaultHost: "localhost",
-    defaultDir: "C:\\Users\\Administrator",
-    parsePromptRegex: /^(?<path>.+)>$/,
-    highlightGroups: {
-      path: "path"
-    },
-    isWindowsShell: true,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  docker: {
-    name: "Docker shell",
-    basePrompt: "{user}@{host}:{path}$",
-    defaultDir: "/var/www/html",
-    defaultUser: "user",
-    defaultHost: "container",
-    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)([$#])$/,
-    highlightGroups: {
-      user: "user",
-      host: "host",
-      path: "path"
-    },
-    supportsRootStyling: true,
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  },
-
-  postgres: {
-    name: "PostgreSQL",
-    basePrompt: "{db}=#",
-    defaultDb: "postgres",
-    parsePromptRegex: /^(?<db>.+)=#$/,
-    highlightGroups: {
-      db: "db"
-    },
-    isWindowsShell: false,
-    autoUsePrompt: false,
-    autoUseLanguages: [],
-  }
-};// defaultPrompts
-
-// used for settingspage
-export const promptClassDisplayNames: Record<string, string> = {
-  "prompt-user": "User",
-  "prompt-host": "Host",
-  "prompt-path": "Path",
-  "prompt-db": "Database",
-  "prompt-branch": "Branch",
-  "prompt-symbol": "Symbol (fallback)",
-  "prompt-dollar": "Dollar ($)",
-  "prompt-at": "At (@)",
-  "prompt-colon": "Colon (:)",
-  "prompt-dash": "Dash (-)",
-  "prompt-hash": "Hash (#)",
-  "prompt-greater-than": "Greater Than (>)",
-  "prompt-zsh-symbol": "ZSH Arrow (➜)",
-  "prompt-zsh-status-error": "ZSH Error (✗)",
-  "prompt-zsh-status-ok": "ZSH Ok (✓)",
-  "prompt-kali-symbol": "Kali Symbol (㉿)",
-  "prompt-square-open": "Square Bracket [",
-  "prompt-square-close": "Square Bracket ]",
-  "prompt-bracket-open": "Round Bracket (",
-  "prompt-bracket-close": "Round Bracket )",
-  "prompt-percent": "Percentage (%)",
-};// promptClassDisplayNames
-
-export const symbolClassMap: Record<string, string> = {
-  "(": "prompt-bracket-open",
-  ")": "prompt-bracket-close",
-  "[": "prompt-square-open",
-  "]": "prompt-square-close",
-  "$": "prompt-dollar",
-  ":": "prompt-colon",
-  "@": "prompt-at",
-  "-": "prompt-dash",
-  "➜": "prompt-zsh-symbol",
-  "✗": "prompt-zsh-status-error",
-  "✓": "prompt-zsh-status-ok",
-  ">": "prompt-greater-than",
-  "#": "prompt-hash",
-  "㉿": "prompt-kali-symbol",
-  "%": "prompt-percent",
-};// symbolClassMap
-
 const highlightMapCache = new WeakMap<PromptDefinition, Record<string, string>>();
 
 function getCachedHighlightMap(def: PromptDefinition): Record<string, string> {
@@ -2124,9 +1889,7 @@ export function addClassesToPrompt(promptData: string | { text: string; class?: 
   }
 
   if (kind === PromptKind.Plain) {
-    fragment.append(
-      ...batchSpans(promptStr, (char) => resolvePromptClass(char, { type: "symbol" }))
-    );
+    fragment.append( ...batchSpans(promptStr, (char) => resolvePromptClass(char, { type: "symbol" })));
     if (!endsWithSpace) {
       fragment.appendChild(createSpan({ cls: "prompt-part prompt-space", text: " " }));
     }
@@ -2180,12 +1943,6 @@ function mergeAdjacentParts(parts: { text: string; class?: string }[]): { text: 
   return merged;
 }// mergeAdjacentParts
 
-export enum PromptKind {
-  Predefined = "predefined",
-  Template = "template",
-  Plain = "plain",
-}// PromptKind
-
 export function getPromptType(promptText: string): PromptKind {
   const promptDef = defaultPrompts[promptText];
 
@@ -2198,7 +1955,7 @@ export function getPromptType(promptText: string): PromptKind {
   return PromptKind.Plain;
 }// getPromptType
 
-export function getPromptDetails(promptType: string, settings: CodeblockCustomizerSettings): { kind: PromptKind, name: string, baseClass: string, isCustom: boolean } {
+function getPromptDetails(promptType: string, settings: CodeblockCustomizerSettings): { kind: PromptKind, name: string, baseClass: string, isCustom: boolean } {
   const { isCustom } = getPromptDefinition(promptType, settings);
 
   const isCustomTemplate = /\{.+?\}/.test(promptType);
@@ -2218,7 +1975,7 @@ export function getPromptDetails(promptType: string, settings: CodeblockCustomiz
   }
 }// getPromptDetails
 
-export function resolvePromptClass(token: string, context: {type: 'symbol' | 'template' | 'regex'; groupName?: string;}): string {
+function resolvePromptClass(token: string, context: {type: 'symbol' | 'template' | 'regex'; groupName?: string;}): string {
   if (context.type === 'symbol') {
     const baseCls = symbolClassMap[token] ?? 'prompt-symbol';
     return `prompt-part ${baseCls}`;
@@ -2256,89 +2013,7 @@ function getMatchRanges(promptText: string, match: RegExpExecArray, groupMap: Re
   return ranges.sort((a, b) => a.start - b.start);
 }// getMatchRanges
 
-export function resolvePath(current: string, target: string, isWindows: boolean, homeDir?: string): string {
-  const separator = isWindows ? "\\" : "/";
-  const home = homeDir || (isWindows ? "C:\\Users\\User" : "/home/user");
-
-  // cd "" or cd " " should do nothing, just return the current path
-  if (target.trim() === "") {
-    return current;
-  }
-  
-  // cd (with no argument) or cd ~ should go to the home directory
-  if (target === null || target === undefined || target.trim() === "~") {
-    return "~";
-  }
-
-  let path_to_process: string;
-  const isUNC = isWindows && (target.startsWith("\\\\") || target.startsWith("//"));
-
-  if (isUNC) {
-    path_to_process = "\\\\" + target.slice(2).replace(/[\\/]+/g, separator);
-  } else {
-    let resolvingTarget = target.replace(/[\\/]+/g, separator);
-    if (resolvingTarget.startsWith("~" + separator)) {
-      resolvingTarget = home + resolvingTarget.slice(1);
-    }
-
-    const isTargetAbsolute = isWindows ? /^[a-zA-Z]:\\/.test(resolvingTarget) || resolvingTarget.startsWith(separator) : resolvingTarget.startsWith(separator);
-    if (isTargetAbsolute) {
-      if (isWindows && resolvingTarget.startsWith(separator)) {
-        path_to_process = current.substring(0, 2) + resolvingTarget;
-      } else {
-        path_to_process = resolvingTarget;
-      }
-    } else {
-      let absoluteCurrent = current;
-      if (current === "~" || current.startsWith("~" + separator)) {
-        absoluteCurrent = home + current.slice(1);
-      }
-      path_to_process = absoluteCurrent + separator + resolvingTarget;
-    }
-  }
- 
-  let prefix: string;
-  let parts: string[];
-  const stack: string[] = [];
-
-  if (isWindows && path_to_process.startsWith("\\\\")) { // UNC Path
-    const pathParts = path_to_process.slice(2).split(separator);
-    prefix = `\\\\${pathParts.shift() || ""}\\${pathParts.shift() || ""}`;
-    parts = pathParts;
-  } else if (isWindows) { // Standard Windows Path
-    prefix = path_to_process.substring(0, path_to_process.indexOf(separator) + 1); // C:\
-    parts = path_to_process.substring(prefix.length).split(separator);
-  } else { // Linux Path
-    prefix = "/";
-    parts = path_to_process.substring(1).split(separator);
-  }
-
-  if(isWindows && !path_to_process.startsWith("\\\\")){
-    stack.push(...prefix.split(separator).filter(p=>p && p.includes(':') === false));
-  } else if (!isWindows){
-      stack.push(...prefix.split(separator).filter(p=>p));
-  }
-
-  for (const part of parts) {
-    if (part === ".." && stack.length > 0) {
-      stack.pop();
-    } else if (part && part !== "." && part !== "..") {
-      stack.push(part);
-    }
-  }
-
-  if (isWindows) {
-    if (path_to_process.startsWith("\\\\")) { // rebuild UNC path
-      return prefix + (stack.length > 0 ? separator + stack.join(separator) : separator);
-    }
-    // rebuild windows path, and ensure C:\ for root.
-    return prefix.substring(0,2) + separator + stack.join(separator);
-  } else { // rebuild linux path
-    return prefix + stack.join(separator);
-  }
-}// resolvePath
-
-export function simplifyHomePath(path: string, homeDir: string | undefined): string {
+function simplifyHomePath(path: string, homeDir: string | undefined): string {
   if (!homeDir) 
     return path;
 
@@ -2354,7 +2029,7 @@ export function simplifyHomePath(path: string, homeDir: string | undefined): str
   return path; // do not simplify if not inside new home
 }// simplifyHomePath
 
-export function shouldSimplifyHomePath(promptDef: PromptDefinition | undefined): boolean {
+function shouldSimplifyHomePath(promptDef: PromptDefinition | undefined): boolean {
   if (!promptDef) 
     return true; // assume Linux
   
@@ -2484,96 +2159,6 @@ export function getPromptDefinition(promptId: string, settings: CodeblockCustomi
   return { def, isCustom };
 }// getPromptDefinition
 
-export type PromptEnvironment = {
-  dir: string;
-  previousDir: string;
-  user: string;
-  host: string;
-  db: string;
-  branch: string;
-  userStack?: string[];
-  homeDir: string;
-  originalHomeDir: string;
-};// PromptEnvironment
-
-export function parsePromptCommands(lineText: string, promptDef: PromptDefinition | undefined, env: PromptEnvironment): PromptEnvironment {
-  const envCopy = { ...env };
-  envCopy.userStack = [...(env.userStack ?? [])];
-
-  const isWindowsShell = promptDef?.isWindowsShell ?? false;
-
-  // cd
-  const cdMatch = lineText.match(/^\s*cd\s*(.*)$/i);
-  if (cdMatch) {
-    let cdTarget = cdMatch[1].trim();
-    if ((cdTarget.startsWith('"') && cdTarget.endsWith('"')) || (cdTarget.startsWith("'") && cdTarget.endsWith("'"))) {
-      cdTarget = cdTarget.slice(1, -1);
-    }
-
-    let newDir = env.dir;
-    if (cdTarget === "" || cdTarget === "~") {
-      newDir = env.homeDir;
-    } else if (cdTarget === "-") {
-      const temp = env.dir;
-      newDir = env.previousDir;
-      envCopy.previousDir = temp;
-    } else if (cdTarget === ".." || cdTarget === "cd..") {
-      newDir = resolvePath(env.dir, "..", isWindowsShell, env.homeDir);
-    } else {
-      newDir = resolvePath(env.dir, cdTarget, isWindowsShell, env.homeDir);
-    }
-
-    if (newDir !== env.dir && cdTarget !== "-") {
-      envCopy.previousDir = env.dir;
-    }
-    envCopy.dir = newDir;
-  }
-
-  // su
-  const suMatch = lineText.match(/^\s*su\s*(\S*)/i);
-  if (suMatch) {
-    if (envCopy.userStack.length < 5) {
-      envCopy.userStack.push(env.user);
-    }
-    
-    envCopy.user = suMatch[1] || "root";
-    if (isWindowsShell) {
-      envCopy.homeDir = `C:\\Users\\${envCopy.user}`;
-    } else {
-      envCopy.homeDir = `/home/${envCopy.user}`;
-    }
-  }
-
-  // exit
-  if (/^\s*exit\s*$/i.test(lineText)) {
-    if (envCopy.userStack.length > 0) {
-      const prevUser = envCopy.userStack.pop();
-      if (prevUser !== undefined) {
-        envCopy.user = prevUser;
-        if (isWindowsShell) {
-          envCopy.homeDir = `C:\\Users\\${prevUser}`;
-        } else {
-          envCopy.homeDir = `/home/${prevUser}`;
-        }
-      }
-    }
-  }
-
-  // db switch
-  const dbMatch = lineText.match(/^\\c\s+(\S+)/);
-  if (dbMatch) {
-    envCopy.db = dbMatch[1];
-  }
-
-  // git branch switch
-  const gitCheckout = lineText.match(/^\s*git\s+(checkout|switch)\s+(\S+)/i);
-  if (gitCheckout) {
-    envCopy.branch = gitCheckout[2];
-  }
-
-  return envCopy;
-}// parsePromptCommands
-
 export function getPWD(env: PromptEnvironment) {
   let path = env.dir ?? "~";
 
@@ -2622,7 +2207,7 @@ export function collectAllPromptClasses(settings: CodeblockCustomizerSettings): 
   return Array.from(classSet).sort();
 }// collectAllPromptClasses
 
-export function resolveHighlightClassMap(def: PromptDefinition): Record<string, string> {
+function resolveHighlightClassMap(def: PromptDefinition): Record<string, string> {
   const map: Record<string, string> = {};
   for (const [group, className] of Object.entries(def.highlightGroups ?? {})) {
     map[group] = `prompt-part prompt-${className}`;
@@ -2644,120 +2229,6 @@ function getResolvedPromptColorsForMode(settings: CodeblockCustomizerSettings, b
   return { ...defaults, ...edited };
 }// getResolvedPromptColorsForMode
 
-export type PromptCache = { key: string; node: HTMLElement | null };
-
-interface PromptContext {
-  promptType: string;
-  promptDef: PromptDefinition;
-  isCustom: boolean;
-  actualPrompt: string;
-  promptKind: PromptKind;
-  settings: CodeblockCustomizerSettings;
-}// PromptContext
-
-interface PromptResult {
-  promptData: string | { text: string; class?: string }[];
-  newEnv: PromptEnvironment;
-  newCache: PromptCache;
-  node: HTMLElement;
-  key: string;
-}// PromptResult
-
-export function createPromptContext(parameters: Parameters, settings: CodeblockCustomizerSettings): { context: PromptContext; initialEnv: PromptEnvironment } {
-  const promptType = parameters.prompt.text;
-  const { def: promptDef, isCustom } = getPromptDefinition(promptType, settings);
-  const promptKind = getPromptType(!isCustom ? promptType : promptDef.basePrompt);
-  const actualPrompt = promptDef.basePrompt ?? promptType;
-  const isWindowsShell = promptDef.isWindowsShell ?? false;
-  const user = parameters.prompt.values?.user ?? promptDef.defaultUser ?? "user";
-  const homeDir = isWindowsShell ? `C:\\Users\\${user}` : `/home/${user}`;
-  const defaultDir = parameters.prompt.values?.path ?? promptDef.defaultDir ?? homeDir;
-
-  const initialEnv: PromptEnvironment = {
-    user,
-    host: parameters.prompt.values?.host ?? promptDef.defaultHost ?? "localhost",
-    dir: defaultDir,
-    previousDir: defaultDir,
-    db: parameters.prompt.values?.db ?? promptDef.defaultDb ?? "postgres",
-    branch: parameters.prompt.values?.branch ?? "main",
-    homeDir,
-    originalHomeDir: homeDir,
-    userStack: [],
-  };
-
-  return { context: { promptType, promptDef, isCustom, actualPrompt, promptKind, settings, }, initialEnv, };
-}// createPromptContext
-
-export function renderPromptLine(lineText: string, snapshotEnv: PromptEnvironment, cache: PromptCache, ctx: PromptContext): PromptResult {
-  const shellCmdRegex = /^\s*(cd\b|su\b|exit\b|git\b|\\c)/;
-  // cache key
-  const key = `${ctx.actualPrompt}|${promptEnvKey(snapshotEnv)}`;
-
-  // re-render promptData
-  const promptContent = replacePromptTemplate(ctx.promptKind, ctx.actualPrompt, ctx.promptDef, snapshotEnv);
-
-  let node: HTMLElement;
-  if (cache.key === key && cache.node) {
-    node = cache.node.cloneNode(true) as HTMLElement;
-  } else {
-    const isRoot = snapshotEnv.user === "root";
-    const newNode = addClassesToPrompt(promptContent, ctx.isCustom ? ctx.promptDef.name : ctx.promptType, ctx.promptDef, ctx.settings, isRoot);
-    cache = { key, node: newNode };
-    node = newNode.cloneNode(true) as HTMLElement;
-  }
-
-  const newEnv = shellCmdRegex.test(lineText) ? parsePromptCommands(lineText, ctx.promptDef, snapshotEnv) : snapshotEnv;
-
-  return { promptData: promptContent, newEnv, newCache: cache, node, key};
-}// renderPromptLine
-
-function promptEnvKey(env: PromptEnvironment): string {
-  return [env.user, env.dir, env.db, env.branch, env.host, env.previousDir].join('|');
-}// promptEnvKey
-
-export function computePromptLines(parameters: Parameters, totalLines: number, settings: CodeblockCustomizerSettings): Set<number> {
-  if (parameters.noprompt && parameters.nopromptLines.length === 0) {
-    return new Set<number>();
-  }
-
-  const lines = new Set<number>();
-  let promptText = parameters.prompt.text;
-
-  if (!promptText && parameters.language) {
-    const allPrompts = { ...defaultPrompts, ...settings.SelectedTheme.settings.prompts.customPrompts };
-    for (const promptId in allPrompts) {
-      const { def: promptDef } = getPromptDefinition(promptId, settings);
-      if (promptDef.autoUsePrompt && promptDef.autoUseLanguages?.includes(parameters.language)) {
-        promptText = promptId;
-        parameters.prompt.text = promptId;
-        break;
-      }
-    }
-  }
-
-  if (!promptText) 
-    return lines;
-
-  if (parameters.prompt.lineNumbers.length > 0) {
-    for (const ln of parameters.prompt.lineNumbers) {
-      lines.add(ln);
-    }
-  } else {
-    for (let i = 1; i <= totalLines; i++) {
-      lines.add(i);
-    }
-  }
-
-  // remove lines specified by noprompt
-  if (parameters.nopromptLines.length > 0) {
-    for (const ln of parameters.nopromptLines) {
-      lines.delete(ln);
-    }
-  }
-
-  return lines;
-}// computePromptLines
-
 export function getInlineCodeIcon(displayLanguage: string, additionalClass?: string) {
   const container = createSpan({ cls: `codeblock-customizer-inline-code-icon-container` });
   if (additionalClass)
@@ -2772,79 +2243,3 @@ export function getInlineCodeIcon(displayLanguage: string, additionalClass?: str
 
   return container;
 }// getInlineCodeIcon
-
-export class TooltipManager {
-  private tooltip: HTMLElement | null = null;
-  private hideTimer: number | null = null;
-
-  private readonly HIDE_DELAY = 100;
-  private readonly ANIMATION_DURATION = 150;
-
-  constructor(private iconEl: HTMLElement, private content: string, private type: string, private plugin: CodeBlockCustomizerPlugin, private sourcePath: string) {
-    this.iconEl.addEventListener('mouseenter', this.show);
-    this.iconEl.addEventListener('mouseleave', this.scheduleHide);
-  }
-
-  private show = () => {
-    if (this.hideTimer) {
-      clearTimeout(this.hideTimer);
-      this.hideTimer = null;
-    }
-
-    if (this.tooltip) 
-      return;
-
-    this.tooltip = createDiv({ cls: `codeblock-customizer-annotation-tooltip codeblock-customizer-tooltip-${this.type}` });
-
-    const popupIconEl = this.tooltip.createSpan({ cls: `codeblock-customizer-popup-icon codeblock-customizer-annotation-icon-${this.type}` });
-    setIcon(popupIconEl, ANNOTATION_TYPE_ICONS[this.type] || 'pencil');
-    const textContentEl = this.tooltip.createDiv({ cls: 'codeblock-customizer-popup-content' });
-
-    MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);
-    document.body.appendChild(this.tooltip);
-
-    const iconRect = this.iconEl.getBoundingClientRect();
-    this.tooltip.style.position = 'fixed';
-    this.tooltip.style.left = `${iconRect.right + 8}px`;
-    this.tooltip.style.top = `${iconRect.top + (iconRect.height / 2) - (this.tooltip.offsetHeight / 2)}px`;
-
-    this.tooltip.addEventListener('click', this.handleLinkClick);
-    this.tooltip.addEventListener('mouseenter', this.cancelHide);
-    this.tooltip.addEventListener('mouseleave', this.scheduleHide);
-    
-    requestAnimationFrame(() => this.tooltip?.classList.add('is-visible'));
-  }
-
-  private hide = () => {
-    if (this.tooltip) {
-      this.tooltip.classList.remove('is-visible');
-      setTimeout(() => {
-        this.tooltip?.remove();
-        this.tooltip = null;
-      }, this.ANIMATION_DURATION);
-    }
-  }
-
-  private scheduleHide = () => {
-    this.hideTimer = window.setTimeout(this.hide, this.HIDE_DELAY);
-  }
-
-  private cancelHide = () => {
-    if (this.hideTimer) {
-      clearTimeout(this.hideTimer);
-      this.hideTimer = null;
-    }
-  }
-
-  private handleLinkClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const link = target.closest('.internal-link');
-    if (link) {
-      e.preventDefault();
-      const href = link.getAttribute('href');
-      if (href) {
-        this.plugin.app.workspace.openLinkText(href, this.sourcePath);
-      }
-    }
-  }
-}// TooltipManager

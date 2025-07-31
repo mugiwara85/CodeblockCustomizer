@@ -12,15 +12,7 @@ export const DEFAULT_TEXT_SEPARATOR = ':';
 
 export const INLINE_CODE_LANG_REGEX = /^{\s*([^}]+?)\s*}\s*(.*)$/s;
 
-export const ANNOTATION_TYPE_ICONS: Record<string, string> = {
-  note: 'info',
-  warn: 'alert-triangle',
-  error: 'alert-octagon',
-  todo: 'check-square',
-  question: 'help-circle',
-  see: 'link',
-};
-
+export const ANNOTATION_PATTERN = /\[!(?<type>\w+)\]\s*(?<content>.*)/;
 export const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
 
 export const Languages: { [key: string]: string } = {

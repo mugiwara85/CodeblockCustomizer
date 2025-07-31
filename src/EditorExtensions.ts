@@ -1,14 +1,17 @@
+import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
+
 import { StateField, StateEffect, EditorState, Transaction, Extension, Range, RangeSet, Line, EditorSelection, Annotation } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, PromptEnvironment, PromptDefinition, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
+import { TooltipManager } from "./TooltipManager";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys } from "./Settings";
-import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
-import { DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
+import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
+import { PromptManager } from "./PromptManager";
 
 let settingsUpdated = false;
 export function updateValue(newValue: boolean) {
@@ -641,7 +644,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       if (linesToUpdate.size > 0) {
         for (const [lineStart, lineContent] of linesToUpdate.entries()) {
-          plugin.rerenderCodeblock(fileName, lineStart, lineContent);
+          const key = `${fileName.path}|${lineStart}`;
+          plugin.modifiedBlocks.set(key, lineContent); // switch from edit to reading
+
+          plugin.rerenderCodeblock(fileName, lineStart, lineContent); // paralell open
         }
       }
     });
@@ -667,7 +673,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
-      const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
       const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
       const positions = view.state.field(codeBlockPositionsField, false) ?? [];
       const visibleRanges = view.visibleRanges;
@@ -682,20 +687,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
         if (parameters.exclude)
           continue;
-    
-        if (settings.SelectedTheme.settings.codeblock.enableLinks)
-          checkForLinks(view.state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
-    
+        
         let lineNumber = 0;
         const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
         const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
         const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
         
         const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
-        const promptLines = computePromptLines(parameters, rawLineCount, settings);
-        const { context, initialEnv } = createPromptContext(parameters, settings);
-        let promptEnv = { ...initialEnv };
-        let cache: PromptCache = { key: "", node: null };
+        const prompt = new PromptManager(parameters, rawLineCount, settings);
 
         for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
           const startLine = line === firstCodeBlockLine;
@@ -729,15 +728,16 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
 
           // prompt
-          const isPromptLine = promptLines.has(lineNumber + parameters.lineNumberOffset) && !startLine && !endLine;
-          if (isPromptLine) {
-            const snapshot = { ...promptEnv };
-            const lineText = currentLine.text;
-            addCommandOutput(lineText, decorations, currentLine, promptEnv, context.promptDef);
-            const { newEnv, newCache, node, key } = renderPromptLine(lineText, snapshot, cache, context);
-            decorations.push(Decoration.widget({ widget: new NodeWidget(node, key) }).range(lineStartPos));
-            promptEnv = newEnv;
-            cache = newCache;
+          if (prompt.promptLines.has(lineNumber + parameters.lineNumberOffset) && !startLine && !endLine) {
+            const { node: promptNode, key, output } = prompt.renderLine(currentLine.text);
+
+            decorations.push(Decoration.widget({ widget: new NodeWidget(promptNode, key) }).range(lineStartPos));
+
+            if (output.length > 0) {
+              for (const out of output) {
+                decorations.push(Decoration.widget({ widget: new LineWidget(out.text, out.className), side: 1 }).range(currentLine.to));
+              }
+            }
           }
 
           // indentation
@@ -878,6 +878,50 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   });// inlineCodeViewPlugin
 
+  const linkViewPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet || update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField)) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+    }
+
+    buildDecorations(view: EditorView): DecorationSet {
+      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state)) {
+        return Decoration.none;
+      }
+
+      if (!settings.SelectedTheme.settings.codeblock.enableLinks) {
+        return Decoration.none;
+      }
+
+      const decorations: Array<Range<Decoration>> = [];
+      const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
+      const codeBlockPositions = view.state.field(codeBlockPositionsField, false) ?? [];
+      const visibleRanges = view.visibleRanges;
+      const visibleBlocks = codeBlockPositions.filter(pos => {
+        return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
+      });
+
+      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
+        if (parameters.exclude) {
+          continue;
+        }
+
+        checkForLinks(view.state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
+      }
+      
+      return RangeSet.of(decorations, true);
+    }
+  }, {
+    decorations: v => v.decorations
+  });// linkViewPlugin
+
   const annotationViewPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
     prevConvertAllComments: boolean;
@@ -905,7 +949,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     buildDecorations(view: EditorView): DecorationSet {
       const decorations: Array<Range<Decoration>> = [];
-      const ANNOTATION_PATTERN = /\[!(?<type>\w+)\]\s*(?<content>.*)/;
       const codeBlockPositions = view.state.field(codeBlockPositionsField, false) ?? [];
       const cursorPos = view.state.selection.main.head;
       const cursorLineNumber = view.state.doc.lineAt(cursorPos).number;
@@ -971,7 +1014,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.pos = pos;
       this.buttonConfigs = buttonConfigs;
       this.enableLinks = plugin.settings.SelectedTheme.settings.codeblock.enableLinks;
-      this.languageSpecificColors = createObjectCopy(plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[this.parameters.language.length > 0 ? this.parameters.language : "nolang"] || {});
+
+      const allLangColors = plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
+      const langKey = this.parameters.language.length > 0 ? this.parameters.language : "nolang";
+      const lowerCaseLangKey = langKey.toLowerCase();
+      const result = Object.keys(allLangColors).find(k => k.toLowerCase() === lowerCaseLangKey);
+      this.languageSpecificColors = createObjectCopy(result ? allLangColors[result] : {});
       this.groupMembers = groupMembers;
       this.foldingState = foldingState;
       this.sourcePath = sourcePath;
@@ -1024,6 +1072,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         if (this.foldingState === FoldingState.FullyFolded || this.foldingState === FoldingState.SemiFolded) {
           setIcon(collapse, "chevrons-down-up"); // fully folded icon
+          container.classList.add('collapsed');
         } else {
           setIcon(collapse, "chevrons-up-down"); // unfolded icon
         }
@@ -1428,22 +1477,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const lineCount = end.number - start.number + 1;
     const canSemiFold = lineCount >= visibleLines + fadeOutLineCount + 2; // +2 to ignore the first and last lines
 
-    const currentFoldState = getFoldingState(view, codeBlockStartPos, codeBlockEndPos);
+    const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
 
     if (currentFoldState === FoldingState.Unfolded) {
       if (enableSemiFold && canSemiFold) {
         // semi-fold
-        const firstLine = start;
-        const blockEndLineNr = end.number;
-        const fadeOutStartLineNr = firstLine.number + visibleLines;
-        const fadeOutEndLineNr = Math.min(blockEndLineNr, fadeOutStartLineNr + fadeOutLineCount - 1);
-        const replaceStartLineNr = fadeOutEndLineNr + 1;
-
-        const fadeOutStartLine = (fadeOutStartLineNr <= blockEndLineNr) ? view.state.doc.line(fadeOutStartLineNr) : null;
-        const fadeOutEndLine = (fadeOutEndLineNr <= blockEndLineNr) ? view.state.doc.line(fadeOutEndLineNr) : null;
-        const replaceStartLine = (replaceStartLineNr <= blockEndLineNr) ? view.state.doc.line(replaceStartLineNr) : null;
-
-        const ranges: ReplaceFadeOutRanges = {firstLine: firstLine, fadeOutStart: fadeOutStartLine as Line, fadeOutEnd: fadeOutEndLine as Line, replaceStart: replaceStartLine as Line, replaceEnd: end};
+        const ranges = getRanges(view.state, pos.codeBlockStartPos, pos.codeBlockEndPos, visibleLines);
         const semiFoldEffects = generateSemiFoldEffects(view.state, pos, ranges);
         effects.push(...semiFoldEffects);
         if (docPath)
@@ -1583,11 +1622,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     });*/
 
     const grouped = state.field(groupedCodeBlocksField, false) ?? {};
-    const view = state.field(editorEditorField);
+    //const view = state.field(editorEditorField);
     
     for (const pos of positions) {
       const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
-      const foldingState = getFoldingState(view, codeBlockStartPos, codeBlockEndPos);
+      const foldingState = getFoldingState(state, codeBlockStartPos, codeBlockEndPos);
       const group = parameters.group;
 
       if (parameters.exclude)
@@ -1631,19 +1670,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
     return RangeSet.of(decorations, true);
   }// insertHeader
-
-  function addCommandOutput(lineText: string, decorations: Array<Range<Decoration>>, currentLine: Line, env: PromptEnvironment, promptDef: PromptDefinition | undefined) {
-    // pwd command
-    if (/^\s*pwd\s*$/.test(lineText)){
-      /*const shouldSimplify = shouldSimplifyHomePath(promptDef);
-      const pwdOutput = shouldSimplify ? simplifyHomePath(env.dir, env.homeDir) : (env.dir === "~" ? env.homeDir : env.dir);*/
-      decorations.push(Decoration.widget({ widget: new LineWidget(getPWD(env), `codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir`), side: 1 }).range(currentLine.to));
-    }
-    
-    // whoami command
-    if (/^\s*whoami\s*$/.test(lineText))
-      decorations.push(Decoration.widget({ widget: new LineWidget(env.user, `codeblock-customizer-prompt-cmd-output codeblock-customizer-whoami`), side: 1 }).range(currentLine.to));
-  }// addCommandOutput
   
   function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: Parameters){
     const cursorPos = state.selection.main.head;
@@ -1795,44 +1821,69 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   function checkForLinks(state: EditorState, collapseFrom: number, collapseTo: number, decorations: Array<Range<Decoration>>, sourcePath: string) {
     const cursorPos = state.selection.main.head;
-    //const regex = /(?:\[\[([^[\]]*)\]\]|\[([^\]]+)\]\(([^)]+)\))(?!\r?\n)/g;
-    //const regex = /(?:\[\[([^[\]]*)\]\]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
     const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
     
     syntaxTree(state).iterate({ from: collapseFrom, to: collapseTo,
       enter(node) {
-        //----------------------------------------------
-        // only for comments
-        /*let comment = '';
-        if (node.type.name.includes("HyperMD-codeblock-begin") || node.type.name.includes("comment_hmd-codeblock")) {
-          comment = state.sliceDoc(node.from, node.to);
-        }*/
-        if (!node.type.name.includes("HyperMD-codeblock-begin") && !node.type.name.includes("comment_hmd-codeblock")) 
+        if (!node.type.name.includes("comment")) {
           return;
+        }
         
-        const comment = state.sliceDoc(node.from, node.to);
-        const matches = [...comment.matchAll(regex)];
-        //----------------------------------------------
-        //const matches = [...originalLineText.matchAll(regex)]; // not only for comments
+        const commentText = state.sliceDoc(node.from, node.to);
+        const matches = commentText.matchAll(regex);
+
         for (const match of matches) {
           const fullMatch = match[0];
-          const startPosition = match.index !== undefined ? match.index : -1;
-          if (startPosition === -1) 
-            continue;
-
-          const isCursorInside = (cursorPos >= node.from + startPosition && cursorPos <= node.from + startPosition + fullMatch.length);
+          const startPosition = match.index || 0;
+          const from = node.from + startPosition;
+          const to = from + fullMatch.length;
+          const isCursorInside = cursorPos >= from && cursorPos <= to;
     
-          if (match[1] !== undefined && match[1] !== '') { // Double square bracket link: [[link]] or [[Link|DisplayText]]
-            handleWikiLink(isCursorInside, node, startPosition, fullMatch, decorations, sourcePath);
-          } else if (match[3] !== undefined && match[3] !== '') { // Square bracket followed by parentheses link: [DisplayText](Link)
-            handleMarkdownLink(isCursorInside, node, startPosition, fullMatch, decorations, sourcePath);
-          } else if (match[5] !== undefined && match[5] !== '') { // HTTP or HTTPS URL
-            handleHTTPLink(isCursorInside, node, startPosition, fullMatch, decorations, sourcePath);
+          if (isCursorInside) {
+            renderLink(fullMatch, match, node, startPosition, decorations);
+          } else {
+            decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(from, to));
           }
         }
       }
     });
   }// checkForLinks
+
+  function renderLink(fullMatch: string, match: RegExpMatchArray, node: SyntaxNodeRef, startPosition: number, decorations: Array<Range<Decoration>>) {
+    const rangeFrom = node.from + startPosition;
+    const rangeTo = rangeFrom + fullMatch.length;
+    
+    // WikiLink -> [[link]] or [[Link|DisplayText]]
+    if (match[1] !== undefined) {
+      decorations.push(Decoration.mark({class: "cm-formatting-link cm-formatting-link-start"}).range(rangeFrom, rangeFrom + 2));
+      decorations.push(Decoration.mark({class: "cm-hmd-internal-link"}).range(rangeFrom + 2, rangeTo - 2));
+      decorations.push(Decoration.mark({class: "cm-formatting-link cm-formatting-link-end"}).range(rangeTo - 2, rangeTo));
+      return;
+    }
+    
+    // Markdown Link -> [DisplayText](Link)
+    if (match[3] !== undefined) {
+      const endOfText = rangeFrom + fullMatch.indexOf("](");
+      const startOfLink = endOfText + 2;
+
+      // [DisplayText] part
+      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link cm-link"}).range(rangeFrom, rangeFrom + 1));
+      decorations.push(Decoration.mark({class: "cm-link"}).range(rangeFrom + 1, endOfText));
+      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link cm-link"}).range(endOfText, endOfText + 1));
+      
+      // (Link) part
+      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link-string cm-string cm-url"}).range(endOfText + 1, startOfLink));
+      decorations.push(Decoration.mark({class: "cm-string cm-url"}).range(startOfLink, rangeTo - 1));
+      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link-string cm-string cm-url"}).range(rangeTo - 1, rangeTo));
+      return;
+    }
+    
+    // HTTP or HTTPS URL
+    if (match[5] !== undefined) {
+      decorations.push(Decoration.mark({class: "cm-url"}).range(rangeFrom, rangeTo));
+      return;
+    }
+  }// renderLink
 
   function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, parameters: Parameters, line: Line, decorations: Array<Range<Decoration>>, lineClass: string) {
     const caseInsensitiveLineText = (line.text ?? '').toLowerCase();
@@ -2026,10 +2077,32 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
     } else if (word === '') {
       const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
-      const match = line.text.match(/\S/);
-      const pos = match ? match.index : -1;
-      if (pos !== undefined && pos !== -1 && line.to > line.from + pos)
-        decorations.push(Decoration.mark({ class: classToUse }).range(line.from + pos, line.to));
+      //const match = line.text.match(/\S/);
+      //const pos = match ? match.index : -1;
+      /*if (pos !== undefined && pos !== -1 && line.to > line.from + pos)
+        decorations.push(Decoration.mark({ class: classToUse }).range(line.from + pos, line.to));*/
+      const lineText = line.text;
+      const contentMatch = lineText.match(/^\s*\S/);
+      if (contentMatch && typeof contentMatch.index === 'number') {
+        const startPosInLine = contentMatch.index;
+        let endBoundary = lineText.length;
+        const commentMatch = lineText.match(/\s+(\/\/|\/\*|#|--)/);
+        if (commentMatch && typeof commentMatch.index === 'number') {
+          const commentText = lineText.substring(commentMatch.index);
+          
+          if (settings.SelectedTheme.settings.annotations.convertAllComments || ANNOTATION_PATTERN.test(commentText)) {
+            endBoundary = commentMatch.index;
+          }
+        }
+
+        const trimmedEndPosInLine = lineText.substring(0, endBoundary).trimEnd().length;
+        const startRange = line.from + startPosInLine;
+        const endRange = line.from + trimmedEndPosInLine;
+
+        if (endRange > startRange) {
+          decorations.push(Decoration.mark({ class: classToUse }).range(startRange, endRange));
+        }
+      }
     } else {
       const occurrences = findAllOccurrences(caseInsensitiveLineText, word);
   
@@ -2039,61 +2112,16 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       });
     }
   }// setClass
-  
-  function handleWikiLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string) {
-    const linkClass = "cm-formatting-link";
-    const startClass = `${linkClass} cm-formatting-link-start`;
-    const endClass = `${linkClass} cm-formatting-link-end`;
-    const startPosSquareBrackets = fullMatch.indexOf("[[");
-    const endPosSquareBrackets = fullMatch.lastIndexOf("]]");
-
-    if (!isCursorInside) {
-      decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
-    } else {
-      decorations.push(Decoration.mark({class: startClass}).range(node.from + startPosition + startPosSquareBrackets, node.from + startPosition + startPosSquareBrackets + 2));
-      decorations.push(Decoration.mark({class: endClass}).range(node.from + startPosition + endPosSquareBrackets, node.from + startPosition + endPosSquareBrackets+2));
-      if (fullMatch.length > 0)
-        decorations.push(Decoration.mark({class:"cm-hmd-internal-link"}).range(node.from + startPosition + startPosSquareBrackets + 2, node.from + startPosition + fullMatch.length - 2));
-    }
-  }// handleWikiLink
-  
-  function handleMarkdownLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string) {
-    const linkClass = "cm-formatting-link";
-    const startPosSquareBrackets = fullMatch.indexOf("[");
-    const endPosSquareBrackets = fullMatch.lastIndexOf("]");
-    const startPosParentheses = fullMatch.indexOf("(");
-    const endPosParentheses = fullMatch.lastIndexOf(")");
-  
-    if (!isCursorInside) {
-      decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
-    } else {
-      decorations.push(Decoration.mark({class: `cm-formatting ${linkClass} cm-link`}).range(node.from + startPosition + startPosSquareBrackets, node.from + startPosition + startPosSquareBrackets + 1));
-      decorations.push(Decoration.mark({class: `cm-link`}).range(node.from + startPosition + startPosSquareBrackets + 1, node.from + startPosition + endPosSquareBrackets));
-      decorations.push(Decoration.mark({class: `cm-formatting ${linkClass} cm-link`}).range(node.from + startPosition + endPosSquareBrackets, node.from + startPosition + endPosSquareBrackets + 1));
-  
-      decorations.push(Decoration.mark({class: `cm-formatting ${linkClass}-string cm-string cm-url`}).range(node.from + startPosition + startPosParentheses, node.from + startPosition + startPosParentheses + 1));
-      decorations.push(Decoration.mark({class: `cm-string cm-url`}).range(node.from + startPosition + startPosParentheses, node.from + startPosition + endPosParentheses));
-      decorations.push(Decoration.mark({class: `cm-formatting ${linkClass}-string cm-string cm-url`}).range(node.from + startPosition + endPosParentheses, node.from + startPosition + endPosParentheses + 1));
-    }
-  }// handleMarkdownLink
-  
-  function handleHTTPLink(isCursorInside: boolean, node: SyntaxNodeRef, startPosition: number, fullMatch: string, decorations: Array<Range<Decoration>>, sourcePath: string) {
-    if (isCursorInside) {
-      decorations.push(Decoration.replace({ widget: new createLink(fullMatch, sourcePath, plugin) }).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
-    } else {
-      decorations.push(Decoration.mark({class: `cm-url`}).range(node.from + startPosition, node.from + startPosition + fullMatch.length));
-    }
-  }// handleHTTPLink
-    
-  function getFoldingState(view: EditorView, startPos: number, endPos: number): FoldingState {
-    const currentFoldedStates = view.state.field(rememberedFoldField, false) ?? {};
+      
+  function getFoldingState(state: EditorState, startPos: number, endPos: number): FoldingState {
+    const currentFoldedStates = state.field(rememberedFoldField, false) ?? {};
     const storedState = currentFoldedStates[startPos];
 
     if (storedState) {
       return storedState;
     }
 
-    const decorations = view.state.field(collapseField, false);
+    const decorations = state.field(collapseField, false);
     if (!decorations || decorations.size === 0) {
       return FoldingState.Unfolded; // no decorations ==> it's unfolded
     }
@@ -2206,7 +2234,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return semiUnFade.of({filterFrom: CollapseStart, filterTo: CollapseEnd});
   }// clearFadeEffect
 
-  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, defaultFoldUnfoldedField, rememberedFoldField, foldCommandField, viewPlugin, inlineCodeViewPlugin, annotationViewPlugin, liveUpdateExtension()];
+  const extensions = [codeBlockPositionsField, groupedCodeBlocksField, activeGroupTabField, collapseField, headerField, defaultFoldUnfoldedField, rememberedFoldField, foldCommandField, viewPlugin, linkViewPlugin, inlineCodeViewPlugin, annotationViewPlugin, liveUpdateExtension()];
 
   const result = {
     extensions,

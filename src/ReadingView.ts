@@ -1,9 +1,11 @@
 import { MarkdownView, MarkdownPostProcessorContext, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, PromptEnvironment, getPWD, createPromptContext, PromptCache, renderPromptLine, computePromptLines, getDisplayLanguageName, getInlineCodeIcon, TooltipManager } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, getDisplayLanguageName, getInlineCodeIcon } from "./Utils";
+import { TooltipManager } from "./TooltipManager";
+import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, ThemeSettings } from "./Settings";
-import { fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
+import { ANNOTATION_PATTERN, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
 
 import { visitParents } from "unist-util-visit-parents";
@@ -195,7 +197,9 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     return;
 
   for (const [key, preElement] of preElements.entries()) {
-    if (preElement.classList.contains('codeblock-customizer-pre')) {
+    const isRerenderQueued = sectionInfo && plugin.rerenderQueue.has(sectionInfo.lineStart);
+
+    if (preElement.classList.contains('codeblock-customizer-pre') && !isRerenderQueued) {
       continue;
     }
 
@@ -255,17 +259,24 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, codeb
   preElement.classList.add(`codeblock-customizer-pre`);  
   preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
 
-  if (codeblockLanguageSpecificClass)
+  if (codeblockLanguageSpecificClass) {
     preElement.classList.add(codeblockLanguageSpecificClass);
+  }
 
-  if (preElement.parentElement)
+  if (preElement.parentElement) {
     preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
+  }
 
-  const buttons = createButtons(parameters, codeblockLines, plugin);
-  frag.appendChild(buttons);
+  // remove old header and buttons to prevent duplication during re-render
+  preElement.querySelector(".codeblock-customizer-header-container")?.remove();
+  preElement.querySelector(".codeblock-customizer-header-container-specific")?.remove();
+  preElement.querySelector(".codeblock-customizer-button-container")?.remove();
 
   const header = HeaderWidget(preElement as HTMLPreElement, parameters, plugin.settings, sourcePath, plugin, sectionInfo, charPos);
-  frag.insertBefore(header, frag.firstChild);
+  const buttons = createButtons(parameters, codeblockLines, plugin);
+  
+  frag.appendChild(header);
+  frag.appendChild(buttons);
 	
   preElement.insertBefore(frag, preElement.firstChild);
 
@@ -327,7 +338,7 @@ async function addClasses(preElement: HTMLElement, parameters: Parameters, codeb
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-    await highlightLines(preCodeElm, codeblockLines, parameters, indentationLevels, sourcePath, plugin, isParameterRerender);
+  await highlightLines(preCodeElm, codeblockLines, parameters, indentationLevels, sourcePath, plugin, isParameterRerender);
 }// addClasses
 
 function createCopyButton(displayLanguage: string) {
@@ -473,7 +484,6 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
 }// handlePDFExport
 
 function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
-  const parent = preElements.parentNode;
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
   const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
   const frag = document.createDocumentFragment();
@@ -496,14 +506,10 @@ function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, setti
   }
   
   container.appendChild(frag);
-
-  if (parent)
-    parent.insertBefore(container, preElements);
   
   const semiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
   const visibleLines = settings.SelectedTheme.settings.semiFold.visibleLines;
 
-  // Add event listener to the widget element
   container.addEventListener("click", function() {
     //collapseEl.innerText = preElements.classList.contains(`codeblock-customizer-codeblock-collapsed`) ? "-" : "+";
     if ((plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.fold) ||
@@ -585,25 +591,28 @@ function addIndentLine(inputString: string, insertCollapse = false): string {
 }// addIndentLine
 
 function extractLinesFromHTML(preCodeElm: HTMLElement): { htmlLines: string[]; textLines: string[] } {
-  const tree = fromHtml(preCodeElm.innerHTML.replace(/\n/g, "<br>"), { fragment: true });
-  let htmlContent = preCodeElm.innerHTML;
+  let htmlContent = preCodeElm.innerHTML.replace(/\n/g, "<br>");
 
+  const tree = fromHtml(htmlContent, { fragment: true });
   visitParents(tree, ["text", "element"], (node, parents) => {
     if (node.type === "element" && node.tagName === "br") {
       htmlContent = replaceNewlineWithBr(htmlContent, parents);
     }
   });
-
   const splitTree = fromHtml(htmlContent);
   htmlContent = toHtml(splitTree);
 
   let htmlLines = htmlContent.split("<br>");
-  if (htmlLines.length === 1)
-    htmlLines = ["", ""];
-
   let textLines = preCodeElm.textContent?.split("\n") ?? [];
-  if (textLines.length === 1 && htmlLines.length === 2 && htmlLines[0] === "" && htmlLines[1] === "") {
-    textLines = ["", ""];
+
+  if (htmlLines.length === 1) {
+    if (htmlLines[0].trim() === "") {
+      htmlLines = ["", ""];
+      textLines = ["", ""];
+    } else {
+      htmlLines = [htmlLines[0], ""];
+      textLines = [textLines[0], ""];
+    }
   }
 
   preCodeElm.innerHTML = "";
@@ -704,11 +713,13 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
     return;
   }
 
-  let highlightedHtml = "";
+  const isAlreadyProcessed = preCodeElm.querySelector('.codeblock-customizer-line') !== null;
+  const rebuild = isRerender || isAlreadyProcessed;
+  const newCodeElm = preCodeElm.cloneNode(false) as HTMLElement;
+  const tempCodeElm = document.createElement('div');
   const settings = plugin.settings.SelectedTheme.settings;
 
-  if (isRerender) {
-    console.log("rerendering");
+  if (rebuild) {
     const customLangConfig = getLanguageConfig(parameters.language, plugin);
     const customFormat = customLangConfig?.format ?? undefined; // custom syntax highlight
     const codeContentToHighlight = rawCodeLines.slice(1, -1).join('\n');
@@ -718,31 +729,23 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
     const langDefinition = prism.languages[customFormat ? customFormat : language];
     
     if (langDefinition) {
-      highlightedHtml = await prism.highlight(codeContentToHighlight, langDefinition, language);
+      tempCodeElm.innerHTML = await prism.highlight(codeContentToHighlight, langDefinition, language);
     } else {
-      const tempDiv = document.createElement('div');
-      tempDiv.textContent = codeContentToHighlight;
-      highlightedHtml = tempDiv.innerHTML;
+      tempCodeElm.textContent = codeContentToHighlight;
     }
-    
-    preCodeElm.innerHTML = "";
+  } else {
+    // initial render
+    tempCodeElm.innerHTML = preCodeElm.innerHTML;
   }
 
-  const container = document.createElement('div');
-  container.innerHTML = highlightedHtml;
-
-  const { htmlLines, textLines } = extractLinesFromHTML(isRerender ? container : preCodeElm);
+  const { htmlLines, textLines } = extractLinesFromHTML(tempCodeElm);
   const codeblockLen = htmlLines.length - 1;
   const useSemiFold = codeblockLen >= settings.semiFold.visibleLines + fadeOutLineCount;
 
   let fadeOutLineIndex = 0;
 
   const totalLines = isRerender ? htmlLines.length : htmlLines.length - 1;
-  const promptLines = computePromptLines(parameters, totalLines, plugin.settings);
-
-  const { context, initialEnv } = createPromptContext(parameters, plugin.settings);
-  let promptEnv = { ...initialEnv };
-  let cache: PromptCache = { key: "", node: null };
+  const prompt = new PromptManager(parameters, totalLines, plugin.settings);
   
   let newHtml = '';
   const annotationsToProcess: { selector: string, type: string, content: string }[] = [];
@@ -759,7 +762,7 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
     const lineNumber = index + 1;
     const caseInsensitiveLineText = htmlLine.toLowerCase();
 
-    const { lineContent, annotationData } = processAnnotations(htmlLine, textLine, settings);
+    const { lineContent, annotationData } = processAnnotations(htmlLine, settings);
     const { lineClasses, uncollapseButtonHTML, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
     fadeOutLineIndex = updatedFadeOutLineIndex;
     const lineNumberHTML = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
@@ -772,14 +775,18 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
     }
 
     let promptNodeHTML = '';
-    const isPromptLine = promptLines.has(lineNumber + parameters.lineNumberOffset);
+    let commandOutputHTML = '';
+    const isPromptLine = prompt.promptLines.has(lineNumber + parameters.lineNumberOffset);
     if (isPromptLine) {
-      const snapshot = { ...promptEnv };
-      const { newEnv, newCache, node } = renderPromptLine(textLine, snapshot, cache, context);
-      promptNodeHTML = node.outerHTML;
+      const { node: promptNode, output } = prompt.renderLine(textLine);
 
-      promptEnv = newEnv;
-      cache = newCache;
+      promptNodeHTML = promptNode.outerHTML;
+
+      if (output.length > 0) {
+        commandOutputHTML = output.map(out => 
+          `<div class="${out.className} codeblock-customizer-line-text">${out.text}</div>`
+        ).join('');
+      }
     }
 
     const indentedLine = addIndentLine(lineContent, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
@@ -808,17 +815,16 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
       newHtml += uncollapseButtonHTML;
     }
     
-    if (isPromptLine) {
-      const outputDivs = addCommandOutput(textLine, promptEnv);
-      for (const outputDiv of outputDivs) {
-        newHtml += outputDiv;
-      }
+    if (commandOutputHTML) {
+      newHtml += commandOutputHTML;
     }
     newHtml += `</div>`;
   }
-  preCodeElm.innerHTML = newHtml;
+  newCodeElm.innerHTML = newHtml;
 
-  attachEventListeners(preCodeElm, plugin, sourcePath, annotationsToProcess);
+  attachEventListeners(newCodeElm, plugin, sourcePath, annotationsToProcess);
+
+  preCodeElm.replaceWith(newCodeElm);
 }// highlightLines
 
 function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin, sourcePath: string, annotationsToProcess: { selector: string, type: string, content: string }[]) {
@@ -845,55 +851,38 @@ function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockCustomiz
   }
 }// attachEventListeners
 
-function processAnnotations(htmlLine: string, textLine: string, settings: ThemeSettings): { lineContent: string; annotationData: { type: string; content: string } | null } {
-  let lineContent = htmlLine;
+function processAnnotations(htmlLine: string, settings: ThemeSettings): { lineContent: string; annotationData: { type: string; content: string } | null } {
   let annotationData: { type: string; content: string } | null = null;
-  const commentMatch = textLine.match(/\s*(?:\/\/|#|--|\/\*)/);
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlLine;
 
-  if (commentMatch && commentMatch.index !== undefined) {
-    const fullCommentText = textLine.substring(commentMatch.index);
-    const cleanCommentText = fullCommentText.replace(/^\s*(?:\/\/|#|--|\/\*)\s*|\s*\*\/$/g, '').trim();
-    
-    const ANNOTATION_PATTERN = /\[!(?<type>\w+)\]\s*(?<content>.*)/;
-    const explicitMatch = cleanCommentText.match(ANNOTATION_PATTERN);
+  const commentElement = tempDiv.querySelector<HTMLElement>('span.token.comment');
+
+  if (commentElement && commentElement.textContent) {
+    const rawCommentText = commentElement.textContent;
+    let cleanedText = rawCommentText.replace(/^\s*\/\*!?/, '').replace(/\*\/$/, '').trim();
+    cleanedText = cleanedText.replace(/^\s*(?:\/\/|#|--)\s*/, '').trim();
+
+    const explicitMatch = cleanedText.match(ANNOTATION_PATTERN);
 
     let type: string | undefined;
     let content: string | undefined;
 
     if (explicitMatch && explicitMatch.groups) {
       type = explicitMatch.groups.type;
-      content = explicitMatch.groups.content;
+      content = explicitMatch.groups.content.trim();
     } else if (settings.annotations.convertAllComments) {
       type = 'note';
-      content = cleanCommentText;
+      content = cleanedText;
     }
 
-    if (type !== undefined && content !== undefined && content.length > 0) {
+    if (type && content && content.length > 0) {
       annotationData = { type, content };
-      const commentHtmlRegex = /<span class="token comment">.*?<\/span>/;
-      lineContent = htmlLine.replace(commentHtmlRegex, '').trimEnd();
+      commentElement.remove();
     }
   }
-  return { lineContent, annotationData };
+  return { lineContent: tempDiv.innerHTML, annotationData };
 }// processAnnotations
-
-function addCommandOutput(lineText: string, env: PromptEnvironment): string[] {
-  const outputElements: string[] = [];
-  // pwd command
-  if (/^\s*pwd\s*$/.test(lineText)) {
-    outputElements.push(appendCommandOutputLine(getPWD(env), 'codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir'));
-  }
-  
-  // whoami command
-  if (/^\s*whoami\s*$/.test(lineText)) 
-    outputElements.push(appendCommandOutputLine(env.user, 'codeblock-customizer-prompt-cmd-output codeblock-customizer-whoami'));
-
-  return outputElements;
-}// addCommandOutput
-
-function appendCommandOutputLine(text: string, cls: string): string {
-  return `<div class="${cls} codeblock-customizer-line-text">${text}</div>`;
-}// appendCommandOutputLine
 
 function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: Parameters, settings: ThemeSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
   let lineClasses = '';
@@ -955,7 +944,9 @@ function findHighlightRanges(fullText: string, from: string, to: string): { star
     }
   } else { // neither is specified -> highlight entire line
     if (fullText.trim().length > 0) {
-      ranges.push({ start: 0, end: fullText.length });
+      //ranges.push({ start: 0, end: fullText.length });
+      const trimmedEndIndex = fullText.trimEnd().length;
+      ranges.push({ start: 0, end: trimmedEndIndex });
     }
   }
   
