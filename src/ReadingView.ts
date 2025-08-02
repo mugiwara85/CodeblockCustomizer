@@ -794,7 +794,11 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
 
     tempDiv.innerHTML = parsedLine;
     textHighlight(parameters, lineNumber, tempDiv);
-    const highlightedTextHTML = tempDiv.innerHTML;
+    let highlightedTextHTML = tempDiv.innerHTML;
+
+    if (highlightedTextHTML.trim() === '') {
+      highlightedTextHTML = '&nbsp;';
+    }
 
     const lineTextHTML = `<div class="codeblock-customizer-line-text">${highlightedTextHTML}</div>`;
     const indentLevel = indentationLevels && indentationLevels[lineNumber - 1] ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1";
