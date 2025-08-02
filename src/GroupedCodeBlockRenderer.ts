@@ -5,7 +5,7 @@ import { createButtons, toggleFold } from "./ReadingView";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 import { FoldingState } from "./EditorExtensions";
-import { FoldingScope } from "./Settings";
+import { FoldingScope, TabPersistence } from "./Settings";
 
 export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private view: MarkdownView;
@@ -15,8 +15,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private debouncedProcess: () => void;
   private plugin: CodeBlockCustomizerPlugin;
   private hoverListeners: Array<() => void> = [];
-  private activeReadingViewTabs: Map<string, Map<string, number>> = new Map();
-
+  
   constructor(containerEl: HTMLElement, view: MarkdownView, childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>, plugin: CodeBlockCustomizerPlugin) {
     super(containerEl);
     this.view = view;
@@ -414,7 +413,18 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// getConsecutiveGroups
 
   private getStoredTabIndex(groupName: string, documentPath: string): number {
-    const documentState = this.activeReadingViewTabs.get(documentPath);
+    const tabSettings = this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks;
+    if (!tabSettings.rememberTabState) {
+      return 0;
+    }
+
+    let documentState: Map<string, number> | undefined;
+    if (tabSettings.persistence === TabPersistence.Permanent) {
+      documentState = this.plugin.loadPermanentReadingViewTabs(documentPath);
+    } else {
+      documentState = this.plugin.activeReadingViewTabs.get(documentPath);
+    }
+    
     if (documentState) {
       const storedIndex = documentState.get(groupName);
       if (storedIndex !== undefined) {
@@ -425,12 +435,25 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }/// getStoredTabIndex
 
   private setStoredTabIndex(groupName: string, documentPath: string, index: number) {
-    let documentState = this.activeReadingViewTabs.get(documentPath);
-    if (!documentState) {
-      documentState = new Map<string, number>();
-      this.activeReadingViewTabs.set(documentPath, documentState);
+    const tabSettings = this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks;
+    if (!tabSettings.rememberTabState) {
+      return;
     }
-    documentState.set(groupName, index);
+
+    if (tabSettings.persistence === TabPersistence.Permanent) {
+      if (!this.plugin.permanentReadingViewTabs[documentPath]) {
+        this.plugin.permanentReadingViewTabs[documentPath] = {};
+      }
+      this.plugin.permanentReadingViewTabs[documentPath][groupName] = index;
+      this.plugin.requestSavePermanentData();
+    } else {
+      let documentState = this.plugin.activeReadingViewTabs.get(documentPath);
+      if (!documentState) {
+        documentState = new Map<string, number>();
+        this.plugin.activeReadingViewTabs.set(documentPath, documentState);
+      }
+      documentState.set(groupName, index);
+    }
   }// setStoredTabIndex
 
   private addTabs(frag: DocumentFragment, groupMembers: HTMLPreElement[], updateGroupHeader: (currentBlock: HTMLPreElement, tabsContainer: HTMLElement) => void, groupName: string, documentPath: string): HTMLElement {

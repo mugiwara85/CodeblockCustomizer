@@ -1,7 +1,7 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent, ColorComponent, setIcon } from "obsidian";
 
 import {  addClassesToPrompt, collectAllPromptClasses, getColorOfCssVariable, getCurrentMode, getPromptDefinition, getPromptType, replacePromptTemplate, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { ANNOTATION_TYPE_ICONS } from "./TooltipManager";
@@ -1195,6 +1195,55 @@ export class SettingsTab extends PluginSettingTab {
     const groupedCodeBlockDiv = containerEl.createDiv({ cls: "codeblock-customizer-groupedcodeblock-settingsDiv-hide" });
     groupedCodeBlockDiv.toggleClass("codeblock-customizer-groupedcodeblock-settingsDiv-hide", this.plugin.settings.settingsType !== "groupedCodeBlock");
     groupedCodeBlockDiv.createEl('h3', {text: 'Grouped code block settings '});
+
+    new Setting(groupedCodeBlockDiv)
+      .setName('Save active tab state')
+      .setDesc('If enabled, the active tab for each group will be remembered based on the options below.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.rememberTabState)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.rememberTabState = value;
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      );
+
+    if (this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.rememberTabState) {
+      new Setting(groupedCodeBlockDiv)
+        .setName('Tab state persistence')
+        .setDesc('Choose how long the active tab state is remembered.')
+        .addDropdown(dropdown => {
+          dropdown
+            .addOption(TabPersistence.Session, 'Session Only')
+            .addOption(TabPersistence.Permanent, 'Permanent')
+            .setValue(this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.persistence)
+            .onChange(async (value: TabPersistence) => {
+              const oldValue = this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.persistence;
+              if (oldValue !== value) {
+                await this.plugin.clearAllTabData();
+              }
+              this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.persistence = value;
+              await this.plugin.saveSettings();
+              this.display();
+            });
+        });
+
+      if (this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks.persistence === TabPersistence.Permanent) {
+        new Setting(groupedCodeBlockDiv)
+          .setName('Clear stored tab positions')
+          .setDesc('Clear all stored active tab states from disk and the current session.')
+          .addButton((button) => {
+            button.setButtonText("Clear cache");
+            button.onClick(async () => {
+              button.setDisabled(true);
+              button.setButtonText("Clearing...");
+              await this.plugin.clearAllTabData();
+              button.setDisabled(false);
+              button.setButtonText("Clear cache");
+            });
+          });
+      }
+    }
 
     this.createPickrSetting(groupedCodeBlockDiv, 'Active tab background color', 'Background color of the currently active tab.', "groupedCodeBlocks.activeTabBackgroundColor");
     this.createPickrSetting(groupedCodeBlockDiv, 'Tab hover background color', 'Background color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabBackgroundColor");

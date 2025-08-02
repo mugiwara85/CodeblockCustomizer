@@ -25,6 +25,8 @@ interface PermanentFoldData {
   [filePath: string]: Record<number, FoldingState>;
 }
 
+type PermanentTabData = Record<string, Record<string, number>>;
+
 export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
   extensions: Extension[];
@@ -39,6 +41,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   customLanguageConfig: customLanguageConfig | null;
   groupedChildrenMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
   activeEditorTabs: Map<string, Map<string, number>> = new Map();
+  permanentEditorTabs: PermanentTabData = {};
+  activeReadingViewTabs: Map<string, Map<string, number>> = new Map();
+  permanentReadingViewTabs: PermanentTabData = {};
   activeEditorFolds: Map<string, Map<number, FoldingState>> = new Map();
   permanentEditorFolds: PermanentFoldData = {};
   activeReadingViewFolds: Map<string, Map<number, FoldingState>> = new Map();
@@ -223,6 +228,25 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
   }// remapFolds
   
+  remapTabs(filePath: string, changes: ChangeSet): void {
+    const remapRecord = (record: Record<string, number>): Record<string, number> => {
+      const newRecord: Record<string, number> = {};
+      for (const groupName in record) {
+        const oldPos = record[groupName];
+        const newPos = changes.mapPos(oldPos);
+        newRecord[groupName] = newPos;
+      }
+      return newRecord;
+    };
+
+    if (this.permanentEditorTabs[filePath]) {
+      this.permanentEditorTabs[filePath] = remapRecord(this.permanentEditorTabs[filePath]);
+    }
+    if (this.permanentReadingViewTabs[filePath]) {
+      this.permanentReadingViewTabs[filePath] = remapRecord(this.permanentReadingViewTabs[filePath]);
+    }
+  }// remapTabs
+
   syncFoldStatesOnViewChange(filePath: string, sourceView: 'editor' | 'reading') {
     const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
     if (!foldSettings.rememberFoldState) {
@@ -269,9 +293,25 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.renderReadingViews();
   }// clearAllFoldData
 
+  async clearAllTabData(): Promise<void> {
+    this.activeEditorTabs.clear();
+    this.activeReadingViewTabs.clear();
+
+    this.permanentEditorTabs = {};
+    this.permanentReadingViewTabs = {};
+
+    await this.savePermanentData();
+
+    this.app.workspace.updateOptions();
+
+    new Notice("Stored tab positions cleared!");
+  }// clearAllTabData
+
   async loadAllPermanentData() {
-    this.permanentEditorFolds = await this.loadPermanentDataFile('permanent-folds.json');
-    this.permanentReadingViewFolds = await this.loadPermanentDataFile('permanent-reading-folds.json');
+    this.permanentEditorFolds = await this.loadPermanentDataFile<PermanentFoldData>('permanent-editor-folds.json');
+    this.permanentReadingViewFolds = await this.loadPermanentDataFile<PermanentFoldData>('permanent-reading-folds.json');
+    this.permanentEditorTabs = await this.loadPermanentDataFile<PermanentTabData>('permanent-editor-tabs.json');
+    this.permanentReadingViewTabs = await this.loadPermanentDataFile<PermanentTabData>('permanent-reading-tabs.json');
   }// loadAllPermanentData
 
   requestSavePermanentData(): void {
@@ -281,21 +321,23 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// requestSavePermanentData
   
   private async savePermanentData(): Promise<void> {
-    await this.writePermanentDataFile('permanent-folds.json', this.permanentEditorFolds);
-    await this.writePermanentDataFile('permanent-reading-folds.json', this.permanentReadingViewFolds);
+    await this.writePermanentDataFile<PermanentFoldData>('permanent-editor-folds.json', this.permanentEditorFolds);
+    await this.writePermanentDataFile<PermanentFoldData>('permanent-reading-folds.json', this.permanentReadingViewFolds);
+    await this.writePermanentDataFile<PermanentTabData>('permanent-editor-tabs.json', this.permanentEditorTabs);
+    await this.writePermanentDataFile<PermanentTabData>('permanent-reading-tabs.json', this.permanentReadingViewTabs);
   }// savePermanentData
   
-  async loadPermanentDataFile(fileName: string): Promise<PermanentFoldData> {
+  async loadPermanentDataFile<T>(fileName: string): Promise<T> {
     try {
       const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
       const data = await this.app.vault.adapter.read(path);
-      return JSON.parse(data);
+      return JSON.parse(data) as T;
     } catch (e) {
-      return {};
+      return {} as T;
     }
   }// loadPermanentDataFile
 
-  private async writePermanentDataFile(fileName: string, data: PermanentFoldData): Promise<void> {
+  private async writePermanentDataFile<T>(fileName: string, data: T): Promise<void> {
     try {
       const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
       await this.app.vault.adapter.write(path, JSON.stringify(data, null, 2)); // 2 for pretty printing
@@ -313,6 +355,16 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const foldsRecord = this.permanentReadingViewFolds[filePath];
     return foldsRecord ? new Map(Object.entries(foldsRecord).map(([k, v]) => [Number(k), v as FoldingState])) : new Map();
   }// loadPermanentReadingViewFolds
+
+  loadPermanentEditorTabs(filePath: string): Map<string, number> {
+    const tabsRecord = this.permanentEditorTabs[filePath];
+    return tabsRecord ? new Map(Object.entries(tabsRecord)) : new Map();
+  }// loadPermanentEditorTabs
+  
+  loadPermanentReadingViewTabs(filePath: string): Map<string, number> {
+    const tabsRecord = this.permanentReadingViewTabs[filePath];
+    return tabsRecord ? new Map(Object.entries(tabsRecord)) : new Map();
+  }// loadPermanentReadingViewTabs
 
   handleCssChange(settingsTab: SettingsTab) {
     this.updateTheme(settingsTab);

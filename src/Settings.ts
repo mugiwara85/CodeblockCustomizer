@@ -63,6 +63,11 @@ export enum FoldingPersistence {
   Session = 'session',
 }
 
+export enum TabPersistence {
+  Permanent = 'permanent',
+  Session = 'session',
+}
+
 export enum InlineCodeModifierKeys {
   CTRL = 'ctrl',
   ALT = 'alt'
@@ -138,6 +143,10 @@ export interface ThemeSettings {
   prompts: {
     editedDefaults: Record<string, Partial<PromptDefinition>>;
     customPrompts: Record<string, PromptDefinition>;
+  },
+  groupedCodeBlocks: {
+    rememberTabState: boolean;
+    persistence: TabPersistence;
   },
   annotations: {
     convertAllComments: boolean;
@@ -724,6 +733,10 @@ const Solarized: Theme = {
       editedDefaults: {},
       customPrompts: {}
     },
+    groupedCodeBlocks: {
+      rememberTabState: true,
+      persistence: TabPersistence.Session,
+    },
     annotations: {
       convertAllComments: false,
       excludeAnnotationsFromCopy: false,
@@ -918,6 +931,10 @@ const Obsidian: Theme = {
     prompts: {
       editedDefaults: {},
       customPrompts: {}
+    },
+    groupedCodeBlocks: {
+      rememberTabState: true,
+      persistence: TabPersistence.Session,
     },
     annotations: {
       convertAllComments: false,

@@ -8,7 +8,7 @@ import { highlightSelectionMatches } from "@codemirror/search";
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
-import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys } from "./Settings";
+import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 import { PromptManager } from "./PromptManager";
@@ -316,10 +316,23 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
         return {};
 
+      const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
+      if (!tabSettings.rememberTabState) {
+        return {};
+      }
+
       const initialGrouped = state.field(groupedCodeBlocksField, false) ?? {};
       const initialTabs: {[groupName: string]: number} = {};
       const docPath = state.field(editorInfoField)?.file?.path;
-      const savedStatesForFile = docPath ? plugin.activeEditorTabs.get(docPath) : undefined;
+
+      let savedStatesForFile: Map<string, number> | undefined;
+      if (docPath) {
+        if (tabSettings.persistence === TabPersistence.Permanent) {
+          savedStatesForFile = plugin.loadPermanentEditorTabs(docPath);
+        } else {
+          savedStatesForFile = plugin.activeEditorTabs.get(docPath);
+        }
+      }
 
       // restore saved state if present
       for (const groupName in initialGrouped) {
@@ -350,6 +363,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       // on every document change immediately update the persistent storage
       if (transaction.docChanged && docPath) {
+        plugin.remapTabs(docPath, transaction.changes); 
         const docStateMap = plugin.activeEditorTabs.get(docPath);
         if (docStateMap && docStateMap.size > 0) {
           const newDocStateMap = new Map<string, number>();
@@ -364,18 +378,28 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       // case 1: a tab was clicked => save
       const groupUpdate = transaction.annotation(setGroupTab);
       if (groupUpdate) {
-        const newStartPos = transaction.changes.mapPos(groupUpdate.startPos);
-        const groupName = groupUpdate.group;
-        
-        if (docPath) {
-          let docStateMap = plugin.activeEditorTabs.get(docPath);
-          if (!docStateMap) {
-            docStateMap = new Map<string, number>();
-            plugin.activeEditorTabs.set(docPath, docStateMap);
+        const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
+        if (tabSettings.rememberTabState && docPath) {
+          const newStartPos = transaction.changes.mapPos(groupUpdate.startPos);
+          const groupName = groupUpdate.group;
+
+          if (tabSettings.persistence === TabPersistence.Permanent) {
+            if (!plugin.permanentEditorTabs[docPath]) {
+              plugin.permanentEditorTabs[docPath] = {};
+            }
+            plugin.permanentEditorTabs[docPath][groupName] = newStartPos;
+            plugin.requestSavePermanentData();
+          } else {
+            let docStateMap = plugin.activeEditorTabs.get(docPath);
+            if (!docStateMap) {
+              docStateMap = new Map<string, number>();
+              plugin.activeEditorTabs.set(docPath, docStateMap);
+            }
+            docStateMap.set(groupName, newStartPos);
           }
-          docStateMap.set(groupName, newStartPos);
         }
-        return { ...value, [groupName]: newStartPos };
+        const newStartPos = transaction.changes.mapPos(groupUpdate.startPos);
+        return { ...value, [groupUpdate.group]: newStartPos };
       }
 
       const oldGroups = transaction.startState.field(groupedCodeBlocksField, false);
@@ -385,7 +409,16 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (transaction.docChanged || oldGroups !== newGroups) {
         const newState: Record<string, number> = {};
         const newGroupedCodeBlocks = newGroups ?? {};
-        const savedStatesForFile = docPath ? plugin.activeEditorTabs.get(docPath) : undefined;
+        const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
+
+        let savedStatesForFile: Map<string, number> | undefined;
+        if (docPath && tabSettings.rememberTabState) {
+          if (tabSettings.persistence === TabPersistence.Permanent) {
+            savedStatesForFile = plugin.loadPermanentEditorTabs(docPath);
+          } else {
+            savedStatesForFile = plugin.activeEditorTabs.get(docPath);
+          }
+        }
 
         for (const groupName in newGroupedCodeBlocks) {
           const groupMembers = newGroupedCodeBlocks[groupName];
