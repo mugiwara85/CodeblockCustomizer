@@ -1,5 +1,5 @@
 import { CodeblockCustomizerSettings } from "./Settings";
-import { Parameters, getPromptDefinition, getPromptType, replacePromptTemplate, addClassesToPrompt, getPWD } from "./Utils";
+import { CBCParameters, getPromptDefinition, getPromptType, replacePromptTemplate, addClassesToPrompt, getPWD } from "./Utils";
 
 type PromptCache = { key: string; node: HTMLElement | null };
 
@@ -292,7 +292,7 @@ export class PromptManager {
   private cache: PromptCache;
   public readonly promptLines: Set<number>;
 
-  constructor(parameters: Parameters, totalLines: number, settings: CodeblockCustomizerSettings) {
+  constructor(parameters: CBCParameters, totalLines: number, settings: CodeblockCustomizerSettings) {
     this.settings = settings;
     this.promptLines = this.computePromptLines(parameters, totalLines, settings);
     const { context, initialEnv } = this.createPromptContext(parameters, settings);
@@ -324,7 +324,7 @@ export class PromptManager {
     return output;
   }// getCommandOutput
 
-  private computePromptLines(parameters: Parameters, totalLines: number, settings: CodeblockCustomizerSettings): Set<number> {
+  private computePromptLines(parameters: CBCParameters, totalLines: number, settings: CodeblockCustomizerSettings): Set<number> {
     if (parameters.noprompt && parameters.nopromptLines.length === 0) {
       return new Set<number>();
     }
@@ -527,7 +527,7 @@ export class PromptManager {
     }
   }// resolvePath
 
-  private createPromptContext(parameters: Parameters, settings: CodeblockCustomizerSettings): { context: PromptContext; initialEnv: PromptEnvironment } {
+  private createPromptContext(parameters: CBCParameters, settings: CodeblockCustomizerSettings): { context: PromptContext; initialEnv: PromptEnvironment } {
     const promptType = parameters.prompt.text;
     const { def: promptDef, isCustom } = getPromptDefinition(promptType, settings);
     const promptKind = getPromptType(!isCustom ? promptType : promptDef.basePrompt);

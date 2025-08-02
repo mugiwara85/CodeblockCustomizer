@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, MarkdownView } from "obsidian";
 
-import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLanguageName, Parameters, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLanguageName, CBCParameters, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors } from "./Utils";
 import { createButtons, toggleFold } from "./ReadingView";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
@@ -165,7 +165,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     return newIconElement;
   }// updateHeaderLanguageIcon
 
-  private updateHeaderButtons(buttonsContainer: HTMLElement, parameters: Parameters, blockElement: HTMLPreElement) {
+  private updateHeaderButtons(buttonsContainer: HTMLElement, parameters: CBCParameters, blockElement: HTMLPreElement) {
     buttonsContainer.empty();
     const tempButtonsContainer = createButtons(parameters, undefined, this.plugin, blockElement);
     while (tempButtonsContainer.firstChild) {
@@ -173,7 +173,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
   }// updateHeaderButtons
 
-  private updateHeaderCollapseIcon(collapseIcon: HTMLElement | null, header: HTMLElement, currentBlock: HTMLPreElement, parameters: Parameters): HTMLElement | null {
+  private updateHeaderCollapseIcon(collapseIcon: HTMLElement | null, header: HTMLElement, currentBlock: HTMLPreElement, parameters: CBCParameters): HTMLElement | null {
     if (collapseIcon && collapseIcon.parentElement === header) {
       header.removeChild(collapseIcon);
     }
@@ -256,7 +256,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     });
   }// hideGroupedCodeBlocks
 
-  private createHeader(params: Parameters, groupName: string): HTMLElement {
+  private createHeader(params: CBCParameters, groupName: string): HTMLElement {
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(params.language, this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     const container = createContainer(params.specificHeader, params.language, false, codeblockLanguageSpecificClass, 'codeblock-customizer-header-group-container');
     container.setAttribute("group", groupName);
@@ -573,7 +573,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     updateHeaderCallback(targetBlock, tabsContainer);
   }// switchTab
 
-  private getParametersFromElement(element: HTMLElement): Parameters {
+  private getParametersFromElement(element: HTMLElement): CBCParameters {
     const paramsJson = element.dataset.parameters;
     if (paramsJson) {
       try {

@@ -6,7 +6,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
 import { ReadingView, calloutPostProcessor, inlineCodeProcessor } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, Parameters} from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, CBCParameters} from "./Utils";
 import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
@@ -110,7 +110,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     console.log("loading CodeBlock Customizer plugin");
   }// onload
 
-  setFoldState(filePath: string, key: number, newState: FoldingState, viewType: 'editor' | 'reading', parameters: Parameters, lineCount: number): void {
+  setFoldState(filePath: string, key: number, newState: FoldingState, viewType: 'editor' | 'reading', parameters: CBCParameters, lineCount: number): void {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (markdownView) {
       const isGlobalCommandActive = (markdownView.getMode() === 'source' && markdownView.containerEl.classList.contains('codeblock-customizer-header-collapse-command')) || 

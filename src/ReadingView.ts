@@ -1,6 +1,6 @@
 import { MarkdownView, MarkdownPostProcessorContext, setIcon, MarkdownSectionInformation, MarkdownRenderer, loadPrism, Notice } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, Parameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, getDisplayLanguageName, getInlineCodeIcon } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, removeCharFromStart, createUncollapseCodeButton, addTextToClipboard, getLanguageSpecificColorClass, findAllOccurrences, CBCParameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, getDisplayLanguageName, getInlineCodeIcon } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
@@ -181,7 +181,7 @@ async function waitForCmView(context: MarkdownPostProcessorContext, maxRetries =
   return true;
 }// waitForCmView
 
-async function checkCustomSyntaxHighlight(parameters: Parameters, codeblockLines: string[], preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin ){
+async function checkCustomSyntaxHighlight(parameters: CBCParameters, codeblockLines: string[], preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin ){
   const customLangConfig = getLanguageConfig(parameters.language, plugin);
   const customFormat = customLangConfig?.format ?? undefined;
   if (customFormat){
@@ -253,7 +253,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, parameters: Parameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number, isParameterRerender = false) {
+async function addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number, isParameterRerender = false) {
   const frag = document.createDocumentFragment();
   
   preElement.classList.add(`codeblock-customizer-pre`);  
@@ -357,7 +357,7 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
-export function createButtons(parameters: Parameters, codeblockLines: string[] | undefined, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement){
+export function createButtons(parameters: CBCParameters, codeblockLines: string[] | undefined, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement){
   const container = createDiv({cls: `codeblock-customizer-button-container`});
   const frag = document.createDocumentFragment();
 
@@ -483,7 +483,7 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
   return;
 }// handlePDFExport
 
-function HeaderWidget(preElements: HTMLPreElement, parameters: Parameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
+function HeaderWidget(preElements: HTMLPreElement, parameters: CBCParameters, settings: CodeblockCustomizerSettings, sourcePath: string, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
   const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
   const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
   const frag = document.createDocumentFragment();
@@ -635,7 +635,7 @@ function replaceWithNestedBr(parents: any[]): string {
   return nestedBr;
 }// replaceWithNestedBr
 
-function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, parameters: Parameters) {
+function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters) {
   const result = {
     isHighlighted: false,
     color: ''
@@ -708,7 +708,7 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
   return result;
 }// isLineHighlighted
 
-async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], parameters: Parameters, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin, isRerender = false) {
+async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], parameters: CBCParameters, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin, isRerender = false) {
   if (!preCodeElm) {
     return;
   }
@@ -884,7 +884,7 @@ function processAnnotations(htmlLine: string, settings: ThemeSettings): { lineCo
   return { lineContent: tempDiv.innerHTML, annotationData };
 }// processAnnotations
 
-function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: Parameters, settings: ThemeSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
+function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: ThemeSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
   let lineClasses = '';
   let uncollapseButtonHTML = '';
   let updatedFadeOutLineIndex = fadeOutLineIndex;
@@ -1029,7 +1029,7 @@ function highlightRangesInNode(node: Node, ranges: { start: number, end: number 
   }
 }// highlightRangesInNode
 
-function textHighlight(parameters: Parameters, lineNumber: number, lineTextEl: HTMLDivElement) {
+function textHighlight(parameters: CBCParameters, lineNumber: number, lineTextEl: HTMLDivElement) {
   const wordHighlight = (words: string[], name = '') => {
     const caseInsensitiveWords = words.map(word => word.toLowerCase());
     for (const word of caseInsensitiveWords) {
@@ -1427,22 +1427,29 @@ function getCodeBlocksFirstLines(array: string[]): string[] {
 
   const codeBlocks: string[] = [];
   let inCodeBlock = false;
-  let openingBackticks = 0;
+  let openingFenceCount = 0;
+  let openingFenceChar: '`' | '~' | null = null;
 
   for (let i = 0; i < array.length; i++) {
     let line = array[i] ?? "";
     line = removeCharFromStart(line.trim(), ">");
 
-    const backtickMatch = line.match(/^`+(?!.*`)/);
-    if (backtickMatch) {
+    const fenceMatch = line.match(/^(?:`|~){3,}/);
+    if (fenceMatch) {
+      const fence = fenceMatch[0];
+      const char = fence[0] as '`' | '~';
+      const count = fence.length;
+
       if (!inCodeBlock) {
         inCodeBlock = true;
-        openingBackticks = backtickMatch[0].length;
+        openingFenceChar = char;
+        openingFenceCount = count;
         codeBlocks.push(line);
       } else { 
-        if (backtickMatch[0].length === openingBackticks) {
+        if (char === openingFenceChar && count === openingFenceCount) {
           inCodeBlock = false;
-          openingBackticks = 0;
+          openingFenceCount = 0;
+          openingFenceChar = null;
         }
       }
     }

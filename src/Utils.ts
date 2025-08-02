@@ -53,20 +53,21 @@ export function extractFileTitle(parsedParameters: ParsedParams): string {
 }// extractFileTitle
 
 export function getCodeBlockLanguage(str: string): string {
-  const searchTerm = "```";
   const originalStr = str;
   str = str.toLowerCase();
+  const fenceMatch = str.match(/^(?:`|~){3,}/);
 
-  function removeLeadingBackticks(input: string): string {
+  function removeLeadingFenceChars(input: string): string {
     let cleanedInput = input;
-    while (cleanedInput.startsWith("`")) {
+    while (cleanedInput.startsWith("`") || cleanedInput.startsWith("~")) {
       cleanedInput = cleanedInput.substring(1);
     }
     return cleanedInput;
   }
 
-  if (str.startsWith(searchTerm)) {
-    const startIndex = searchTerm.length;
+  if (fenceMatch) {
+    const fence = fenceMatch[0];
+    const startIndex = fence.length;
     const endIndex = str.indexOf(" ", startIndex);
     let word = "";
     if (endIndex !== -1) {
@@ -76,10 +77,12 @@ export function getCodeBlockLanguage(str: string): string {
     }
 
     if (!word.includes(":") && !word.includes("=")) {
-      if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold") 
+      if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold") {
         return '';
-      else
-        return removeLeadingBackticks(word);
+      }
+      else {
+        return removeLeadingFenceChars(word);
+      }
     }
   }
   return '';
@@ -104,10 +107,12 @@ export function isParameterDefined(searchTerm: string, str: string): boolean {
   if (index !== -1 && index === str.length - searchTerm.length && str[index - 1] === " ") {
     return true;
   }
-  if (str.includes("```" + searchTerm + " ")) {
+  const fenceAndLangRegex = new RegExp(`^(?:\`|~){3,}\\w*\\s*${searchTerm}\\s`);
+  if (fenceAndLangRegex.test(str)) {
     return true;
   }
-  if (str.includes("```" + searchTerm) && str.indexOf("```" + searchTerm) + ("```" + searchTerm).length === str.length) {
+  const fenceAndLangEndRegex = new RegExp(`^(?:\`|~){3,}\\w*\\s*${searchTerm}$`);
+  if (fenceAndLangEndRegex.test(str)) {
     return true;
   }
   return false;
@@ -119,9 +124,14 @@ export interface ParsedParams {
 
 function parseParameters(input: string): ParsedParams {
   const params: ParsedParams = {};
-  const backticks = '`'.repeat(getBacktickCount(input));
-  const backtickRegex = new RegExp(`^${backticks}`);
-  const cleanedLine = input.replace(backtickRegex, '').trim();
+  const { char, count } = getFenceDetails(input);
+  if (!char) { 
+    return params;
+  }
+
+  const fence = char.repeat(count);
+  const fenceRegex = new RegExp(`^${fence}`);
+  const cleanedLine = input.replace(fenceRegex, '').trim();
   //const regex = /(\S+?)([:=])(["'][^"']*["']|[^"'\s]+)?/g; // old
   const regex = /(\S+?)([:=])(["'](?:\\.|[^\\])*?["']|(?:\\.|[^\\\s])+)/g;
   let match;
@@ -141,9 +151,16 @@ function parseParameters(input: string): ParsedParams {
   return params;
 }// parseParameters
 
-export function getBacktickCount(lineText: string) {
-  return lineText.trim().match(/^`+(?!.*`)/)?.[0].length || 0
-}// getBacktickCount
+export function getFenceDetails(lineText: string): { char: '`' | '~' | null, count: number } {
+  const trimmed = lineText.trimStart();
+  const match = trimmed.match(/^(?:`|~)+/);
+  if (match) {
+    const fence = match[0];
+    const char = fence[0] as '`' | '~';
+    return { char, count: fence.length };
+  }
+  return { char: null, count: 0 };
+}// getFenceDetails
 
 // inerfaces for highlight
 interface LinesToHighlight {
@@ -218,7 +235,7 @@ interface AlternativeTextHighlight {
   lineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
 }
 
-export interface Parameters {
+export interface CBCParameters {
   defaultLinesToHighlight: LinesToHighlight;
   defaultTextToHighlight: TextHighlight;
   alternativeLinesToHighlight: AlternativeLinesToHighlight;
@@ -234,7 +251,8 @@ export interface Parameters {
   specificHeader: boolean;
   hasLangBorderColor: boolean;
   exclude: boolean;
-  backtickCount: number;
+  fenceChar: '`' | '~' | null;
+  fenceCount: number;
   indentLevel: number;
   indentCharacter: number;
   lineSeparator: string;
@@ -251,7 +269,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const parsedParameters = parseParameters(lineText);
 
   // backtickcount
-  const backtickCount = getBacktickCount(originalLineText);
+  const { char: fenceChar, count: fenceCount } = getFenceDetails(originalLineText);
 
   // indentation
   const { level, characters } = getIndentationLevel(originalLineText);
@@ -347,7 +365,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     specificHeader: specificHeader,
     hasLangBorderColor: hasLangBorderColor,
     exclude: exclude,
-    backtickCount: backtickCount,
+    fenceChar: fenceChar,
+    fenceCount: fenceCount,
     indentLevel: level,
     indentCharacter: characters,
     lineSeparator,
@@ -377,7 +396,8 @@ export function getDefaultParameters() {
     specificHeader: false,
     hasLangBorderColor: false,
     exclude: false,
-    backtickCount: 0,
+    fenceChar: null,
+    fenceCount: 0,
     indentLevel: 0,
     indentCharacter: 0,
     lineSeparator: '',

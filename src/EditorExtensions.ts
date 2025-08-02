@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, Parameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -29,7 +29,7 @@ export interface ReplaceFadeOutRanges {
 export interface CodeBlockPositions {
   codeBlockStartPos: number;
   codeBlockEndPos: number;
-  parameters: Parameters;
+  parameters: CBCParameters;
 }
 
 type GroupedCodeBlocks = {
@@ -1032,7 +1032,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   class HeaderWidget extends WidgetType {
     enableLinks: boolean;
     languageSpecificColors: Record<string, string>;
-    parameters: Parameters;
+    parameters: CBCParameters;
     pos: CodeBlockPositions
     buttonConfigs: Array<ButtonConfig>;
     groupMembers: CodeBlockPositions[];
@@ -1041,7 +1041,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     disableFoldUnlessSpecified: boolean;
     plugin: CodeBlockCustomizerPlugin;
   
-    constructor(parameters: Parameters, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+    constructor(parameters: CBCParameters, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
       super();
       this.parameters = parameters;
       this.pos = pos;
@@ -1191,10 +1191,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   class LineNumberWidget extends WidgetType {
     lineNumber: string;
-    parameters: Parameters
+    parameters: CBCParameters
     spanClass: string;
   
-    constructor(lineNumber: string, parameters: Parameters, spanClass: string) {
+    constructor(lineNumber: string, parameters: CBCParameters, spanClass: string) {
       super();
       this.lineNumber = lineNumber;
       this.parameters = parameters;
@@ -1370,7 +1370,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return tokens;
   }// getCM5Tokens
 
-  function areParametersDeepEqual(params1: Parameters, params2: Parameters): boolean {
+  function areParametersDeepEqual(params1: CBCParameters, params2: CBCParameters): boolean {
     if (params1.isSpecificNumber !== params2.isSpecificNumber) 
       return false;
     if (params1.lineNumberOffset !== params2.lineNumberOffset) 
@@ -1393,7 +1393,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return false;
     if (params1.exclude !== params2.exclude) 
       return false;
-    if (params1.backtickCount !== params2.backtickCount) 
+    if (params1.fenceCount !== params2.fenceCount) 
+      return false;
+    if (params1.fenceChar !== params2.fenceChar) 
       return false;
     if (params1.indentLevel !== params2.indentLevel) 
       return false;
@@ -1432,7 +1434,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return true;
   }// areGroupMembersEqual
 
-  function addTabs(view: EditorView, container: HTMLElement, parameters: Parameters, groupMembers: CodeBlockPositions[] ) {
+  function addTabs(view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[] ) {
     const tabsContainer = createDiv({ cls: "codeblock-customizer-header-group-tabs" });
     //const activeStartPos = view.state.field(activeGroupTabStateField)[parameters.group];
     const activeGroup = view.state.field(activeGroupTabField, false) ?? {};
@@ -1474,7 +1476,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return tab;
   }// createTab
 
-  function handleTabClick(view: EditorView, member: CodeBlockPositions, parameters: Parameters) {
+  function handleTabClick(view: EditorView, member: CodeBlockPositions, parameters: CBCParameters) {
     const groupName = parameters.group;
     if (!groupName) {
       console.error("Cannot dispatch tab selection: invalid group name.");
@@ -1549,7 +1551,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const positions: CodeBlockPositions[] = [];
     let codeBlockStartPos = -1;
     let codeBlockEndPos = -1;
-    let parameters: Parameters = getDefaultParameters();
+    let parameters: CBCParameters = getDefaultParameters();
 
     syntaxTree(state).iterate({ from, to, 
       enter: (node) => {
@@ -1569,8 +1571,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
     });
   
-    if (codeBlockStartPos !== -1 && codeBlockEndPos === -1) {
-      const end = findCodeBlockEnd(codeBlockStartPos, state, parameters.backtickCount);
+    if (codeBlockStartPos !== -1 && codeBlockEndPos === -1 && parameters.fenceChar) {
+      const end = findCodeBlockEnd(codeBlockStartPos, state, parameters.fenceCount, parameters.fenceChar);
       if (end)
         positions.push({ codeBlockStartPos, codeBlockEndPos: end, parameters });
     }
@@ -1578,14 +1580,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return positions;
   }// findCodeBlockPositions
 
-  function findCodeBlockEnd(collapseStart: number, state: EditorState, backtickCount: number) {
+  function findCodeBlockEnd(collapseStart: number, state: EditorState, fenceCount: number, fenceChar: '`' | '~') {
     const start = state.doc.lineAt(collapseStart).number;
     let end: Line | null = null;
     for (let i = start + 1; i <= state.doc.lines; i++) {
       const line = state.doc.line(i);
-      const match = line.text.match(/^`+/);
+      const fenceRegex = new RegExp(`^${fenceChar}+`);
+      const match = line.text.trim().match(fenceRegex);
       const count = match ? match[0].length : 0;
-      if (count === backtickCount) {
+      if (count === fenceCount && match && match[0][0] === fenceChar) {
       //if (line.text.trim().startsWith('```')) {
         end = line;
         break;
@@ -1704,7 +1707,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return RangeSet.of(decorations, true);
   }// insertHeader
   
-  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: Parameters){
+  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters){
     const cursorPos = state.selection.main.head;
     const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
     
@@ -1720,7 +1723,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         displayText: "Copy code",
         action: (view: EditorView) => {
           const from = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length + 1;
-          const to = codeBlockEndPos - parameters.backtickCount - 1;
+          const to = codeBlockEndPos - parameters.fenceCount - 1;
           const blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);          
           addTextToClipboard(blockContent);
         },
@@ -1745,7 +1748,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         displayText: "Delete code block content",
         action: (view: EditorView) => {
           const collapseStart = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length;
-          const collapseEnd = codeBlockEndPos - parameters.backtickCount - 1;
+          const collapseEnd = codeBlockEndPos - parameters.fenceCount - 1;
           const transaction = view.state.update({ changes: { from: collapseStart, to: collapseEnd, insert: "" } });
           view.dispatch(transaction);
         },
@@ -1830,7 +1833,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return codeText;
   }// getCodeWithoutAnnotation
 
-  function getLineClass(parameters: Parameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>) {
+  function getLineClass(parameters: CBCParameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>) {
     let codeblockLanguageClass = "";
     let codeblockLanguageSpecificClass = "";
     let borderColor = "";
@@ -1918,7 +1921,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// renderLink
 
-  function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, parameters: Parameters, line: Line, decorations: Array<Range<Decoration>>, lineClass: string) {
+  function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, parameters: CBCParameters, line: Line, decorations: Array<Range<Decoration>>, lineClass: string) {
     const caseInsensitiveLineText = (line.text ?? '').toLowerCase();
     const textSeparator = parameters.textSeparator || settings.SelectedTheme.settings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
 
