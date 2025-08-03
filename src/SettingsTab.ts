@@ -475,6 +475,17 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
+    new Setting(codeblockDiv)
+      .setName('Hide fence lines')
+      .setDesc('If enabled, the opening and closing ``` or ~~~ lines will be hidden when the cursor is outside the code block. They will reappear when you click inside, allowing for easy editing.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.hideFenceLines)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.hideFenceLines = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     codeblockDiv.createEl('h4', {text: 'Extra buttons'});
 
     new Setting(codeblockDiv)
@@ -539,28 +550,28 @@ export class SettingsTab extends PluginSettingTab {
     codeblockDiv.createEl('h4', {text: 'Text highlight settings'});
 
     new Setting(codeblockDiv)
-    .setName('Line separator')
-    .setDesc('Override the default line separator (|) globally for text highlighting. You can also specify it for specific code blocks using the "lsep" parameter. The separator can only be one character long!')
-    .addText(text => text
-      .setPlaceholder(DEFAULT_LINE_SEPARATOR)
-      .setValue(this.plugin.settings.SelectedTheme.settings.textHighlight.lineSeparator)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.textHighlight.lineSeparator = value.charAt(0);
-        await this.plugin.saveSettings();
-      })
-    );
+      .setName('Line separator')
+      .setDesc('Override the default line separator (|) globally for text highlighting. You can also specify it for specific code blocks using the "lsep" parameter. The separator can only be one character long!')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_LINE_SEPARATOR)
+        .setValue(this.plugin.settings.SelectedTheme.settings.textHighlight.lineSeparator)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.textHighlight.lineSeparator = value.charAt(0);
+          await this.plugin.saveSettings();
+        })
+      );
 
     new Setting(codeblockDiv)
-    .setName('Text separator')
-    .setDesc('Override the default text separator (:) globally for text highlighting. You can also specify it for specific code blocks using the "tsep" parameter. The separator can only be one character long!')
-    .addText(text => text
-      .setPlaceholder(DEFAULT_TEXT_SEPARATOR)
-      .setValue(this.plugin.settings.SelectedTheme.settings.textHighlight.textSeparator)
-      .onChange(async (value) => {
-        this.plugin.settings.SelectedTheme.settings.textHighlight.textSeparator = value.charAt(0);
-        await this.plugin.saveSettings();
-      })
-    );
+      .setName('Text separator')
+      .setDesc('Override the default text separator (:) globally for text highlighting. You can also specify it for specific code blocks using the "tsep" parameter. The separator can only be one character long!')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_TEXT_SEPARATOR)
+        .setValue(this.plugin.settings.SelectedTheme.settings.textHighlight.textSeparator)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.textHighlight.textSeparator = value.charAt(0);
+          await this.plugin.saveSettings();
+        })
+      );
 
     codeblockDiv.createEl('h4', {text: 'Semi-fold settings'});
 

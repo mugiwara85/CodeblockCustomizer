@@ -1055,6 +1055,21 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   border-top-right-radius: 0px !important;
 }
 
+/* fence line styling */
+.codeblock-customizer-fence-collapsed {
+  height: 5px;
+  min-height: 5px;
+  font-size: 1px;
+  overflow: hidden;
+  color: transparent;
+}
+.markdown-source-view .codeblock-customizer-fence-collapsed + .cm-line .codeblock-customizer-button-container {
+  top: 1px;
+}
+.codeblock-customizer-header-container-specific + .cm-line.codeblock-customizer-fence-collapsed + .cm-line .codeblock-customizer-button-container {
+  display: none;
+}
+
 /* Annotations */
 /* hide comment */
 .codeblock-customizer-hidden-annotation {

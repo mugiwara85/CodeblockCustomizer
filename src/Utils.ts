@@ -1296,9 +1296,9 @@ function updateSettingClasses(settings: ThemeSettings) {
 		document.body.classList.remove('codeblock-customizer-gutter-active-line');
 
   if (settings.header.collapseIconPosition === "hide") {
-      document.body.classList.add('codeblock-customizer-collapseIconNone');
-      document.body.classList.remove('codeblock-customizer-collapseIconMiddle');
-      document.body.classList.remove('codeblock-customizer-collapseIconRight');
+    document.body.classList.add('codeblock-customizer-collapseIconNone');
+    document.body.classList.remove('codeblock-customizer-collapseIconMiddle');
+    document.body.classList.remove('codeblock-customizer-collapseIconRight');
   } else if (settings.header.collapseIconPosition === "middle") {
     document.body.classList.remove('codeblock-customizer-collapseIconNone');
     document.body.classList.remove('codeblock-customizer-collapseIconRight');

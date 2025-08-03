@@ -85,6 +85,7 @@ export interface ThemeSettings {
     highlightNonMatchingBrackets: boolean;
     enableSelectionMatching: boolean;
     unwrapcode: boolean;
+    hideFenceLines: boolean;
     buttons: {
       alwaysShowButtons: boolean;
       alwaysShowCopyCodeButton: boolean;
@@ -674,6 +675,7 @@ const Solarized: Theme = {
       highlightNonMatchingBrackets: true,
       enableSelectionMatching: false,
       unwrapcode: false,
+      hideFenceLines: false,
       buttons: {
         alwaysShowButtons: false,
         alwaysShowCopyCodeButton: false,
@@ -873,6 +875,7 @@ const Obsidian: Theme = {
       highlightNonMatchingBrackets: true,
       enableSelectionMatching: false,
       unwrapcode: false,
+      hideFenceLines: false,
       buttons: {
         alwaysShowButtons: false,
         alwaysShowCopyCodeButton: false,
