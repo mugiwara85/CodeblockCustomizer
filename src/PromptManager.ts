@@ -2,6 +2,7 @@ import { CodeblockCustomizerSettings } from "./Settings";
 import { CBCParameters, getPromptDefinition, getPromptType, replacePromptTemplate, addClassesToPrompt, getPWD } from "./Utils";
 
 type PromptCache = { key: string; node: HTMLElement | null };
+export const DEFAULT_PROMPT_COLOR = "#777777";
 
 export type PromptEnvironment = {
   dir: string;

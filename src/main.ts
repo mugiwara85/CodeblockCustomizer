@@ -635,8 +635,18 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   renderReadingViews(): void {
     this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
       if (leaf.view instanceof MarkdownView && leaf.view.getMode() === "preview") {
-        // @ts-ignore
-        leaf.view.previewMode.rerender(true);
+        const preview = (leaf.view as any).previewMode;
+        if (!preview || !preview.getScroll || !preview.applyScroll) {
+          return;
+        }
+
+        const scrollState = preview.getScroll();
+
+        preview.rerender(true);
+
+        setTimeout(() => {
+          preview.applyScroll(scrollState);
+        }, 100);
       }
     });
   }// renderReadingViews

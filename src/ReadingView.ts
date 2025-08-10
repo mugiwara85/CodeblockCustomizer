@@ -591,9 +591,9 @@ function addIndentLine(inputString: string, insertCollapse = false): string {
 }// addIndentLine
 
 function extractLinesFromHTML(preCodeElm: HTMLElement): { htmlLines: string[]; textLines: string[] } {
-  let htmlContent = preCodeElm.innerHTML.replace(/\n/g, "<br>");
+  let htmlContent = preCodeElm.innerHTML;
 
-  const tree = fromHtml(htmlContent, { fragment: true });
+  const tree = fromHtml(preCodeElm.innerHTML.replace(/\n/g, "<br>"), { fragment: true });
   visitParents(tree, ["text", "element"], (node, parents) => {
     if (node.type === "element" && node.tagName === "br") {
       htmlContent = replaceNewlineWithBr(htmlContent, parents);
