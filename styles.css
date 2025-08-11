@@ -1181,6 +1181,12 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   display: none;
 }
 
+/* underline msf6, and beacon */
+.prompt-msf,
+.prompt-beacon {
+  text-decoration: underline;
+}
+
 /* grouped code blocks */
 .codeblock-customizer-header-group-tabs {
   display: flex;

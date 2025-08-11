@@ -349,6 +349,17 @@ export class SettingsTab extends PluginSettingTab {
       );
     }
 
+    new Setting(printToPDFDetails)
+      .setName('Print annotations as raw comments')
+      .setDesc('If enabled, annotations will be printed as visible code comments instead of rendered icons.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.printing.printAnnotationsAsComments)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.printing.printAnnotationsAsComments = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     return generalDiv;
   }// createGeneralSettings
   
@@ -1195,6 +1206,17 @@ export class SettingsTab extends PluginSettingTab {
     promptsDiv.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
     promptsDiv.createEl('h3', {text: '⌨️ Prompts Settings '});
 
+    new Setting(promptsDiv)
+      .setName('Include prompts when copying')
+      .setDesc('If enabled, the prompt text (e.g., "$") will be included with the command when copying.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.prompts.includePromptsInCopy)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.prompts.includePromptsInCopy = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     let selectedPromptId = Object.keys(defaultPrompts)[0]; // default to first prompt
 
     let promptDropdown: DropdownComponent;
@@ -1518,6 +1540,18 @@ export class SettingsTab extends PluginSettingTab {
         }));
   
     new Setting(promptSettingsDetails)
+      .setName("Default Module")
+      .addText(text => text
+        .setPlaceholder("e.g. exploit/multi/handler")
+        .setValue(currentPromptData.defaultModule ?? "")
+        .onChange(async (value) => {
+          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData.defaultModule = value;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
+          updatePreview();
+        }));
+
+    new Setting(promptSettingsDetails)
       .setName("Highlight Groups")
       .setDesc("Define the named capture groups from your regex that should be styled. For example,\nif your regex includes `(?<user>...)`, you would add a \"user\": \"user\" entry here to apply\nthe `user` style.")
       .setClass("codeblock-customizer-highlightgroups-setting")
@@ -1726,7 +1760,11 @@ export class SettingsTab extends PluginSettingTab {
         "prompt-host", 
         "prompt-path", 
         "prompt-db", 
-        "prompt-branch"
+        "prompt-branch",
+        "prompt-msf",
+        "prompt-keyword",
+        "prompt-module",
+        "prompt-beacon"
       ];
       
       if (displayName) {
@@ -1792,6 +1830,8 @@ export class SettingsTab extends PluginSettingTab {
       branch: promptData.defaultBranch ?? "main",
       homeDir: "~",
       originalHomeDir: "~",
+      msfKeyword: promptData.defaultModule ? 'exploit' : undefined,
+      msfModule: promptData.defaultModule,
     };
   
     const promptKind = getPromptType(isCustom ? promptData.basePrompt : selectedPromptId);
@@ -1841,6 +1881,8 @@ export class SettingsTab extends PluginSettingTab {
         diff.defaultDb = promptData.defaultDb;
       if (promptData.defaultBranch !== basePromptDef.defaultBranch) 
         diff.defaultBranch = promptData.defaultBranch;
+      if (promptData.defaultModule !== basePromptDef.defaultModule) 
+        diff.defaultModule = promptData.defaultModule;
       if (JSON.stringify(promptData.highlightGroups ?? {}) !== JSON.stringify(basePromptDef.highlightGroups ?? {})) 
         diff.highlightGroups = promptData.highlightGroups;
       //if (promptData.parsePromptRegex?.source !== basePromptDef.parsePromptRegex?.source) 

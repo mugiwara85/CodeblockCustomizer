@@ -137,6 +137,7 @@ export interface ThemeSettings {
     enablePrintToPDFStyling: boolean;
     forceCurrentColorUse: boolean;
     uncollapseDuringPrint: boolean;
+    printAnnotationsAsComments: boolean;
   },
   common: {
     enableInSourceMode: boolean;
@@ -144,6 +145,7 @@ export interface ThemeSettings {
   prompts: {
     editedDefaults: Record<string, Partial<PromptDefinition>>;
     customPrompts: Record<string, PromptDefinition>;
+    includePromptsInCopy: boolean;
   },
   groupedCodeBlocks: {
     rememberTabState: boolean;
@@ -268,6 +270,18 @@ const DarkPromptColors: Record<string, Record<string, string>> = {
   "postgres": {
     "prompt-db": "#fabd2f",
   },
+  "msf": {
+    "prompt-msf": "#f3f3f4",
+    "prompt-keyword": "#f3f3f4",
+    "prompt-module": "#E20303",
+    "prompt-greater-than": "#f3f3f4",
+    "prompt-bracket-open": "#f3f3f4",
+    "prompt-bracket-close": "#f3f3f4",
+  },
+  "cstrike": {
+    "prompt-beacon": "#f3f3f4",
+    "prompt-greater-than": "#f3f3f4"
+  },
   "global": {
     "prompt-at": DEFAULT_PROMPT_COLOR,
     "prompt-colon": DEFAULT_PROMPT_COLOR,
@@ -288,6 +302,10 @@ const DarkPromptColors: Record<string, Record<string, string>> = {
     "prompt-zsh-symbol": DEFAULT_PROMPT_COLOR,
     "prompt-zsh-status-error": DEFAULT_PROMPT_COLOR,
     "prompt-zsh-status-ok": DEFAULT_PROMPT_COLOR,
+    "prompt-msf": DEFAULT_PROMPT_COLOR,
+    "prompt-keyword": DEFAULT_PROMPT_COLOR,
+    "prompt-module": DEFAULT_PROMPT_COLOR,
+    "prompt-beacon": DEFAULT_PROMPT_COLOR,
     "prompt-kali-symbol": DEFAULT_PROMPT_COLOR,
     "prompt-percent": DEFAULT_PROMPT_COLOR
   }
@@ -351,6 +369,18 @@ const SolarizedLightPromptColors: Record<string, Record<string, string>> = {
   "postgres": {
     "prompt-db": "#fabd2f",
   },
+  "msf": {
+    "prompt-msf": "#586E75",
+    "prompt-keyword": "#586E75",
+    "prompt-module": "#E20303",
+    "prompt-greater-than": "#586E75",
+    "prompt-bracket-open": "#586E75",
+    "prompt-bracket-close": "#586E75",
+  },
+  "cstrike": {
+    "prompt-beacon": "#586E75",
+    "prompt-greater-than": "#586E75"
+  },
   "global": {
     "prompt-at": DEFAULT_PROMPT_COLOR,
     "prompt-colon": DEFAULT_PROMPT_COLOR,
@@ -371,6 +401,10 @@ const SolarizedLightPromptColors: Record<string, Record<string, string>> = {
     "prompt-zsh-symbol": DEFAULT_PROMPT_COLOR,
     "prompt-zsh-status-error": DEFAULT_PROMPT_COLOR,
     "prompt-zsh-status-ok": DEFAULT_PROMPT_COLOR,
+    "prompt-msf": DEFAULT_PROMPT_COLOR,
+    "prompt-keyword": DEFAULT_PROMPT_COLOR,
+    "prompt-module": DEFAULT_PROMPT_COLOR,
+    "prompt-beacon": DEFAULT_PROMPT_COLOR,
     "prompt-kali-symbol": DEFAULT_PROMPT_COLOR,
     "prompt-percent": DEFAULT_PROMPT_COLOR
   }
@@ -434,6 +468,18 @@ const ObsidianLightPromptPromptColors: Record<string, Record<string, string>> = 
   "postgres": {
     "prompt-db": "#fabd2f",
   },
+  "msf": {
+    "prompt-msf": "#5C6370",
+    "prompt-keyword": "#5C6370",
+    "prompt-module": "#E20303",
+    "prompt-greater-than": "#5C6370",
+    "prompt-bracket-open": "#5C6370",
+    "prompt-bracket-close": "#5C6370",
+  },
+  "cstrike": {
+    "prompt-beacon": "#5C6370",
+    "prompt-greater-than": "#5C6370"
+  },
   "global": {
     "prompt-at": DEFAULT_PROMPT_COLOR,
     "prompt-colon": DEFAULT_PROMPT_COLOR,
@@ -454,6 +500,10 @@ const ObsidianLightPromptPromptColors: Record<string, Record<string, string>> = 
     "prompt-zsh-symbol": DEFAULT_PROMPT_COLOR,
     "prompt-zsh-status-error": DEFAULT_PROMPT_COLOR,
     "prompt-zsh-status-ok": DEFAULT_PROMPT_COLOR,
+    "prompt-msf": DEFAULT_PROMPT_COLOR,
+    "prompt-keyword": DEFAULT_PROMPT_COLOR,
+    "prompt-module": DEFAULT_PROMPT_COLOR,
+    "prompt-beacon": DEFAULT_PROMPT_COLOR,
     "prompt-kali-symbol": DEFAULT_PROMPT_COLOR,
     "prompt-percent": DEFAULT_PROMPT_COLOR
   }
@@ -727,13 +777,15 @@ const Solarized: Theme = {
       enablePrintToPDFStyling: true,
       forceCurrentColorUse: false,
       uncollapseDuringPrint: true,
+      printAnnotationsAsComments: false,
     },
     common: {
       enableInSourceMode: false,
     },
     prompts: {
       editedDefaults: {},
-      customPrompts: {}
+      customPrompts: {},
+      includePromptsInCopy: false,
     },
     groupedCodeBlocks: {
       rememberTabState: true,
@@ -927,13 +979,15 @@ const Obsidian: Theme = {
       enablePrintToPDFStyling: true,
       forceCurrentColorUse: false,
       uncollapseDuringPrint: true,
+      printAnnotationsAsComments: false,
     },
     common: {
       enableInSourceMode: false,
     },
     prompts: {
       editedDefaults: {},
-      customPrompts: {}
+      customPrompts: {},
+      includePromptsInCopy: false,
     },
     groupedCodeBlocks: {
       rememberTabState: true,

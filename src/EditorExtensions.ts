@@ -369,7 +369,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           const newDocStateMap = new Map<string, number>();
           for (const [groupName, savedPos] of docStateMap.entries()) {
             const newPos = transaction.changes.mapPos(savedPos);
-            newDocStateMap.set(groupName, newPos);
+            if (newPos !== -1) {
+              newDocStateMap.set(groupName, newPos);
+            }
           }
           plugin.activeEditorTabs.set(docPath, newDocStateMap);
         }
@@ -381,25 +383,30 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
         if (tabSettings.rememberTabState && docPath) {
           const newStartPos = transaction.changes.mapPos(groupUpdate.startPos);
-          const groupName = groupUpdate.group;
+          if (newStartPos !== -1) {
+            const groupName = groupUpdate.group;
 
-          if (tabSettings.persistence === TabPersistence.Permanent) {
-            if (!plugin.permanentEditorTabs[docPath]) {
-              plugin.permanentEditorTabs[docPath] = {};
+            if (tabSettings.persistence === TabPersistence.Permanent) {
+              if (!plugin.permanentEditorTabs[docPath]) {
+                plugin.permanentEditorTabs[docPath] = {};
+              }
+              plugin.permanentEditorTabs[docPath][groupName] = newStartPos;
+              plugin.requestSavePermanentData();
+            } else {
+              let docStateMap = plugin.activeEditorTabs.get(docPath);
+              if (!docStateMap) {
+                docStateMap = new Map<string, number>();
+                plugin.activeEditorTabs.set(docPath, docStateMap);
+              }
+              docStateMap.set(groupName, newStartPos);
             }
-            plugin.permanentEditorTabs[docPath][groupName] = newStartPos;
-            plugin.requestSavePermanentData();
-          } else {
-            let docStateMap = plugin.activeEditorTabs.get(docPath);
-            if (!docStateMap) {
-              docStateMap = new Map<string, number>();
-              plugin.activeEditorTabs.set(docPath, docStateMap);
-            }
-            docStateMap.set(groupName, newStartPos);
           }
         }
         const newStartPos = transaction.changes.mapPos(groupUpdate.startPos);
-        return { ...value, [groupUpdate.group]: newStartPos };
+        if (newStartPos !== -1) {
+          return { ...value, [groupUpdate.group]: newStartPos };
+        }
+        return value;
       }
 
       const oldGroups = transaction.startState.field(groupedCodeBlocksField, false);
@@ -504,18 +511,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       const docPath = transaction.state.field(editorInfoField)?.file?.path;
-      let newFoldedState = { ...value };
+      const newFoldedState = { ...value };
 
       if (transaction.docChanged && docPath) {
         plugin.remapFolds(docPath, transaction.changes);
-
-        const tempMappedState: Record<number, FoldingState> = {};
-        for (const startPosStr in newFoldedState) {
-          const oldStartPos = Number(startPosStr);
-          const newStartPos = transaction.changes.mapPos(oldStartPos);
-          tempMappedState[newStartPos] = newFoldedState[oldStartPos];
-        }
-        newFoldedState = tempMappedState;
       }
 
       // handle a fold/unfold action
@@ -1793,7 +1792,36 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         action: (view: EditorView) => {
           const from = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length + 1;
           const to = codeBlockEndPos - parameters.fenceCount - 1;
-          const blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);          
+          let blockContent = "";
+
+          if (settings.SelectedTheme.settings.prompts.includePromptsInCopy) {
+            const lines: string[] = [];
+            const firstContentLineNum = state.doc.lineAt(from).number;
+            const lastContentLineNum = state.doc.lineAt(to).number;
+            const lineCount = lastContentLineNum - firstContentLineNum + 1;
+            const promptManager = new PromptManager(parameters, lineCount, settings);
+            
+            for (let i = firstContentLineNum; i <= lastContentLineNum; i++) {
+              const line = state.doc.line(i);
+              const relativeLineNumber = i - firstContentLineNum + 1;
+
+              if (promptManager.promptLines.has(relativeLineNumber)) {
+                const { node, output } = promptManager.renderLine(line.text);
+                lines.push(`${node.textContent}${line.text}`);
+
+                if (output && output.length > 0) {
+                  for (const out of output) {
+                    lines.push(out.text);
+                  }
+                }
+              } else {
+                lines.push(line.text);
+              }
+            }
+            blockContent = lines.join('\n');
+          } else {
+            blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
+          }
           addTextToClipboard(blockContent);
         },
         icon: "copy",

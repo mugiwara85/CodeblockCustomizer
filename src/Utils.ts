@@ -342,7 +342,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     host: extractParameter(parsedParameters, "host"),
     path: extractParameter(parsedParameters, "path"),
     db: extractParameter(parsedParameters, "db"),
-    branch: extractParameter(parsedParameters, "branch")
+    branch: extractParameter(parsedParameters, "branch"),
+    module: extractParameter(parsedParameters, "module")
   };
 
   // noprompt
@@ -402,7 +403,7 @@ export function getDefaultParameters() {
     indentCharacter: 0,
     lineSeparator: '',
     textSeparator: '',
-    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null}},
+    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null, module: null}},
     noprompt: false,
     nopromptLines: [],
     group: '',
@@ -431,7 +432,8 @@ function getPromptLines(parsedParameters: ParsedParams, parameter: string, textS
       host: null,
       path: null,
       db: null,
-      branch: null
+      branch: null,
+      module: null,
     }
   };  
 
@@ -1148,27 +1150,67 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
 
   const annotationColors = settings.SelectedTheme.colors[currentMode].annotations?.colors || {};
   const annotationVars = Object.entries(annotationColors).map(([type, hexValue]) => {
-    return `--codeblock-customizer-annotation-color-${type}: ${hexValue};`;
+    const varName = `--codeblock-customizer-annotations-${type}-color`;
+    return `${varName}: ${hexValue};`;
   }).join(' ');
 
   const annotationRules = Object.keys(annotationColors).map(type => {
-  const varName = `--codeblock-customizer-annotation-color-${type}`;
-  return `
-    .codeblock-customizer-annotation-icon-${type},
-    .codeblock-customizer-annotation-title-${type} {
-      color: var(${varName});
-    }
-    .codeblock-customizer-tooltip-${type} {
-      border-top: 3px solid var(${varName});
-    }
-  `;
+    const varName = `--codeblock-customizer-annotations-${type}-color`;
+    return `
+      .codeblock-customizer-annotation-icon-${type},
+      .codeblock-customizer-annotation-title-${type} {
+        color: var(${varName});
+      }
+      .codeblock-customizer-tooltip-${type} {
+        border-top: 3px solid var(${varName});
+      }
+    `;
   }).join(' ');
 
+  const defaultAnnotationCommentStyle = `
+    .codeblock-customizer-annotation-source-comment {
+      display: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  `;
+
+  let printRules = '';
+  if (settings.SelectedTheme.settings.printing.printAnnotationsAsComments) {
+    printRules = `
+      .print .codeblock-customizer-annotation-icon {
+        display: none !important;
+      }
+      .print .codeblock-customizer-annotation-source-comment {
+        display: inline !important;
+      }
+    `;
+  } else {
+    printRules = Object.keys(annotationColors).map(type => {
+      const varName = `--codeblock-customizer-annotations-${type}-color`;
+      return `
+        .print .codeblock-customizer-annotation-icon-${type} {
+          color: var(${varName}) !important;
+          -webkit-print-color-adjust: exact !important;
+        }
+      `;
+    }).join('') + `
+      .print .codeblock-customizer-annotation-source-comment {
+        display: none !important;
+      }
+    `;
+  }
+  
   const annotationStyling = `
-    body.theme-${currentMode} {
+    body.codeblock-customizer.theme-${currentMode} {
+      ${annotationVars}
+    }
+    .print body {
       ${annotationVars}
     }
     ${annotationRules}
+    ${defaultAnnotationCommentStyle}
+    ${printRules}
   `;
 
   styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
@@ -2063,6 +2105,13 @@ export function replacePromptTemplate(promptKind: PromptKind, promptType: string
   const simplify = shouldSimplifyHomePath(promptDef);
   const dir = env.dir ?? "~";
   const finalPath = simplify ? simplifyHomePath(dir, env.homeDir) : dir;
+
+  if (promptDef?.name === 'Metasploit') {
+    if (env.msfKeyword && env.msfModule) {
+      return `msf6 ${env.msfKeyword}(${env.msfModule}) >`;
+    }
+    return 'msf6 >';
+  }
 
   if (promptKind === PromptKind.Predefined) {
     let promptText = promptDef?.basePrompt ?? promptType;

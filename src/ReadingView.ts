@@ -140,7 +140,8 @@ function getIndentLevel(line: string, indent: string, tabSize = 4): number {
 }// getIndentLevel
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
-  const callouts: HTMLElement | null = codeBlockElement.querySelector('.callout');
+  // this only handles callouts in editing mode, because in reading mode callouts are styled by default
+  const callouts: HTMLElement | null = codeBlockElement.querySelector('.callout:not(.admonition)');
   if (!callouts) 
     return;
 
@@ -163,6 +164,106 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, [], context, plugin);
   }
 }// calloutPostProcessor
+
+export async function admonitionPostProcessor(containerElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
+  const admonition = containerElement.closest('.admonition');
+  if (!admonition || (admonition as HTMLElement).dataset.cbcAdmonitionProcessed) {
+    return;
+  }
+
+  const { fileContentLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
+  if (!fileContentLines) {
+    return;
+  }
+
+  const availableBlocks = [...getCodeBlocksWithContent(fileContentLines)];
+  const preElements = Array.from(admonition.querySelectorAll('pre:not(.frontmatter):not(.codeblock-customizer-pre)'));
+
+  for (const preElement of preElements) {
+    let domLanguage = '';
+    const langClass = Array.from(preElement.classList).find(cls => cls.startsWith('language-'));
+    if (langClass) {
+      domLanguage = langClass.replace('language-', '');
+    }
+
+    const domText = (preElement as HTMLElement).textContent?.trim();
+    if (!domText) {
+      continue;
+    }
+
+    const matchIndex = availableBlocks.findIndex(block => {
+      const sourceParams = getAllParameters(block.firstLine, plugin.settings);
+      const sourceLanguage = sourceParams.language;
+      const sourceText = block.content.slice(1, -1).join('\n').trim();
+      return sourceText === domText && sourceLanguage === domLanguage;
+    });
+    
+    if (matchIndex !== -1) {
+      const matchingBlockData = availableBlocks[matchIndex];
+      availableBlocks.splice(matchIndex, 1);
+      const { firstLine, content, startLine } = matchingBlockData;
+
+      if (getAllParameters(firstLine, plugin.settings).exclude) {
+        continue;
+      }
+
+      await processCodeBlockFirstLines([preElement as HTMLElement], [firstLine], null, content, context, plugin, { lineStart: startLine, lineEnd: startLine + content.length - 1 } as MarkdownSectionInformation);
+    }
+  }
+
+  (admonition as HTMLElement).dataset.cbcAdmonitionProcessed = 'true';
+}// admonitionPostProcessor
+
+function getCodeBlocksWithContent(lines: string[]): { startLine: number, firstLine: string, content: string[] }[] {
+  const results = [];
+  const stack: {
+    type: 'admonition' | 'codeblock';
+    fenceChar: '`' | '~';
+    fenceCount: number;
+    startLine: number;
+    firstLine: string;
+  }[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+
+    const fenceMatch = trimmedLine.match(/^(?:`|~){3,}/);
+    if (!fenceMatch) {
+      continue;
+    }
+
+    const fence = fenceMatch[0];
+    const char = fence[0] as '`' | '~';
+    const count = fence.length;
+    const lineContentAfterFence = trimmedLine.substring(count).trim();
+    const currentContext = stack.length > 0 ? stack[stack.length - 1] : null;
+
+    if (currentContext && char === currentContext.fenceChar && count === currentContext.fenceCount) {
+      const closedBlock = stack.pop();
+      if (closedBlock && closedBlock.type === 'codeblock') {
+        const blockContent = lines.slice(closedBlock.startLine, i + 1);
+        results.push({
+          startLine: closedBlock.startLine,
+          firstLine: closedBlock.firstLine,
+          content: blockContent,
+        });
+      }
+    } else {
+      if (lineContentAfterFence.startsWith('ad-')) {
+        stack.push({ type: 'admonition', fenceChar: char, fenceCount: count, startLine: i, firstLine: line });
+      } else if (currentContext && currentContext.type === 'admonition') {
+        stack.push({ type: 'codeblock', fenceChar: char, fenceCount: count, startLine: i, firstLine: line });
+      }
+    }
+  }
+
+  return results;
+}// getCodeBlocksWithContent
 
 async function waitForCmView(context: MarkdownPostProcessorContext, maxRetries = 25, delay = 2): Promise<boolean> {
   // @ts-ignore
@@ -253,7 +354,7 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
   }
 }// processCodeBlockFirstLines
 
-async function addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number, isParameterRerender = false) {
+async function addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], plugin: CodeBlockCustomizerPlugin, preCodeElm: HTMLElement, indentationLevels: IndentationInfo[] | null, codeblockLanguageSpecificClass: string, sourcePath: string, sectionInfo?: MarkdownSectionInformation, charPos?: number, isParameterRerender = false, isPrinting = false) {
   const frag = document.createDocumentFragment();
   
   preElement.classList.add(`codeblock-customizer-pre`);  
@@ -338,7 +439,7 @@ async function addClasses(preElement: HTMLElement, parameters: CBCParameters, co
   if (borderColor.length > 0)
     preElement.classList.add(`hasLangBorderColor`);
 
-  await highlightLines(preCodeElm, codeblockLines, parameters, indentationLevels, sourcePath, plugin, isParameterRerender);
+  await highlightLines(preCodeElm, codeblockLines, parameters, indentationLevels, sourcePath, plugin, isParameterRerender, isPrinting);
 }// addClasses
 
 function createCopyButton(displayLanguage: string) {
@@ -395,38 +496,53 @@ function createWrapCodeButton() {
 function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustomizerPlugin, codeblockLines?: string[]) {
   event.stopPropagation();
 
-  if (!preElement)
+  if (!preElement){
     return;
-  
-  let codeText: string;
-
-  if (plugin && codeblockLines && codeblockLines.length > 0) {
-    const contentLines = codeblockLines.slice(1, -1);
-
-    if (plugin.settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy) {
-      const ANNOTATION_MARKER = '[!';
-      const processedLines = contentLines.map(line => {
-        if (line.includes(ANNOTATION_MARKER)) {
-          const commentRegex = /^(.*?)(\s*(?:\/\/|#|--|\/\*))/;
-          const match = line.match(commentRegex);
-          if (match && match[1] !== undefined) {
-            return match[1].trimEnd();
-          }
-        }
-        return line;
-      });
-      codeText = processedLines.join('\n');
-    } else {
-      codeText = contentLines.join('\n');
-    }
-  } else {
-    const lines = preElement.querySelectorAll("code .codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output)");
-    const codeTextArray: string[] = [];
-    lines.forEach(line => {
-      codeTextArray.push(line.textContent || "");
-    });
-    codeText = codeTextArray.join('\n');
   }
+
+  const settings = plugin.settings.SelectedTheme.settings;
+  const includePrompts = settings.prompts.includePromptsInCopy;
+  const excludeAnnotations = settings.annotations.excludeAnnotationsFromCopy;
+  
+  const codeTextArray: string[] = [];
+  const allLineElements = preElement.querySelectorAll<HTMLElement>("div[data-line-number]");
+
+  allLineElements.forEach(lineEl => {
+    const commandLineParts: string[] = [];
+
+    if (includePrompts) {
+      const promptEl = lineEl.querySelector<HTMLElement>('[class*="codeblock-customizer-prompt-"]');
+      if (promptEl) {
+        commandLineParts.push(promptEl.textContent ?? "");
+      }
+    }
+
+    const commandTextEl = lineEl.querySelector<HTMLElement>('.codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output)');
+    if (commandTextEl) {
+      commandLineParts.push(commandTextEl.textContent ?? "");
+    }
+    
+    let commandLine = commandLineParts.join("");
+
+    if (!excludeAnnotations) {
+      const annotationEl = lineEl.querySelector<HTMLElement>('.codeblock-customizer-annotation-source-comment');
+      const annotationText = annotationEl?.dataset.cbcComment;
+      if (annotationText) {
+        commandLine += ` ${annotationText}`;
+      }
+    }
+
+    codeTextArray.push(commandLine);
+
+    if (includePrompts) {
+      const outputElements = lineEl.querySelectorAll<HTMLElement>('.codeblock-customizer-prompt-cmd-output');
+      outputElements.forEach(outputEl => {
+        codeTextArray.push(outputEl.textContent ?? "");
+      });
+    }
+  });
+
+  const codeText = codeTextArray.join('\n');
 
   addTextToClipboard(codeText);
 }// copyCode
@@ -457,8 +573,18 @@ function wrapCode(preElement: HTMLElement, event: Event) {
 
 async function handlePDFExport(preElements: Array<HTMLElement>, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, id: string | null) {
   const { cache, fileContentLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
-  if (!cache || !fileContentLines)
+  if (!cache || !fileContentLines) {
     return;
+  }
+
+  const filteredPreElements = preElements.filter(pre => {
+    const codeElement = pre.querySelector("code");
+    if (!codeElement) {
+      return true;
+    }
+    const isAdmonitionContainer = Array.from(codeElement.classList).some(cls => cls.startsWith('language-ad-'));
+    return !isAdmonitionContainer;
+  });
 
   let codeBlockFirstLines: string[] = [];
   if (cache?.sections && !id) {
@@ -469,13 +595,20 @@ async function handlePDFExport(preElements: Array<HTMLElement>, context: Markdow
       console.error(`Metadata cache not found for file: ${context.sourcePath}`);
       return;
   }
+  
+  const filteredCodeBlockFirstLines = codeBlockFirstLines.filter(line => {
+    const language = line.replace(/^(?:`|~){3,}/, '').trim().split(' ')[0];
+    return !language.startsWith('ad-');
+  });
 
-  if (preElements.length !== codeBlockFirstLines.length)
+  if (filteredPreElements.length !== filteredCodeBlockFirstLines.length) {
     return;
+  }
 
   try {
-    if (plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling)
-      await PDFExport(preElements, plugin, codeBlockFirstLines, context.sourcePath, fileContentLines);
+    if (plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling) {
+      await PDFExport(filteredPreElements, plugin, filteredCodeBlockFirstLines, context.sourcePath, fileContentLines);
+    }
   } catch (error) {
     console.error(`Error exporting to PDF: ${error.message}`);
     return;
@@ -708,7 +841,7 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
   return result;
 }// isLineHighlighted
 
-async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], parameters: CBCParameters, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin, isRerender = false) {
+async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], parameters: CBCParameters, indentationLevels: IndentationInfo[] | null, sourcePath: string, plugin: CodeBlockCustomizerPlugin, isRerender = false, isPrinting = false) {
   if (!preCodeElm) {
     return;
   }
@@ -762,7 +895,7 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
     const lineNumber = index + 1;
     const caseInsensitiveLineText = htmlLine.toLowerCase();
 
-    const { lineContent, annotationData } = processAnnotations(htmlLine, settings);
+    const { lineContent, annotationData } = processAnnotations(htmlLine, isPrinting, plugin);
     const { lineClasses, uncollapseButtonHTML, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
     fadeOutLineIndex = updatedFadeOutLineIndex;
     const lineNumberHTML = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
@@ -855,7 +988,7 @@ function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockCustomiz
   }
 }// attachEventListeners
 
-function processAnnotations(htmlLine: string, settings: ThemeSettings): { lineContent: string; annotationData: { type: string; content: string } | null } {
+function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeBlockCustomizerPlugin): { lineContent: string; annotationData: { type: string; content: string } | null } {
   let annotationData: { type: string; content: string } | null = null;
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlLine;
@@ -875,14 +1008,22 @@ function processAnnotations(htmlLine: string, settings: ThemeSettings): { lineCo
     if (explicitMatch && explicitMatch.groups) {
       type = explicitMatch.groups.type;
       content = explicitMatch.groups.content.trim();
-    } else if (settings.annotations.convertAllComments) {
+    } else if (plugin.settings.SelectedTheme.settings.annotations.convertAllComments) {
       type = 'note';
       content = cleanedText;
     }
 
     if (type && content && content.length > 0) {
       annotationData = { type, content };
-      commentElement.remove();
+      commentElement.classList.add('codeblock-customizer-annotation-source-comment');
+
+      if (commentElement.textContent) {
+        commentElement.setAttribute('data-cbc-comment', commentElement.textContent);
+      }
+      const printAsComments = plugin.settings.SelectedTheme.settings.printing.printAnnotationsAsComments;
+      if (!isPrinting || !printAsComments) {
+        commentElement.textContent = '';
+      }
     }
   }
   return { lineContent: tempDiv.innerHTML, annotationData };
@@ -1421,7 +1562,7 @@ async function PDFExport(codeBlockElement: HTMLElement[], plugin: CodeBlockCusto
       parameters.fold = false;
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await addClasses(codeblockPreElement, parameters, codeblockLines, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath);
+    await addClasses(codeblockPreElement, parameters, codeblockLines, plugin, codeblockCodeElement as HTMLElement, null, codeblockLanguageSpecificClass, sourcePath, undefined, undefined, false, true);
   }
 }// PDFExport
 

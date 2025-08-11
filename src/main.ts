@@ -4,7 +4,7 @@ import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
-import { ReadingView, calloutPostProcessor, inlineCodeProcessor } from "./ReadingView";
+import { ReadingView, admonitionPostProcessor, calloutPostProcessor, inlineCodeProcessor } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, CBCParameters} from "./Utils";
 import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
@@ -186,7 +186,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       const newRecord: Record<number, FoldingState> = {};
       for (const oldPosStr in record) {
         const newPos = changes.mapPos(Number(oldPosStr));
-        newRecord[newPos] = record[oldPosStr];
+        if (newPos !== -1) {
+          newRecord[newPos] = record[oldPosStr];
+        }
       }
       return newRecord;
     };
@@ -195,7 +197,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       const newMap = new Map<number, FoldingState>();
       for (const [oldPos, state] of map.entries()) {
         const newPos = changes.mapPos(oldPos);
-        newMap.set(newPos, state);
+        if (newPos !== -1) {
+          newMap.set(newPos, state);
+        }
       }
       return newMap;
     };
@@ -226,7 +230,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       
       this.requestSavePermanentData();
     }
-  }// remapFolds
+}// remapFolds
   
   remapTabs(filePath: string, changes: ChangeSet): void {
     const remapRecord = (record: Record<string, number>): Record<string, number> => {
@@ -234,7 +238,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       for (const groupName in record) {
         const oldPos = record[groupName];
         const newPos = changes.mapPos(oldPos);
-        newRecord[groupName] = newPos;
+        if (newPos !== -1) {
+          newRecord[groupName] = newPos;
+        }
       }
       return newRecord;
     };
@@ -245,40 +251,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (this.permanentReadingViewTabs[filePath]) {
       this.permanentReadingViewTabs[filePath] = remapRecord(this.permanentReadingViewTabs[filePath]);
     }
-  }// remapTabs
-
-  syncFoldStatesOnViewChange(filePath: string, sourceView: 'editor' | 'reading') {
-    const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
-    if (!foldSettings.rememberFoldState) {
-      return;
-    }
-
-    const isPermanent = foldSettings.persistence === FoldingPersistence.Permanent;
-    const sourceStore = isPermanent ? (sourceView === 'editor' ? this.permanentEditorFolds : this.permanentReadingViewFolds) : (sourceView === 'editor' ? this.activeEditorFolds : this.activeReadingViewFolds);
-    const destStore = isPermanent ? (sourceView === 'editor' ? this.permanentReadingViewFolds : this.permanentEditorFolds) : (sourceView === 'editor' ? this.activeReadingViewFolds : this.activeEditorFolds);
-
-    if (isPermanent) {
-      // file
-      const sourceData = (sourceStore as PermanentFoldData)[filePath];
-      if (sourceData) {
-        (destStore as PermanentFoldData)[filePath] = { ...sourceData };
-      } else {
-        delete (destStore as PermanentFoldData)[filePath];
-      }
-    } else { 
-      // session
-      const sourceData = (sourceStore as Map<string, Map<number, FoldingState>>).get(filePath);
-      if (sourceData) {
-        (destStore as Map<string, Map<number, FoldingState>>).set(filePath, new Map(sourceData));
-      } else {
-        (destStore as Map<string, Map<number, FoldingState>>).delete(filePath);
-      }
-    }
-    
-    if (isPermanent) {
-      this.requestSavePermanentData();
-    }
-  }// syncFoldStatesOnViewChange
+}// remapTabs
   
   async clearAllFoldData(): Promise<void> {
     this.activeEditorFolds.clear();
@@ -746,6 +719,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       await calloutPostProcessor(el, ctx, this)
     });
+
+    // admonitions
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
+      await admonitionPostProcessor(el, ctx, this)
+    });
   }// registerPostProcessors
 
   registerEvents(settingsTab: SettingsTab) {
@@ -780,8 +758,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
         if (markdownView.file) {
           if (currentMode === 'preview') {
-            this.syncFoldStatesOnViewChange(markdownView.file.path, 'editor');
-            
             const keysToProcess = Array.from(this.modifiedBlocks.keys());
 
             for (const key of keysToProcess) {
@@ -798,8 +774,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
                 this.modifiedBlocks.delete(key);
               }
             }
-          } else if (currentMode === 'source') {
-            this.syncFoldStatesOnViewChange(markdownView.file.path, 'reading');
           }
         }
         

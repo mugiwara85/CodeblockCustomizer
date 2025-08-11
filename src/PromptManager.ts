@@ -14,11 +14,13 @@ export type PromptEnvironment = {
   userStack?: string[];
   homeDir: string;
   originalHomeDir: string;
+  msfKeyword?: string;
+  msfModule?: string;
 };// PromptEnvironment
 
 export type PromptDefinition = {
   name: string;
-  basePrompt: string;                         // Optional: example prompt for preview or fallback
+  basePrompt: string;
   highlightGroups?: Record<string, string>;   // e.g., { user: "user", host: "host" }
   supportsRootStyling?: boolean;
   parsePromptRegex?: RegExp;                  // optional named-group regex
@@ -28,6 +30,7 @@ export type PromptDefinition = {
   defaultUser?: string;
   defaultHost?: string;
   defaultBranch?: string;
+  defaultModule?: string;
   isWindowsShell: boolean;
   autoUsePrompt?: boolean;
   autoUseLanguages?: string[];
@@ -64,6 +67,10 @@ export const promptClassDisplayNames: Record<string, string> = {
   "prompt-path": "Path",
   "prompt-db": "Database",
   "prompt-branch": "Branch",
+  "prompt-msf": "Metasploit Prefix",
+  "prompt-keyword": "Metasploit Keyword",
+  "prompt-module": "Metasploit Module",
+  "prompt-beacon": "Cobalt Strike Beacon",
   "prompt-symbol": "Symbol (fallback)",
   "prompt-dollar": "Dollar ($)",
   "prompt-at": "At (@)",
@@ -157,7 +164,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
 
   kali: {
     name: "Kali Linux",
-    basePrompt: "({user}㉿{host})-[{path}] $",
+    basePrompt: "({user}㉿{host})-[{path}]$",
     defaultDir: "~",
     defaultUser: "kali",
     defaultHost: "kali",
@@ -236,6 +243,39 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     autoUseLanguages: [],
   },
 
+  msf: {
+    name: "Metasploit",
+    basePrompt: "msf6 >",
+    defaultDir: "~/",
+    defaultUser: "root",
+    defaultHost: "localhost",
+    defaultModule: "exploit/multi/handler",
+    parsePromptRegex: /^(?<msf>msf\d+)\s*(?:(?<keyword>\w+)\((?<module>.+?)\))?\s*>\s*$/,
+    highlightGroups: {
+      msf: "msf",
+      keyword: "keyword",
+      module: "module"
+    },
+    isWindowsShell: false,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
+  },
+
+  cstrike: {
+    name: "Cobalt Strike",
+    basePrompt: "beacon>",
+    defaultUser: "user",
+    defaultHost: "localhost",
+    defaultDir: "C:\\Users\\User",
+    parsePromptRegex: /^(?<beacon>beacon)\s*>\s*$/,
+    highlightGroups: {
+      beacon: "beacon"
+    },
+    isWindowsShell: true,
+    autoUsePrompt: false,
+    autoUseLanguages: [],
+  },
+
   postgres: {
     name: "PostgreSQL",
     basePrompt: "{db}=#",
@@ -279,6 +319,7 @@ interface PromptValues {
   path: string | null;
   db: string | null;
   branch: string | null;
+  module: string | null;
 }
 
 interface CommandOutput {
@@ -373,6 +414,17 @@ export class PromptManager {
     envCopy.userStack = [...(env.userStack ?? [])];
 
     const isWindowsShell = promptDef?.isWindowsShell ?? false;
+
+    // use (metasploit)
+    const useMatch = lineText.match(/^\s*use\s+([^\s]+)/i);
+    if (useMatch) {
+      const useArg = useMatch[1];
+      const parts = useArg.split('/');
+      if (parts.length > 1) {
+        envCopy.msfKeyword = parts[0];
+        envCopy.msfModule = parts.slice(1).join('/');
+      }
+    }
 
     // cd
     const cdMatch = lineText.match(/^\s*cd\s*(.*)$/i);
@@ -538,6 +590,18 @@ export class PromptManager {
     const homeDir = isWindowsShell ? `C:\\Users\\${user}` : `/home/${user}`;
     const defaultDir = parameters.prompt.values?.path ?? promptDef.defaultDir ?? homeDir;
 
+    const defaultModule = parameters.prompt.values?.module ?? promptDef.defaultModule;
+    let initialKeyword: string | undefined;
+    let initialModule: string | undefined;
+
+    if (defaultModule) {
+      const parts = defaultModule.split('/');
+      if (parts.length > 1) {
+        initialKeyword = parts[0];
+        initialModule = parts.slice(1).join('/');
+      }
+    }
+
     const initialEnv: PromptEnvironment = {
       user,
       host: parameters.prompt.values?.host ?? promptDef.defaultHost ?? "localhost",
@@ -548,13 +612,15 @@ export class PromptManager {
       homeDir,
       originalHomeDir: homeDir,
       userStack: [],
+      msfKeyword: initialKeyword,
+      msfModule: initialModule,
     };
 
     return { context: { promptType, promptDef, isCustom, actualPrompt, promptKind, settings, }, initialEnv, };
   }// createPromptContext
 
   private renderPromptLine(lineText: string, snapshotEnv: PromptEnvironment, cache: PromptCache, ctx: PromptContext): PromptResult {
-    const shellCmdRegex = /^\s*(cd\b|su\b|exit\b|git\b|\\c)/;
+    const shellCmdRegex = /^\s*(cd\b|su\b|exit\b|git\b|\\c|use\b)/;
     // cache key
     const key = `${ctx.actualPrompt}|${this.promptEnvKey(snapshotEnv)}`;
 
@@ -577,6 +643,6 @@ export class PromptManager {
   }// renderPromptLine
 
   private promptEnvKey(env: PromptEnvironment): string {
-    return [env.user, env.dir, env.db, env.branch, env.host, env.previousDir].join('|');
+    return [env.user, env.dir, env.db, env.branch, env.host, env.previousDir, env.msfKeyword, env.msfModule].join('|');
   }// promptEnvKey
 }// PromptManager
