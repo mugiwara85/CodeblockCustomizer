@@ -269,7 +269,7 @@
 /* Inline code editor */
 .codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code {
   color: var(--codeblock-customizer-inline-code-text-color);
-  background-color: var(--codeblock-customizer-inline-code-background-color);
+  background-color: var(--codeblock-customizer-inline-code-background-color) !important;
 }
 .cm-s-obsidian span.cm-inline-code {
   font-size: var(--code-size);
@@ -384,21 +384,21 @@ body:not(.codeblock-customizer-show-inline-code-icons) div.cm-line span.codebloc
   border-bottom-right-radius: 0px !important;
 }
 
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .HyperMD-codeblock[class*="codeblock-customizer-line"][class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"] {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .HyperMD-codeblock[class*="codeblock-customizer-line"][class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[class*=codeblock-customizer-language-].hasLangBorderColor {
   border-left-color: var(--codeblock-bordercolor);
   border-left-width: 5px;
   border-left-style: solid;
 }
 
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .HyperMD-codeblock[class*="codeblock-customizer-line"][class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"], 
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-][class*="hasLangBorderColor"],
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[class*=codeblock-customizer-language-][class*="hasLangBorderColor"] {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .HyperMD-codeblock[class*="codeblock-customizer-line"][class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container[class*=codeblock-customizer-language-].hasLangBorderColor, 
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-source-view .codeblock-customizer-header-container-specific[class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-].hasLangBorderColor,
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[class*=codeblock-customizer-language-].hasLangBorderColor {
   border-right-color: var(--codeblock-bordercolor);
   border-right-width: 5px;
   border-right-style: solid;
@@ -1057,11 +1057,11 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 
 /* fence line styling */
 .codeblock-customizer-fence-collapsed {
-  height: 5px;
-  min-height: 5px;
-  font-size: 1px;
+  height: 8px;
+  min-height: 8px;
+  /*font-size: 1px !important;*/
   overflow: hidden;
-  color: transparent;
+  color: transparent !important;
 }
 .markdown-source-view .codeblock-customizer-fence-collapsed + .cm-line .codeblock-customizer-button-container {
   top: 1px;

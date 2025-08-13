@@ -138,6 +138,7 @@ export interface ThemeSettings {
     forceCurrentColorUse: boolean;
     uncollapseDuringPrint: boolean;
     printAnnotationsAsComments: boolean;
+    avoidPageBreaks: boolean;
   },
   common: {
     enableInSourceMode: boolean;
@@ -778,6 +779,7 @@ const Solarized: Theme = {
       forceCurrentColorUse: false,
       uncollapseDuringPrint: true,
       printAnnotationsAsComments: false,
+      avoidPageBreaks: false,
     },
     common: {
       enableInSourceMode: false,
@@ -980,6 +982,7 @@ const Obsidian: Theme = {
       forceCurrentColorUse: false,
       uncollapseDuringPrint: true,
       printAnnotationsAsComments: false,
+      avoidPageBreaks: false,
     },
     common: {
       enableInSourceMode: false,

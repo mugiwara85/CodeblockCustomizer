@@ -27,7 +27,7 @@ export class TooltipManager {
   private readonly HIDE_DELAY = 100;
   private readonly ANIMATION_DURATION = 150;
 
-  constructor(private iconEl: HTMLElement, private content: string, private type: string, private plugin: CodeBlockCustomizerPlugin, private sourcePath: string) {
+  constructor(private iconEl: HTMLElement, private content: string, private type: string, private plugin: CodeBlockCustomizerPlugin, private sourcePath: string, private title?: string) {
     this.iconEl.addEventListener('mouseenter', this.show);
     this.iconEl.addEventListener('mouseleave', this.scheduleHide);
   }
@@ -63,7 +63,8 @@ export class TooltipManager {
     const headerContainer = this.tooltip.createDiv({ cls: 'codeblock-customizer-popup-header' });
     const popupIconEl = headerContainer.createSpan({ cls: `codeblock-customizer-popup-icon codeblock-customizer-annotation-icon-${this.type}` });
     setIcon(popupIconEl, ANNOTATION_TYPE_ICONS[this.type] || 'info');
-    headerContainer.createSpan({ cls: `codeblock-customizer-popup-type-text codeblock-customizer-annotation-title-${this.type}`, text: ANNOTATION_TYPE_DISPLAY_TEXT[this.type] || (this.type.charAt(0).toUpperCase() + this.type.slice(1)) });
+    const headerText = this.title || ANNOTATION_TYPE_DISPLAY_TEXT[this.type] || (this.type.charAt(0).toUpperCase() + this.type.slice(1));
+    headerContainer.createSpan({ cls: `codeblock-customizer-popup-type-text codeblock-customizer-annotation-title-${this.type}`, text: headerText });
 
     const textContentEl = this.tooltip.createDiv({ cls: 'codeblock-customizer-popup-content' });
     MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);

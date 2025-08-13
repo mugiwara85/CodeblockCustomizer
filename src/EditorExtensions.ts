@@ -737,17 +737,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           // lines
           const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);
           decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
-          
-          /*if ((!pos.defaultFolded) && (pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.inverseFold && !pos.parameters.unfold)))
-            defaultFold(state, decorations);*/
-  
+            
           let spanClass = "";
           if (startLine) {
             spanClass = `codeblock-customizer-line-number-first`;
-            
-            // first-line buttons
-            /*const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
-            decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, { codeBlockStartPos, codeBlockEndPos, parameters } ), side: -1}).range(lineStartPos));*/
           }
     
           if (endLine) {
@@ -1002,10 +995,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
             let type: string;
             let content: string;
+            let title: string | undefined;
 
             if (match && match.groups) {
               type = match.groups.type;
               content = match.groups.content;
+              title = match.groups.title;
             } else if (plugin.settings.SelectedTheme.settings.annotations.convertAllComments) {
               type = 'note';
               content = cleanCommentText;
@@ -1015,7 +1010,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             const line = view.state.doc.lineAt(node.from);
             // hide comment node
             decorations.push(Decoration.replace({}).range(node.from, node.to));
-            decorations.push(Decoration.widget({ widget: new AnnotationIconWidget(type, content.trim(), plugin), side: -1 }).range(line.from));
+            decorations.push(Decoration.widget({ widget: new AnnotationIconWidget(type, content.trim(), plugin, title), side: -1 }).range(line.from));
           },
         });
       }
@@ -1373,12 +1368,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// LineWidget
 
   class AnnotationIconWidget extends WidgetType {
-    constructor(readonly type: string, readonly content: string, readonly plugin: CodeBlockCustomizerPlugin) {
+    constructor(readonly type: string, readonly content: string, readonly plugin: CodeBlockCustomizerPlugin, readonly title?: string) {
       super();
     }
 
     eq(other: AnnotationIconWidget) {
-      return other.type === this.type && other.content === this.content && other.plugin === this.plugin;
+      return other.type === this.type && other.content === this.content && other.plugin === this.plugin && other.title === this.title;
     }
 
     toDOM(view: EditorView): HTMLElement {
@@ -1388,7 +1383,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
 
-      new TooltipManager(iconContainer, this.content, this.type, this.plugin, sourcePath);
+      new TooltipManager(iconContainer, this.content, this.type, this.plugin, sourcePath, this.title);
 
       return iconContainer;
     }
@@ -2210,31 +2205,28 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
     } else if (word === '') {
       const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
-      //const match = line.text.match(/\S/);
-      //const pos = match ? match.index : -1;
-      /*if (pos !== undefined && pos !== -1 && line.to > line.from + pos)
-        decorations.push(Decoration.mark({ class: classToUse }).range(line.from + pos, line.to));*/
       const lineText = line.text;
-      const contentMatch = lineText.match(/^\s*\S/);
-      if (contentMatch && typeof contentMatch.index === 'number') {
-        const startPosInLine = contentMatch.index;
-        let endBoundary = lineText.length;
-        const commentMatch = lineText.match(/\s+(\/\/|\/\*|#|--)/);
-        if (commentMatch && typeof commentMatch.index === 'number') {
-          const commentText = lineText.substring(commentMatch.index);
-          
-          if (settings.SelectedTheme.settings.annotations.convertAllComments || ANNOTATION_PATTERN.test(commentText)) {
-            endBoundary = commentMatch.index;
-          }
-        }
+      const startPosInLine = lineText.search(/\S/);
+      if (startPosInLine === -1) {
+        return;
+      }
 
-        const trimmedEndPosInLine = lineText.substring(0, endBoundary).trimEnd().length;
-        const startRange = line.from + startPosInLine;
-        const endRange = line.from + trimmedEndPosInLine;
-
-        if (endRange > startRange) {
-          decorations.push(Decoration.mark({ class: classToUse }).range(startRange, endRange));
+      let endBoundary = lineText.length;
+      const commentMatch = lineText.match(/\s+(\/\/|\/\*|#|--)/);
+      if (commentMatch && typeof commentMatch.index === 'number') {
+        const commentText = lineText.substring(commentMatch.index);
+        
+        if (settings.SelectedTheme.settings.annotations.convertAllComments || ANNOTATION_PATTERN.test(commentText)) {
+          endBoundary = commentMatch.index;
         }
+      }
+
+      const trimmedEndPosInLine = lineText.substring(0, endBoundary).trimEnd().length;
+      const startRange = line.from + startPosInLine;
+      const endRange = line.from + trimmedEndPosInLine;
+
+      if (endRange > startRange) {
+        decorations.push(Decoration.mark({ class: classToUse }).range(startRange, endRange));
       }
     } else {
       const occurrences = findAllOccurrences(caseInsensitiveLineText, word);

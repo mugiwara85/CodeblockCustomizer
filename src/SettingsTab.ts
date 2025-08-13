@@ -338,6 +338,17 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     new Setting(printToPDFDetails)
+      .setName('Avoid page breaks in code blocks')
+      .setDesc('If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.printing.avoidPageBreaks)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.printing.avoidPageBreaks = value;
+          await this.plugin.saveSettings();
+        })
+      );
+      
+    new Setting(printToPDFDetails)
       .setName('Expand all code blocks during printing')
       .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
       .addToggle(toggle => toggle
