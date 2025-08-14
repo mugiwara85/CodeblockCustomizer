@@ -179,38 +179,6 @@ export interface CodeblockCustomizerSettings {
   languageSpecificLanguageName: string;
 }
 
-// dark
-export const D_ACTIVE_CODEBLOCK_LINE_COLOR = '#073642';
-export const D_ACTIVE_LINE_COLOR = '#468eeb33';
-export const D_BACKGROUND_COLOR = '#002B36';
-export const D_HIGHLIGHT_COLOR = '#054b5c';
-export const D_HEADER_COLOR = '#0a4554';
-export const D_HEADER_TEXT_COLOR = '#DADADA';
-export const D_HEADER_LINE_COLOR = '#46cced';
-export const D_GUTTER_TEXT_COLOR = '#6c6c6c';
-export const D_GUTTER_BACKGROUND_COLOR = '#073642';
-export const D_LANG_COLOR = '#000000';
-export const D_LANG_BACKGROUND_COLOR = '#008080';
-export const D_GUTTER_ACTIVE_LINENR_COLOR = '#DADADA';
-export const D_INLINE_CODE_BACKGROUND_COLOR = '#054b5c';
-export const D_INLINE_CODE_TEXT_COLOR = '#DADADA';
-
-// light
-export const L_ACTIVE_CODEBLOCK_LINE_COLOR = '#EDE8D6';
-export const L_ACTIVE_LINE_COLOR = '#60460633';
-export const L_BACKGROUND_COLOR = '#FCF6E4';
-export const L_HIGHLIGHT_COLOR = '#E9DFBA';
-export const L_HEADER_COLOR = '#D5CCB4';
-export const L_HEADER_TEXT_COLOR = '#866704';
-export const L_HEADER_LINE_COLOR = '#EDD489';
-export const L_GUTTER_TEXT_COLOR = '#6c6c6c';
-export const L_GUTTER_BACKGROUND_COLOR = '#EDE8D6';
-export const L_LANG_COLOR = '#C25F30';
-export const L_LANG_BACKGROUND_COLOR = '#B8B5AA';
-export const L_GUTTER_ACTIVE_LINENR_COLOR = '#866704';
-export const L_INLINE_CODE_BACKGROUND_COLOR = '#E9DFBA';
-export const L_INLINE_CODE_TEXT_COLOR = '#866704';
-
 const SELECTION_MATCH_COLOR = '#99ff7780';
 
 const DarkPromptColors: Record<string, Record<string, string>> = {
@@ -604,33 +572,33 @@ export const RootPromptColors: Record<string, Record<string, string>> = {
 
 const SolarizedDarkColors = {
   codeblock: {
-    activeLineColor: D_ACTIVE_CODEBLOCK_LINE_COLOR,
-    backgroundColor: D_BACKGROUND_COLOR,
-    highlightColor: D_HIGHLIGHT_COLOR,
+    activeLineColor: '#073642',
+    backgroundColor: '#002B36',
+    highlightColor: '#054b5c',
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
     bracketHighlightColorMatch: '#36e920',
     bracketHighlightColorNoMatch: '#FF0000',
-    bracketHighlightBackgroundColorMatch: D_ACTIVE_CODEBLOCK_LINE_COLOR,
-    bracketHighlightBackgroundColorNoMatch:D_ACTIVE_CODEBLOCK_LINE_COLOR,
+    bracketHighlightBackgroundColorMatch: '#073642',
+    bracketHighlightBackgroundColorNoMatch: '#073642',
     selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
-    backgroundColor: D_HEADER_COLOR,
-    textColor: D_HEADER_TEXT_COLOR,
-    lineColor: D_HEADER_LINE_COLOR,
-    codeBlockLangTextColor: D_LANG_COLOR,
-    codeBlockLangBackgroundColor: D_LANG_BACKGROUND_COLOR,
+    backgroundColor: '#0a4554',
+    textColor: '#DADADA',
+    lineColor: '#46cced',
+    codeBlockLangTextColor: '#000000',
+    codeBlockLangBackgroundColor: '#008080',
   },
   gutter: {
-    textColor: D_GUTTER_TEXT_COLOR,
-    backgroundColor: D_GUTTER_BACKGROUND_COLOR,
-    activeLineNrColor: D_GUTTER_ACTIVE_LINENR_COLOR,
+    textColor: '#6c6c6c',
+    backgroundColor: '#073642',
+    activeLineNrColor: '#DADADA',
   },
   inlineCode: {
-    backgroundColor: D_INLINE_CODE_BACKGROUND_COLOR,
-    textColor: D_INLINE_CODE_TEXT_COLOR,
+    backgroundColor: '#054b5c',
+    textColor: '#DADADA',
   },
   prompts: {
     promptColors: DarkPromptColors,
@@ -653,39 +621,39 @@ const SolarizedDarkColors = {
       see: '#53dfdd', //'#2aa198',
     }
   },
-  editorActiveLineColor: D_ACTIVE_LINE_COLOR,
+  editorActiveLineColor: '#468eeb33',
   languageSpecificColors: {},
 }
 
 const SolarizedLightColors = {
   codeblock: {
-    activeLineColor: L_ACTIVE_CODEBLOCK_LINE_COLOR,
-    backgroundColor: L_BACKGROUND_COLOR,
-    highlightColor: L_HIGHLIGHT_COLOR,
+    activeLineColor: '#EDE8D6',
+    backgroundColor: '#FCF6E4',
+    highlightColor: '#E9DFBA',
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
     bracketHighlightColorMatch: '#ff01f7',
     bracketHighlightColorNoMatch: '#FF0000',
-    bracketHighlightBackgroundColorMatch: L_ACTIVE_CODEBLOCK_LINE_COLOR,
-    bracketHighlightBackgroundColorNoMatch:L_ACTIVE_CODEBLOCK_LINE_COLOR,
+    bracketHighlightBackgroundColorMatch: '#EDE8D6',
+    bracketHighlightBackgroundColorNoMatch:'#EDE8D6',
     selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
-    backgroundColor: L_HEADER_COLOR,
-    textColor: L_HEADER_TEXT_COLOR,
-    lineColor: L_HEADER_LINE_COLOR,
-    codeBlockLangTextColor: L_LANG_COLOR,
-    codeBlockLangBackgroundColor: L_LANG_BACKGROUND_COLOR,
+    backgroundColor: '#D5CCB4',
+    textColor: '#866704',
+    lineColor: '#EDD489',
+    codeBlockLangTextColor: '#C25F30',
+    codeBlockLangBackgroundColor: '#B8B5AA',
   },
   gutter: {
-    textColor: L_GUTTER_TEXT_COLOR,
-    backgroundColor: L_GUTTER_BACKGROUND_COLOR,
-    activeLineNrColor: L_GUTTER_ACTIVE_LINENR_COLOR,
+    textColor: '#6c6c6c',
+    backgroundColor: '#EDE8D6',
+    activeLineNrColor: '#866704',
   },
   inlineCode: {
-    backgroundColor: L_INLINE_CODE_BACKGROUND_COLOR,
-    textColor: L_INLINE_CODE_TEXT_COLOR,
+    backgroundColor: '#E9DFBA',
+    textColor: '#866704',
   },
   prompts: {
     promptColors: SolarizedLightPromptColors,
@@ -708,7 +676,7 @@ const SolarizedLightColors = {
       see: '#00bfbc', //'#2aa198',
     }
   },
-  editorActiveLineColor: L_ACTIVE_LINE_COLOR,
+  editorActiveLineColor: '#60460633',
   languageSpecificColors: {},
 }
 

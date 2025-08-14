@@ -377,17 +377,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
 
     const child = this.groupedChildrenMap.get(markdownView);
-
     if (child) {
-      //console.log("Existing GroupedCodeBlockRenderChild found for this view. Re-processing.");
-      // if the view already has the child, just tell it to re-process its content
-      child.processGroupedCodeBlocks(); // Make sure this method is public in GroupedCodeBlockRenderChild
+      child.processGroupedCodeBlocks();
     } else {
-      // create a new child if one doesn't exist for this view
       const renderChild = new GroupedCodeBlockRenderChild(markdownView.containerEl, markdownView, this.groupedChildrenMap, this);
       markdownView.addChild(renderChild);
       this.groupedChildrenMap.set(markdownView, renderChild);
-      //console.log("Registered NEW GroupedCodeBlockRenderChild for view:", markdownView);
     }
   }// registerGroupedRenderChildForView
   

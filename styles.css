@@ -1174,10 +1174,7 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 .codeblock-customizer-appearance-settingsDiv-hide,
 .codeblock-customizer-highlighting-settingsDiv-hide,
 .codeblock-customizer-behavior-settingsDiv-hide,
-.codeblock-customizer-inlineCode-settingsDiv-hide,
-.codeblock-customizer-prompts-settingsDiv-hide,
-.codeblock-customizer-groupedcodeblock-settingsDiv-hide,
-.codeblock-customizer-annotation-settingsDiv-hide {
+.codeblock-customizer-prompts-settingsDiv-hide {
   display: none;
 }
 
