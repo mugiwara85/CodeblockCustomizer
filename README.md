@@ -55,7 +55,6 @@ The plugin lets you customize the code blocks in the following way:
 
 Parameters can be defined in the opening line of a code block (after the three opening backticks).   
 All parameters can be defined using `:` or `=`.  
-Available parameters:
 
 <details><summary><strong>Click to expand the full list of parameters</strong></summary>
 
