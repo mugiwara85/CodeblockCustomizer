@@ -1035,6 +1035,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     buildDecorations(view: EditorView): DecorationSet {
+      updateValue(false);
       if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state)) {
         return Decoration.none;
       }
