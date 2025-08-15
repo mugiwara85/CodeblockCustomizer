@@ -358,7 +358,16 @@ You can use them simply defining `prompt:<promptID>` on the first line of code b
 
 ### Custom Prompts
 
-In the settings page you can simply create your own prompt. For example if you create a prompt with the name `myprompt`, you can use that simply by defining its name e.g.: `prompt:myprompt`.
+In the settings page you can simply create your own prompt. For example if you create a prompt with the name `myprompt`, you can use that simply by defining its name e.g.: `prompt:myprompt`.  
+You can create a custom prompt by defining its structure, parsing logic, and styling rules using three key settings:
+- `basePrompt`: This is the visual template for your prompt. Use placeholders (`{user}`, `{host}`, `{path}`, `{db}`, `{module}` and `{branch}`) to insert dynamic information.  
+Example: `"{user}@{host}:{path}$"`
+- `parsePromptRegex`: A Regular Expression used to identify and extract parts of a prompt string. It relies on named capture groups (e.g., `(?<user>...)`) to label the parts it finds.  
+Example: `^(?<user>[^@]+)@(?<host>[^:]+)` captures the username and hostname.
+- `highlightGroups`: A JSON object that maps the names from your regex capture groups (e.g., "user") to style classes. This tells the plugin which color to apply to each part of the prompt.  
+Example: `{ "user": "user", "host": "host" }`
+
+The `parsePromptRegex` finds the text for the user and host. The `highlightGroups` setting then links these parts to their respective styles, which are used to apply the correct colors.
 
 ### On-The-Fly Prompts
 
