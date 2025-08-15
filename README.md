@@ -320,7 +320,7 @@ Use the `group` parameter with the same name for each block. Use the optional `t
 
 ![GroupedCodeBlocks.gif](attachments/GroupedCodeBlocks.gif)
 
-> [!error] Limitations
+> [!important] Limitations
 > - The name of the group must be unique per document!
 > - Grouped code blocks are ungrouped when printing to PDF! This can't be changed unfortunately.
 
@@ -363,7 +363,7 @@ In the settings page you can simply create your own prompt. For example if you c
 
 You can also create prompts dynamically in a code block e.g.: `prompt:test` would display `test` at the beginning of every line. You can also use placeholder for the above mentioned parameters, and then define them. In this case the values will be replaced e.g.: `prompt:"{user} at {host} in {path}" user:mugiwara host:PC1 path:/var/www/html`.
 
-> [!error] Limitation
+> [!important] Limitation
 > The colors can **NOT** be set for On-Thy-Fly prompts!
 
 ### Supported commands
