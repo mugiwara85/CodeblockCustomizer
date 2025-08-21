@@ -808,7 +808,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       //const sectionToRerender = renderer.sections.find((s: any) => s.lineStart === lineStart);
       let sectionToRerender;
       for (const section of renderer.sections) {
-        if (section.lineStart <= lineStart && section.lineEnd >= lineStart) {
+        const sectionStartLine = section?.start?.line;
+        const sectionEndLine = section?.end?.line;
+
+        if (sectionStartLine !== undefined && sectionEndLine !== undefined && sectionStartLine <= lineStart && sectionEndLine >= lineStart) {
           if (section.el?.querySelector('pre > code')) {
             sectionToRerender = section;
             break;
@@ -838,7 +841,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         target.renderer.queueRender();
       }
     }
-  }// rerenderCodeblock
+  }
   
   async renderReadingViewOnStart() {
     this.app.workspace.iterateRootLeaves((currentLeaf: WorkspaceLeaf) => {
