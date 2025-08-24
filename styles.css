@@ -545,6 +545,9 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) {
   padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
 }
+.codeblock-customizer .markdown-source-view [class^="codeblock-customizer-line"][style*="--level:"] {
+  padding-left: var(--line-number-gutter-padding);
+}
 
 /* Bracket highlight */
 .markdown-source-view [class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-match {
