@@ -8,8 +8,6 @@ import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCo
 import { ANNOTATION_PATTERN, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
 
-import detectIndent from 'detect-indent';
-
 interface IndentationInfo {
   indentationLevels: number;
   insertCollapse: boolean;
@@ -63,13 +61,6 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
   }
 
   const codeblockLines = fileContentLines.slice(codeBlockSectionInfo.lineStart, codeBlockSectionInfo.lineEnd + 1);
-
-  const codeLines = Array.from(codeblockLines);
-  if (codeLines.length >= 2) {
-    codeLines.shift();
-    codeLines.pop();
-  }
-  const indentationLevels = trackIndentation(codeLines);
   const codeBlockFirstLines = getCodeBlocksFirstLines(codeblockLines);
 
   let charPos = 0;
@@ -84,7 +75,7 @@ export async function ReadingView(codeBlockElement: HTMLElement, context: Markdo
 
   const validCharPos = charPos !== -1 ? charPos : undefined;
 
-  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, indentationLevels, codeblockLines, context, plugin, codeBlockSectionInfo, validCharPos);
+  await processCodeBlockFirstLines(preElements, codeBlockFirstLines, codeblockLines, context, plugin, codeBlockSectionInfo, validCharPos);
 }// ReadingView
 
 async function addCustomSyntaxHighlight(codeblockLines: string[], language: string) {
@@ -111,29 +102,51 @@ async function getPreElements(element: HTMLElement) {
 }// getPreElements
 
 function trackIndentation(lines: string[]): IndentationInfo[] {
-  const codeBlock = lines.join('\n');
-  const indent = detectIndent(codeBlock).indent || '    '; // default to 4 spaces
-
   const result: IndentationInfo[] = [];
   for (let i = 0; i < lines.length; i++) {
-    const currentLevel = getIndentLevel(lines[i], indent);
-    const nextLevel = (i + 1 < lines.length) ? getIndentLevel(lines[i + 1], indent) : 0;
+    const currentLineIsBlank = lines[i].trim() === '';
+    let currentLevel = getIndentLevel(lines[i]);
+    
+    let nextNonBlankLineLevel = -1; 
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() !== '') {
+        nextNonBlankLineLevel = getIndentLevel(lines[j]);
+        break; 
+      }
+    }
+    
+    if (currentLineIsBlank && nextNonBlankLineLevel > 0) {
+      currentLevel = nextNonBlankLineLevel;
+    }
+
+    const nextLevel = (nextNonBlankLineLevel !== -1) ? nextNonBlankLineLevel : 0;
 
     result.push({
       indentationLevels: currentLevel,
-      insertCollapse: nextLevel > currentLevel
+      insertCollapse: !currentLineIsBlank && nextLevel > currentLevel
     });
   }
-  
   return result;
 }// trackIndentation
 
-function getIndentLevel(line: string, indent: string, tabSize = 4): number {
-  let level = 0;
-  while (line.startsWith(indent.repeat(level + 1))) {
-    level++;
+function getIndentLevel(line: string, tabSize = 4): number {
+  const match = line.match(/^(\s*)/);
+  if (!match) {
+    return 0;
   }
-  return level;
+
+  const whitespace = match[1];
+  let totalWidth = 0;
+
+  for (const char of whitespace) {
+    if (char === '\t') {
+      totalWidth += tabSize;
+    } else {
+      totalWidth += 1;
+    }
+  }
+  
+  return Math.floor(totalWidth / tabSize);
 }// getIndentLevel
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
@@ -158,7 +171,7 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
     let codeBlockFirstLines: string[] = [];
     codeBlockFirstLines = getCallouts(calloutText);
-    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, null, [], context, plugin);
+    await processCodeBlockFirstLines(calloutPreElements, codeBlockFirstLines, [], context, plugin);
   }
 }// calloutPostProcessor
 
@@ -204,7 +217,7 @@ export async function admonitionPostProcessor(containerElement: HTMLElement, con
         continue;
       }
 
-      await processCodeBlockFirstLines([preElement as HTMLElement], [firstLine], null, content, context, plugin, { lineStart: startLine, lineEnd: startLine + content.length - 1 } as MarkdownSectionInformation);
+      await processCodeBlockFirstLines([preElement as HTMLElement], [firstLine], content, context, plugin, { lineStart: startLine, lineEnd: startLine + content.length - 1 } as MarkdownSectionInformation);
     }
   }
 
@@ -290,7 +303,7 @@ async function checkCustomSyntaxHighlight(parameters: CBCParameters, codeblockLi
   }
 }// checkCustomSyntaxHighlight
 
-async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], indentationLevels: IndentationInfo[] | null, codeblockLines: string[], context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
+async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockFirstLines: string[], codeblockLines: string[], context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin, sectionInfo?: MarkdownSectionInformation, charPos?: number) {
   if (preElements.length !== codeBlockFirstLines.length)
     return;
 
@@ -310,6 +323,15 @@ async function processCodeBlockFirstLines(preElements: HTMLElement[], codeBlockF
     if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className)))
       while(!preCodeElm.classList.contains("is-loaded"))
         await sleep(2);
+
+    let indentationLevels: IndentationInfo[] | null = null;
+    if (preCodeElm.textContent) {
+      const codeLines = preCodeElm.textContent.split('\n');
+      if (codeLines.length > 0 && codeLines[codeLines.length - 1] === '') {
+        codeLines.pop();
+      }
+      indentationLevels = trackIndentation(codeLines);
+    }
 
     const lineStart = sectionInfo?.lineStart;
     let isParameterRerender = false;
@@ -699,34 +721,42 @@ function createLineNumberElement(lineNumber: number, showNumbers: string) {
   return lineNumberWrapper;
 }// createLineNumberElement
 
-function addIndentLine(inputString: string, insertCollapse = false): string {
-  const indentRegex = /^(?:\t+|( {4})*)/;
+function addIndentLine(inputString: string, insertCollapse = false, logicalIndentLevel = 0): string {
+  const indentRegex = /^((?:<span[^>]*>)*)(?:\t+|( {4})*)/; 
   const match = inputString.match(indentRegex);
-  const indent = match ? match[0] : '';
-  const isTabIndentation = /\t/.test(indent);
-  const numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
-  const indentSpan = `<span class="codeblock-customizer-indentation-guide">${isTabIndentation ? "\t" : "    "}</span>`;
   
-  const spans = Array(numIndentCharacters).fill(indentSpan).join('');
-  
-  let stringWithSpans = inputString.replace(indentRegex, spans);
-
-  if (insertCollapse) {
-    const lastIndentPosition = isTabIndentation ? numIndentCharacters : numIndentCharacters * 4;
-    const iconSpan = `<span class="codeblock-customizer-collapse-icon"></span>`;
-    const indicator = `<span class="codeblock-customizer-collapse-indicator">${iconSpan}</span>`;
-    
-    const temp = inputString;
-    const stringBeforeIndent = temp.substring(0, temp.search(/\S|$/));
-    const stringAfterIndent = temp.substring(stringBeforeIndent.length);
-    
-    const modifiedIndent = stringBeforeIndent.slice(0, lastIndentPosition) + indicator + stringBeforeIndent.slice(lastIndentPosition);
-    const modifiedString = modifiedIndent + stringAfterIndent;
-
-    stringWithSpans = modifiedString.replace(indentRegex, spans);
+  if (!match) {
+    return inputString;
   }
   
-  return stringWithSpans;
+  const leadingTags = match[1] || '';
+  const indent = match[0].replace(leadingTags, '');
+  const isTabIndentation = /\t/.test(indent);
+  let numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
+  
+  if (numIndentCharacters === 0 && logicalIndentLevel > 0) {
+    numIndentCharacters = logicalIndentLevel;
+  }
+
+  const indentSpan = `<span class="codeblock-customizer-indentation-guide">${isTabIndentation ? "\t" : "    "}</span>`;
+  const spansArray = Array(numIndentCharacters).fill(indentSpan);
+
+  if (insertCollapse) {
+    const iconSpan = `<span class="codeblock-customizer-collapse-icon"></span>`;
+    const indicator = `<span class="codeblock-customizer-collapse-indicator">${iconSpan}</span>`;
+
+    if (spansArray.length > 0) {
+      const lastIndex = spansArray.length - 1;
+      spansArray[lastIndex] = spansArray[lastIndex] + indicator;
+    } else {
+      spansArray.push(indicator);
+    }
+  }
+
+  const finalSpans = spansArray.join('');
+  const finalReplacement = leadingTags + finalSpans;
+  
+  return inputString.replace(indentRegex, finalReplacement);
 }// addIndentLine
 
 function extractLinesFromHTML(container: HTMLElement): { htmlLines: string[]; textLines: string[] } {
@@ -1046,8 +1076,7 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
   const totalLines = isRerender ? htmlLines.length : htmlLines.length - 1;
   const prompt = new PromptManager(parameters, totalLines, plugin.settings);
   const annotationsToProcess: { selector: string, type: string, content: string; title?: string }[] = [];
-  
-  const tempDiv = document.createElement('div');
+
   const frag = document.createDocumentFragment();
 
   for (let index = 0; index < totalLines; index++) {
@@ -1088,16 +1117,9 @@ async function highlightLines(preCodeElm: HTMLElement, rawCodeLines: string[], p
       lineWrapper.appendChild(promptNode);
     }
 
-    const indentedLine = addIndentLine(lineContent, (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1].insertCollapse : false);
+    const indentInfo = (indentationLevels && indentationLevels[lineNumber - 1]) ? indentationLevels[lineNumber - 1] : { indentationLevels: 0, insertCollapse: false };
+    const indentedLine = addIndentLine(lineContent, indentInfo.insertCollapse, indentInfo.indentationLevels);
     const parsedLine = settings.codeblock.enableLinks ? parseInput(indentedLine, sourcePath, plugin) : indentedLine;
-
-    tempDiv.innerHTML = parsedLine;
-    let highlightedTextHTML = tempDiv.innerHTML;
-
-    if (highlightedTextHTML.trim() === '') {
-      highlightedTextHTML = '&nbsp;';
-    }
-
     const lineTextEl = createDiv({cls: `codeblock-customizer-line-text`});
     const finalLineHtml = getHighlightedLineHtml(parsedLine, parameters, lineNumber);
 

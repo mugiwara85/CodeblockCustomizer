@@ -841,7 +841,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         target.renderer.queueRender();
       }
     }
-  }
+  }// rerenderCodeblock
   
   async renderReadingViewOnStart() {
     this.app.workspace.iterateRootLeaves((currentLeaf: WorkspaceLeaf) => {
