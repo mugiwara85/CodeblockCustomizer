@@ -1051,8 +1051,10 @@ const stylesDict: StylesDict = {
   "inlineCode.backgroundColor": 'inline-code-background-color',
   "inlineCode.textColor": 'inline-code-text-color',
   "groupedCodeBlocks.activeTabBackgroundColor": 'groupedcodeblock-active-tab-color',
+  "groupedCodeBlocks.activeTabTextColor": 'groupedcodeblock-active-tab-text-color',
   "groupedCodeBlocks.hoverTabBackgroundColor": 'groupedcodeblock-hover-tab-background-color',
   "groupedCodeBlocks.hoverTabTextColor": 'groupedcodeblock-hover-tab-text-color',
+  "groupedCodeBlocks.headerLineColor": 'groupedcodeblock-header-line-color',
   "annotations.colors.note": "annotations-note-color",
   "annotations.colors.warn": "annotations-warn-color",
   "annotations.colors.error": "annotations-error-color",
@@ -1115,6 +1117,13 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
 
     return styling + languageStyling;
   }, '');
+
+  const groupedHeaderStyles = `
+    .codeblock-customizer-header-group-container,
+    .codeblock-customizer-header-container-specific:has(.codeblock-customizer-header-group-tabs) {
+      --codeblock-customizer-header-line-color: var(--codeblock-customizer-groupedcodeblock-header-line-color);
+    }
+  `;
 
   const textSettingsStyles = `
     body.codeblock-customizer .codeblock-customizer-header-language-tag,
@@ -1213,7 +1222,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     ${printRules}
   `;
 
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.SelectedTheme.settings);
 }// updateSettingStyles
@@ -1415,7 +1424,7 @@ function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.remove('codeblock-customizer-show-inline-code-icons');
   }
 
-}// updateSettingStyles
+}// updateSettingClasses
 
 function formatStyles(colors: ThemeColors, settings: ThemeSettings, forceCurrentColorUse: boolean) {
   return `

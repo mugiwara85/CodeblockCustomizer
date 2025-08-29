@@ -38,8 +38,10 @@ export interface Colors {
   },
   groupedCodeBlocks: {
     activeTabBackgroundColor: string;
+    activeTabTextColor: string;
     hoverTabBackgroundColor: string;
     hoverTabTextColor: string;
+    headerLineColor: string;
   },
   annotations: {
     colors: Record<string, string>;
@@ -179,6 +181,93 @@ export interface CodeblockCustomizerSettings {
   languageSpecificLanguageName: string;
 }
 
+// default settings for all themes
+const defaultThemeSettings: ThemeSettings = {
+  codeblock: {
+    enableLineNumbers: true,
+    enableActiveLineHighlight: true,
+    codeBlockBorderStylingPosition: 'disable',
+    showIndentationLines: false,
+    enableLinks: false,
+    enableLinkUpdate: false,
+    enableBracketHighlight: true,
+    highlightNonMatchingBrackets: true,
+    enableSelectionMatching: true,
+    unwrapcode: false,
+    hideFenceLines: false,
+    buttons: {
+      alwaysShowButtons: false,
+      alwaysShowCopyCodeButton: false,
+      enableSelectCodeButton: false,
+      enableDeleteCodeButton: false,
+      enableWrapCodeButton: false,
+    },
+    folding: {
+      inverseFold: false,
+      rememberFoldState: true,
+      scope: FoldingScope.NoFoldSpecified,
+      persistence: FoldingPersistence.Session,
+    },
+  },
+  textHighlight: {
+    lineSeparator: '',
+    textSeparator: '',
+  },
+  semiFold: {
+    enableSemiFold: false,
+    visibleLines: 5,
+    showAdditionalUncollapseButon: false,
+  },
+  header: {
+    boldText: false,
+    italicText: false,
+    collapseIconPosition: 'hide',
+    collapsedCodeText: '',
+    codeblockLangBoldText: true,
+    codeblockLangItalicText: true,
+    alwaysDisplayCodeblockLang: false,
+    alwaysDisplayCodeblockIcon: false,
+    displayCodeBlockLanguage: true,
+    displayCodeBlockIcon: true,
+    disableFoldUnlessSpecified: false,
+  },
+  gutter: {
+    highlightActiveLineNr: true,
+    enableHighlight: false,
+  },
+  inlineCode: {
+    enableInlineCodeStyling: true,
+    enableSyntaxHighlight: true,
+    showIcons: false,
+    enableCopyOnClick: true,
+    copyModifierKey: InlineCodeModifierKeys.CTRL,
+  },
+  printing: {
+    enablePrintToPDFStyling: true,
+    forceCurrentColorUse: false,
+    uncollapseDuringPrint: true,
+    printAnnotationsAsComments: false,
+    avoidPageBreaks: false,
+  },
+  common: {
+    enableInSourceMode: false,
+  },
+  prompts: {
+    editedDefaults: {},
+    customPrompts: {},
+    includePromptsInCopy: false,
+  },
+  groupedCodeBlocks: {
+    rememberTabState: true,
+    persistence: TabPersistence.Session,
+  },
+  annotations: {
+    convertAllComments: false,
+    excludeAnnotationsFromCopy: false,
+  },
+  enableEditorActiveLineHighlight: true,
+};
+
 const SELECTION_MATCH_COLOR = '#99ff7780';
 
 const DarkPromptColors: Record<string, Record<string, string>> = {
@@ -280,105 +369,7 @@ const DarkPromptColors: Record<string, Record<string, string>> = {
   }
 };
 
-const SolarizedLightPromptColors: Record<string, Record<string, string>> = {
-  "bash": {
-    "prompt-user": "#61afef",
-    "prompt-host": "#e5c07b",
-    "prompt-path": "#98c379",
-  },
-  "bashalt": {
-    "prompt-user": "#61afef",
-    "prompt-host": "#d19a66",
-    "prompt-path": "#56b6c2",
-    "prompt-hash": "#ff5555",
-  },
-  "kali": {
-    "prompt-user": "#2679F2",
-    "prompt-host": "#2679F2",
-    "prompt-path": "#586e75",
-    "prompt-kali-symbol": "#2679F2",
-    "prompt-dollar": "#2679F2",
-    "prompt-dash": "#56AA9B",
-    "prompt-bracket-open": "#56AA9B",
-    "prompt-bracket-close": "#56AA9B",
-    "prompt-square-open": "#56AA9B",
-    "prompt-square-close": "#56AA9B",
-  },
-  "zshgit": {
-    "prompt-path": "#61afef",
-    "prompt-branch": "#c678dd",
-    "prompt-zsh-status-error": "#ff5555",
-    "prompt-zsh-status-ok": "#50fa7b",
-    "prompt-zsh-symbol": "#00ff00",
-    "prompt-symbol": "#8be9fd",
-  },
-  "zsh": {
-    "prompt-user": "#56b6c2",
-    "prompt-host": "#e06c75",
-    "prompt-path": "#98c379",
-    "prompt-percent": "#abb2bf",
-  },
-  "fish": {
-    "prompt-path": "#61afef",
-  },
-  "ps": {
-    "prompt-path": "#5b9bd5",
-    "prompt-symbol": "#e5c07b",
-    "prompt-greater-than": "#e5c07b",
-  },
-  "cmd": {
-    "prompt-path": "#87ceeb ",
-    "prompt-greater-than": "#aaaaaa",
-  },
-  "docker": {
-    "prompt-user": "#61afef",
-    "prompt-host": "#e06c75",
-    "prompt-path": "#98c379",
-  },
-  "postgres": {
-    "prompt-db": "#fabd2f",
-  },
-  "msf": {
-    "prompt-msf": "#586E75",
-    "prompt-keyword": "#586E75",
-    "prompt-module": "#E20303",
-    "prompt-greater-than": "#586E75",
-    "prompt-bracket-open": "#586E75",
-    "prompt-bracket-close": "#586E75",
-  },
-  "cstrike": {
-    "prompt-beacon": "#586E75",
-    "prompt-greater-than": "#586E75"
-  },
-  "global": {
-    "prompt-at": DEFAULT_PROMPT_COLOR,
-    "prompt-colon": DEFAULT_PROMPT_COLOR,
-    "prompt-dollar": DEFAULT_PROMPT_COLOR,
-    "prompt-hash": DEFAULT_PROMPT_COLOR,
-    "prompt-dash":DEFAULT_PROMPT_COLOR,
-    "prompt-bracket-open": DEFAULT_PROMPT_COLOR,
-    "prompt-bracket-close": DEFAULT_PROMPT_COLOR,
-    "prompt-square-open": DEFAULT_PROMPT_COLOR,
-    "prompt-square-close": DEFAULT_PROMPT_COLOR,
-    "prompt-greater-than": DEFAULT_PROMPT_COLOR,
-    "prompt-symbol": "#888888",
-    "prompt-user": DEFAULT_PROMPT_COLOR,
-    "prompt-host": DEFAULT_PROMPT_COLOR,
-    "prompt-path": DEFAULT_PROMPT_COLOR,
-    "prompt-branch": DEFAULT_PROMPT_COLOR,
-    "prompt-db": DEFAULT_PROMPT_COLOR,
-    "prompt-zsh-symbol": DEFAULT_PROMPT_COLOR,
-    "prompt-zsh-status-error": DEFAULT_PROMPT_COLOR,
-    "prompt-zsh-status-ok": DEFAULT_PROMPT_COLOR,
-    "prompt-msf": DEFAULT_PROMPT_COLOR,
-    "prompt-keyword": DEFAULT_PROMPT_COLOR,
-    "prompt-module": DEFAULT_PROMPT_COLOR,
-    "prompt-beacon": DEFAULT_PROMPT_COLOR,
-    "prompt-kali-symbol": DEFAULT_PROMPT_COLOR,
-    "prompt-percent": DEFAULT_PROMPT_COLOR
-  }
-};
-
+// default light colors, but this needs customization almost for every light theme
 const ObsidianLightPromptPromptColors: Record<string, Record<string, string>> = {
   "bash": {
     "prompt-user": "#61afef",
@@ -426,7 +417,7 @@ const ObsidianLightPromptPromptColors: Record<string, Record<string, string>> = 
     "prompt-greater-than": "#e5c07b",
   },
   "cmd": {
-    "prompt-path": "#87ceeb ",
+    "prompt-path": "#87ceeb",
     "prompt-greater-than": "#aaaaaa",
   },
   "docker": {
@@ -570,6 +561,17 @@ export const RootPromptColors: Record<string, Record<string, string>> = {
   }
 };*/
 
+// Solarized Theme
+const SolarizedLightPromptColors = structuredClone(ObsidianLightPromptPromptColors);
+SolarizedLightPromptColors.kali["prompt-path"] = "#586e75";
+SolarizedLightPromptColors.msf["prompt-msf"] = "#586E75";
+SolarizedLightPromptColors.msf["prompt-keyword"] = "#586E75";
+SolarizedLightPromptColors.msf["prompt-greater-than"] = "#586E75";
+SolarizedLightPromptColors.msf["prompt-bracket-open"] = "#586E75";
+SolarizedLightPromptColors.msf["prompt-bracket-close"] = "#586E75";
+SolarizedLightPromptColors.cstrike["prompt-beacon"] = "#586E75";
+SolarizedLightPromptColors.cstrike["prompt-greater-than"] = "#586E75";
+
 const SolarizedDarkColors = {
   codeblock: {
     activeLineColor: '#073642',
@@ -608,8 +610,10 @@ const SolarizedDarkColors = {
   },
   groupedCodeBlocks: {
     activeTabBackgroundColor: '#B58900',
+    activeTabTextColor: '#000000',
     hoverTabBackgroundColor: '#00AAAA',
     hoverTabTextColor: '#FFFFFF',
+    headerLineColor: '#46cced',
   },
   annotations: {
     colors: {
@@ -649,7 +653,7 @@ const SolarizedLightColors = {
   gutter: {
     textColor: '#6c6c6c',
     backgroundColor: '#EDE8D6',
-    activeLineNrColor: '#866704',
+    activeLineNrColor: '#D8A609',
   },
   inlineCode: {
     backgroundColor: '#E9DFBA',
@@ -663,8 +667,10 @@ const SolarizedLightColors = {
   },
   groupedCodeBlocks: {
     activeTabBackgroundColor: '#FFD700',
+    activeTabTextColor: '#C25F30',
     hoverTabBackgroundColor: '#A6A18F',//'#CFCAB3',
     hoverTabTextColor: '#C25F30',
+    headerLineColor: '#EDD489',
   },
   annotations: {
     colors: {
@@ -682,97 +688,14 @@ const SolarizedLightColors = {
 
 const Solarized: Theme = {
   baseTheme: "Solarized",
-  settings: {
-    codeblock: {
-      enableLineNumbers: true,
-      enableActiveLineHighlight: true,
-      codeBlockBorderStylingPosition: 'disable',
-      showIndentationLines: false,
-      enableLinks: false,
-      enableLinkUpdate: false,
-      enableBracketHighlight: true,
-      highlightNonMatchingBrackets: true,
-      enableSelectionMatching: false,
-      unwrapcode: false,
-      hideFenceLines: false,
-      buttons: {
-        alwaysShowButtons: false,
-        alwaysShowCopyCodeButton: false,
-        enableSelectCodeButton: false,
-        enableDeleteCodeButton: false,
-        enableWrapCodeButton: false,
-      },
-      folding: {
-        inverseFold: false,
-        rememberFoldState: true,
-        scope: FoldingScope.NoFoldSpecified,
-        persistence: FoldingPersistence.Session,
-      },
-    },
-    textHighlight: {
-      lineSeparator: '',
-      textSeparator: '',
-    },
-    semiFold: {
-      enableSemiFold: false,
-      visibleLines: 5,
-      showAdditionalUncollapseButon: false,
-    },
-    header: {
-      boldText: false,
-      italicText: false,
-      collapseIconPosition: 'hide',
-      collapsedCodeText: '',
-      codeblockLangBoldText: true,
-      codeblockLangItalicText: true,
-      alwaysDisplayCodeblockLang: false,
-      alwaysDisplayCodeblockIcon: false,
-      displayCodeBlockLanguage: true,
-      displayCodeBlockIcon: false,
-      disableFoldUnlessSpecified: false,
-    },
-    gutter: {
-      highlightActiveLineNr: false,
-      enableHighlight: false,
-    },
-    inlineCode: {
-      enableInlineCodeStyling: true,
-      enableSyntaxHighlight: true,
-      showIcons: false,
-      enableCopyOnClick: true,
-      copyModifierKey: InlineCodeModifierKeys.CTRL,
-    },
-    printing: {
-      enablePrintToPDFStyling: true,
-      forceCurrentColorUse: false,
-      uncollapseDuringPrint: true,
-      printAnnotationsAsComments: false,
-      avoidPageBreaks: false,
-    },
-    common: {
-      enableInSourceMode: false,
-    },
-    prompts: {
-      editedDefaults: {},
-      customPrompts: {},
-      includePromptsInCopy: false,
-    },
-    groupedCodeBlocks: {
-      rememberTabState: true,
-      persistence: TabPersistence.Session,
-    },
-    annotations: {
-      convertAllComments: false,
-      excludeAnnotationsFromCopy: false,
-    },
-    enableEditorActiveLineHighlight: true,
-  },
+  settings: structuredClone(defaultThemeSettings),
   colors: {
     dark: SolarizedDarkColors,
     light: SolarizedLightColors,
   },
 }
 
+// Obsidian Theme
 const ObsidianDarkColors = {
   codeblock: {
     activeLineColor: "--color-base-30",
@@ -811,8 +734,10 @@ const ObsidianDarkColors = {
   },
   groupedCodeBlocks: {
     activeTabBackgroundColor: '#3A3A3A',
+    activeTabTextColor: "--code-comment",
     hoverTabBackgroundColor: '#333333',
     hoverTabTextColor: '#CCCCCC',
+    headerLineColor: "--color-base-30",
   },
   annotations: {
     colors: {
@@ -866,8 +791,10 @@ const ObsidianLightColors = {
   },
   groupedCodeBlocks: {
     activeTabBackgroundColor: '#E6E6E6',
+    activeTabTextColor: "--code-comment",
     hoverTabBackgroundColor: '#F0F0F0',
     hoverTabTextColor: '#888888',
+    headerLineColor: "--color-base-30",
   },
   annotations: {
     colors: {
@@ -883,102 +810,617 @@ const ObsidianLightColors = {
   languageSpecificColors: {},
 }
 
+// theme specific override
+const obsidianSettings = structuredClone(defaultThemeSettings);
+obsidianSettings.gutter.enableHighlight = true;
+
 const Obsidian: Theme = {
   baseTheme: "Obsidian",
-  settings: {
-    codeblock: {
-      enableLineNumbers: true,
-      enableActiveLineHighlight: true,
-      codeBlockBorderStylingPosition: 'disable',
-      showIndentationLines: false,
-      enableLinks: false,
-      enableLinkUpdate: false,
-      enableBracketHighlight: true,
-      highlightNonMatchingBrackets: true,
-      enableSelectionMatching: false,
-      unwrapcode: false,
-      hideFenceLines: false,
-      buttons: {
-        alwaysShowButtons: false,
-        alwaysShowCopyCodeButton: false,
-        enableSelectCodeButton: false,
-        enableDeleteCodeButton: false,
-        enableWrapCodeButton: false,
-      },
-      folding: {
-        inverseFold: false,
-        rememberFoldState: true,
-        scope: FoldingScope.NoFoldSpecified,
-        persistence: FoldingPersistence.Session,
-      },
-    },
-    textHighlight: {
-      lineSeparator: '',
-      textSeparator: '',
-    },
-    semiFold: {
-      enableSemiFold: false,
-      visibleLines: 5,
-      showAdditionalUncollapseButon: false,
-    },
-    header: {
-      boldText: false,
-      italicText: false,
-      collapseIconPosition: 'hide',
-      collapsedCodeText: '',
-      codeblockLangBoldText: true,
-      codeblockLangItalicText: true,
-      alwaysDisplayCodeblockLang: false,
-      alwaysDisplayCodeblockIcon: false,
-      displayCodeBlockLanguage: true,
-      displayCodeBlockIcon: false,
-      disableFoldUnlessSpecified: false,
-    },
-    gutter: {
-      highlightActiveLineNr: true,
-      enableHighlight: true,
-    },
-    inlineCode: {
-      enableInlineCodeStyling: true,
-      enableSyntaxHighlight: true,
-      showIcons: false,
-      enableCopyOnClick: true,
-      copyModifierKey: InlineCodeModifierKeys.CTRL
-    },
-    printing: {
-      enablePrintToPDFStyling: true,
-      forceCurrentColorUse: false,
-      uncollapseDuringPrint: true,
-      printAnnotationsAsComments: false,
-      avoidPageBreaks: false,
-    },
-    common: {
-      enableInSourceMode: false,
-    },
-    prompts: {
-      editedDefaults: {},
-      customPrompts: {},
-      includePromptsInCopy: false,
-    },
-    groupedCodeBlocks: {
-      rememberTabState: true,
-      persistence: TabPersistence.Session,
-    },
-    annotations: {
-      convertAllComments: false,
-      excludeAnnotationsFromCopy: false,
-    },
-    enableEditorActiveLineHighlight: true,
-  },
+  settings: obsidianSettings,
   colors: {
     dark: ObsidianDarkColors,
     light: ObsidianLightColors,
   },
 }
 
+// Gruvbox Theme
+const gruvboxLightPromptColors = structuredClone(ObsidianLightPromptPromptColors);
+gruvboxLightPromptColors.bash["prompt-host"] = "#504945";
+gruvboxLightPromptColors.bash["prompt-path"] = "#68924A";
+gruvboxLightPromptColors.cmd["prompt-path"] = "#5B9BD5";
+gruvboxLightPromptColors.ps["prompt-symbol"] = "#B9791D";
+gruvboxLightPromptColors.ps["prompt-greater-than"] = "#B9791D";
+gruvboxLightPromptColors.postgres["prompt-db"] = "#BB8D22";
+gruvboxLightPromptColors.zshgit["prompt-zsh-symbol"] = "#08B908";
+gruvboxLightPromptColors.zshgit["prompt-symbol"] = "#6EB9C9";
+
+const gruvboxLightRootPromptColors = structuredClone(RootPromptColors);
+gruvboxLightRootPromptColors.bash["prompt-host"] = "#504945";
+gruvboxLightRootPromptColors.bash["prompt-path"] = "#B9791D";
+gruvboxLightRootPromptColors.bashalt["prompt-path"] = "#B9791D";
+gruvboxLightRootPromptColors.kali["prompt-path"] = "#B9791D";
+gruvboxLightRootPromptColors.zsh["prompt-path"] = "#B9791D";
+gruvboxLightRootPromptColors.docker["prompt-path"] = "#B9791D";
+
+const GruvboxDarkColors = {
+  codeblock: {
+    activeLineColor: '#504945',
+    backgroundColor: '#3c3836',
+    highlightColor: '#5B5654',
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: '#ebdbb2',
+    bracketHighlightColorMatch: '#b8bb26',
+    bracketHighlightColorNoMatch: '#fb4934',
+    bracketHighlightBackgroundColorMatch: '#3c3836',
+    bracketHighlightBackgroundColorNoMatch: '#3c3836',
+    selectionMatchHighlightColor: '#943735',
+  },
+  header: {
+    backgroundColor: '#504945',
+    textColor: '#ebdbb2',
+    lineColor: '#FE8019',
+    codeBlockLangTextColor: '#282828',
+    codeBlockLangBackgroundColor: '#D65D0E',
+  },
+  gutter: {
+    textColor: '#A89984',
+    backgroundColor: '#504945',
+    activeLineNrColor: '#ebdbb2',
+  },
+  inlineCode: {
+    backgroundColor: '#3c3836',
+    textColor: '#83a598',
+  },
+  prompts: {
+    promptColors: DarkPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#fabd2f',
+    activeTabTextColor: '#282828',
+    hoverTabBackgroundColor: '#FE8019',
+    hoverTabTextColor: '#ebdbb2',
+    headerLineColor: '#FE8019',
+  },
+  annotations: {
+    colors: {
+      note: '#83a598',
+      warn: '#fabd2f',
+      error: '#fb4934',
+      todo: '#b8bb26',
+      question: '#d3869b',
+      see: '#8ec07c',
+    }
+  },
+  editorActiveLineColor: '#3c383680',
+  languageSpecificColors: {},
+}
+
+const GruvboxLightColors = {
+  codeblock: {
+    activeLineColor: '#E0D2AE',
+    backgroundColor: '#EBDBB2',
+    highlightColor: '#d5c4a1',
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: '#3c3836',
+    bracketHighlightColorMatch: '#282828',
+    bracketHighlightColorNoMatch: '#CC241D',
+    bracketHighlightBackgroundColorMatch: '#8EC07C',
+    bracketHighlightBackgroundColorNoMatch: '#BDAE93',
+    selectionMatchHighlightColor: '#83a598', //'#D47769',
+  },
+  header: {
+    backgroundColor: '#D5C4A1',
+    textColor: '#3c3836',
+    lineColor: '#D65D0E',
+    codeBlockLangTextColor: '#282828',
+    codeBlockLangBackgroundColor: '#BDAE93',
+  },
+  gutter: {
+    textColor: '#928374',
+    backgroundColor: '#E0D2AE',
+    activeLineNrColor: '#3c3836',
+  },
+  inlineCode: {
+    backgroundColor: '#ebdbb2',
+    textColor: '#83a598',
+  },
+  prompts: {
+    promptColors: gruvboxLightPromptColors,
+    rootPromptColors: gruvboxLightRootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#D65D0E',
+    activeTabTextColor: '#282828',
+    hoverTabBackgroundColor: '#D65D0E',
+    hoverTabTextColor: '#282828',//'#83A598',
+    headerLineColor: '#D65D0E',
+  },
+  annotations: {
+    colors: {
+      note: '#458588',
+      warn: '#d79921',
+      error: '#cc241d',
+      todo: '#98971a',
+      question: '#b16286',
+      see: '#689d6a',
+    }
+  },
+  editorActiveLineColor: '#ebdbb280',
+  languageSpecificColors: {},
+}
+
+const Gruvbox: Theme = {
+  baseTheme: "Gruvbox",
+  settings: structuredClone(defaultThemeSettings),
+  colors: {
+    dark: GruvboxDarkColors,
+    light: GruvboxLightColors,
+  },
+}
+
+// Dracula Theme
+const dracula = {
+  background: '#44475a',
+  currentLine: '#44475a',
+  selection: '#44475a',
+  foreground: '#f8f8f2',
+  comment: '#6272a4',
+  cyan: '#8be9fd',
+  green: '#50fa7b',
+  orange: '#ffb86c',
+  pink: '#ff79c6',
+  purple: '#bd93f9',
+  red: '#ff5555',
+  yellow: '#f1fa8c',
+};
+
+const DraculaDarkColors = {
+  codeblock: {
+    activeLineColor: '#3B3D4E',
+    backgroundColor: dracula.background,
+    highlightColor: dracula.comment,
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: dracula.foreground,
+    bracketHighlightColorMatch: dracula.pink,
+    bracketHighlightColorNoMatch: dracula.red,
+    bracketHighlightBackgroundColorMatch: dracula.currentLine,
+    bracketHighlightBackgroundColorNoMatch: dracula.currentLine,
+    selectionMatchHighlightColor: dracula.purple,
+  },
+  header: {
+    backgroundColor: dracula.currentLine,
+    textColor: dracula.foreground,
+    lineColor: dracula.purple,
+    codeBlockLangTextColor: dracula.foreground,
+    codeBlockLangBackgroundColor: dracula.comment,
+  },
+  gutter: {
+    textColor: '#f8f8f299',
+    backgroundColor: '#3B3D4E',
+    activeLineNrColor: dracula.foreground,
+  },
+  inlineCode: {
+    backgroundColor: dracula.currentLine,
+    textColor: dracula.cyan,
+  },
+  prompts: {
+    promptColors: DarkPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: dracula.purple,
+    activeTabTextColor: dracula.foreground,
+    hoverTabBackgroundColor: dracula.purple,
+    hoverTabTextColor: dracula.foreground,
+    headerLineColor: dracula.purple,
+  },
+  annotations: {
+    colors: {
+      note: dracula.cyan,
+      warn: dracula.yellow,
+      error: dracula.red,
+      todo: dracula.orange,
+      question: dracula.purple,
+      see: dracula.green,
+    }
+  },
+  editorActiveLineColor: `${dracula.currentLine}80`,
+  languageSpecificColors: {},
+};
+
+const DraculaLightColors = {
+  codeblock: {
+    activeLineColor: '#e9e9f2',
+    backgroundColor: '#f8f8f2',
+    highlightColor: '#e1d6f5',
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: '#282a36',
+    bracketHighlightColorMatch: '#F8F8F2',
+    bracketHighlightColorNoMatch: '#f8f8f2',
+    bracketHighlightBackgroundColorMatch: '#6272A4',
+    bracketHighlightBackgroundColorNoMatch: dracula.red,
+    selectionMatchHighlightColor: '#bd93f9',
+  },
+  header: {
+    backgroundColor: '#e9e9f2',
+    textColor: '#282a36',
+    lineColor: dracula.pink,
+    codeBlockLangTextColor: '#f8f8f2',
+    codeBlockLangBackgroundColor: dracula.comment,
+  },
+  gutter: {
+    textColor: '#AEAEB8',
+    backgroundColor: '#e9e9f2',
+    activeLineNrColor: '#44475A',
+  },
+  inlineCode: {
+    backgroundColor: '#e9e9f2',
+    textColor: dracula.purple,
+  },
+  prompts: {
+    promptColors: ObsidianLightPromptPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: dracula.pink,
+    activeTabTextColor: '#282a36',
+    hoverTabBackgroundColor: dracula.pink,
+    hoverTabTextColor: '#282a36',
+    headerLineColor: dracula.pink,
+  },
+  annotations: {
+    colors: {
+      note: '#009688', 
+      warn: '#d79921',
+      error: '#cc241d',
+      todo: '#d65d0e',
+      question: '#b16286',
+      see: '#43a047',
+    }
+  },
+  editorActiveLineColor: '#e9e9f280',
+  languageSpecificColors: {},
+};
+
+const Dracula: Theme = {
+  baseTheme: "Dracula",
+  settings: structuredClone(defaultThemeSettings),
+  colors: {
+    dark: DraculaDarkColors,
+    light: DraculaLightColors,
+  },
+}
+
+// Nord Theme
+const nordLightPromptColors = structuredClone(ObsidianLightPromptPromptColors);
+nordLightPromptColors.zshgit["prompt-symbol"] = "#77C8DA";
+
+const nord = {
+  polarNight0: '#2E3440', // Darkest Background
+  polarNight1: '#3B4252', // Lighter Background
+  polarNight2: '#434C5E',
+  polarNight3: '#4C566A', // Lightest Background / Comments
+  snowStorm0: '#D8DEE9', // White
+  snowStorm1: '#E5E9F0',
+  snowStorm2: '#ECEFF4', // Purest White
+  frost0: '#8FBCBB', // Frost Green
+  frost1: '#88C0D0', // Frost Light Blue
+  frost2: '#81A1C1', // Frost Blue
+  frost3: '#5E81AC', // Frost Darker Blue
+  aurora0: '#BF616A', // Red
+  aurora1: '#D08770', // Orange
+  aurora2: '#EBCB8B', // Yellow
+  aurora3: '#A3BE8C', // Green
+  aurora4: '#B48EAD', // Purple
+};
+
+const NordDarkColors = {
+  codeblock: {
+    activeLineColor: nord.polarNight2,
+    backgroundColor: nord.polarNight1,
+    highlightColor: nord.polarNight3,
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: nord.snowStorm1,
+    bracketHighlightColorMatch: nord.aurora2,
+    bracketHighlightColorNoMatch: nord.aurora0,
+    bracketHighlightBackgroundColorMatch: nord.polarNight2,
+    bracketHighlightBackgroundColorNoMatch: nord.polarNight2,
+    selectionMatchHighlightColor: '#865562',
+  },
+  header: {
+    backgroundColor: nord.polarNight2,
+    textColor: nord.snowStorm1,
+    lineColor: nord.aurora2,
+    codeBlockLangTextColor: nord.snowStorm1,
+    codeBlockLangBackgroundColor: nord.aurora1,
+  },
+  gutter: {
+    textColor: `${nord.snowStorm0}99`,
+    backgroundColor: nord.polarNight2,
+    activeLineNrColor: nord.snowStorm2,
+  },
+  inlineCode: {
+    backgroundColor: nord.polarNight1,
+    textColor: nord.frost1,
+  },
+  prompts: {
+    promptColors: DarkPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: nord.aurora2,
+    activeTabTextColor: nord.polarNight0,
+    hoverTabBackgroundColor: nord.aurora2,
+    hoverTabTextColor: nord.polarNight0,
+    headerLineColor: nord.aurora2,
+  },
+  annotations: {
+    colors: {
+      note: nord.frost1,
+      warn: nord.aurora2,
+      error: nord.aurora0,
+      todo: nord.aurora1,
+      question: nord.aurora4,
+      see: nord.aurora3,
+    }
+  },
+  editorActiveLineColor: `#bf616a33`,
+  languageSpecificColors: {},
+};
+
+const NordLightColors = {
+  codeblock: {
+    activeLineColor: nord.snowStorm0,
+    backgroundColor: nord.snowStorm2,
+    highlightColor: '#5E81AC66',
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: nord.polarNight1,
+    bracketHighlightColorMatch: nord.snowStorm2,
+    bracketHighlightColorNoMatch: nord.snowStorm2,
+    bracketHighlightBackgroundColorMatch: nord.frost3,
+    bracketHighlightBackgroundColorNoMatch: nord.aurora0,
+    selectionMatchHighlightColor: '#CC9BA3',
+  },
+  header: {
+    backgroundColor: nord.snowStorm0,
+    textColor: nord.polarNight0,
+    lineColor: nord.aurora0,
+    codeBlockLangTextColor: nord.polarNight0,
+    codeBlockLangBackgroundColor: nord.aurora1,
+  },
+  gutter: {
+    textColor: nord.polarNight3,
+    backgroundColor: nord.snowStorm0,
+    activeLineNrColor: nord.aurora0,
+  },
+  inlineCode: {
+    backgroundColor: nord.snowStorm0,
+    textColor: nord.frost1,
+  },
+  prompts: {
+    promptColors: nordLightPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: nord.aurora0,
+    activeTabTextColor: nord.snowStorm2,
+    hoverTabBackgroundColor: nord.aurora0,
+    hoverTabTextColor: nord.snowStorm2,
+    headerLineColor: nord.aurora0,
+  },
+  annotations: {
+    colors: {
+      note: nord.frost3,
+      warn: nord.aurora1,
+      error: nord.aurora0,
+      todo: nord.aurora1,
+      question: nord.aurora4,
+      see: nord.aurora3,
+    }
+  },
+  editorActiveLineColor: `#bf616a1a`,
+  languageSpecificColors: {},
+};
+
+const Nord: Theme = {
+  baseTheme: "Nord",
+  settings: structuredClone(defaultThemeSettings),
+  colors: {
+    dark: NordDarkColors,
+    light: NordLightColors,
+  },
+};
+
+// Tokyo Night Theme
+const tokyoLightPromptColors = structuredClone(ObsidianLightPromptPromptColors);
+tokyoLightPromptColors.bash["prompt-host"] = "#A88E5C";
+tokyoLightPromptColors.bash["prompt-path"] = "#81A566";
+tokyoLightPromptColors.zshgit["prompt-zsh-symbol"] = "#08B908";
+tokyoLightPromptColors.zshgit["prompt-symbol"] = "#6EB9C9";
+tokyoLightPromptColors.docker["prompt-path"] = "#81A566";
+tokyoLightPromptColors.zsh["prompt-path"] = "#81A566";
+tokyoLightPromptColors.ps["prompt-symbol"] = "#B9791D";
+tokyoLightPromptColors.ps["prompt-greater-than"] = "#B9791D";
+tokyoLightPromptColors.cmd["prompt-path"] = "#5B9BD5";
+tokyoLightPromptColors.postgres["prompt-db"] = "#BB8D22";
+
+const tokyoLightRootPromptColors = structuredClone(RootPromptColors);
+tokyoLightRootPromptColors.bash["prompt-host"] = "#A88E5C";
+tokyoLightRootPromptColors.bash["prompt-path"] = "#B98131";
+tokyoLightRootPromptColors.bashalt["prompt-path"] = "#B98131";
+tokyoLightRootPromptColors.docker["prompt-path"] = "#B9791D";
+tokyoLightRootPromptColors.zsh["prompt-path"] = "#B9791D";
+tokyoLightRootPromptColors.kali["prompt-path"] = "#B9791D";
+
+const tokyoNight = {
+  bg: '#1a1b26',
+  bgDark: '#16161e',
+  bgHighlight: '#292e42',
+  terminalBlack: '#414868',
+  fg: '#c0caf5',
+  fgDark: '#a9b1d6',
+  fgGutter: '#3b4261',
+  dark3: '#545c7e',
+  comment: '#565f89',
+  blue: '#7aa2f7',
+  cyan: '#7dcfff',
+  green: '#9ece6a',
+  orange: '#ff9e64',
+  pink: '#f7768e',
+  purple: '#bb9af7',
+  red: '#f7768e',
+  yellow: '#e0af68',
+};
+
+const TokyoNightDarkColors = {
+  codeblock: {
+    activeLineColor: tokyoNight.bgHighlight,
+    backgroundColor: '#24283b',
+    highlightColor: tokyoNight.terminalBlack,
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: tokyoNight.fg,
+    bracketHighlightColorMatch: tokyoNight.green,
+    bracketHighlightColorNoMatch: tokyoNight.red,
+    bracketHighlightBackgroundColorMatch: tokyoNight.bgHighlight,
+    bracketHighlightBackgroundColorNoMatch: tokyoNight.bgHighlight,
+    selectionMatchHighlightColor: '#384676',
+  },
+  header: {
+    backgroundColor: tokyoNight.bgHighlight,
+    textColor: tokyoNight.fg,
+    lineColor: '#387575',
+    codeBlockLangTextColor: tokyoNight.fg,
+    codeBlockLangBackgroundColor: tokyoNight.comment,
+  },
+  gutter: {
+    textColor: tokyoNight.comment,
+    backgroundColor: tokyoNight.bgHighlight,
+    activeLineNrColor: tokyoNight.fgDark,
+  },
+  inlineCode: {
+    backgroundColor: '#24283b',
+    textColor: '#c0caf5',
+  },
+  prompts: {
+    promptColors: DarkPromptColors,
+    rootPromptColors: RootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: '#387575',
+    activeTabTextColor: tokyoNight.fg,
+    hoverTabBackgroundColor: '#387575',
+    hoverTabTextColor: tokyoNight.fg,
+    headerLineColor: '#387575',
+  },
+  annotations: {
+    colors: {
+      note: tokyoNight.cyan,
+      warn: tokyoNight.yellow,
+      error: tokyoNight.red,
+      todo: tokyoNight.orange,
+      question: tokyoNight.purple,
+      see: tokyoNight.green,
+    }
+  },
+  editorActiveLineColor: '#3D4462BF',
+  languageSpecificColors: {},
+};
+
+const TokyoNightLightColors = {
+  codeblock: {
+    activeLineColor: '#B5B7BA',
+    backgroundColor: '#c3c5c9',
+    highlightColor: '#d5d6e2',
+    alternateHighlightColors: {},
+    languageBorderColors: {},
+    textColor: '#343b58',
+    bracketHighlightColorMatch: '#e1e2ef',
+    bracketHighlightColorNoMatch: '#e1e2ef',
+    bracketHighlightBackgroundColorMatch: tokyoNight.green,
+    bracketHighlightBackgroundColorNoMatch: tokyoNight.red,
+    selectionMatchHighlightColor: '#6A7A9A',
+  },
+  header: {
+    backgroundColor: '#B5B7BA',
+    textColor: '#343b58',
+    lineColor: tokyoNight.blue,
+    codeBlockLangTextColor: '#f8f8f2',
+    codeBlockLangBackgroundColor: '#8292AD',
+  },
+  gutter: {
+    textColor: tokyoNight.comment,
+    backgroundColor: '#B5B7BA',
+    activeLineNrColor: '#f8f8f2',
+  },
+  inlineCode: {
+    backgroundColor: '#c3c5c9',
+    textColor: '#343b58',
+  },
+  prompts: {
+    promptColors: tokyoLightPromptColors,
+    rootPromptColors: tokyoLightRootPromptColors,
+    editedPromptColors: {},
+    editedRootPromptColors: {}
+  },
+  groupedCodeBlocks: {
+    activeTabBackgroundColor: tokyoNight.blue,
+    activeTabTextColor: '#343b58',
+    hoverTabBackgroundColor: tokyoNight.blue,
+    hoverTabTextColor: '#343b58',
+    headerLineColor: tokyoNight.blue,
+  },
+  annotations: {
+    colors: {
+      note: '#2e75b4',
+      warn: '#c68a42',
+      error: '#c54961',
+      todo: '#d87943',
+      question: '#9671d4',
+      see: '#69a43c',
+    }
+  },
+  editorActiveLineColor: '#A9ABB880',
+  languageSpecificColors: {},
+};
+
+const TokyoNight: Theme = {
+  baseTheme: "Tokyo Night",
+  settings: structuredClone(defaultThemeSettings),
+  colors: {
+    dark: TokyoNightDarkColors,
+    light: TokyoNightLightColors,
+  },
+};
+
 export const DEFAULT_THEMES = {
   'Obsidian': Obsidian,
+  'Dracula': Dracula,
+  'Gruvbox': Gruvbox,
+  'Nord': Nord,
   'Solarized': Solarized,
+  'Tokyo Night': TokyoNight,
 }
 
 export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {

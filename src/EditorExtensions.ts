@@ -1054,6 +1054,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       for (const pos of visibleBlocks) {
         const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
+
+        if (parameters.exclude) {
+          continue;
+        }
+
         const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
         const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
         const isCursorInsideThisBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
@@ -1788,7 +1793,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         action: (view: EditorView) => {
           const from = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length + 1;
           const to = codeBlockEndPos - parameters.fenceCount - 1;
-          let blockContent = "";
+          let initialLines: string[];
 
           if (settings.SelectedTheme.settings.prompts.includePromptsInCopy) {
             const lines: string[] = [];
@@ -1814,10 +1819,30 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
                 lines.push(line.text);
               }
             }
-            blockContent = lines.join('\n');
+            initialLines = lines;
           } else {
-            blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
+            const blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
+            initialLines = blockContent.split('\n');
           }
+          
+          const getLeadingWhitespace = (s: string) => s.match(/^\s*/)?.[0] || '';
+          const nonEmptyLines = initialLines.filter(line => line.trim() !== '');
+          
+          let blockContent = '';
+
+          if (nonEmptyLines.length > 0) {
+            const minIndentLength = Math.min(...nonEmptyLines.map(line => getLeadingWhitespace(line).length));
+
+            if (minIndentLength > 0) {
+              const processedLines = initialLines.map(line => line.substring(minIndentLength));
+              blockContent = processedLines.join('\n');
+            } else {
+              blockContent = initialLines.join('\n');
+            }
+          } else {
+            blockContent = initialLines.join('\n');
+          }
+
           addTextToClipboard(blockContent);
         },
         icon: "copy",

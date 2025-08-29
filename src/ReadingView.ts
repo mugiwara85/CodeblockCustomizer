@@ -569,6 +569,20 @@ function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustom
     }
   });
 
+  const getLeadingWhitespace = (s: string) => s.match(/^\s*/)?.[0] || '';
+  const nonEmtpyLines = codeTextArray.filter(line => line.trim() !== '');
+  
+  if (nonEmtpyLines.length > 0) {
+    const minIndentLength = Math.min( ...nonEmtpyLines.map(line => getLeadingWhitespace(line).length));
+
+    if (minIndentLength > 0) {
+      const processedLines = codeTextArray.map(line => line.substring(minIndentLength));
+      const codeText = processedLines.join('\n');
+      addTextToClipboard(codeText);
+      return;
+    }
+  }
+
   const codeText = codeTextArray.join('\n');
 
   addTextToClipboard(codeText);

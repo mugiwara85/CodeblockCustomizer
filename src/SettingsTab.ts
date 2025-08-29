@@ -1053,6 +1053,8 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     this.createPickrSetting(groupedCodeBlocksDetails, 'Active tab background color', 'Background color of the currently active tab.', "groupedCodeBlocks.activeTabBackgroundColor");
+    this.createPickrSetting(groupedCodeBlocksDetails, 'Active tab text color', 'Text color of the currently active tab.', "groupedCodeBlocks.activeTabTextColor");
+    this.createPickrSetting(groupedCodeBlocksDetails, 'Header line color', 'Sets the color of the separator line at the bottom of the header for grouped code blocks.', "groupedCodeBlocks.headerLineColor");
     this.createPickrSetting(groupedCodeBlocksDetails, 'Tab hover background color', 'Background color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabBackgroundColor");
     this.createPickrSetting(groupedCodeBlocksDetails, 'Tab hover text color', 'Text color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabTextColor");
     
