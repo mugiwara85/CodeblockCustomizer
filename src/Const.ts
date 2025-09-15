@@ -15,6 +15,11 @@ export const INLINE_CODE_LANG_REGEX = /^{\s*([^}]+?)\s*}\s*(.*)$/s;
 export const ANNOTATION_PATTERN = /\[!(?<type>\w+)(?:\|(?<title>[^\]]+))?\]\s*(?<content>.*)/s;
 export const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
 
+/* directly from execute code */
+const languageAliases = ["javascript", "typescript", "bash", "csharp", "wolfram", "nb", "wl", "hs", "py", "tex"];
+const canonicalLanguages = ["js", "ts", "cs", "latex", "lean", "lua", "python", "cpp", "prolog", "shell", "groovy", "r",	"go", "rust", "java", "powershell", "kotlin", "mathematica", "haskell", "scala", "swift", "racket", "fsharp", "c", "dart", "ruby", "batch", "sql", "octave", "maxima", "applescript", "zig", "ocaml", "php"];
+export const EXECUTE_CODE_SUPPORTED_LANGUAGES = [...languageAliases, ...canonicalLanguages];
+
 export const Languages: { [key: string]: string } = {
   "none": "Plain text",
   "plain": "Plain text",

@@ -1,7 +1,7 @@
 import { MarkdownRenderChild, MarkdownView } from "obsidian";
 
 import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLanguageName, CBCParameters, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors } from "./Utils";
-import { createButtons, toggleFold } from "./ReadingView";
+import { createButtons, toggleFold } from "./ReadingViewUtils";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 import { FoldingState } from "./EditorExtensions";
@@ -15,6 +15,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private debouncedProcess: () => void;
   private plugin: CodeBlockCustomizerPlugin;
   private hoverListeners: Array<() => void> = [];
+  private activeExecuteCodeObserver: MutationObserver | null = null;
   
   constructor(containerEl: HTMLElement, view: MarkdownView, childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>, plugin: CodeBlockCustomizerPlugin) {
     super(containerEl);
@@ -33,6 +34,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     this.childMap.delete(this.view);
     this.cleanupListeners();
     this.disconnectObserver();
+    if (this.activeExecuteCodeObserver) {
+      this.activeExecuteCodeObserver.disconnect();
+      this.activeExecuteCodeObserver = null;
+    }
   }// onunload
 
   public processGroupedCodeBlocks() {
@@ -70,6 +75,11 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     this.containerEl.querySelectorAll('.codeblock-customizer-header-group-container').forEach(header => header.remove());
     this.containerEl.querySelectorAll('.markdown-rendered .codeblock-customizer-header-group-tabs').forEach(tabs => tabs.remove());
     
+    if (this.activeExecuteCodeObserver) {
+      this.activeExecuteCodeObserver.disconnect();
+      this.activeExecuteCodeObserver = null;
+    }
+
     this.cleanupListeners();
   }// cleanup
 
@@ -167,9 +177,27 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
   private updateHeaderButtons(buttonsContainer: HTMLElement, parameters: CBCParameters, blockElement: HTMLPreElement) {
     buttonsContainer.empty();
-    const tempButtonsContainer = createButtons(parameters, undefined, this.plugin, blockElement);
+
+    if (this.activeExecuteCodeObserver) {
+      this.activeExecuteCodeObserver.disconnect();
+      this.activeExecuteCodeObserver = null;
+    }
+
+    const { container: tempButtonsContainer, observer } = createButtons(parameters, undefined, this.plugin, blockElement);
+    this.activeExecuteCodeObserver = observer;
     while (tempButtonsContainer.firstChild) {
       buttonsContainer.appendChild(tempButtonsContainer.firstChild);
+    }
+
+    const parentContainer = blockElement.parentElement;
+    if (parentContainer) {
+      const originalClearButton = parentContainer.querySelector('.clear-button');
+      if (originalClearButton) {
+        const customClearButton = buttonsContainer.querySelector('.codeblock-customizer-execute-code-clear-button');
+        if (customClearButton) {
+          customClearButton.classList.remove('codeblock-customizer-execute-code-clear-button-hidden');
+        }
+      }
     }
   }// updateHeaderButtons
 
@@ -184,20 +212,21 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     let newCollapseIcon: HTMLElement | null = null;
 
     if (isCollapseEnabled) {
-      const isCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-collapsed') || currentBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
+      const isFullyCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-collapsed');
+      const isSemiCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
 
-      newCollapseIcon = createCodeblockCollapse(isCollapsed);
+      newCollapseIcon = createCodeblockCollapse(isFullyCollapsed || isSemiCollapsed);
       header.appendChild(newCollapseIcon);
-      header.classList.remove(`noCollapseIcon`); 
+      header.classList.remove("collapsed", "semi-collapsed");
 
-      if (isCollapsed && currentBlock.classList.contains('codeblock-customizer-codeblock-collapsed')) {
+      if (isFullyCollapsed) {
         header.classList.add("collapsed");
-      } else {
-        header.classList.remove("collapsed");
+      } else if (isSemiCollapsed) {
+        header.classList.add("semi-collapsed");
       }
     } else {
       header.classList.add(`noCollapseIcon`); 
-      header.classList.remove("collapsed");
+      header.classList.remove("collapsed", "semi-collapsed");
     }
 
     return newCollapseIcon; 
@@ -273,14 +302,27 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       for (const mutation of mutations) {
         // child list changes (addition/removal of <pre> or other elements)
         if (mutation.type === 'childList') {
+          const isExecuteCodeMutation = (nodes: NodeList) => {
+            return Array.from(nodes).some(node => {
+              if (node.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+              }
+              const el = node as HTMLElement;
+              return el.querySelector('.language-output, .clear-button') || el.matches('.language-output, .clear-button, .load-state-indicator');
+            });
+          };
+
+          if (isExecuteCodeMutation(mutation.addedNodes) || isExecuteCodeMutation(mutation.removedNodes)) {
+            continue;
+          }
+
           const targetEl = mutation.target as HTMLElement;
           if (targetEl.tagName === 'PRE' || targetEl.querySelector('pre.codeblock-customizer-grouped')) {
             process = true;
             break;
           }
-        }
-        // attribute changes, specifically for 'groupname'
-        else if (mutation.type === 'attributes' && mutation.attributeName === 'groupname') {
+        } else if (mutation.type === 'attributes' && mutation.attributeName === 'groupname') {
+          // attribute changes, specifically for 'groupname'
           process = true;
           break;
         }
@@ -545,9 +587,14 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     if (canSemiFold) {
       toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-semi-collapsed');
+      if (header) {
+        header.classList.toggle("semi-collapsed");
+      }
     } else {
       toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-collapsed');
-      if (header) header.classList.toggle("collapsed");
+      if (header) {
+        header.classList.toggle("collapsed");
+      }
     }
 
     const sourcePath = activeBlock.getAttribute('sourcepath');

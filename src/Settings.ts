@@ -158,6 +158,17 @@ export interface ThemeSettings {
     convertAllComments: boolean;
     excludeAnnotationsFromCopy: boolean;
   },
+  plugins: {
+    admonitions: {
+      enabled: boolean;
+      enableTimeOut: boolean;
+      timeOut: number;
+    },
+    executeCode: {
+      enabled: boolean;
+      styleOutput: boolean;
+    }
+  },
   enableEditorActiveLineHighlight: boolean;
 }
 
@@ -264,6 +275,17 @@ const defaultThemeSettings: ThemeSettings = {
   annotations: {
     convertAllComments: false,
     excludeAnnotationsFromCopy: false,
+  },
+  plugins: {
+    admonitions: {
+      enabled: true,
+      enableTimeOut: false,
+      timeOut: 100,
+    },
+    executeCode: {
+      enabled: true,
+      styleOutput: true,
+    }
   },
   enableEditorActiveLineHighlight: true,
 };

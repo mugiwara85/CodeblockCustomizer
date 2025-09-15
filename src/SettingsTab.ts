@@ -1,11 +1,12 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
 
-import {  addClassesToPrompt, collectAllPromptClasses, getColorOfCssVariable, getCurrentMode, getPromptDefinition, getPromptType, replacePromptTemplate, updateSettingStyles } from "./Utils";
+import {  getColorOfCssVariable, getCurrentMode, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, updateSettingClasses, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { ANNOTATION_TYPE_ICONS } from "./TooltipManager";
 import { DEFAULT_PROMPT_COLOR, defaultPrompts, promptClassDisplayNames, PromptDefinition, PromptEnvironment } from "./PromptManager";
+import { addClassesToPrompt, collectAllPromptClasses, getPromptDefinition, getPromptType, replacePromptTemplate } from "./PromptUtils";
 
 import Pickr from "@simonwep/pickr";
 
@@ -45,6 +46,8 @@ export class SettingsTab extends PluginSettingTab {
   printToPDFDetailsOpen = false;
   promptSettingsDetailsOpen = false;
   promptColorsDetailsOpen = false;
+  admonitionDetailsOpen = false;
+  executeCodeDetailsOpen = false;
 
   static COLOR_OPTIONS: ColorOptions = {
     "codeblock.activeLineColor": "Code block active line color",
@@ -187,6 +190,7 @@ export class SettingsTab extends PluginSettingTab {
           "highlighting"    : "🖌️ Highlighting",
           "behavior"        : "👆 Behavior & Interaction",
           "prompts"         : "⌨️ Prompts",
+          "plugins"         : "🧩 Plugin Compatibility"
         })
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
@@ -196,6 +200,7 @@ export class SettingsTab extends PluginSettingTab {
           highlightingDiv.toggleClass("codeblock-customizer-highlighting-settingsDiv-hide", this.plugin.settings.settingsType !== "highlighting");
           behaviorDiv.toggleClass("codeblock-customizer-behavior-settingsDiv-hide", this.plugin.settings.settingsType !== "behavior");
           promptsDiv.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
+          pluginsDiv.toggleClass("codeblock-customizer-plugin-compatibility-settingsDiv-hide", this.plugin.settings.settingsType !== "plugins");
           (async () => {await this.plugin.saveSettings()})();
         })
       );
@@ -209,6 +214,7 @@ export class SettingsTab extends PluginSettingTab {
     const highlightingDiv = this.createHighlightingSettings(containerEl);
     const behaviorDiv = this.createBehaviorSettings(containerEl);
     const promptsDiv = this.createPromptSettingsPage(containerEl);
+    const pluginsDiv = this.createPluginCompatibilitySettingsPage(containerEl);
 
     // donation
     const cDonationDiv = containerEl.createDiv({ cls: "codeblock-customizer-Donation", });    
@@ -712,7 +718,8 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.SelectedTheme.settings.inlineCode.enableCopyOnClick = value;
           await this.plugin.saveSettings();
-          this.display(); 
+          this.display();
+          this.plugin.renderReadingViews();
         })
       );
     
@@ -1408,6 +1415,98 @@ export class SettingsTab extends PluginSettingTab {
 
     return promptsDiv;
   }// createPromptSettingsPage
+
+  createPluginCompatibilitySettingsPage(containerEl: HTMLElement) {
+    const pluginsDiv = containerEl.createDiv({ cls: "codeblock-customizer-plugin-compatibility-settingsDiv-hide" });
+    pluginsDiv.toggleClass("codeblock-customizer-plugin-compatibility-settingsDiv-hide", this.plugin.settings.settingsType !== "plugins");
+    pluginsDiv.createEl('h3', {text: '🧩 Plugin Compatibility Settings '});
+
+    // settings for admonitions plugin
+    const admonitionDetailsDetails = this.createDetailsGroup(pluginsDiv, 'Admonition Settings', 'admonitionDetailsOpen');
+
+    new Setting(admonitionDetailsDetails)
+      .setName('Enable Admonition support')
+      .setDesc('Enable styling for code blocks inside Admonition blocks.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled = value;
+          detailSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+          const isTimerVisible = value && this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enableTimeOut;
+          timerSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !isTimerVisible);
+          await this.plugin.saveSettings();
+          this.plugin.renderReadingViews();
+        })
+      );
+
+    const detailSetting = new Setting(admonitionDetailsDetails)
+      .setName('Use timer for admonition processing')
+      .setDesc('Adds a small, configurable delay before styling code blocks inside admonitions. This can resolve rendering issues in complex notes.')
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enableTimeOut)
+          .onChange(async (value) => {
+            this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enableTimeOut = value;
+            timerSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+            await this.plugin.saveSettings();
+          });
+      });
+
+    detailSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled);
+      
+    const timerSetting = new Setting(admonitionDetailsDetails)
+      .setName('Admonition processing delay (ms)')
+      .setDesc('The delay in milliseconds to wait before processing.')
+      .addText(text => text
+        .setValue(this.plugin.settings.SelectedTheme.settings.plugins.admonitions.timeOut.toString())
+        .onChange(async (value) => {
+          const numberValue = parseInt(value);
+          if (!isNaN(numberValue)) {
+            this.plugin.settings.SelectedTheme.settings.plugins.admonitions.timeOut = numberValue;
+            await this.plugin.saveSettings();
+          }
+        })
+      );
+
+    timerSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.SelectedTheme.settings.plugins.admonitions.enableTimeOut);
+
+    // settings for execute code plugin
+    const executeCodeDetails = this.createDetailsGroup(pluginsDiv, 'Execute Code Settings', 'executeCodeDetailsOpen');
+
+    new Setting(executeCodeDetails)
+      .setName('Enable Execute Code support')
+      .setDesc('Enable styling for the Execute Code plugin.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled = value;
+          if (value)
+            registerExecuteCodeSyntaxHighlighting();
+          else
+            unregisterExecuteCodeSyntaxHighlighting();
+          styleOutputSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+          await this.plugin.saveSettings();
+          this.plugin.renderReadingViews();
+        })
+      );
+
+    const styleOutputSetting = new Setting(executeCodeDetails)
+      .setName('Style Execute Code output')
+      .setDesc('When enabled, the plugin will add line numbers, highlighting, and other styles to the code output. Disable this to see the raw, default output.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.plugins.executeCode.styleOutput)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.plugins.executeCode.styleOutput = value;
+          await this.plugin.saveSettings();
+          updateSettingClasses(this.plugin.settings.SelectedTheme.settings);
+          this.plugin.renderReadingViews();
+        })
+      );
+
+    styleOutputSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled);
+
+    return pluginsDiv;
+  }// createPluginCompatibilitySettingsPage
 
   restorePromptColor(promptId: string) {
     const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';

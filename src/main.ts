@@ -4,12 +4,14 @@ import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
-import { ReadingView, admonitionPostProcessor, calloutPostProcessor, inlineCodeProcessor } from "./ReadingView";
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, CBCParameters} from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, CBCParameters, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting} from "./Utils";
 import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
+import { CodeBlockRenderer } from "./CodeBlockRenderer";
+import { InlineCodeRenderer } from "./InlineCodeRenderer";
+import { admonitionPostProcessor, calloutPostProcessor } from "./PostProcessors";
 
 import * as _ from 'lodash';
 
@@ -53,6 +55,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   rerenderQueue: Map<number, { content: string; count: number }> = new Map();
   rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
   modifiedBlocks: Map<string, string> = new Map();
+  executeCodeObservers: WeakMap<HTMLElement, MutationObserver> = new WeakMap();
 
   async onload() {
     document.body.classList.add('codeblock-customizer');
@@ -70,7 +73,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     
     await loadIcons(this);
     loadSyntaxHighlightForCustomLanguages(this); // load syntax highlight
-    
+    registerExecuteCodeSyntaxHighlighting();
+
     mergeBorderColorsToLanguageSpecificColors(this, this.settings);
 
     this.editorExtensions = extensions(this, this.settings);
@@ -364,6 +368,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     // unload syntax highlight
     loadSyntaxHighlightForCustomLanguages(this, true);
+    unregisterExecuteCodeSyntaxHighlighting();
 
     if (this.debounceTimer) 
       clearTimeout(this.debounceTimer);
@@ -603,7 +608,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   renderReadingViews(): void {
     this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
       if (leaf.view instanceof MarkdownView && leaf.view.getMode() === "preview") {
-        const preview = (leaf.view as any).previewMode;
+        const preview = leaf.view.previewMode;
         if (!preview || !preview.getScroll || !preview.applyScroll) {
           return;
         }
@@ -701,13 +706,18 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
   registerPostProcessors(){
     // reading mode
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      await ReadingView(el, ctx, this)
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      const hasCodeBlock = el.querySelector("pre > code");
+      if (hasCodeBlock) {
+        ctx.addChild(new CodeBlockRenderer(el, this, ctx));
+      }
     });
 
     // inline code
-    this.registerMarkdownPostProcessor((element, context) => {
-      inlineCodeProcessor(element, context, this);
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      el.querySelectorAll("code:not(pre > code)").forEach((codeEl) => {
+        ctx.addChild(new InlineCodeRenderer(codeEl as HTMLElement, this, ctx));
+      });
     });
 
     // callouts

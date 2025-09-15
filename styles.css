@@ -75,6 +75,10 @@
   right: -0.5em;
   padding-right: 0.5rem;
 }
+/* hide code line collapse indicator when printing */
+.print .codeblock-customizer-collapse-indicator {
+  display: none !important;
+}
 .markdown-reading-view .codeblock-customizer-collapse-icon,
 .markdown-source-view .codeblock-customizer-collapse-icon {
   display: none;
@@ -494,7 +498,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   position: sticky;
   left: 0;
   z-index: 1;
-  margin-bottom: -1px; /* fix for 1–2px "seam" (where the two lines meet) shows the background through */
+  /*margin-bottom: -1px;*/ /* fix for 1–2px "seam" (where the two lines meet) shows the background through */
 }
 .markdown-source-view .codeblock-customizer-line-number,
 .markdown-source-view .codeblock-customizer-line-number-specific {
@@ -959,9 +963,9 @@ div:has(> img.codeblock-customizer-icon) {
   display: none !important;
 }
 /* callouts */
-.markdown-source-view.mod-cm6 .cm-embed-block pre {
+/*.markdown-source-view.mod-cm6 .cm-embed-block pre {
   margin-top: 16px;
-}
+}*/
 .markdown-rendered pre.codeblock-customizer-pre {
   border-top-left-radius: 0px;
   border-top-right-radius: 0px;
@@ -1177,8 +1181,12 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 .codeblock-customizer-appearance-settingsDiv-hide,
 .codeblock-customizer-highlighting-settingsDiv-hide,
 .codeblock-customizer-behavior-settingsDiv-hide,
-.codeblock-customizer-prompts-settingsDiv-hide {
+.codeblock-customizer-prompts-settingsDiv-hide,
+.codeblock-customizer-plugin-compatibility-settingsDiv-hide {
   display: none;
+}
+.codeblock-customizer-setting-hidden {
+  display: none !important;
 }
 
 /* underline msf6, and beacon */
@@ -1430,6 +1438,90 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   color: #666666;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* -------------------- Execute code plugin compatibility -------------------- */
+
+/* hide original buttons */
+.markdown-rendered pre.codeblock-customizer-pre .run-code-button,
+.markdown-rendered pre.codeblock-customizer-pre .clear-button {
+  display: none;
+}
+/* remove hover effect */
+pre.codeblock-customizer-pre:hover code.language-output {
+  margin-bottom: 0 !important;
+}
+/* execute code button, clear code button and edit code button styling */
+.markdown-rendered .codeblock-customizer-execute-code-button,
+.markdown-rendered .codeblock-customizer-execute-code-clear-button,
+.markdown-rendered .codeblock-customizer-execute-code-edit-button {
+  padding: var(--size-4-1) var(--size-4-2);
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-family: var(--font-interface);
+}
+.markdown-rendered .codeblock-customizer-execute-code-button:hover,
+.markdown-rendered .codeblock-customizer-execute-code-clear-button:hover,
+.markdown-rendered .codeblock-customizer-execute-code-edit-button:hover {
+  background-color: rgba(var(--mono-rgb-100), 0.075);
+}
+
+/* code output styling */
+pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output {
+  border-top: 2px solid var(--header-line-color, var(--codeblock-customizer-header-line-color));
+}
+.codeblock-customizer-style-execute-code-output pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output .stderr,
+body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output {
+  padding-left: var(--line-number-gutter-padding) !important;
+  display: inline-block;
+  white-space: pre-wrap;
+}
+pre.codeblock-customizer-pre .codeblock-customizer-output .codeblock-customizer-line-text{
+  color: var(--text-muted) !important;
+}
+/* line number */
+.markdown-source-view .codeblock-customizer-execute-code-output .codeblock-customizer-output .codeblock-customizer-line-number {
+  height: unset;
+}
+.markdown-rendered .codeblock-customizer-pre .codeblock-customizer-execute-code-output .codeblock-customizer-output > div:last-child > .codeblock-customizer-line-number {
+  box-shadow: 0px var(--code-padding) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+}
+.markdown-rendered .codeblock-customizer-pre .codeblock-customizer-execute-code-output .codeblock-customizer-output > div:first-child > .codeblock-customizer-line-number {
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+/* hide original output */
+.codeblock-customizer-original-output-hidden {
+  display: none !important;
+}
+/* hide the hr element */
+pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output hr {
+  display: none;
+}
+/* hide output when code block is folded */
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-execute-code-output,
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-execute-code-output {
+  display: none !important;
+}
+/* hide run and clear buttons when code block is collapsed */
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-execute-code-clear-button,
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-execute-code-clear-button,
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-execute-code-button,
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-execute-code-button,
+.codeblock-customizer-header-group-container.collapsed .codeblock-customizer-execute-code-clear-button,
+.codeblock-customizer-header-group-container.semi-collapsed .codeblock-customizer-execute-code-clear-button,
+.codeblock-customizer-header-group-container.collapsed .codeblock-customizer-execute-code-button,
+.codeblock-customizer-header-group-container.semi-collapsed .codeblock-customizer-execute-code-button {
+  display: none;
+}
+
+.codeblock-customizer-execute-code-button-pending-verification {
+  display: none;
+}
+.codeblock-customizer-execute-code-clear-button-hidden {
+  display: none;
 }
 
 /* Themes */
