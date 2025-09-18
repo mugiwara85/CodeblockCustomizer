@@ -94,6 +94,8 @@ export interface ThemeSettings {
       enableSelectCodeButton: boolean;
       enableWrapCodeButton: boolean;
       enableDeleteCodeButton: boolean;
+      enableSnapshotButton: boolean;
+      snapshotMaxWidth?: number;
     },
     folding: {
       inverseFold: boolean;
@@ -212,6 +214,7 @@ const defaultThemeSettings: ThemeSettings = {
       enableSelectCodeButton: false,
       enableDeleteCodeButton: false,
       enableWrapCodeButton: false,
+      enableSnapshotButton: false,
     },
     folding: {
       inverseFold: false,

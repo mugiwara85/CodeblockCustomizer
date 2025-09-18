@@ -629,10 +629,14 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.markdown-source-view .codeblock-customizer-header-container-specific:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:not(:has(+ .HyperMD-codeblock-begin)):hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button,
 .markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+/*.markdown-source-view .codeblock-customizer-header-container-specific:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button,*/
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container:has(+ .HyperMD-codeblock-begin.semi-folded):hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
   display: none;
 }
 /* show header button container (copy code only) when enabled */
@@ -685,6 +689,14 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
 .markdown-rendered .codeblock-customizer-header-group-container.collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code {
   display: none;
 }
+
+/* hide snapshot button for collapsed code blocks in reading view*/
+.markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container .codeblock-customizer-snapshot-button,
+/*.markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container .codeblock-customizer-snapshot-button,*/
+.markdown-rendered .codeblock-customizer-header-group-container.collapsed .codeblock-customizer-button-container .codeblock-customizer-snapshot-button {
+  display: none;
+}
+
 /* show button container (copy code only) when enabled */
 .codeblock-customizer-always-show-copy-code-button .markdown-rendered .codeblock-customizer-pre:not(.displayedInGroup).codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container,
 .codeblock-customizer-always-show-copy-code-button .markdown-rendered .codeblock-customizer-pre:not(.displayedInGroup).codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container,
@@ -758,6 +770,37 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
 }
 .codeblock-customizer-show-wrap-code-button .codeblock-customizer-wrap-code {
   display: flex;
+}
+
+/* snapshot button styling - reading mode */
+.markdown-rendered .codeblock-customizer-snapshot-button {
+  padding: var(--size-4-1) var(--size-4-2);
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-family: var(--font-interface);
+}
+.markdown-rendered .codeblock-customizer-snapshot-button:hover {
+  background-color: rgba(var(--mono-rgb-100), 0.075);
+}
+.codeblock-customizer-snapshot-button {
+  display: none;
+}
+.codeblock-customizer-show-snapshot-code-button .codeblock-customizer-snapshot-button {
+  display: flex;
+}
+/* snapshot button styling - edit mode */
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-snapshot-button,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  cursor: var(--cursor);
+}
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-snapshot-button:hover,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button:hover {
+  background-color: rgba(var(--mono-rgb-100), 0.075);
 }
 
 /* copy code styling (edit mode) */

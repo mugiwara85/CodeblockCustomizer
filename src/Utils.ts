@@ -9,6 +9,7 @@ import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from 
 import CodeBlockCustomizerPlugin from "./main";
 
 import validator from 'validator';
+import { toBlob } from 'html-to-image';
 
 export function getCurrentMode() {
   const body = document.querySelector('body');
@@ -1455,6 +1456,12 @@ export function updateSettingClasses(settings: ThemeSettings) {
     document.body.classList.remove('codeblock-customizer-style-execute-code-output');
   }
 
+  if (settings.codeblock.buttons.enableSnapshotButton) {
+    document.body.classList.add('codeblock-customizer-show-snapshot-code-button');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-snapshot-code-button');
+  }
+
 }// updateSettingClasses
 
 function formatStyles(colors: ThemeColors, settings: ThemeSettings, forceCurrentColorUse: boolean) {
@@ -1954,3 +1961,100 @@ export function normalizeIndentation(lines: string[]): string[] {
 
   return lines;
 }// normalizeIndentation
+
+export async function generateSnapshot(elementToSnapshot: HTMLElement, originalElement: HTMLElement, appendTo: HTMLElement, settings: CodeblockCustomizerSettings, options?: any): Promise<void> {
+  const offscreenWrapper = document.createElement('div');
+
+  try {
+    offscreenWrapper.style.position = 'absolute';
+    offscreenWrapper.style.top = '-9999px';
+    offscreenWrapper.style.left = '-9999px';
+
+    const userMaxWidth = settings.SelectedTheme.settings.codeblock.buttons.snapshotMaxWidth;
+    elementToSnapshot.style.width = `${userMaxWidth ?? originalElement.clientWidth}px`;
+
+    offscreenWrapper.appendChild(elementToSnapshot);
+    appendTo.appendChild(offscreenWrapper);
+
+    const width = elementToSnapshot.clientWidth;
+    const height = elementToSnapshot.clientHeight;
+    const canvas = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error("Could not create canvas context.");
+    }
+    ctx.scale(dpr, dpr);
+
+    const borderRadius = 5;
+    ctx.beginPath();
+    ctx.moveTo(borderRadius, 0);
+    ctx.lineTo(width - borderRadius, 0);
+    ctx.arcTo(width, 0, width, borderRadius, borderRadius);
+    ctx.lineTo(width, height - borderRadius);
+    ctx.arcTo(width, height, width - borderRadius, height, borderRadius);
+    ctx.lineTo(borderRadius, height);
+    ctx.arcTo(0, height, 0, height - borderRadius, borderRadius);
+    ctx.lineTo(0, borderRadius);
+    ctx.arcTo(0, 0, borderRadius, 0, borderRadius);
+    ctx.closePath();
+    ctx.clip();
+    
+    const blobOptions = { backgroundColor: getEffectiveBackgroundColor(originalElement), ...options, };
+
+    const dataBlob = await toBlob(elementToSnapshot, blobOptions);
+    if (!dataBlob) {
+      throw new Error("Failed to generate image blob.");
+    }
+
+    const image = await createImageBitmap(dataBlob);
+    ctx.drawImage(image, 0, 0);
+
+    const finalBlob = await getCanvasBlob(canvas);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': finalBlob })]);
+    
+    new Notice("Snapshot copied to clipboard!");
+
+  } catch (error) {
+    console.error("Snapshot creation failed:", error);
+    new Notice(`Error: Could not create snapshot. ${error.message || error}`);
+  } finally {
+    if (offscreenWrapper.parentElement) {
+      offscreenWrapper.parentElement.removeChild(offscreenWrapper);
+    }
+  }
+}// generateSnapshot
+
+function getEffectiveBackgroundColor(element: HTMLElement): string {
+  let current: HTMLElement | null = element;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const bgColor = style.backgroundColor;
+    if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+      return bgColor;
+    }
+
+    if (current === document.body) {
+      break; 
+    }
+
+    current = current.parentElement;
+  }
+
+  return '#ffffff';
+}// getEffectiveBackgroundColor
+
+function getCanvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Could not create final canvas blob."));
+      }
+    }, 'image/png');
+  });
+}// getCanvasBlob

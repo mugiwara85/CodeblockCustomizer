@@ -30,6 +30,7 @@
 		"@codemirror/search": "^6.5.6",
 		"@lezer/common": "^1.1.0",
 		"@simonwep/pickr": "^1.8.2",
+		"html-to-image": "^1.11.13",
 		"lodash": "^4.17.21",
 		"validator": "^13.12.0"
 	}

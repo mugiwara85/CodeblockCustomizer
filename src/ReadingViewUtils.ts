@@ -1,6 +1,6 @@
 import { setIcon, MarkdownRenderer, Notice} from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, CBCParameters, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation } from "./Utils";
+import { createUncollapseCodeButton, addTextToClipboard, CBCParameters, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
@@ -113,6 +113,9 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   });
   frag.appendChild(copyButton);
 
+  const snapshotButton = createsnapshotButton(container, targetPreElement, plugin);
+  frag.appendChild(snapshotButton);
+
   const wrapCodeButton = createWrapCodeButton();
   wrapCodeButton.addEventListener("click", (event) => {
     const preEl = targetPreElement || (event.currentTarget as HTMLElement).parentNode?.parentNode as HTMLElement;
@@ -129,6 +132,59 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   container.appendChild(frag);
   return { container, observer };
 }// createButtons
+
+function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLElement | undefined, plugin: CodeBlockCustomizerPlugin) {
+  const snapshotButton = document.createElement("button");
+  snapshotButton.classList.add("codeblock-customizer-snapshot-button");
+  snapshotButton.setAttribute("aria-label", "Copy as image");
+  setIcon(snapshotButton, "camera");
+
+  snapshotButton.addEventListener("click", async (event) => {
+    event.stopPropagation();
+
+    const preEl = targetPreElement || (event.currentTarget as HTMLElement).closest('pre');
+    if (!preEl || !preEl.parentElement) {
+      new Notice("Error: Could not find code block container.");
+      return;
+    }
+    
+    const parentContainer = preEl.parentElement;
+
+    container.style.visibility = 'hidden';
+
+    try {
+      let elementToClone: HTMLElement;
+      const isGrouped = preEl.classList.contains('displayedInGroup');
+
+      if (isGrouped) {
+        const wrapper = document.createElement('div');
+        const groupName = preEl.getAttribute('groupname');
+        if (groupName) {
+          const headerEl = document.querySelector(`.codeblock-customizer-header-group-container[group="${groupName}"]`);
+          if (headerEl) {
+            wrapper.appendChild(headerEl.cloneNode(true));
+          }
+        }
+        wrapper.appendChild(preEl.cloneNode(true));
+        elementToClone = wrapper;
+      } else {
+        // normal code blocks
+        elementToClone = preEl.cloneNode(true) as HTMLElement;
+      }
+
+      const snapshotOptions = {
+        style: { padding: '0px', margin: '0' },
+        filter: (node: HTMLElement) => !node.classList?.contains('codeblock-customizer-button-container'),
+      };
+
+      await generateSnapshot(elementToClone, preEl, parentContainer, plugin.settings, snapshotOptions);
+    } finally {
+      container.style.visibility = 'visible';
+    }
+  });
+
+  return snapshotButton;
+}// createsnapshotButton
 
 function createWrapCodeButton() {
   const container = document.createElement("button");

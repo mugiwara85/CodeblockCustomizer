@@ -1201,7 +1201,7 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(buttonsDetails)
       .setName('Show \'Delete Code\' button (only editing view)')
-      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is deleted. Be careful!')
+      .setDesc('If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is deleted. Be careful!')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton)
         .onChange(async (value) => {
@@ -1213,7 +1213,7 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(buttonsDetails)
       .setName('Show \'Select Code\' button (only editing view)')
-      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is selected (including the first and last lines of the code blocks which begin with three backticks).')
+      .setDesc('If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is selected (including the first and last lines of the code blocks which begin with three backticks).')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton)
         .onChange(async (value) => {
@@ -1225,7 +1225,7 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(buttonsDetails)
       .setName('Show \'Wrap Code\' button (only reading view)')
-      .setDesc('If enabled, an additional button will be displayed on every codeblock. If clicked, the content of that codeblock is wrapped/unwrapped.')
+      .setDesc('If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is wrapped/unwrapped.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableWrapCodeButton)
         .onChange(async (value) => {
@@ -1234,6 +1234,36 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
+
+    new Setting(buttonsDetails)
+      .setName('Show \'Copy as image\' button')
+      .setDesc('If enabled, an additional button will be displayed on every code block. If clicked, a snapshot is created from the code block and inserted on the clipboard.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSnapshotButton)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSnapshotButton = value;
+          snapshotWidthSetting.settingEl.style.display = value ? '' : 'none';
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    const snapshotWidthSetting = new Setting(buttonsDetails)
+      .setName('Image max width (pixels)')
+      .setDesc('Set a maximum width for the generated image. Leave blank to capture the code block at its current displayed width.')
+      .addText(text => text
+        .setPlaceholder('800')
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.snapshotMaxWidth?.toString() ?? '')
+        .onChange(async (value) => {
+          const width = parseInt(value);
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.snapshotMaxWidth = isNaN(width) ? undefined : width;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    if (!this.plugin.settings.SelectedTheme.settings.codeblock.buttons.enableSnapshotButton) {
+      snapshotWidthSetting.settingEl.style.display = 'none';
+    }
 
     new Setting(buttonsDetails)
       .setName('Always show buttons (only editing view)')

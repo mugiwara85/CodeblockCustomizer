@@ -1,4 +1,4 @@
-import { MarkdownRenderer, editorEditorField, editorInfoField, setIcon } from "obsidian";
+import { MarkdownRenderer, Notice, editorEditorField, editorInfoField, setIcon } from "obsidian";
 
 import { StateField, StateEffect, EditorState, Transaction, Extension, Range, RangeSet, Line, EditorSelection, Annotation } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -42,7 +42,7 @@ type GroupedCodeBlocks = {
 interface ButtonConfig {
   class: string;
   displayText: string;
-  action: (view: EditorView) => void;
+  action: (view: EditorView, container?: HTMLElement) => void;
   icon: string;
   text?: string;
   enabled: boolean;
@@ -2050,6 +2050,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         enabled: showButton
       },
       {
+        class: `codeblock-customizer-snapshot-button`,
+        displayText: "Copy as image",
+        action: async (view: EditorView, container?: HTMLElement) => {
+          await createSnapshot(container, view, codeBlockStartPos, codeBlockEndPos, state);
+        },
+        icon: "camera",
+        enabled: showButton
+      },
+      {
         class: `codeblock-customizer-select-code`,
         displayText: "Select code",
         action: (view: EditorView) => {
@@ -2076,6 +2085,90 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     ];
   }// createButtonConfig
 
+  async function createSnapshot(container: HTMLElement | undefined, view: EditorView, codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState) {
+    let startingEl: HTMLElement | null = null;
+    const headerEl = container?.closest('.codeblock-customizer-header-container-specific');
+    if (headerEl) {
+      startingEl = headerEl as HTMLElement;
+    } else {
+      const buttonLine = container?.closest('.cm-line') as HTMLElement | null;
+      if (buttonLine) {
+        let trueStart: Element | null = buttonLine;
+        while (trueStart?.previousElementSibling?.classList.contains('HyperMD-codeblock')) {
+          trueStart = trueStart.previousElementSibling;
+        }
+        startingEl = trueStart as HTMLElement;
+      }
+    }
+
+    if (!startingEl || !startingEl.parentElement) {
+      new Notice("Error: Could not find code block container.");
+      return;
+    }
+
+    const originalContainer = startingEl.parentElement;
+
+    if (container) {
+      container.style.visibility = 'hidden';
+    }
+
+    try {
+      const elementsToSnapshot: HTMLElement[] = [startingEl];
+      let currentEl: Element | null = startingEl;
+      
+      const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
+      if (currentFoldState === FoldingState.SemiFolded) {
+        while (currentEl && currentEl.nextElementSibling) {
+          const nextEl = currentEl.nextElementSibling as HTMLElement;
+          if (nextEl.classList.contains('codeblock-customizer-header-container-specific') || !nextEl.classList.contains('cm-line')) {
+            break;
+          }
+          
+          elementsToSnapshot.push(nextEl as HTMLElement);
+          currentEl = nextEl;
+        }
+      } else {
+        const lineCount = state.doc.lineAt(codeBlockEndPos).number - state.doc.lineAt(codeBlockStartPos).number + 1;
+        const loopIterations = headerEl ? lineCount : lineCount - 1;
+
+        for (let i = 0; i < loopIterations; i++) {
+          currentEl = currentEl.nextElementSibling;
+          if (currentEl) {
+            elementsToSnapshot.push(currentEl as HTMLElement);
+          } else {
+            break;
+          }
+        }
+      }
+
+      const cloneContainer = document.createElement('div');
+      elementsToSnapshot.forEach(el => {
+        cloneContainer.appendChild(el.cloneNode(true));
+      });
+
+      const parent = view.contentDOM.parentElement;
+      if (!parent) {
+        new Notice("Error: Could not get contentDOM.parentElement.");
+        return;
+      }
+      
+      const snapshotOptions = {
+        filter: (node: HTMLElement) => {
+          if (node.classList?.contains('codeblock-customizer-button-container')) {
+            return false;
+          }
+          return !(node.tagName === 'IMG' && node.classList.contains('cm-widgetBuffer'));
+        }
+      };
+
+      await generateSnapshot(cloneContainer, originalContainer, parent, plugin.settings, snapshotOptions);
+    } finally {
+      if (container) {
+        container.style.visibility = 'visible';
+      }
+    }
+  }// createSnapshot
+
   function compareButtonConfigs(configs1: Array<ButtonConfig>, configs2: Array<ButtonConfig>): boolean {
     if (configs1.length !== configs2.length) 
       return false;
@@ -2101,7 +2194,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       const button = createSpan({ cls: config.class });
       button.setAttribute("aria-label", config.displayText);
-      button.onclick = () => config.action(view);
+      button.onclick = () => config.action(view, container);
 
       if (config.text) {
         button.textContent = config.text;
