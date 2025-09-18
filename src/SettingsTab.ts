@@ -1,7 +1,7 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
 
 import {  getColorOfCssVariable, getCurrentMode, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, updateSettingClasses, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, Theme, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence, ButtonModifierKeys } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { ANNOTATION_TYPE_ICONS } from "./TooltipManager";
@@ -1198,6 +1198,21 @@ export class SettingsTab extends PluginSettingTab {
 
     // extra buttons
     const buttonsDetails = this.createDetailsGroup(behaviorDiv, 'Extra Button Settings', 'buttonsDetailsOpen');
+
+    new Setting(buttonsDetails)
+      .setName('Modifier key for fence actions')
+      .setDesc('Hold this key while clicking copy, select, or delete to include the fence lines in the action.')
+      .addDropdown(dropdown => dropdown
+        .addOption(ButtonModifierKeys.NONE, 'None')
+        .addOption(ButtonModifierKeys.CTRL, 'Ctrl')
+        .addOption(ButtonModifierKeys.ALT, 'Alt')
+        .addOption(ButtonModifierKeys.SHIFT, 'Shift')
+        .setValue(this.plugin.settings.SelectedTheme.settings.codeblock.buttons.modifierKey)
+        .onChange(async (value: ButtonModifierKeys) => {
+          this.plugin.settings.SelectedTheme.settings.codeblock.buttons.modifierKey = value;
+          await this.plugin.saveSettings();
+        })
+      );
 
     new Setting(buttonsDetails)
       .setName('Show \'Delete Code\' button (only editing view)')

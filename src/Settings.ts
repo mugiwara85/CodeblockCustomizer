@@ -75,6 +75,13 @@ export enum InlineCodeModifierKeys {
   ALT = 'alt'
 }
 
+export enum ButtonModifierKeys {
+  CTRL = 'ctrl',
+  ALT = 'alt',
+  SHIFT = 'shift',
+  NONE = 'none',
+}
+
 export interface ThemeSettings {
   codeblock: {
     enableLineNumbers: boolean;
@@ -96,6 +103,7 @@ export interface ThemeSettings {
       enableDeleteCodeButton: boolean;
       enableSnapshotButton: boolean;
       snapshotMaxWidth?: number;
+      modifierKey: ButtonModifierKeys;
     },
     folding: {
       inverseFold: boolean;
@@ -215,6 +223,7 @@ const defaultThemeSettings: ThemeSettings = {
       enableDeleteCodeButton: false,
       enableWrapCodeButton: false,
       enableSnapshotButton: false,
+      modifierKey: ButtonModifierKeys.CTRL,
     },
     folding: {
       inverseFold: false,

@@ -8,7 +8,7 @@ import { highlightSelectionMatches } from "@codemirror/search";
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
-import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
+import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 import { PromptManager } from "./PromptManager";
@@ -42,7 +42,7 @@ type GroupedCodeBlocks = {
 interface ButtonConfig {
   class: string;
   displayText: string;
-  action: (view: EditorView, container?: HTMLElement) => void;
+  action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => void;
   icon: string;
   text?: string;
   enabled: boolean;
@@ -2002,47 +2002,77 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     else if (settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons)
       showButton = true;
 
+    const modifierKey = plugin.settings.SelectedTheme.settings.codeblock.buttons.modifierKey;
+    const getModifierState = (event?: MouseEvent): boolean => {
+      if (!event || modifierKey === ButtonModifierKeys.NONE) {
+        return false;
+      }
+
+      switch (modifierKey) {
+        case ButtonModifierKeys.CTRL:
+          return event.ctrlKey;
+        case ButtonModifierKeys.ALT:
+          return event.altKey;
+        case ButtonModifierKeys.SHIFT:
+          return event.shiftKey;
+        default:
+          return false;
+      }
+    };
+
     return [
       {
         class: `codeblock-customizer-copy-code`,
         displayText: "Copy code",
-        action: (view: EditorView) => {
-          const from = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length + 1;
-          const to = codeBlockEndPos - parameters.fenceCount - 1;
-          let initialLines: string[];
+        action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
+          const includeFences = getModifierState(event);
+          const from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
+          const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
 
-          if (settings.SelectedTheme.settings.prompts.includePromptsInCopy) {
-            const lines: string[] = [];
-            const firstContentLineNum = state.doc.lineAt(from).number;
-            const lastContentLineNum = state.doc.lineAt(to).number;
-            const lineCount = lastContentLineNum - firstContentLineNum + 1;
-            const promptManager = new PromptManager(parameters, lineCount, settings);
-            
-            for (let i = firstContentLineNum; i <= lastContentLineNum; i++) {
-              const line = state.doc.line(i);
-              const relativeLineNumber = i - firstContentLineNum + 1;
-
-              if (promptManager.promptLines.has(relativeLineNumber)) {
-                const { node, output } = promptManager.renderLine(line.text);
-                lines.push(`${node.textContent}${line.text}`);
-
-                if (output && output.length > 0) {
-                  for (const out of output) {
-                    lines.push(out.text);
-                  }
-                }
-              } else {
-                lines.push(line.text);
-              }
-            }
-            initialLines = lines;
-          } else {
-            const blockContent = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
-            initialLines = blockContent.split('\n');
+          if (from > to) {
+            addTextToClipboard("");
+            return;
           }
-          
-          const processedLines = normalizeIndentation(initialLines);
-          const blockContent = processedLines.join('\n');
+
+          let blockContent;
+          if (includeFences) {
+            blockContent = view.state.sliceDoc(from, to);
+          } else {
+            let initialLines: string[];
+
+            if (settings.SelectedTheme.settings.prompts.includePromptsInCopy) {
+              const lines: string[] = [];
+              const firstContentLineNum = state.doc.lineAt(from).number;
+              const lastContentLineNum = state.doc.lineAt(to).number;
+              const lineCount = lastContentLineNum - firstContentLineNum + 1;
+              const promptManager = new PromptManager(parameters, lineCount, settings);
+              
+              for (let i = firstContentLineNum; i <= lastContentLineNum; i++) {
+                const line = state.doc.line(i);
+                const relativeLineNumber = i - firstContentLineNum + 1;
+
+                if (promptManager.promptLines.has(relativeLineNumber)) {
+                  const { node, output } = promptManager.renderLine(line.text);
+                  lines.push(`${node.textContent}${line.text}`);
+
+                  if (output && output.length > 0) {
+                    for (const out of output) {
+                      lines.push(out.text);
+                    }
+                  }
+                } else {
+                  lines.push(line.text);
+                }
+              }
+              initialLines = lines;
+            } else {
+              const content = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
+              initialLines = content.split('\n');
+            }
+            
+            const processedLines = normalizeIndentation(initialLines);
+            blockContent = processedLines.join('\n');
+          }
           addTextToClipboard(blockContent);
         },
         icon: "copy",
@@ -2056,16 +2086,21 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           await createSnapshot(container, view, codeBlockStartPos, codeBlockEndPos, state);
         },
         icon: "camera",
-        enabled: showButton
+        enabled: settings.SelectedTheme.settings.codeblock.buttons.enableSnapshotButton && showButton
       },
       {
         class: `codeblock-customizer-select-code`,
         displayText: "Select code",
-        action: (view: EditorView) => {
-          const collapseStart = codeBlockStartPos;
-          const collapseEnd = codeBlockEndPos;
-          const transaction = view.state.update({ selection: EditorSelection.range(collapseStart, collapseEnd) });
-          view.dispatch(transaction);
+        action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
+          const includeFences = getModifierState(event);
+          const from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
+          const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
+
+          if (to < from) {
+            view.dispatch(view.state.update({ selection: EditorSelection.cursor(from) }));
+          } else {
+            view.dispatch(view.state.update({ selection: EditorSelection.range(from, to) }));
+          }
         },
         icon: "text",
         enabled: settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton && showButton
@@ -2073,11 +2108,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       {
         class: `codeblock-customizer-delete-code`,
         displayText: "Delete code block content",
-        action: (view: EditorView) => {
-          const collapseStart = codeBlockStartPos + state.doc.lineAt(codeBlockStartPos).length;
-          const collapseEnd = codeBlockEndPos - parameters.fenceCount - 1;
-          const transaction = view.state.update({ changes: { from: collapseStart, to: collapseEnd, insert: "" } });
-          view.dispatch(transaction);
+        action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
+          const includeFences = getModifierState(event);
+          const from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
+          const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
+
+          if (to >= from) {
+            const transaction = view.state.update({ changes: { from: from, to: to, insert: "" } });
+            view.dispatch(transaction);
+          }
         },
         icon: "trash-2",
         enabled: settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton && showButton
@@ -2194,7 +2233,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       const button = createSpan({ cls: config.class });
       button.setAttribute("aria-label", config.displayText);
-      button.onclick = () => config.action(view, container);
+      button.onclick = (event) => config.action(view, container, event);
 
       if (config.text) {
         button.textContent = config.text;

@@ -283,7 +283,7 @@ export interface CBCParameters {
   tab: string;
 }
 
-export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false) {
+export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false): CBCParameters {
   const lineText = originalLineText.trim();
   const parsedParameters = parseParameters(lineText);
 
