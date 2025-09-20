@@ -277,6 +277,7 @@ export interface CBCParameters {
   lineSeparator: string;
   textSeparator: string;
   prompt: PromptLines;
+  parsePromptId: string | null;
   noprompt: boolean;
   nopromptLines: number[];
   group: string;
@@ -371,6 +372,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     module: extractParameter(parsedParameters, "module")
   };
 
+  const parsePromptId = extractParameter(parsedParameters, "parse");
+
   // noprompt
   const noprompt = isParameterDefined("noprompt", lineText);
   const nopromptLines = getLineRanges(extractParameter(parsedParameters, "noprompt"));
@@ -400,6 +403,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     lineSeparator,
     textSeparator,
     prompt,
+    parsePromptId,
     noprompt,
     nopromptLines,
     group,
@@ -433,6 +437,7 @@ export function getDefaultParameters(): CBCParameters {
     lineSeparator: '',
     textSeparator: '',
     prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null, module: null}},
+    parsePromptId: null,
     noprompt: false,
     nopromptLines: [],
     group: '',

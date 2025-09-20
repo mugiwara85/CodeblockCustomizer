@@ -1,4 +1,4 @@
-import { addClassesToPrompt, getPromptDefinition, getPromptType, getPWD, replacePromptTemplate } from "./PromptUtils";
+import { addClassesToPrompt, getCachedHighlightMap, getMatchRanges, getPromptDefinition, getPromptType, getPWD, replacePromptTemplate } from "./PromptUtils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { CBCParameters } from "./Utils";
 
@@ -97,7 +97,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultDir: "~/",
     defaultUser: "user",
     defaultHost: "localhost",
-    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)([$#])$/,
+    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)[$#]\s*/,
     highlightGroups: {
       user: "user",
       host: "host",
@@ -115,7 +115,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultDir: "~",
     defaultUser: "user",
     defaultHost: "localhost",
-    parsePromptRegex: /^\[(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)\]([$#])$/,
+    parsePromptRegex: /^\[(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)\]([$#])\s*/,
     highlightGroups: {
       user: "user",
       host: "host",
@@ -134,7 +134,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultBranch: "main",
     defaultUser: "user",
     defaultHost: "localhost",
-    parsePromptRegex: /^\s*(?<symbol>➜)\s+(?<path>.+?)\s+git:\((?<branch>.+?)\)(\s+(?<status>[✗✓]))?\s*$/,
+    parsePromptRegex: /^\s*(?<symbol>➜)\s+(?<path>.+?)\s+git:\((?<branch>.+?)\)(\s+(?<status>[✗✓]))?\s*/,
     highlightGroups: {
       symbol: "zsh-symbol",
       path: "path",
@@ -151,7 +151,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultDir: "~/myapp",
     defaultUser: "user",
     defaultHost: "localhost",
-    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)[%#]$/,
+    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^ ]+) (?<path>.+?)[%#]\s*/,
     highlightGroups: {
       user: "user",
       host: "host",
@@ -169,7 +169,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultDir: "~",
     defaultUser: "kali",
     defaultHost: "kali",
-    parsePromptRegex: /^\((?<user>[^㉿]+)㉿(?<host>[^)]+)\)-\[(?<path>[^\]]+)\]\s*([$#])$/,
+    parsePromptRegex: /^\((?<user>[^㉿]+)㉿(?<host>[^)]+)\)-\[(?<path>[^\]]+)\]\s*([$#])\s*/,
     highlightGroups: {
       user: "user",
       host: "host",
@@ -187,7 +187,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultUser: "user",
     defaultHost: "localhost",
     defaultDir: "~/projects/myapp",
-    parsePromptRegex: /^(?<path>.+)>$/,
+    parsePromptRegex: /^(?<path>.+?)>\s*/,
     highlightGroups: {
       path: "path"
     },
@@ -202,7 +202,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultUser: "Administrator",
     defaultHost: "localhost",
     defaultDir: "C:\\Users\\Administrator",
-    parsePromptRegex: /^PS (?<path>.+)>$/,
+    parsePromptRegex: /^PS (?<path>.+?)>\s*/, 
     highlightGroups: {
       path: "path"
     },
@@ -217,7 +217,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultUser: "Administrator",
     defaultHost: "localhost",
     defaultDir: "C:\\Users\\Administrator",
-    parsePromptRegex: /^(?<path>.+)>$/,
+    parsePromptRegex: /^(?<path>.+?)>\s*/,
     highlightGroups: {
       path: "path"
     },
@@ -232,7 +232,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultDir: "/var/www/html",
     defaultUser: "user",
     defaultHost: "container",
-    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)([$#])$/,
+    parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)[$#]\s*/,
     highlightGroups: {
       user: "user",
       host: "host",
@@ -251,7 +251,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultUser: "root",
     defaultHost: "localhost",
     defaultModule: "exploit/multi/handler",
-    parsePromptRegex: /^(?<msf>msf\d+)\s*(?:(?<keyword>\w+)\((?<module>.+?)\))?\s*>\s*$/,
+    parsePromptRegex: /^(?<msf>msf\d+)\s*(?:(?<keyword>\w+)\((?<module>.+?)\))?\s*>\s*/,
     highlightGroups: {
       msf: "msf",
       keyword: "keyword",
@@ -268,7 +268,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultUser: "user",
     defaultHost: "localhost",
     defaultDir: "C:\\Users\\User",
-    parsePromptRegex: /^(?<beacon>beacon)\s*>\s*$/,
+    parsePromptRegex: /^(?<beacon>beacon)\s*>\s*/,
     highlightGroups: {
       beacon: "beacon"
     },
@@ -281,7 +281,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     name: "PostgreSQL",
     basePrompt: "{db}=#",
     defaultDb: "postgres",
-    parsePromptRegex: /^(?<db>.+)=#$/,
+    parsePromptRegex: /^(?<db>.+?)=#\s*/,
     highlightGroups: {
       db: "db"
     },
@@ -314,6 +314,22 @@ export interface PromptLines {
   values: PromptValues;
 }
 
+export interface StyledPart {
+  from: number;
+  to: number;
+  className: string;
+  node?: HTMLElement; 
+  key?: string;
+}
+
+export interface PromptLineRenderResult {
+  styledParts: StyledPart[];
+  output: CommandOutput[];
+  matchedLength: number;
+  lineClassName: string | null;
+  isRoot: boolean;
+}
+
 interface PromptValues {
   user: string | null;
   host: string | null;
@@ -334,29 +350,151 @@ export class PromptManager {
   private promptEnv: PromptEnvironment;
   private cache: PromptCache;
   public readonly promptLines: Set<number>;
+  private isParseMode: boolean;
+  private parsePromptRegex?: RegExp;
 
   constructor(parameters: CBCParameters, totalLines: number, settings: CodeblockCustomizerSettings) {
     this.settings = settings;
+    this.isParseMode = !!parameters.parsePromptId;
     this.promptLines = this.computePromptLines(parameters, totalLines, settings);
     const { context, initialEnv } = this.createPromptContext(parameters, settings);
     this.context = context;
     this.promptEnv = initialEnv;
     this.cache = { key: "", node: null };
+
+    if (this.isParseMode) {
+      this.parsePromptRegex = context.promptDef.parsePromptRegex;
+      this.promptLines = new Set<number>();
+    } else {
+      this.promptLines = this.computePromptLines(parameters, totalLines, settings);
+    }
   }
 
-  public renderLine(lineText: string): { node: HTMLElement, key: string, output: CommandOutput[] } {
+  public renderLine(lineText: string): PromptLineRenderResult {
+    if (this.isParseMode) {
+      // parse mode
+      return this.renderParseModeLine(lineText);
+    }
+
+    // original prompt mode
     const snapshot = { ...this.promptEnv };
     const result = this.renderPromptLine(lineText, snapshot, this.cache, this.context);
 
     this.promptEnv = result.newEnv;
     this.cache = result.newCache;
     
-    const output = this.getCommandOutput(lineText, this.promptEnv);
-    
-    return { node: result.node, key: result.key, output };
+    const output = this.getCommandOutput(lineText, this.promptEnv, false);
+    const isRoot = !!(snapshot.user === "root" && this.context.promptDef.supportsRootStyling);
+    const styledParts = [{ from: 0, to: 0, className: 'widget', node: result.node, key: result.key }];
+
+    return { styledParts, output, matchedLength: 0, lineClassName: null, isRoot };
   }// renderLine
 
-  private getCommandOutput(lineText: string, env: PromptEnvironment): CommandOutput[] {
+  private renderParseModeLine(lineText: string): PromptLineRenderResult {
+    const match = this.parsePromptRegex ? lineText.match(this.parsePromptRegex) : null;
+    
+    if (match && match.index === 0) {
+      const matchedPromptText = match[0];
+      const commandText = lineText.substring(matchedPromptText.length);
+
+      if (match.groups) {
+        if (match.groups.path) 
+          this.promptEnv.dir = match.groups.path;
+        if (match.groups.user) 
+          this.promptEnv.user = match.groups.user;
+        if (match.groups.host) 
+          this.promptEnv.host = match.groups.host;
+        if (match.groups.db) 
+          this.promptEnv.db = match.groups.db;
+        if (match.groups.branch) 
+          this.promptEnv.branch = match.groups.branch;
+        if (match.groups.keyword) 
+          this.promptEnv.msfKeyword = match.groups.keyword;
+        if (match.groups.module) 
+          this.promptEnv.msfModule = match.groups.module;
+      }
+
+      const isRoot = (this.promptEnv.user === "root" || match.groups?.user?.trim() === "root") && !!this.context.promptDef.supportsRootStyling;
+      const styledParts = this.getStyledPromptParts(matchedPromptText, this.context.promptDef);
+      const output = this.getCommandOutput(commandText, this.promptEnv, true);
+
+      this.promptEnv = this.parsePromptCommands(commandText, this.context.promptDef, this.promptEnv);
+      
+      const lineClassName = `codeblock-customizer-prompt-${this.context.promptType}`;
+
+      return { styledParts, output, matchedLength: matchedPromptText.length, lineClassName, isRoot };
+    }
+
+    return { styledParts: [], output: [], matchedLength: 0, lineClassName: null, isRoot: false };
+  }// renderParseModeLine
+
+  getStyledPromptParts(promptText: string, promptDef: PromptDefinition): StyledPart[] {
+    const parts: StyledPart[] = [];
+    const match = promptDef?.parsePromptRegex?.exec(promptText);
+
+    if (match) {
+      const resolvedMap = getCachedHighlightMap(promptDef);
+      const ranges = getMatchRanges(promptText, match, promptDef.highlightGroups ?? {});
+      let cursor = 0;
+
+      const addSymbolParts = (text: string, offset: number) => {
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const cls = symbolClassMap[char] ?? 'prompt-symbol';
+          parts.push({
+            from: offset + i,
+            to: offset + i + 1,
+            className: `prompt-part ${cls}`
+          });
+        }
+      };
+
+      for (const { start, end, groupName } of ranges) {
+        if (groupName === "status") continue;
+
+        if (cursor < start) {
+          addSymbolParts(promptText.slice(cursor, start), cursor);
+        }
+
+        const cls = resolvedMap[groupName] ?? `prompt-part prompt-${groupName}`;
+        parts.push({ from: start, to: end, className: cls });
+        cursor = end;
+      }
+
+      if (cursor < promptText.length) {
+        addSymbolParts(promptText.slice(cursor), cursor);
+      }
+    } else {
+      // fallback
+      for (let i = 0; i < promptText.length; i++) {
+        const char = promptText[i];
+        const cls = symbolClassMap[char] ?? 'prompt-symbol';
+        parts.push({ from: i, to: i + 1, className: `prompt-part ${cls}` });
+      }
+    }
+    
+    return parts;
+  }// getStyledPromptParts
+
+  public getPromptAndOutputTextForLine(lineText: string): { prompt: string; output: string[] } {
+    const snapshotEnv = { ...this.promptEnv };
+
+    const promptContent = replacePromptTemplate(this.context.promptKind, this.context.actualPrompt, this.context.promptDef, snapshotEnv);
+    const promptText = Array.isArray(promptContent) ? promptContent.map(p => p.text).join('') : promptContent;
+    const newEnv = this.parsePromptCommands(lineText, this.context.promptDef, snapshotEnv);
+    this.promptEnv = newEnv;
+
+    const outputObjects = this.getCommandOutput(lineText, newEnv, false);
+    const outputText = outputObjects.map(o => o.text);
+
+    return { prompt: promptText, output: outputText };
+  }// getPromptAndOutputTextForLine
+
+  private getCommandOutput(lineText: string, env: PromptEnvironment, isParseMode: boolean): CommandOutput[] {
+    if (isParseMode) {
+      return [];
+    }
+
     const output: CommandOutput[] = [];
     if (/^\s*pwd\s*$/.test(lineText)) {
       output.push({ text: getPWD(env), className: `codeblock-customizer-prompt-cmd-output codeblock-customizer-workingdir` });
@@ -582,7 +720,7 @@ export class PromptManager {
   }// resolvePath
 
   private createPromptContext(parameters: CBCParameters, settings: CodeblockCustomizerSettings): { context: PromptContext; initialEnv: PromptEnvironment } {
-    const promptType = parameters.prompt.text;
+    const promptType = parameters.parsePromptId ?? parameters.prompt.text;
     const { def: promptDef, isCustom } = getPromptDefinition(promptType, settings);
     const promptKind = getPromptType(!isCustom ? promptType : promptDef.basePrompt);
     const actualPrompt = promptDef.basePrompt ?? promptType;

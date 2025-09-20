@@ -699,12 +699,33 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     }
     
     let promptOutput: { className: string, text: string }[] = [];
-    if (prompt && prompt.promptLines.has(lineNumber + parameters.lineNumberOffset)) {
-      const { node: promptNode, output } = prompt.renderLine(textLine);
+    const isPromptLine = processPrompts && prompt && (parameters.parsePromptId || prompt.promptLines.has(lineNumber + parameters.lineNumberOffset));
+    if (isPromptLine) {
+      const promptResult = prompt.renderLine(textLine);
 
-      promptOutput = output; 
-      lineWrapper.classList.add(`has-prompt`);
-      lineWrapper.appendChild(promptNode);
+      if (parameters.parsePromptId) {
+        // parsed prompt
+        if (promptResult.matchedLength > 0) {
+          lineWrapper.classList.add(`has-prompt`);
+          if (promptResult.lineClassName) 
+            lineWrapper.classList.add(promptResult.lineClassName);
+          if (promptResult.isRoot) 
+            lineWrapper.classList.add(`is-root`);
+          
+          processedLine = applyPromptStylesToString(processedLine, promptResult.styledParts);
+        }
+      } else {
+        // normal prompts
+        const promptPart = promptResult.styledParts[0];
+        promptOutput = promptResult.output; 
+        if (promptPart?.node) {
+          lineWrapper.classList.add(`has-prompt`);
+          if (promptResult.isRoot) {
+            lineWrapper.classList.add(`is-root`);
+          }
+          lineWrapper.appendChild(promptPart.node);
+        }
+      }
     }
 
     if (addIndentationGuides && indentationLevels) {
@@ -744,6 +765,75 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
 
   return { fragment: frag, annotations: annotationsToProcess };
 }// renderCodeBlockLines
+
+function applyPromptStylesToString(htmlLine: string, styledParts: { from: number; to: number; className: string }[]): string {
+  if (styledParts.length === 0) {
+    return htmlLine;
+  }
+
+  const starts = new Map<number, string[]>();
+  const ends = new Map<number, number>();
+  for (const part of styledParts) {
+    let startSpans = starts.get(part.from);
+    if (!startSpans) {
+      startSpans = [];
+      starts.set(part.from, startSpans);
+    }
+    startSpans.push(`<span class="${part.className}">`);
+    ends.set(part.to, (ends.get(part.to) || 0) + 1);
+  }
+
+  let result = '';
+  let textIndex = 0;
+  let inTag = false;
+  const entityRegex = /&[#a-zA-Z0-9]+;/g;
+
+  for (let i = 0; i < htmlLine.length; ) {
+    if (!inTag) {
+      const endCount = ends.get(textIndex);
+      if (endCount) {
+        result += '</span>'.repeat(endCount);
+      }
+      const startSpans = starts.get(textIndex);
+      if (startSpans) {
+        result += startSpans.join('');
+      }
+    }
+
+    const char = htmlLine[i];
+
+    if (char === '<') {
+      inTag = true;
+    } else if (char === '>') {
+      inTag = false;
+    }
+
+    if (!inTag && char === '&') {
+      entityRegex.lastIndex = i;
+      const match = entityRegex.exec(htmlLine);
+      if (match && match.index === i) {
+        const entity = match[0];
+        result += entity;
+        i += entity.length;
+        textIndex++;
+        continue;
+      }
+    }
+
+    result += char;
+    i++;
+    if (!inTag) {
+      textIndex++;
+    }
+  }
+
+  const endCount = ends.get(textIndex);
+  if (endCount) {
+    result += '</span>'.repeat(endCount);
+  }
+
+  return result;
+}// applyPromptStylesToString
 
 export function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockCustomizerPlugin, sourcePath: string, annotationsToProcess: { selector: string, type: string, content: string, title?: string }[]) {
   // annotations

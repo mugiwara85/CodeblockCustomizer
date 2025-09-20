@@ -79,7 +79,7 @@ function selectorToVariable(selector: string): string {
     .toLowerCase();
 }// selectorToVariable
 
-function getCachedHighlightMap(def: PromptDefinition): Record<string, string> {
+export function getCachedHighlightMap(def: PromptDefinition): Record<string, string> {
   let map = highlightMapCache.get(def);
 
   if (!map) {
@@ -268,7 +268,7 @@ function resolvePromptClass(token: string, context: {type: 'symbol' | 'template'
   return 'prompt-symbol';
 }// resolvePromptClass
 
-function getMatchRanges(promptText: string, match: RegExpExecArray, groupMap: Record<string, string>): { start: number; end: number; groupName: string }[] {
+export function getMatchRanges(promptText: string, match: RegExpExecArray, groupMap: Record<string, string>): { start: number; end: number; groupName: string }[] {
   const ranges: { start: number; end: number; groupName: string }[] = [];
   let lastIndex = 0;
 

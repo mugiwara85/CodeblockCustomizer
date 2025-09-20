@@ -11,7 +11,7 @@ import { TooltipManager } from "./TooltipManager";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
-import { PromptManager } from "./PromptManager";
+import { PromptLineRenderResult, PromptManager } from "./PromptManager";
 import { createButtons, extractCodeBlocksFromAdmonition, extractLinesFromHTML, renderCodeBlockLines } from "./ReadingViewUtils";
 import { createExecuteCodeEditButton, verifyAndRevealExecuteButtons } from "./ExecuteCode";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
@@ -741,9 +741,21 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           const endLine = line === lastCodeBlockLine;
           const currentLine = view.state.doc.line(line);
           const lineStartPos = currentLine.from;
+          let promptRenderResult: PromptLineRenderResult = { styledParts: [], output: [], matchedLength: 0, lineClassName: null, isRoot: false };
+
+          const isPromptLine = !startLine && !endLine && (parameters.parsePromptId || prompt.promptLines.has(lineNumber + parameters.lineNumberOffset));
+          if (isPromptLine) {
+            promptRenderResult = prompt.renderLine(currentLine.text);
+          }
 
           // lines
-          const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);
+          let lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations);
+          if (promptRenderResult.lineClassName) {
+            lineClass += ` ${promptRenderResult.lineClassName}`;
+          }
+          if (promptRenderResult.isRoot) {
+            lineClass += ` is-root`;
+          }
           decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
             
           let spanClass = "";
@@ -761,14 +773,28 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
 
           // prompt
-          if (prompt.promptLines.has(lineNumber + parameters.lineNumberOffset) && !startLine && !endLine) {
-            const { node: promptNode, key, output } = prompt.renderLine(currentLine.text);
+          if (parameters.parsePromptId) {
+            if (promptRenderResult.matchedLength > 0) {
+              for (const part of promptRenderResult.styledParts) {
+                const from = lineStartPos + part.from;
+                const to = lineStartPos + part.to;
+                if (from < to) {
+                  decorations.push(Decoration.mark({ class: part.className }).range(from, to));
+                }
+              }
+            }
+          } else {
+            if (prompt.promptLines.has(lineNumber + parameters.lineNumberOffset) && !startLine && !endLine) {
+              const promptPart = promptRenderResult.styledParts[0];
 
-            decorations.push(Decoration.widget({ widget: new NodeWidget(promptNode, key) }).range(lineStartPos));
+              if (promptPart?.node && promptPart.key) {
+                decorations.push(Decoration.widget({ widget: new NodeWidget(promptPart.node, promptPart.key) }).range(lineStartPos));
+              }
 
-            if (output.length > 0) {
-              for (const out of output) {
-                decorations.push(Decoration.widget({ widget: new LineWidget(out.text, out.className), side: 1 }).range(currentLine.to));
+              if (promptRenderResult.output.length > 0) {
+                for (const out of promptRenderResult.output) {
+                  decorations.push(Decoration.widget({ widget: new LineWidget(out.text, out.className), side: 1 }).range(currentLine.to));
+                }
               }
             }
           }
@@ -2052,13 +2078,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
                 const relativeLineNumber = i - firstContentLineNum + 1;
 
                 if (promptManager.promptLines.has(relativeLineNumber)) {
-                  const { node, output } = promptManager.renderLine(line.text);
-                  lines.push(`${node.textContent}${line.text}`);
+                  const { prompt, output } = promptManager.getPromptAndOutputTextForLine(line.text);
+                  lines.push(`${prompt}${line.text}`);
 
-                  if (output && output.length > 0) {
-                    for (const out of output) {
-                      lines.push(out.text);
-                    }
+                  if (output.length > 0) {
+                    lines.push(...output);
                   }
                 } else {
                   lines.push(line.text);
