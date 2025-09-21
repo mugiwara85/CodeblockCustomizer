@@ -1967,8 +1967,9 @@ export function normalizeIndentation(lines: string[]): string[] {
   return lines;
 }// normalizeIndentation
 
-export async function generateSnapshot(elementToSnapshot: HTMLElement, originalElement: HTMLElement, appendTo: HTMLElement, settings: CodeblockCustomizerSettings, options?: any): Promise<void> {
+export async function generateSnapshot(elementToSnapshot: HTMLElement, originalElement: HTMLElement, appendTo: HTMLElement, settings: CodeblockCustomizerSettings, parameters: CBCParameters, options?: any): Promise<void> {
   const offscreenWrapper = document.createElement('div');
+  const { gutterBgColor, codeBgColor } = getSnapshotColors(settings, parameters.language);
 
   try {
     offscreenWrapper.style.position = 'absolute';
@@ -1981,42 +1982,65 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
     offscreenWrapper.appendChild(elementToSnapshot);
     appendTo.appendChild(offscreenWrapper);
 
+    const gutterEl = elementToSnapshot.querySelector<HTMLElement>('.codeblock-customizer-line-number, .codeblock-customizer-line-number-specific');
+    const gutterWidth = gutterEl?.offsetWidth;
+
+    if (gutterWidth && gutterWidth > 0) {
+      const gradientBackground = `linear-gradient(to right, ${gutterBgColor} ${gutterWidth}px, ${codeBgColor} ${gutterWidth}px)`;
+      elementToSnapshot.style.background = gradientBackground;
+
+      elementToSnapshot.querySelectorAll<HTMLElement>('.cm-line, [class*="codeblock-customizer-line-"]').forEach(line => {
+        if (!line.matches('[class*="codeblock-customizer-line-highlighted"]')) {
+          line.style.backgroundColor = 'transparent';
+          const innerGutter = line.querySelector<HTMLElement>('.codeblock-customizer-line-number, .codeblock-customizer-line-number-specific');
+          if (innerGutter) {
+            innerGutter.style.backgroundColor = 'transparent';
+          }
+        }
+      });
+    } else {
+      // gutter is hidden
+      elementToSnapshot.style.backgroundColor = codeBgColor;
+    }
+
     const width = elementToSnapshot.clientWidth;
     const height = elementToSnapshot.clientHeight;
-    const canvas = document.createElement('canvas');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error("Could not create canvas context.");
-    }
-    ctx.scale(dpr, dpr);
-
-    const borderRadius = 5;
-    ctx.beginPath();
-    ctx.moveTo(borderRadius, 0);
-    ctx.lineTo(width - borderRadius, 0);
-    ctx.arcTo(width, 0, width, borderRadius, borderRadius);
-    ctx.lineTo(width, height - borderRadius);
-    ctx.arcTo(width, height, width - borderRadius, height, borderRadius);
-    ctx.lineTo(borderRadius, height);
-    ctx.arcTo(0, height, 0, height - borderRadius, borderRadius);
-    ctx.lineTo(0, borderRadius);
-    ctx.arcTo(0, 0, borderRadius, 0, borderRadius);
-    ctx.closePath();
-    ctx.clip();
     
-    const blobOptions = { backgroundColor: getEffectiveBackgroundColor(originalElement), ...options, };
+    const blobOptions = {pixelRatio: dpr, width: width, height: height, ...options,};
 
     const dataBlob = await toBlob(elementToSnapshot, blobOptions);
     if (!dataBlob) {
       throw new Error("Failed to generate image blob.");
     }
 
+    const canvasWidth = width * dpr;
+    const canvasHeight = height * dpr;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error("Could not create canvas context.");
+    }
+
+    const borderRadius = 5 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(borderRadius, 0);
+    ctx.lineTo(canvasWidth - borderRadius, 0);
+    ctx.arcTo(canvasWidth, 0, canvasWidth, borderRadius, borderRadius);
+    ctx.lineTo(canvasWidth, canvasHeight - borderRadius);
+    ctx.arcTo(canvasWidth, canvasHeight, canvasWidth - borderRadius, canvasHeight, borderRadius);
+    ctx.lineTo(borderRadius, canvasHeight);
+    ctx.arcTo(0, canvasHeight, 0, canvasHeight - borderRadius, borderRadius);
+    ctx.lineTo(0, borderRadius);
+    ctx.arcTo(0, 0, borderRadius, 0, borderRadius);
+    ctx.closePath();
+    ctx.clip();
+    
     const image = await createImageBitmap(dataBlob);
-    ctx.drawImage(image, 0, 0);
+    ctx.drawImage(image, 0, 0, canvasWidth, canvasHeight);
 
     const finalBlob = await getCanvasBlob(canvas);
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': finalBlob })]);
@@ -2033,24 +2057,27 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
   }
 }// generateSnapshot
 
-function getEffectiveBackgroundColor(element: HTMLElement): string {
-  let current: HTMLElement | null = element;
-  while (current) {
-    const style = window.getComputedStyle(current);
-    const bgColor = style.backgroundColor;
-    if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-      return bgColor;
-    }
+export function getSnapshotColors(settings: CodeblockCustomizerSettings, language: string): { gutterBgColor: string, codeBgColor: string } {
+  const baseColors = settings.SelectedTheme.colors[getCurrentMode()];
 
-    if (current === document.body) {
-      break; 
-    }
+  let codeBgColor = baseColors.codeblock.backgroundColor;
+  let gutterBgColor = baseColors.gutter.backgroundColor;
 
-    current = current.parentElement;
+  const langOverrides = baseColors.languageSpecificColors[language.toLowerCase()];
+  if (langOverrides) {
+    codeBgColor = langOverrides['codeblock.backgroundColor'] || codeBgColor;
+    gutterBgColor = langOverrides['gutter.backgroundColor'] || gutterBgColor;
   }
 
-  return '#ffffff';
-}// getEffectiveBackgroundColor
+  if (codeBgColor.startsWith('--')) {
+    codeBgColor = getColorOfCssVariable(codeBgColor);
+  }
+  if (gutterBgColor.startsWith('--')) {
+    gutterBgColor = getColorOfCssVariable(gutterBgColor);
+  }
+
+  return { gutterBgColor, codeBgColor };
+}// getSnapshotColors
 
 function getCanvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {

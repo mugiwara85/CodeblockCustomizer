@@ -113,7 +113,7 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   });
   frag.appendChild(copyButton);
 
-  const snapshotButton = createsnapshotButton(container, targetPreElement, plugin);
+  const snapshotButton = createsnapshotButton(container, targetPreElement, parameters, plugin);
   frag.appendChild(snapshotButton);
 
   const wrapCodeButton = createWrapCodeButton();
@@ -133,7 +133,7 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   return { container, observer };
 }// createButtons
 
-function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLElement | undefined, plugin: CodeBlockCustomizerPlugin) {
+function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLElement | undefined, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin) {
   const snapshotButton = document.createElement("button");
   snapshotButton.classList.add("codeblock-customizer-snapshot-button");
   snapshotButton.setAttribute("aria-label", "Copy as image");
@@ -150,7 +150,7 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
     
     const parentContainer = preEl.parentElement;
 
-    container.style.visibility = 'hidden';
+    //container.style.visibility = 'hidden';
 
     try {
       let elementToClone: HTMLElement;
@@ -174,12 +174,14 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
 
       const snapshotOptions = {
         style: { padding: '0px', margin: '0' },
-        filter: (node: HTMLElement) => !node.classList?.contains('codeblock-customizer-button-container'),
+        filter: (node: HTMLElement) => 
+          !node.classList?.contains('codeblock-customizer-button-container') && 
+          !node.classList?.contains('codeblock-customizer-header-collapse'), 
       };
 
-      await generateSnapshot(elementToClone, preEl, parentContainer, plugin.settings, snapshotOptions);
+      await generateSnapshot(elementToClone, preEl, parentContainer, plugin.settings, parameters, snapshotOptions);
     } finally {
-      container.style.visibility = 'visible';
+      //container.style.visibility = 'visible';
     }
   });
 

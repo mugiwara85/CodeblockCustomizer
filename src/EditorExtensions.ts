@@ -2169,11 +2169,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return;
     }
 
-    const originalContainer = startingEl.parentElement;
-
-    if (container) {
+    /*if (container) {
       container.style.visibility = 'hidden';
-    }
+    }*/
 
     try {
       const elementsToSnapshot: HTMLElement[] = [startingEl];
@@ -2217,18 +2215,22 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       
       const snapshotOptions = {
         filter: (node: HTMLElement) => {
-          if (node.classList?.contains('codeblock-customizer-button-container')) {
+          if (node.classList?.contains('codeblock-customizer-button-container') ||          // first-line button container
+              node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
+              node.classList?.contains('codeblock-customizer-header-collapse')) {           // header collapse icon
             return false;
           }
           return !(node.tagName === 'IMG' && node.classList.contains('cm-widgetBuffer'));
         }
       };
 
-      await generateSnapshot(cloneContainer, originalContainer, parent, plugin.settings, snapshotOptions);
+      const firstLine = view.state.doc.lineAt(codeBlockStartPos).text;
+      const parameters = getAllParameters(firstLine, plugin.settings, false);
+      await generateSnapshot(cloneContainer, startingEl, parent, plugin.settings, parameters, snapshotOptions);
     } finally {
-      if (container) {
+      /*if (container) {
         container.style.visibility = 'visible';
-      }
+      }*/
     }
   }// createSnapshot
 
