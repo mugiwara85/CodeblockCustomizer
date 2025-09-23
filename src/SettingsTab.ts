@@ -1160,6 +1160,7 @@ export class SettingsTab extends PluginSettingTab {
       const value = enableSemiFoldToggle.getValue();
       semiFoldLinesDropDown.setDisabled(!value);
       semiFoldShowButton.setDisabled(!value);
+      autoFoldSetting.settingEl.style.display = value ? '' : 'none';
     };
     
     new Setting(foldDetails)
@@ -1193,6 +1194,36 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
+
+    let longCodeblockLinesInput: TextComponent;
+    const autoFoldSetting = new Setting(foldDetails)
+      .setName('Auto semi-fold long code blocks')
+      .setDesc('If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.SelectedTheme.settings.semiFold.autoFoldLongCodeblocks)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.settings.semiFold.autoFoldLongCodeblocks = value;
+          longCodeblockLinesInput.setDisabled(!value);
+          longCodeblockLinesInput.inputEl.classList.toggle('is-disabled', !value);
+          await this.plugin.saveSettings();
+        })
+      )
+      .addText(text => {
+        longCodeblockLinesInput = text;
+        const isDisabled = !this.plugin.settings.SelectedTheme.settings.semiFold.autoFoldLongCodeblocks;
+        text
+          .setPlaceholder('30')
+          .setValue(this.plugin.settings.SelectedTheme.settings.semiFold.longCodeBlockLines.toString())
+          .setDisabled(isDisabled)
+        text.inputEl.classList.toggle('is-disabled', isDisabled); 
+        text.onChange(async (value) => {
+            const lines = parseInt(value);
+            if (!isNaN(lines)) {
+              this.plugin.settings.SelectedTheme.settings.semiFold.longCodeBlockLines = lines;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
 
     updateDependentSettings();
 

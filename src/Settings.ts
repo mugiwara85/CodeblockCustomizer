@@ -120,6 +120,8 @@ export interface ThemeSettings {
     enableSemiFold: boolean;
     visibleLines: number;
     showAdditionalUncollapseButon: boolean;
+    autoFoldLongCodeblocks: boolean;
+    longCodeBlockLines: number;
   },
   header: {
     boldText: boolean;
@@ -240,6 +242,8 @@ const defaultThemeSettings: ThemeSettings = {
     enableSemiFold: false,
     visibleLines: 5,
     showAdditionalUncollapseButon: false,
+    autoFoldLongCodeblocks: false,
+    longCodeBlockLines: 30,
   },
   header: {
     boldText: false,

@@ -1990,12 +1990,18 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
       elementToSnapshot.style.background = gradientBackground;
 
       elementToSnapshot.querySelectorAll<HTMLElement>('.cm-line, [class*="codeblock-customizer-line-"]').forEach(line => {
-        if (!line.matches('[class*="codeblock-customizer-line-highlighted"]')) {
-          line.style.backgroundColor = 'transparent';
-          const innerGutter = line.querySelector<HTMLElement>('.codeblock-customizer-line-number, .codeblock-customizer-line-number-specific');
-          if (innerGutter) {
-            innerGutter.style.backgroundColor = 'transparent';
+        const isHighlighted = line.matches('[class*="codeblock-customizer-line-highlighted"]');
+
+        if (isHighlighted) {
+          const highlightColor = window.getComputedStyle(line).backgroundColor;
+          
+          if (settings.SelectedTheme.settings.gutter.enableHighlight) {
+            line.style.background = highlightColor;
+          } else {
+            line.style.background = `linear-gradient(to right, ${gutterBgColor} ${gutterWidth}px, ${highlightColor} ${gutterWidth}px)`;
           }
+        } else {
+          line.style.background = 'transparent';
         }
       });
     } else {

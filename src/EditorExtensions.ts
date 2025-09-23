@@ -263,7 +263,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             continue;
           }
 
-          const shouldFoldByDefault = pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.folding.inverseFold && !pos.parameters.unfold);
+          const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
+          const autoFold = pos.parameters.specificHeader && settings.SelectedTheme.settings.semiFold.enableSemiFold && settings.SelectedTheme.settings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.SelectedTheme.settings.semiFold.longCodeBlockLines + 2;
+          const foldByDefault = pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.folding.inverseFold && !pos.parameters.unfold);
           let foldNow = false;
           let useSemiFold = false;
           
@@ -290,7 +292,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
                   foldNow = true; useSemiFold = true;
                 } else if (rememberedState === FoldingState.Unfolded) {
                   foldNow = false;
-                } else if (rememberedState === undefined && shouldFoldByDefault) {
+                } else if (rememberedState === undefined && (foldByDefault || autoFold)) {
                   foldNow = true;
                   useSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
                 }

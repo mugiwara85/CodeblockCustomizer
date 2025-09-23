@@ -438,7 +438,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           useSemiFold = rememberedState === FoldingState.SemiFolded;
         } else {
           const inverseFold = settings.codeblock.folding.inverseFold;
-          shouldFold = parameters.fold || (inverseFold && !parameters.unfold);
+          const autoFold = parameters.specificHeader && settings.semiFold.enableSemiFold && settings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.semiFold.longCodeBlockLines;
+          shouldFold = parameters.fold || (inverseFold && !parameters.unfold) || autoFold;
           useSemiFold = settings.semiFold.enableSemiFold;
         }
         break;
