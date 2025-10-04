@@ -87,13 +87,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const headerField = StateField.define<DecorationSet>({
     create(state: EditorState): DecorationSet {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
       return Decoration.none;
     },
     update(value: DecorationSet, transaction: Transaction): DecorationSet {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return Decoration.none;
 
       return insertHeader(transaction.state);
@@ -105,13 +105,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const codeBlockPositionsField = StateField.define<CodeBlockPositions[]>({
     create(state: EditorState): CodeBlockPositions[] {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return [];
 
       return findCodeBlockPositions(state); //return [];
     },
     update(value: CodeBlockPositions[], transaction: Transaction): CodeBlockPositions[] {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state)) {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state)) {
         return [];
       }
 
@@ -177,13 +177,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const collapseField = StateField.define<RangeSet<Decoration>>({
     create(state): RangeSet<Decoration> {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
       return Decoration.none;
     },
     update(value, tr) {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(tr.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(tr.state))
         return Decoration.none;
 
       value = value.map(tr.changes);
@@ -264,8 +264,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
 
           const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-          const autoFold = pos.parameters.specificHeader && settings.SelectedTheme.settings.semiFold.enableSemiFold && settings.SelectedTheme.settings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.SelectedTheme.settings.semiFold.longCodeBlockLines + 2;
-          const foldByDefault = pos.parameters.fold || (settings.SelectedTheme.settings.codeblock.folding.inverseFold && !pos.parameters.unfold);
+          const autoFold = pos.parameters.specificHeader && settings.pluginSettings.semiFold.enableSemiFold && settings.pluginSettings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.pluginSettings.semiFold.longCodeBlockLines + 2;
+          const foldByDefault = pos.parameters.fold || (settings.pluginSettings.codeblock.folding.inverseFold && !pos.parameters.unfold);
           let foldNow = false;
           let useSemiFold = false;
           
@@ -277,7 +277,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             switch (globalFoldCmd) {
               case FoldCommand.FoldAll:
                 foldNow = true;
-                useSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
+                useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
                 break;
               case FoldCommand.UnfoldAll:
                 foldNow = false;
@@ -294,7 +294,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
                   foldNow = false;
                 } else if (rememberedState === undefined && (foldByDefault || autoFold)) {
                   foldNow = true;
-                  useSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
+                  useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
                 }
                 break;
               }
@@ -302,8 +302,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
           if (foldNow) {
             const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-            if (useSemiFold && lineCount >= settings.SelectedTheme.settings.semiFold.visibleLines + fadeOutLineCount + 2) {
-              const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.SelectedTheme.settings.semiFold.visibleLines);
+            if (useSemiFold && lineCount >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount + 2) {
+              const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines);
               decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map(e => e.value));
             } else {
               decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
@@ -323,10 +323,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const activeGroupTabField = StateField.define<Record<string, number>>({
     create(state: EditorState) {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return {};
 
-      const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
+      const tabSettings = settings.pluginSettings.groupedCodeBlocks;
       if (!tabSettings.rememberTabState) {
         return {};
       }
@@ -366,7 +366,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return initialTabs;
     },
     update(value, transaction) {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return {};
 
       const docPath = transaction.state.field(editorInfoField)?.file?.path;
@@ -390,7 +390,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       // case 1: a tab was clicked => save
       const groupUpdate = transaction.annotation(setGroupTab);
       if (groupUpdate) {
-        const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
+        const tabSettings = settings.pluginSettings.groupedCodeBlocks;
         if (tabSettings.rememberTabState && docPath) {
           const newStartPos = transaction.changes.mapPos(groupUpdate.startPos);
           if (newStartPos !== -1) {
@@ -426,7 +426,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (transaction.docChanged || oldGroups !== newGroups) {
         const newState: Record<string, number> = {};
         const newGroupedCodeBlocks = newGroups ?? {};
-        const tabSettings = settings.SelectedTheme.settings.groupedCodeBlocks;
+        const tabSettings = settings.pluginSettings.groupedCodeBlocks;
 
         let savedStatesForFile: Map<string, number> | undefined;
         if (docPath && tabSettings.rememberTabState) {
@@ -468,14 +468,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const groupedCodeBlocksField = StateField.define<GroupedCodeBlocks>({
     create(state: EditorState): GroupedCodeBlocks {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return {};
 
       return calculateGroupedCodeBlocks(state);
     },
 
     update(grouped: GroupedCodeBlocks, transaction: Transaction): GroupedCodeBlocks {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return {};
 
       const newCodeBlockPositions = transaction.state.field(codeBlockPositionsField, false) ?? [];
@@ -491,10 +491,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const rememberedFoldField = StateField.define<Record<number, FoldingState>>({
     create(state: EditorState): Record<number, FoldingState> {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return {};
 
-      const foldSettings = settings.SelectedTheme.settings.codeblock.folding;
+      const foldSettings = settings.pluginSettings.codeblock.folding;
       if (!foldSettings.rememberFoldState)
         return {};
 
@@ -512,10 +512,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return savedStatesForFile ? Object.fromEntries(savedStatesForFile) : {};
     },
     update(value: Record<number, FoldingState>, transaction: Transaction): Record<number, FoldingState> {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return {};
 
-      const foldSettings = settings.SelectedTheme.settings.codeblock.folding;
+      const foldSettings = settings.pluginSettings.codeblock.folding;
       if (!foldSettings.rememberFoldState) {
         return Object.keys(value).length > 0 ? {} : value;
       }
@@ -560,7 +560,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const defaultFoldUnfoldedField = StateField.define<Set<number>>({
     create(state: EditorState): Set<number> {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return new Set();
       
       const initiallyUnfolded = new Set<number>();
@@ -577,7 +577,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return initiallyUnfolded;
     },
     update(value: Set<number>, transaction: Transaction): Set<number> {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(transaction.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return new Set();
 
       const newValue = new Set(value);
@@ -631,7 +631,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const decorations: Range<Decoration>[] = [];
       
       if (!match.matched) {
-        if (settings.SelectedTheme.settings.codeblock.highlightNonMatchingBrackets) {
+        if (settings.pluginSettings.codeblock.highlightNonMatchingBrackets) {
           decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.start.from, match.start.to));
           if (match.end) {
             decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.end.from, match.end.to));
@@ -712,7 +712,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
     buildDecorations(view: EditorView): DecorationSet {
       updateValue(false);
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
       const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
@@ -770,7 +770,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
           
           // line number
-          if (settings.SelectedTheme.settings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
+          if (settings.pluginSettings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
             decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : (lineNumber + parameters.lineNumberOffset).toString(), parameters, spanClass),}).range(lineStartPos));
           }
 
@@ -823,18 +823,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
-      this.prevEnableSyntaxHighlight = settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight;
+      this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged || update.selectionSet || this.prevEnableSyntaxHighlight != settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet || this.prevEnableSyntaxHighlight != settings.pluginSettings.inlineCode.enableSyntaxHighlight) {
         this.decorations = this.buildDecorations(update.view);
-        this.prevEnableSyntaxHighlight = settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight;
+        this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
       }
     }
 
     buildDecorations(view: EditorView): DecorationSet {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
       const decorations: Array<Range<Decoration>> = [];
@@ -847,7 +847,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               return;
 
             decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper" }).range(node.from, node.to));
-            if (!settings.SelectedTheme.settings.inlineCode.enableSyntaxHighlight) {
+            if (!settings.pluginSettings.inlineCode.enableSyntaxHighlight) {
               return;
             }
 
@@ -899,10 +899,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     decorations: v => v.decorations,
     eventHandlers : {
       click: (event, view) => {
-        if (!settings.SelectedTheme.settings.inlineCode.enableCopyOnClick) 
+        if (!settings.pluginSettings.inlineCode.enableCopyOnClick) 
           return;
 
-        const requiredKey = plugin.settings.SelectedTheme.settings.inlineCode.copyModifierKey;
+        const requiredKey = plugin.settings.pluginSettings.inlineCode.copyModifierKey;
         if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey))
           return;
 
@@ -953,11 +953,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     buildDecorations(view: EditorView): DecorationSet {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state)) {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state)) {
         return Decoration.none;
       }
 
-      if (!settings.SelectedTheme.settings.codeblock.enableLinks) {
+      if (!settings.pluginSettings.codeblock.enableLinks) {
         return Decoration.none;
       }
 
@@ -989,21 +989,21 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
-      this.prevConvertAllComments = plugin.settings.SelectedTheme.settings.annotations.convertAllComments;
+      this.prevConvertAllComments = plugin.settings.pluginSettings.annotations.convertAllComments;
     }
 
     update(update: ViewUpdate) {
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(update.view.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(update.view.state))
         return Decoration.none;
 
       const oldCursorLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
       const newCursorLine = update.state.doc.lineAt(update.state.selection.main.head).number;
-      const settingChanged = this.prevConvertAllComments !== plugin.settings.SelectedTheme.settings.annotations.convertAllComments;
+      const settingChanged = this.prevConvertAllComments !== plugin.settings.pluginSettings.annotations.convertAllComments;
         
       if (update.docChanged || update.viewportChanged || oldCursorLine !== newCursorLine || settingChanged) {
         this.decorations = this.buildDecorations(update.view);
         if (settingChanged) {
-         this.prevConvertAllComments = plugin.settings.SelectedTheme.settings.annotations.convertAllComments;
+         this.prevConvertAllComments = plugin.settings.pluginSettings.annotations.convertAllComments;
         }
       }
     }
@@ -1037,7 +1037,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               type = match.groups.type;
               content = match.groups.content;
               title = match.groups.title;
-            } else if (plugin.settings.SelectedTheme.settings.annotations.convertAllComments) {
+            } else if (plugin.settings.pluginSettings.annotations.convertAllComments) {
               type = 'note';
               content = cleanCommentText;
             } else {
@@ -1072,7 +1072,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     buildDecorations(view: EditorView): DecorationSet {
       updateValue(false);
-      if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(view.state)) {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state)) {
         return Decoration.none;
       }
 
@@ -1085,7 +1085,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
       });
 
-      const hideFences = settings.SelectedTheme.settings.codeblock.hideFenceLines;
+      const hideFences = settings.pluginSettings.codeblock.hideFenceLines;
       const collapsedFenceDecoration = Decoration.line({ attributes: { class: 'codeblock-customizer-fence-collapsed' } });
 
       for (const pos of visibleBlocks) {
@@ -1140,13 +1140,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         this.handleMutations(mutations, view);
       });
 
-      if (plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin)) {
+      if (plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin)) {
         this.observer.observe(view.contentDOM, { childList: true, subtree: true });
       }
     }
 
     private handleMutations(mutations: MutationRecord[], view: EditorView) {
-      if (!plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled || !isPluginLoaded('execute-code', plugin)) {
+      if (!plugin.settings.pluginSettings.plugins.executeCode.enabled || !isPluginLoaded('execute-code', plugin)) {
         return;
       }
 
@@ -1200,14 +1200,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     constructor(view: EditorView) {
       this.observer = new MutationObserver((mutations) => this.handleMutations(mutations, view));
-      if (plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled && isPluginLoaded('obsidian-admonition', plugin)) {
+      if (plugin.settings.pluginSettings.plugins.admonitions.enabled && isPluginLoaded('obsidian-admonition', plugin)) {
         this.observer.observe(view.contentDOM, { childList: true, subtree: true });
         this.processAllAdmonitions(view.contentDOM, view);
       }
     }
 
     private handleMutations(mutations: MutationRecord[], view: EditorView) {
-      if (!plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
+      if (!plugin.settings.pluginSettings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
         return;
       }
 
@@ -1223,7 +1223,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     private processAllAdmonitions(container: HTMLElement, view: EditorView) {
-      if (!plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
+      if (!plugin.settings.pluginSettings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
         return;
       }
 
@@ -1301,7 +1301,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.parameters = parameters;
       this.pos = pos;
       this.buttonConfigs = buttonConfigs;
-      this.enableLinks = plugin.settings.SelectedTheme.settings.codeblock.enableLinks;
+      this.enableLinks = plugin.settings.pluginSettings.codeblock.enableLinks;
 
       const allLangColors = plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
       const langKey = this.parameters.language.length > 0 ? this.parameters.language : "nolang";
@@ -1311,7 +1311,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.groupMembers = groupMembers;
       this.foldingState = foldingState;
       this.sourcePath = sourcePath;
-      this.disableFoldUnlessSpecified = plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified;
+      this.disableFoldUnlessSpecified = plugin.settings.pluginSettings.header.disableFoldUnlessSpecified;
       this.plugin = plugin;
     }
   
@@ -1351,8 +1351,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
       container.appendChild(buttonContainer);
       
-      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.fold) ||
-          (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
+      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold) ||
+          (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
         container.classList.add(`noCollapseIcon`);
       } else {
         const collapse = createCodeblockCollapse(this.parameters.fold);
@@ -1382,8 +1382,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           return;
         }
 
-        if ((this.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.fold) ||
-            (this.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
+        if ((this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold) ||
+            (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
           return;
         }
 
@@ -1627,12 +1627,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       lineCount,
       parameters,
       plugin,
-      settings: plugin.settings.SelectedTheme.settings,
+      settings: plugin.settings.pluginSettings,
       sourcePath: "",
       handleAnnotations: true,
       processPrompts: false,
       addIndentationGuides: true,
-      parseLinks: plugin.settings.SelectedTheme.settings.codeblock.enableLinks,
+      parseLinks: plugin.settings.pluginSettings.codeblock.enableLinks,
     });
 
     codeElement.appendChild(fragment);
@@ -1834,8 +1834,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const end = view.state.doc.lineAt(codeBlockEndPos);
     const docPath = view.state.field(editorInfoField)?.file?.path;
 
-    const enableSemiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
-    const visibleLines = settings.SelectedTheme.settings.semiFold.visibleLines;
+    const enableSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
+    const visibleLines = settings.pluginSettings.semiFold.visibleLines;
     const lineCount = end.number - start.number + 1;
     const canSemiFold = lineCount >= visibleLines + fadeOutLineCount + 2; // +2 to ignore the first and last lines
 
@@ -1962,7 +1962,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// calculateGroupedCodeBlocks
 
   function insertHeader(state: EditorState): DecorationSet {
-    if (!settings.SelectedTheme.settings.common.enableInSourceMode && isSourceMode(state))
+    if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
       return Decoration.none;
 
     const sourcePath = state.field(editorInfoField)?.file?.path ?? "";
@@ -2025,12 +2025,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
     
     let showButton = false;
-    if ((!settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons) && !isCursorInCodeBlock)
+    if ((!settings.pluginSettings.codeblock.buttons.alwaysShowButtons) && !isCursorInCodeBlock)
       showButton = true;
-    else if (settings.SelectedTheme.settings.codeblock.buttons.alwaysShowButtons)
+    else if (settings.pluginSettings.codeblock.buttons.alwaysShowButtons)
       showButton = true;
 
-    const modifierKey = plugin.settings.SelectedTheme.settings.codeblock.buttons.modifierKey;
+    const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
     const getModifierState = (event?: MouseEvent): boolean => {
       if (!event || modifierKey === ButtonModifierKeys.NONE) {
         return false;
@@ -2068,7 +2068,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           } else {
             let initialLines: string[];
 
-            if (settings.SelectedTheme.settings.prompts.includePromptsInCopy) {
+            if (settings.pluginSettings.prompts.includePromptsInCopy) {
               const lines: string[] = [];
               const firstContentLineNum = state.doc.lineAt(from).number;
               const lastContentLineNum = state.doc.lineAt(to).number;
@@ -2092,7 +2092,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               }
               initialLines = lines;
             } else {
-              const content = settings.SelectedTheme.settings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
+              const content = settings.pluginSettings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
               initialLines = content.split('\n');
             }
             
@@ -2112,7 +2112,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           await createSnapshot(container, view, codeBlockStartPos, codeBlockEndPos, state);
         },
         icon: "camera",
-        enabled: settings.SelectedTheme.settings.codeblock.buttons.enableSnapshotButton && showButton
+        enabled: settings.pluginSettings.codeblock.buttons.enableSnapshotButton && showButton
       },
       {
         class: `codeblock-customizer-select-code`,
@@ -2129,7 +2129,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
         },
         icon: "text",
-        enabled: settings.SelectedTheme.settings.codeblock.buttons.enableSelectCodeButton && showButton
+        enabled: settings.pluginSettings.codeblock.buttons.enableSelectCodeButton && showButton
       },
       {
         class: `codeblock-customizer-delete-code`,
@@ -2145,7 +2145,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
         },
         icon: "trash-2",
-        enabled: settings.SelectedTheme.settings.codeblock.buttons.enableDeleteCodeButton && showButton
+        enabled: settings.pluginSettings.codeblock.buttons.enableDeleteCodeButton && showButton
       }
     ];
   }// createButtonConfig
@@ -2401,7 +2401,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, parameters: CBCParameters, line: Line, decorations: Array<Range<Decoration>>, lineClass: string) {
     const caseInsensitiveLineText = (line.text ?? '').toLowerCase();
-    const textSeparator = parameters.textSeparator || settings.SelectedTheme.settings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
+    const textSeparator = parameters.textSeparator || settings.pluginSettings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
 
     const addHighlightClass = (name = '') => {
       const className = `codeblock-customizer-line-highlighted${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
@@ -2602,7 +2602,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (commentMatch && typeof commentMatch.index === 'number') {
         const commentText = lineText.substring(commentMatch.index);
         
-        if (settings.SelectedTheme.settings.annotations.convertAllComments || ANNOTATION_PATTERN.test(commentText)) {
+        if (settings.pluginSettings.annotations.convertAllComments || ANNOTATION_PATTERN.test(commentText)) {
           endBoundary = commentMatch.index;
         }
       }

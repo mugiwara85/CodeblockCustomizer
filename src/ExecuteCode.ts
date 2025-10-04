@@ -183,7 +183,7 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
   observer.disconnect();
 
   try {
-    if (plugin.settings.SelectedTheme.settings.plugins.executeCode.styleOutput) {
+    if (plugin.settings.pluginSettings.plugins.executeCode.styleOutput) {
       let rawTextContent = "";
       outputElement.childNodes.forEach(node => {
         if (node.nodeType === Node.ELEMENT_NODE) {
@@ -242,7 +242,7 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
             lineCount: lines.length,
             parameters,
             plugin,
-            settings: plugin.settings.SelectedTheme.settings,
+            settings: plugin.settings.pluginSettings,
             sourcePath: plugin.app.workspace.getActiveFile()?.path || "",
             target: 'codeOutput',
             handleAnnotations: false,

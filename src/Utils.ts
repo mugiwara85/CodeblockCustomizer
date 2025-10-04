@@ -5,7 +5,7 @@ import { EditorState } from "@codemirror/state";
 import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR, EXECUTE_CODE_SUPPORTED_LANGUAGES } from "./Const";
 import {PromptLines } from "./PromptManager";
 import { generatePromptColorStyles } from "./PromptUtils";
-import { CodeblockCustomizerSettings, Colors, ThemeColors, ThemeSettings } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, PluginSettings, ThemeColors } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 
 import validator from 'validator';
@@ -296,11 +296,11 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // get line separator
   const lsep = extractParameter(parsedParameters, 'lsep')?.charAt(0);
-  const lineSeparator = lsep || settings.SelectedTheme.settings.textHighlight.lineSeparator || DEFAULT_LINE_SEPARATOR;
+  const lineSeparator = lsep || settings.pluginSettings.textHighlight.lineSeparator || DEFAULT_LINE_SEPARATOR;
 
   // get text separator
   const tsep = extractParameter(parsedParameters, 'tsep')?.charAt(0);
-  const textSeparator = tsep || settings.SelectedTheme.settings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
+  const textSeparator = tsep || settings.pluginSettings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
 
   // default highlight (lines)
   const defaultLinesToHighlight = getHighlightedLines(parsedParameters, "HL", textSeparator, lineSeparator);
@@ -328,7 +328,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // unfold
   const unfold = isUnFoldDefined(lineText);
-  if (settings.SelectedTheme.settings.codeblock.folding.inverseFold) {
+  if (settings.pluginSettings.codeblock.folding.inverseFold) {
     fold = unfold ? false : true;
   }
 
@@ -352,8 +352,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   let hasLangBorderColor = false;
   if (!exclude) {
     if (headerDisplayText === null || headerDisplayText === "") {
-      headerDisplayText = settings.SelectedTheme.settings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
-      if (!fold && !(language.length > 0 && (settings.SelectedTheme.settings.header.alwaysDisplayCodeblockIcon || settings.SelectedTheme.settings.header.alwaysDisplayCodeblockLang)))
+      headerDisplayText = settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
+      if (!fold && !(language.length > 0 && (settings.pluginSettings.header.alwaysDisplayCodeblockIcon || settings.pluginSettings.header.alwaysDisplayCodeblockLang)))
         specificHeader = false;
       if (group)
         headerDisplayText = ''; // if tabs are in use, header should not display any text by default
@@ -1234,12 +1234,12 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   const textSettingsStyles = `
     body.codeblock-customizer .codeblock-customizer-header-language-tag,
     body.codeblock-customizer .codeblock-customizer-header-group-tab {
-      --codeblock-customizer-language-tag-text-bold: ${settings.SelectedTheme.settings.header.codeblockLangBoldText ? 'bold' : 'normal'};
-      --codeblock-customizer-language-tag-text-italic: ${settings.SelectedTheme.settings.header.codeblockLangItalicText ? 'italic' : 'normal'};
+      --codeblock-customizer-language-tag-text-bold: ${settings.pluginSettings.header.codeblockLangBoldText ? 'bold' : 'normal'};
+      --codeblock-customizer-language-tag-text-italic: ${settings.pluginSettings.header.codeblockLangItalicText ? 'italic' : 'normal'};
     }
     body.codeblock-customizer .codeblock-customizer-header-text {
-      --codeblock-customizer-header-text-bold: ${settings.SelectedTheme.settings.header.boldText ? 'bold' : 'normal'};
-      --codeblock-customizer-header-text-italic: ${settings.SelectedTheme.settings.header.italicText ? 'italic' : 'normal'};
+      --codeblock-customizer-header-text-bold: ${settings.pluginSettings.header.boldText ? 'bold' : 'normal'};
+      --codeblock-customizer-header-text-italic: ${settings.pluginSettings.header.italicText ? 'italic' : 'normal'};
     }
   `;
 
@@ -1291,7 +1291,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   `;
 
   let printRules = '';
-  if (settings.SelectedTheme.settings.printing.printAnnotationsAsComments) {
+  if (settings.pluginSettings.printing.printAnnotationsAsComments) {
     printRules = `
       .print .codeblock-customizer-annotation-icon {
         display: none !important;
@@ -1328,12 +1328,12 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     ${printRules}
   `;
 
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.SelectedTheme.settings, settings.SelectedTheme.settings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
 
-  updateSettingClasses(settings.SelectedTheme.settings);
+  updateSettingClasses(settings.pluginSettings);
 }// updateSettingStyles
 
-export function updateSettingClasses(settings: ThemeSettings) {
+export function updateSettingClasses(settings: PluginSettings) {
   document.body.classList.remove("codeblock-customizer-active-line-highlight", "codeblock-customizer-active-line-highlight-codeblock", "codeblock-customizer-active-line-highlight-editor")
   if (settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
     // Inside and outside of codeblocks with different colors
@@ -1469,7 +1469,7 @@ export function updateSettingClasses(settings: ThemeSettings) {
 
 }// updateSettingClasses
 
-function formatStyles(colors: ThemeColors, settings: ThemeSettings, forceCurrentColorUse: boolean) {
+function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurrentColorUse: boolean) {
   return `
     body.codeblock-customizer {
       --wrap-code:${settings.codeblock.unwrapcode ? 'pre' : 'pre-wrap'}
@@ -1940,7 +1940,7 @@ export interface RenderOptions {
   lineCount: number,
   parameters: CBCParameters;
   plugin: CodeBlockCustomizerPlugin;
-  settings: ThemeSettings;
+  settings: PluginSettings;
   sourcePath: string;
   target?: 'code' | 'codeOutput';
   handleAnnotations?: boolean;
@@ -1976,7 +1976,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
     offscreenWrapper.style.top = '-9999px';
     offscreenWrapper.style.left = '-9999px';
 
-    const userMaxWidth = settings.SelectedTheme.settings.codeblock.buttons.snapshotMaxWidth;
+    const userMaxWidth = settings.pluginSettings.codeblock.buttons.snapshotMaxWidth;
     elementToSnapshot.style.width = `${userMaxWidth ?? originalElement.clientWidth}px`;
 
     offscreenWrapper.appendChild(elementToSnapshot);
@@ -1995,7 +1995,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
         if (isHighlighted) {
           const highlightColor = window.getComputedStyle(line).backgroundColor;
           
-          if (settings.SelectedTheme.settings.gutter.enableHighlight) {
+          if (settings.pluginSettings.gutter.enableHighlight) {
             line.style.background = highlightColor;
           } else {
             line.style.background = `linear-gradient(to right, ${gutterBgColor} ${gutterWidth}px, ${highlightColor} ${gutterWidth}px)`;

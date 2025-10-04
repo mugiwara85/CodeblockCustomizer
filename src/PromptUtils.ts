@@ -1,5 +1,5 @@
 import { defaultPrompts, PromptDefinition, PromptEnvironment, PromptKind, symbolClassMap } from "./PromptManager";
-import { CodeblockCustomizerSettings, Theme } from "./Settings";
+import { CodeblockCustomizerSettings, ColorTheme } from "./Settings";
 
 const highlightMapCache = new WeakMap<PromptDefinition, Record<string, string>>();
 type PromptReplacement = string | { text: string; class?: string }[];
@@ -389,8 +389,8 @@ function* parsePromptTemplate(template: string): Generator<{ text: string; isPla
 }// parsePromptTemplate
 
 export function getPromptDefinition(promptId: string, settings: CodeblockCustomizerSettings): { def: PromptDefinition, isCustom: boolean } {
-  const customs = settings.SelectedTheme.settings.prompts.customPrompts;
-  const edits  = settings.SelectedTheme.settings.prompts.editedDefaults;
+  const customs = settings.pluginSettings.prompts.customPrompts;
+  const edits  = settings.pluginSettings.prompts.editedDefaults;
   const base   = defaultPrompts[promptId];
 
   let def: PromptDefinition;
@@ -444,10 +444,7 @@ export function collectAllPromptClasses(settings: CodeblockCustomizerSettings): 
   const classSet = new Set<string>();
 
   // highlightGroups
-  const allPromptDefs = {
-    ...defaultPrompts,
-    ...settings.SelectedTheme.settings.prompts.customPrompts
-  };
+  const allPromptDefs = {...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts};
   for (const def of Object.values(allPromptDefs)) {
     for (const cls of Object.values(def.highlightGroups ?? {})) {
       classSet.add(`prompt-${cls}`);
@@ -484,18 +481,14 @@ function resolveHighlightClassMap(def: PromptDefinition): Record<string, string>
   return map;
 }// resolveHighlightClassMap
 
-function getResolvedPromptColorsForMode(settings: CodeblockCustomizerSettings, baseTheme: Theme, promptId: string, mode: 'light' | 'dark', editingRoot: boolean): Record<string, string> {
+function getResolvedPromptColorsForMode(settings: CodeblockCustomizerSettings, baseTheme: ColorTheme, promptId: string, mode: 'light' | 'dark', editingRoot: boolean): Record<string, string> {
   const base = baseTheme.colors[mode].prompts;
 
-  const edited = editingRoot
-    ? settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors?.[promptId] ?? {}
-    : settings.SelectedTheme.colors[mode].prompts.editedPromptColors?.[promptId] ?? {};
+  const edited = editingRoot ? settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors?.[promptId] ?? {} : settings.SelectedTheme.colors[mode].prompts.editedPromptColors?.[promptId] ?? {};
+  const globalDefaults = editingRoot ? base?.rootPromptColors?.['global'] ?? {} : base?.promptColors?.['global'] ?? {};
+  const defaults = editingRoot ? base?.rootPromptColors?.[promptId] ?? {} : base?.promptColors?.[promptId] ?? {};
 
-  const defaults = editingRoot
-    ? base?.rootPromptColors?.[promptId] ?? {}
-    : base?.promptColors?.[promptId] ?? {};
-
-  return { ...defaults, ...edited };
+  return { ...globalDefaults, ...defaults, ...edited };
 }// getResolvedPromptColorsForMode
 
 function simplifyHomePath(path: string, homeDir: string | undefined): string {

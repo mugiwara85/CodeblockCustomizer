@@ -82,7 +82,7 @@ export enum ButtonModifierKeys {
   NONE = 'none',
 }
 
-export interface ThemeSettings {
+export interface PluginSettings {
   codeblock: {
     enableLineNumbers: boolean;
     enableActiveLineHighlight: boolean;
@@ -184,28 +184,27 @@ export interface ThemeSettings {
   enableEditorActiveLineHighlight: boolean;
 }
 
-export interface Theme {
+export interface ColorTheme {
   baseTheme?: string;
-  settings: ThemeSettings;
   colors: ThemeColors;
 }
 
 export interface CodeblockCustomizerSettings {
-  Themes: Record<string, Theme>;
+  Themes: Record<string, ColorTheme>;
+  pluginSettings: PluginSettings;
   ExcludeLangs: string;
   ThemeName: string;
-  SelectedTheme: Theme;
+  SelectedTheme: ColorTheme;
   newThemeName: string;
   newPromptName: string;
   alternateHighlightColorName: string;
-  languageBorderColorName: string;
   settingsType: string;
   langSpecificSettingsType: string;
   languageSpecificLanguageName: string;
 }
 
 // default settings for all themes
-const defaultThemeSettings: ThemeSettings = {
+const defaultThemeSettings: PluginSettings = {
   codeblock: {
     enableLineNumbers: true,
     enableActiveLineHighlight: true,
@@ -724,9 +723,8 @@ const SolarizedLightColors = {
   languageSpecificColors: {},
 }
 
-const Solarized: Theme = {
+const Solarized: ColorTheme = {
   baseTheme: "Solarized",
-  settings: structuredClone(defaultThemeSettings),
   colors: {
     dark: SolarizedDarkColors,
     light: SolarizedLightColors,
@@ -848,13 +846,8 @@ const ObsidianLightColors = {
   languageSpecificColors: {},
 }
 
-// theme specific override
-const obsidianSettings = structuredClone(defaultThemeSettings);
-obsidianSettings.gutter.enableHighlight = true;
-
-const Obsidian: Theme = {
+const Obsidian: ColorTheme = {
   baseTheme: "Obsidian",
-  settings: obsidianSettings,
   colors: {
     dark: ObsidianDarkColors,
     light: ObsidianLightColors,
@@ -994,9 +987,8 @@ const GruvboxLightColors = {
   languageSpecificColors: {},
 }
 
-const Gruvbox: Theme = {
+const Gruvbox: ColorTheme = {
   baseTheme: "Gruvbox",
-  settings: structuredClone(defaultThemeSettings),
   colors: {
     dark: GruvboxDarkColors,
     light: GruvboxLightColors,
@@ -1133,9 +1125,8 @@ const DraculaLightColors = {
   languageSpecificColors: {},
 };
 
-const Dracula: Theme = {
+const Dracula: ColorTheme = {
   baseTheme: "Dracula",
-  settings: structuredClone(defaultThemeSettings),
   colors: {
     dark: DraculaDarkColors,
     light: DraculaLightColors,
@@ -1279,9 +1270,8 @@ const NordLightColors = {
   languageSpecificColors: {},
 };
 
-const Nord: Theme = {
+const Nord: ColorTheme = {
   baseTheme: "Nord",
-  settings: structuredClone(defaultThemeSettings),
   colors: {
     dark: NordDarkColors,
     light: NordLightColors,
@@ -1443,9 +1433,8 @@ const TokyoNightLightColors = {
   languageSpecificColors: {},
 };
 
-const TokyoNight: Theme = {
+const TokyoNight: ColorTheme = {
   baseTheme: "Tokyo Night",
-  settings: structuredClone(defaultThemeSettings),
   colors: {
     dark: TokyoNightDarkColors,
     light: TokyoNightLightColors,
@@ -1463,13 +1452,13 @@ export const DEFAULT_THEMES = {
 
 export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
   Themes: structuredClone(DEFAULT_THEMES),
+  pluginSettings: structuredClone(defaultThemeSettings),
   ExcludeLangs: 'dataview, ad-*',
   SelectedTheme: structuredClone(Obsidian),
   ThemeName: "Obsidian",
   newThemeName: "",
   newPromptName: "",
   alternateHighlightColorName: "",
-  languageBorderColorName: "",
   settingsType: "basic",
   langSpecificSettingsType: "",
   languageSpecificLanguageName: "",

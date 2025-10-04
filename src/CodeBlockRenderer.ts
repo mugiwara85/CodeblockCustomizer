@@ -116,7 +116,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return { codeBlockSectionInfo: sectionInfo, source: DataSource.API };
     }
     
-    if (this.plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled && isPluginLoaded("execute-code", this.plugin)) {
+    if (this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded("execute-code", this.plugin)) {
       const fallbackInfo = await this.waitForExecuteCodeToFinish(codeBlockElement);
       if (fallbackInfo) {
         return { codeBlockSectionInfo: fallbackInfo, source: DataSource.Fallback };
@@ -270,7 +270,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    if (isPrinting && this.plugin.settings.SelectedTheme.settings.printing.uncollapseDuringPrint) {
+    if (isPrinting && this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint) {
       parameters.fold = false;
     }
 
@@ -383,7 +383,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       preElement.classList.add(codeblockLanguageSpecificClass);
     }
 
-    if (isPrinting && this.plugin.settings.SelectedTheme.settings.printing.avoidPageBreaks) {
+    if (isPrinting && this.plugin.settings.pluginSettings.printing.avoidPageBreaks) {
       if (preElement.parentElement) {
         preElement.parentElement.style.breakInside = 'avoid';
       }
@@ -405,7 +405,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   private async applyInitialFoldState(preElement: HTMLElement, parameters: CBCParameters, charPos: number | undefined, codeblockLines: string[]) {
     const lineCount = Math.max(1, codeblockLines.length - 2);
     const keyToUse = charPos ?? this.codeBlockSectionInfo?.lineStart;
-    const settings = this.plugin.settings.SelectedTheme.settings;
+    const settings = this.plugin.settings.pluginSettings;
     let rememberedState: FoldingState | undefined;
     
     if (settings.codeblock.folding.rememberFoldState && keyToUse !== undefined) {
@@ -470,11 +470,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
       frag.appendChild(createCodeblockLang(parameters.language));
     }
-    frag.appendChild(createFileName(parameters.headerDisplayText, settings.SelectedTheme.settings.codeblock.enableLinks, this.context.sourcePath, this.plugin));
+    frag.appendChild(createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin));
 
     const collapseEl = createCodeblockCollapse(parameters.fold);
-    if ((this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.fold) ||
-        (this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.unfold)) {
+    if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
+        (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
       container.classList.add(`noCollapseIcon`);
     } else {
       frag.appendChild(collapseEl);
@@ -482,12 +482,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     container.appendChild(frag);
 
-    const semiFold = settings.SelectedTheme.settings.semiFold.enableSemiFold;
-    const visibleLines = settings.SelectedTheme.settings.semiFold.visibleLines;
+    const semiFold = settings.pluginSettings.semiFold.enableSemiFold;
+    const visibleLines = settings.pluginSettings.semiFold.visibleLines;
 
     container.addEventListener("click", () => {
-      if ((this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && !this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.fold) ||
-        (this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified && this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold && !parameters.unfold)) {
+      if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
+        (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
         return;
       }
 
@@ -509,7 +509,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
 
       if (this.codeBlockSectionInfo) {
-        const foldSettings = this.plugin.settings.SelectedTheme.settings.codeblock.folding;
+        const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
         const shouldRemember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold);
         if (shouldRemember) {
           const keyToUse = charPos ?? this.codeBlockSectionInfo.lineStart;
@@ -529,7 +529,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const isAlreadyProcessed = preCodeElm.innerHTML.includes('codeblock-customizer-line');
     const rebuild = isRerender || isAlreadyProcessed;
     const tempCodeElm = document.createElement('div');
-    const settings = this.plugin.settings.SelectedTheme.settings;
+    const settings = this.plugin.settings.pluginSettings;
 
     if (rebuild) {
       const customLangConfig = getLanguageConfig(parameters.language, this.plugin);

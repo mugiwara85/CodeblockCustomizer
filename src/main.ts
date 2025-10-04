@@ -80,10 +80,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.editorExtensions = extensions(this, this.settings);
     this.registerEditorExtension(this.editorExtensions.extensions);
 
-    if (this.settings.SelectedTheme.settings.codeblock.enableBracketHighlight) {
+    if (this.settings.pluginSettings.codeblock.enableBracketHighlight) {
       this.extensions.push(this.editorExtensions.customBracketMatching);
     }
-    if (this.settings.SelectedTheme.settings.codeblock.enableSelectionMatching) {
+    if (this.settings.pluginSettings.codeblock.enableSelectionMatching) {
       this.extensions.push(this.editorExtensions.selectionMatching);
     }
 
@@ -125,8 +125,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }
 
-    const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
-    const semiFoldSettings = this.settings.SelectedTheme.settings.semiFold;
+    const foldSettings = this.settings.pluginSettings.codeblock.folding;
+    const semiFoldSettings = this.settings.pluginSettings.semiFold;
 
     if (!foldSettings.rememberFoldState) 
       return;
@@ -182,7 +182,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// setFoldState
 
   remapFolds(filePath: string, changes: ChangeSet): void {
-    const foldSettings = this.settings.SelectedTheme.settings.codeblock.folding;
+    const foldSettings = this.settings.pluginSettings.codeblock.folding;
     if (!foldSettings.rememberFoldState) 
       return;
 
@@ -356,10 +356,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     console.log("unloading CodeBlock Customizer plugin");
 
     // remove GroupedCodeBlockRenderChild
-    this.groupedChildrenMap.forEach((child, view) => {
-      view.removeChild(child); // onunload()
-    });
-    this.groupedChildrenMap.clear();
+    if (this.groupedChildrenMap) {
+      this.groupedChildrenMap.forEach((child, view) => {
+        view.removeChild(child); // onunload()
+      });
+      this.groupedChildrenMap.clear();
+    }
 
     // unload icons
     for (const url of Object.values(BLOBS)) {
@@ -538,11 +540,28 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
   async loadSettings() {
     const loadedData = await this.loadData();
+
+    if (loadedData && loadedData.SelectedTheme?.settings && !loadedData.pluginSettings) {
+      console.log("Codeblock Customizer: Migrating settings to new structure.");
+      
+      // use the old settings from SelectedTheme
+      loadedData.pluginSettings = structuredClone(loadedData.SelectedTheme.settings);
+      
+      // delete settings object for all old themes
+      for (const themeName in loadedData.Themes) {
+        if (loadedData.Themes[themeName]?.settings) {
+          delete loadedData.Themes[themeName].settings;
+        }
+      }
+      delete loadedData.SelectedTheme.settings;
+      
+      console.log("Codeblock Customizer: Settigns migrated successfully.");
+    }
+
     this.settings = _.merge({}, DEFAULT_SETTINGS, loadedData); // copies new settings to default themes and selectedtheme
 
     const defaultThemeNames = Object.keys(DEFAULT_SETTINGS.Themes);
     const currentThemeNames = Object.keys(this.settings.Themes);
-
     const userThemeNames = _.difference(currentThemeNames, defaultThemeNames);
 
     userThemeNames.forEach(themeName => {
@@ -553,13 +572,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         // copy new settings from corresponding Theme to user themes which do have a baseTheme (created after this change)
         const baseTheme = this.settings.Themes[baseThemeName];
         if (baseTheme) {
-          userTheme.settings = _.merge({}, baseTheme.settings, userTheme.settings);
           userTheme.colors = _.merge({}, baseTheme.colors, userTheme.colors);
         }
       } else {
         // copy new settings from Obsidian Theme to user themes which do not have a baseTheme (created before this change)
         const defaultObsidianSettings = this.settings.Themes["Obsidian"];
-        userTheme.settings = _.merge({}, defaultObsidianSettings.settings, userTheme.settings);
         userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
       }
     });
@@ -595,12 +612,22 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     delete clonedSettings.SelectedTheme.colors.light.prompts.rootPromptColors;
     delete clonedSettings.SelectedTheme.colors.dark.prompts.rootPromptColors;
 
+    for (const themeName in clonedSettings.Themes) {
+      const theme = clonedSettings.Themes[themeName];
+      if (theme && theme.colors) {
+        delete theme.colors.light.prompts.promptColors;
+        delete theme.colors.dark.prompts.promptColors;
+        delete theme.colors.light.prompts.rootPromptColors;
+        delete theme.colors.dark.prompts.rootPromptColors;
+      }
+    }
+
     await this.saveData(clonedSettings);
     updateValue(true);
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
 
-    if (this.settings.SelectedTheme.settings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
+    if (this.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
       this.requestSavePermanentData();
     }
   }// saveSettings
@@ -735,7 +762,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('css-change', this.handleCssChange.bind(this, settingsTab), this));
     
     this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
-      if (this.settings.SelectedTheme.settings.codeblock.enableLinks && this.settings.SelectedTheme.settings.codeblock.enableLinkUpdate) {
+      if (this.settings.pluginSettings.codeblock.enableLinks && this.settings.pluginSettings.codeblock.enableLinkUpdate) {
         this.handleFileRename(file, oldPath); // until Obsidian doesn't adds code block links to metadatacache
       }
     }, this));

@@ -73,7 +73,7 @@ async function waitForCmView(context: MarkdownPostProcessorContext, maxRetries =
 }// waitForCmView
 
 export async function admonitionPostProcessor(containerElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
-  if (!plugin.settings.SelectedTheme.settings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
+  if (!plugin.settings.pluginSettings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
     return;
   }
 
@@ -122,11 +122,11 @@ export async function admonitionPostProcessor(containerElement: HTMLElement, con
       clearTimeout(timeoutId);
       obs.disconnect();
       await processAdmonitionCodeBlocks(renderedPreElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
-      if (plugin.settings.SelectedTheme.settings.plugins.admonitions.enableTimeOut) {
+      if (plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut) {
         setTimeout(async () => {
           const finalRenderedElements = Array.from(containerElement.querySelectorAll('div.admonition-content pre:not(.frontmatter)')) as HTMLElement[];
           await processAdmonitionCodeBlocks(finalRenderedElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
-        }, plugin.settings.SelectedTheme.settings.plugins.admonitions.timeOut);
+        }, plugin.settings.pluginSettings.plugins.admonitions.timeOut);
       }
     }
   });

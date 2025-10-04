@@ -514,7 +514,7 @@ export class PromptManager {
     let promptText = parameters.prompt.text;
 
     if (!promptText && parameters.language) {
-      const allPrompts = { ...defaultPrompts, ...settings.SelectedTheme.settings.prompts.customPrompts };
+      const allPrompts = { ...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts };
       for (const promptId in allPrompts) {
         const { def: promptDef } = getPromptDefinition(promptId, settings);
         if (promptDef.autoUsePrompt && promptDef.autoUseLanguages?.includes(parameters.language)) {

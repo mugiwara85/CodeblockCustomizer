@@ -4,9 +4,9 @@ import { createUncollapseCodeButton, addTextToClipboard, CBCParameters, isPlugin
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
-import { ThemeSettings } from "./Settings";
 import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, rhombusSVG } from "./Const";
 import { addAndObserveExecuteCodeButtons } from "./ExecuteCode";
+import { PluginSettings } from "./Settings";
 
 interface IndentationInfo {
   indentationLevels: number;
@@ -125,7 +125,7 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   });
   frag.appendChild(wrapCodeButton);
 
-  if (plugin.settings.SelectedTheme.settings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase())) {
+  if (plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase())) {
     observer = addAndObserveExecuteCodeButtons(frag, targetPreElement, parameters, plugin);
   }
 
@@ -212,7 +212,7 @@ function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustom
   }
 
   const allLineElements = sourceCodeElement.querySelectorAll<HTMLElement>("div[data-line-number]");
-  const settings = plugin.settings.SelectedTheme.settings;
+  const settings = plugin.settings.pluginSettings;
   const includePrompts = settings.prompts.includePromptsInCopy;
   const excludeAnnotations = settings.annotations.excludeAnnotationsFromCopy;
   const codeTextArray: string[] = [];
@@ -883,7 +883,7 @@ function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeB
       type = explicitMatch.groups.type;
       content = explicitMatch.groups.content.trim();
       title = explicitMatch.groups.title?.trim();
-    } else if (plugin.settings.SelectedTheme.settings.annotations.convertAllComments) {
+    } else if (plugin.settings.pluginSettings.annotations.convertAllComments) {
       type = 'note';
       content = cleanedText;
     }
@@ -895,7 +895,7 @@ function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeB
       if (commentElement.textContent) {
         commentElement.setAttribute('data-cbc-comment', commentElement.textContent);
       }
-      const printAsComments = plugin.settings.SelectedTheme.settings.printing.printAnnotationsAsComments;
+      const printAsComments = plugin.settings.pluginSettings.printing.printAnnotationsAsComments;
       if (!isPrinting || !printAsComments) {
         commentElement.textContent = '';
       }
@@ -904,7 +904,7 @@ function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeB
   return { lineContent: tempDiv.innerHTML, annotationData };
 }// processAnnotations
   
-function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: ThemeSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
+function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
   let lineClasses = '';
   let uncollapseButton: HTMLElement | null = null;
   let updatedFadeOutLineIndex = fadeOutLineIndex;

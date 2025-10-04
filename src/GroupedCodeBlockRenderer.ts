@@ -103,7 +103,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     header.appendChild(languageIconElement);
 
     let collapseIconElement: HTMLElement | null = null;
-    const fileNameContainer = createFileName(parameters.headerDisplayText, this.plugin.settings.SelectedTheme.settings.codeblock.enableLinks, sourcePath, this.plugin);
+    const fileNameContainer = createFileName(parameters.headerDisplayText, this.plugin.settings.pluginSettings.codeblock.enableLinks, sourcePath, this.plugin);
     const groupButtonsContainer = createDiv({ cls: `codeblock-customizer-button-container` });
 
     const updateGroupHeader = (currentBlock: HTMLPreElement) => {
@@ -206,8 +206,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       header.removeChild(collapseIcon);
     }
 
-    const disableFoldUnlessSpecified = this.plugin.settings.SelectedTheme.settings.header.disableFoldUnlessSpecified;
-    const inverseFold = this.plugin.settings.SelectedTheme.settings.codeblock.folding.inverseFold;
+    const disableFoldUnlessSpecified = this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified;
+    const inverseFold = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
     const isCollapseEnabled = !((disableFoldUnlessSpecified && !inverseFold && !parameters.fold) || (disableFoldUnlessSpecified && inverseFold && !parameters.unfold));
     let newCollapseIcon: HTMLElement | null = null;
 
@@ -455,7 +455,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// getConsecutiveGroups
 
   private getStoredTabIndex(groupName: string, documentPath: string): number {
-    const tabSettings = this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks;
+    const tabSettings = this.plugin.settings.pluginSettings.groupedCodeBlocks;
     if (!tabSettings.rememberTabState) {
       return 0;
     }
@@ -477,7 +477,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }/// getStoredTabIndex
 
   private setStoredTabIndex(groupName: string, documentPath: string, index: number) {
-    const tabSettings = this.plugin.settings.SelectedTheme.settings.groupedCodeBlocks;
+    const tabSettings = this.plugin.settings.pluginSettings.groupedCodeBlocks;
     if (!tabSettings.rememberTabState) {
       return;
     }
@@ -567,8 +567,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private foldCodeBlcok(activeBlock: HTMLPreElement, header: HTMLElement) {
     const lines = activeBlock.querySelectorAll('code > div');
     const codeblockLineCount = lines.length;
-    const semiFoldSettings = this.plugin.settings.SelectedTheme.settings.semiFold;
-    const foldSettings = this.plugin.settings.SelectedTheme.settings.codeblock.folding;
+    const semiFoldSettings = this.plugin.settings.pluginSettings.semiFold;
+    const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
     
     const currentCollapseIcon = header.querySelector('.codeblock-customizer-header-collapse') as HTMLElement | null;
     if (!currentCollapseIcon)

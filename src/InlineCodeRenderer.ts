@@ -24,7 +24,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     this.containerEl.classList.add('codeblock-customizer-inline-code');
     const isPdfExport = !this.context.getSectionInfo(this.containerEl);
 
-    if (isPdfExport && !this.plugin.settings.SelectedTheme.settings.printing.enablePrintToPDFStyling) {
+    if (isPdfExport && !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling) {
       // remove class during printing, so it does not gets styled
       this.containerEl.classList.remove('codeblock-customizer-inline-code');
       return;
@@ -32,7 +32,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
 
     const text = this.containerEl.textContent ?? "";
     const match = text.match(INLINE_CODE_LANG_REGEX);
-    const settings = this.plugin.settings.SelectedTheme.settings.inlineCode;
+    const settings = this.plugin.settings.pluginSettings.inlineCode;
 
     if (settings.enableSyntaxHighlight && match) {
       const prism = await loadPrism();
@@ -65,7 +65,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     
     const language = match[1].toLowerCase();
     const code = match[2];
-    const settings = this.plugin.settings.SelectedTheme.settings.inlineCode;
+    const settings = this.plugin.settings.pluginSettings.inlineCode;
     const displayLanguage = getDisplayLanguageName(language);
     
     this.containerEl.innerHTML = '';
@@ -86,7 +86,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
 
   private createInlineCodeClickHandler(getTextToCopy: () => string): (event: MouseEvent) => void {
     return (event: MouseEvent) => {
-      const requiredKey = this.plugin.settings.SelectedTheme.settings.inlineCode.copyModifierKey;
+      const requiredKey = this.plugin.settings.pluginSettings.inlineCode.copyModifierKey;
       if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey)) {
         return;
       }
