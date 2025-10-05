@@ -159,8 +159,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     
     const sectionContent = fileContentLines.slice(this.codeBlockSectionInfo.lineStart, this.codeBlockSectionInfo.lineEnd + 1);
     const firstLine = sectionContent.find(line => line.trim() !== '');
-    if (firstLine && firstLine.trim().match(/^(?:`{3,}|~{3,})\s*ad-\w+/)) {
-      // this is an admonition. admonitionPostProcessor handles it through renderExternal
+    if (isPluginLoaded('obsidian-admonition', this.plugin) && firstLine && firstLine.trim().match(/^(?:`{3,}|~{3,})\s*ad-\w+/)) {
+      // this is an admonition. admonitionPostProcessor handles it through renderExternal. if the admonition plugin is not installed, then just simply process it as any other code block
       return;
     }
 

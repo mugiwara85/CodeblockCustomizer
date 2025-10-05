@@ -73,7 +73,7 @@ async function waitForCmView(context: MarkdownPostProcessorContext, maxRetries =
 }// waitForCmView
 
 export async function admonitionPostProcessor(containerElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
-  if (!plugin.settings.pluginSettings.plugins.admonitions.enabled || !isPluginLoaded('obsidian-admonition', plugin)) {
+  if (!plugin.settings.pluginSettings.plugins.admonitions.enabled) {
     return;
   }
 
