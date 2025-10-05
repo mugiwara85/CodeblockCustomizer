@@ -2000,9 +2000,9 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
           } else {
             line.style.background = `linear-gradient(to right, ${gutterBgColor} ${gutterWidth}px, ${highlightColor} ${gutterWidth}px)`;
           }
-        } else {
+        } /*else {
           line.style.background = 'transparent';
-        }
+        }*/
       });
     } else {
       // gutter is hidden
@@ -2012,16 +2012,17 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
     const width = elementToSnapshot.clientWidth;
     const height = elementToSnapshot.clientHeight;
     const dpr = window.devicePixelRatio || 1;
+    const pixelRatio = Math.max(Math.ceil(dpr), 2);// 3 would be for 250% or 300% scaling
     
-    const blobOptions = {pixelRatio: dpr, width: width, height: height, ...options,};
+    const blobOptions = {pixelRatio: pixelRatio, width: width, height: height, ...options,};
 
     const dataBlob = await toBlob(elementToSnapshot, blobOptions);
     if (!dataBlob) {
       throw new Error("Failed to generate image blob.");
     }
 
-    const canvasWidth = width * dpr;
-    const canvasHeight = height * dpr;
+    const canvasWidth = width * pixelRatio;
+    const canvasHeight = height * pixelRatio;
     const canvas = document.createElement('canvas');
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -2031,7 +2032,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
       throw new Error("Could not create canvas context.");
     }
 
-    const borderRadius = 5 * dpr;
+    const borderRadius = 5 * pixelRatio;
     ctx.beginPath();
     ctx.moveTo(borderRadius, 0);
     ctx.lineTo(canvasWidth - borderRadius, 0);
