@@ -741,7 +741,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
 
     const lineTextEl = createDiv({ cls: `codeblock-customizer-line-text` });
     const finalLineHtml = getHighlightedLineHtml(processedLine, parameters, lineNumber);
-    lineTextEl.innerHTML = finalLineHtml.trim() === '' ? '&nbsp;' : finalLineHtml;
+    lineTextEl.innerHTML = finalLineHtml.trim() === '' ? '<br>' : finalLineHtml;
     lineWrapper.appendChild(lineTextEl);
     
     if (promptOutput.length > 0) {
