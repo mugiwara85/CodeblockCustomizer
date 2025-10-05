@@ -47,7 +47,7 @@ The plugin lets you customize the code blocks in the following way:
 - [Bracket Highlight](#bracket-highlight) 
 - [Selection Matching](#selection-matching) 
 - [How to Install the Plugin](#how-to-install-the-plugin) 
-- [Contributing & Support](#contributing--support) 
+- [Contributing & Support](#contributing-support) 
 
 ---
 
