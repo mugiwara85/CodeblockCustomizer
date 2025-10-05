@@ -703,7 +703,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     let promptOutput: { className: string, text: string }[] = [];
     const isPromptLine = processPrompts && prompt && (parameters.parsePromptId || prompt.promptLines.has(lineNumber + parameters.lineNumberOffset));
     if (isPromptLine) {
-      const promptResult = prompt.renderLine(textLine);
+      const promptResult = prompt.renderLine(textLine, lineNumber + parameters.lineNumberOffset);
 
       if (parameters.parsePromptId) {
         // parsed prompt

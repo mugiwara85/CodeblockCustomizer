@@ -1880,6 +1880,86 @@ export class SettingsTab extends PluginSettingTab {
 
     autoUseLanguagesSetting.settingEl.style.display = (currentPromptData.autoUsePrompt ?? false) ? '' : 'none';
 
+    let parseLanguagesTextComponent: TextComponent;
+    let autoParseToggle: ToggleComponent;
+    
+    new Setting(promptSettingsDetails)
+      .setName("Auto-parse Prompt")
+      .setDesc("If enabled, this prompt's regex will be used to automatically find and style prompts in code blocks of the specified languages.")
+      .addToggle(toggle => {
+        autoParseToggle = toggle;
+        toggle
+          .setValue(currentPromptData.autoParsePrompt ?? false)
+          .onChange(async (isEnabling) => {
+            autoParseLanguagesSetting.settingEl.style.display = isEnabling ? '' : 'none';
+            const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+            updatedPromptData.autoParsePrompt = isEnabling;
+            await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+            const definedLanguages = parseLanguagesTextComponent.getValue();
+            if (definedLanguages && definedLanguages.trim() !== '') {
+              this.plugin.renderReadingViews();
+            }
+            if (isEnabling) {
+              parseLanguagesTextComponent.inputEl.focus();
+            }
+          });
+      });
+    
+    const autoParseLanguagesSetting = new Setting(promptSettingsDetails)
+      .setName("Languages for Auto-parse")
+      .setDesc("Comma-separated list of code block languages for which this prompt's parser should be used\n(e.g., bash, shell).\nWARNING: This could effect performance if you have a lot of code blocks with the specified languages.")
+      .addText(text => {
+        parseLanguagesTextComponent = text;
+        text.setValue((currentPromptData.autoParseLanguages ?? []).join(', '));
+        text.inputEl.onblur = async () => {
+          if (!autoParseToggle.getValue()) 
+            return;
+
+          const newLangs = parseLanguagesTextComponent.getValue().split(',').map(s => s.trim()).filter(Boolean);
+          const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+
+          if (newLangs.length === 0) {
+            const hadLanguages = (updatedPromptData.autoParseLanguages ?? []).length > 0;
+            new Notice("⚠️ Auto-parse is enabled, but no languages are specified. Disabling feature.");
+            updatedPromptData.autoParsePrompt = false;
+            updatedPromptData.autoParseLanguages = [];
+            await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+            autoParseToggle.setValue(false);
+            autoParseLanguagesSetting.settingEl.style.display = 'none';
+            if (hadLanguages) {
+              this.plugin.renderReadingViews();
+            }
+            return;
+          }
+
+          const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
+          for (const lang of newLangs) {
+            if (updatedPromptData.autoUsePrompt && updatedPromptData.autoUseLanguages?.includes(lang)) {
+                new Notice(`⚠️ Can't save. Language '${lang}' is already set for 'Auto-use' by this same prompt.`);
+                parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
+                return;
+            }
+            for (const promptId in allPrompts) {
+              if (promptId === selectedPromptId) continue;
+              const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
+              if ((pDef.autoUsePrompt && pDef.autoUseLanguages?.includes(lang)) || (pDef.autoParsePrompt && pDef.autoParseLanguages?.includes(lang))) {
+                new Notice(`⚠️ Can't save. Language '${lang}' is already in use by prompt '${pDef.name}'.`);
+                parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
+                return; 
+              }
+            }
+          }
+          
+          updatedPromptData.autoParsePrompt = true;
+          updatedPromptData.autoParseLanguages = newLangs;
+          await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+          this.plugin.renderReadingViews();
+          new Notice("Auto-parse settings saved.");
+        };
+      });
+
+    autoParseLanguagesSetting.settingEl.style.display = (currentPromptData.autoParsePrompt ?? false) ? '' : 'none';
+
     const colorsSettingsDetails = this.createDetailsGroup(promptEditorContainer, 'Prompt Colors', 'promptColorsDetailsOpen', 'codeblock-customizer-prompt-colors-settings-group');
 
     const promptColorSettingsContainer = colorsSettingsDetails.createDiv();
@@ -2079,6 +2159,10 @@ export class SettingsTab extends PluginSettingTab {
         diff.autoUsePrompt = promptData.autoUsePrompt;
       if (JSON.stringify(promptData.autoUseLanguages ?? []) !== JSON.stringify(basePromptDef.autoUseLanguages ?? []))
         diff.autoUseLanguages = promptData.autoUseLanguages;
+      if (promptData.autoParsePrompt !== basePromptDef.autoParsePrompt)
+        diff.autoParsePrompt = promptData.autoParsePrompt;
+      if (JSON.stringify(promptData.autoParseLanguages ?? []) !== JSON.stringify(basePromptDef.autoParseLanguages ?? []))
+        diff.autoParseLanguages = promptData.autoParseLanguages;
   
       this.plugin.settings.pluginSettings.prompts.editedDefaults[selectedPromptId] = diff;
     }

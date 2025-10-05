@@ -224,7 +224,7 @@ function mergeAdjacentParts(parts: { text: string; class?: string }[]): { text: 
 }// mergeAdjacentParts
 
 export function getPromptType(promptText: string): PromptKind {
-  const promptDef = defaultPrompts[promptText];
+  const promptDef = defaultPrompts[promptText.toLowerCase()];
 
   if (promptDef) 
     return PromptKind.Predefined;
@@ -236,14 +236,15 @@ export function getPromptType(promptText: string): PromptKind {
 }// getPromptType
 
 function getPromptDetails(promptType: string, settings: CodeblockCustomizerSettings): { kind: PromptKind, name: string, baseClass: string, isCustom: boolean } {
-  const { isCustom } = getPromptDefinition(promptType, settings);
+  const { def, isCustom } = getPromptDefinition(promptType, settings);
 
   const isCustomTemplate = /\{.+?\}/.test(promptType);
-  const isDefinedPrompt = promptType in defaultPrompts || isCustom;
+  const isDefinedPrompt = promptType.toLowerCase() in defaultPrompts || isCustom;
 
   if (isDefinedPrompt) {
     // predefined or saved custom
-    return {kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${promptType}`, isCustom: isCustom};
+    const keyForClass = isCustom ? def.name : promptType.toLowerCase();
+    return {kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${keyForClass}`, isCustom: isCustom};
   }
 
   if (isCustomTemplate) {
@@ -389,20 +390,26 @@ function* parsePromptTemplate(template: string): Generator<{ text: string; isPla
 }// parsePromptTemplate
 
 export function getPromptDefinition(promptId: string, settings: CodeblockCustomizerSettings): { def: PromptDefinition, isCustom: boolean } {
+  const lowercasedPromptId = promptId.toLowerCase();
   const customs = settings.pluginSettings.prompts.customPrompts;
-  const edits  = settings.pluginSettings.prompts.editedDefaults;
-  const base   = defaultPrompts[promptId];
+  const edits = settings.pluginSettings.prompts.editedDefaults;
+
+  const customKey = Object.keys(customs).find(k => k.toLowerCase() === lowercasedPromptId);
+  const isCustom = !!customKey;
+
+  const base = defaultPrompts[lowercasedPromptId];
 
   let def: PromptDefinition;
-  const isCustom = !!customs[promptId];
+  //const isCustom = !!customs[promptId];
 
-  if (isCustom && customs[promptId]) {
+  if (isCustom && customKey) {
     //def = structuredClone(customs[promptId]);
-    def = { ...customs[promptId] };
-  } else if (edits[promptId] && base) {
+    def = { ...customs[customKey] };
+  } else if (edits[lowercasedPromptId] && base) {
     // merge only the changed fields onto a clone of the base
     //def = structuredClone({ ...base, ...edits[promptId] });
-    def = { ...base, ...edits[promptId] };
+    const editData = edits[lowercasedPromptId];
+    def = editData ? { ...base, ...editData } : { ...base };
   } else if (base) {
     //def = structuredClone(base);
     def = { ...base };

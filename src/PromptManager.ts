@@ -35,6 +35,8 @@ export type PromptDefinition = {
   isWindowsShell: boolean;
   autoUsePrompt?: boolean;
   autoUseLanguages?: string[];
+  autoParsePrompt?: boolean;
+  autoParseLanguages?: string[];
 };// PromptDefinition
 
 export enum PromptKind {
@@ -352,6 +354,7 @@ export class PromptManager {
   public readonly promptLines: Set<number>;
   private isParseMode: boolean;
   private parsePromptRegex?: RegExp;
+  private noParseLines: Set<number>;
 
   constructor(parameters: CBCParameters, totalLines: number, settings: CodeblockCustomizerSettings) {
     this.settings = settings;
@@ -361,6 +364,7 @@ export class PromptManager {
     this.context = context;
     this.promptEnv = initialEnv;
     this.cache = { key: "", node: null };
+    this.noParseLines = new Set(parameters.noParseLines);
 
     if (this.isParseMode) {
       this.parsePromptRegex = context.promptDef.parsePromptRegex;
@@ -370,10 +374,16 @@ export class PromptManager {
     }
   }
 
-  public renderLine(lineText: string): PromptLineRenderResult {
-    if (this.isParseMode) {
+  public renderLine(lineText: string, lineNumber: number): PromptLineRenderResult {
+    const skipParse = this.isParseMode && this.noParseLines.has(lineNumber);
+
+    if (this.isParseMode && !skipParse) {
       // parse mode
       return this.renderParseModeLine(lineText);
+    }
+
+    if (skipParse) {
+      return { styledParts: [], output: [], matchedLength: 0, lineClassName: null, isRoot: false };
     }
 
     // original prompt mode
@@ -506,7 +516,7 @@ export class PromptManager {
   }// getCommandOutput
 
   private computePromptLines(parameters: CBCParameters, totalLines: number, settings: CodeblockCustomizerSettings): Set<number> {
-    if (parameters.noprompt && parameters.nopromptLines.length === 0) {
+    if (parameters.noPrompt && parameters.noPromptLines.length === 0) {
       return new Set<number>();
     }
 
@@ -539,8 +549,8 @@ export class PromptManager {
     }
 
     // remove lines specified by noprompt
-    if (parameters.nopromptLines.length > 0) {
-      for (const ln of parameters.nopromptLines) {
+    if (parameters.noPromptLines.length > 0) {
+      for (const ln of parameters.noPromptLines) {
         lines.delete(ln);
       }
     }

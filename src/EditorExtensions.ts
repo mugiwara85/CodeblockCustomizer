@@ -747,7 +747,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
           const isPromptLine = !startLine && !endLine && (parameters.parsePromptId || prompt.promptLines.has(lineNumber + parameters.lineNumberOffset));
           if (isPromptLine) {
-            promptRenderResult = prompt.renderLine(currentLine.text);
+            promptRenderResult = prompt.renderLine(currentLine.text, lineNumber + parameters.lineNumberOffset);
           }
 
           // lines

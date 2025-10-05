@@ -1,6 +1,6 @@
 import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView } from "obsidian";
 
-import { getAllParameters, getFileCacheAndContentLines, isPluginLoaded } from "./Utils";
+import { getAllParameters, getFileCacheAndContentLines } from "./Utils";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeBlockData, extractCodeBlocksFromAdmonition, extractCodeBlocksFromCallout } from "./ReadingViewUtils";

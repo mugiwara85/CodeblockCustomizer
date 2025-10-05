@@ -3,8 +3,8 @@ import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, 
 import { EditorState } from "@codemirror/state";
 
 import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR, EXECUTE_CODE_SUPPORTED_LANGUAGES } from "./Const";
-import {PromptLines } from "./PromptManager";
-import { generatePromptColorStyles } from "./PromptUtils";
+import {defaultPrompts, PromptLines } from "./PromptManager";
+import { generatePromptColorStyles, getPromptDefinition } from "./PromptUtils";
 import { CodeblockCustomizerSettings, Colors, PluginSettings, ThemeColors } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 
@@ -278,8 +278,10 @@ export interface CBCParameters {
   textSeparator: string;
   prompt: PromptLines;
   parsePromptId: string | null;
-  noprompt: boolean;
-  nopromptLines: number[];
+  noPrompt: boolean;
+  noPromptLines: number[];
+  noParse: boolean;
+  noParseLines: number[];
   group: string;
   tab: string;
 }
@@ -372,11 +374,27 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     module: extractParameter(parsedParameters, "module")
   };
 
-  const parsePromptId = extractParameter(parsedParameters, "parse");
+  let parsePromptId = extractParameter(parsedParameters, "parse");
 
   // noprompt
-  const noprompt = isParameterDefined("noprompt", lineText);
-  const nopromptLines = getLineRanges(extractParameter(parsedParameters, "noprompt"));
+  const noPrompt = isParameterDefined("noprompt", lineText);
+  const noPromptLines = getLineRanges(extractParameter(parsedParameters, "noprompt"));
+
+  // noparse
+  const noParse = isParameterDefined("noparse", lineText);
+  const noParseLines = getLineRanges(extractParameter(parsedParameters, "noparse"));
+
+  if (!parsePromptId && language && !noParse) {
+    const allPrompts = { ...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts };
+    for (const promptId in allPrompts) {
+      const { def: promptDef } = getPromptDefinition(promptId, settings);
+      
+      if (promptDef.autoParsePrompt && promptDef.autoParseLanguages?.includes(language)) {
+        parsePromptId = promptId;
+        break;
+      }
+    }
+  }
 
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
@@ -404,8 +422,10 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     textSeparator,
     prompt,
     parsePromptId,
-    noprompt,
-    nopromptLines,
+    noPrompt,
+    noPromptLines,
+    noParse,
+    noParseLines,
     group,
     tab
   };
@@ -438,8 +458,10 @@ export function getDefaultParameters(): CBCParameters {
     textSeparator: '',
     prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null, module: null}},
     parsePromptId: null,
-    noprompt: false,
-    nopromptLines: [],
+    noPrompt: false,
+    noPromptLines: [],
+    noParse: false,
+    noParseLines: [],
     group: '',
     tab: '',
   }
