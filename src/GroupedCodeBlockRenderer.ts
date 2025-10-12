@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, MarkdownView } from "obsidian";
 
-import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLanguageName, CBCParameters, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getDisplayLanguageName, CBCParameters, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, determineDefaultFoldState } from "./Utils";
 import { createButtons, toggleFold } from "./ReadingViewUtils";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
@@ -90,7 +90,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     const parameters = this.getParametersFromElement(firstBlock);
     const sourcePath = firstBlock.getAttribute('sourcepath') || '';
-    const header = this.createHeader(parameters, groupName)
+    const lineCount = firstBlock.querySelectorAll('code > div').length;
+    const header = this.createHeader(parameters, groupName, lineCount)
     const frag = document.createDocumentFragment();
   
     let languageIconElement: HTMLElement;
@@ -112,7 +113,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       this.updateHeaderLanguageSpecificClasses(header, currentParameters.language);
       languageIconElement = this.updateHeaderLanguageIcon(header, languageIconElement, currentParameters.displayLanguage);
       this.updateHeaderButtons(groupButtonsContainer, currentParameters, currentBlock);
-      collapseIconElement = this.updateHeaderCollapseIcon(collapseIconElement, header, currentBlock, currentParameters);
+      collapseIconElement = this.updateHeaderCollapseIcon(collapseIconElement, header, currentBlock, currentParameters, lineCount);
       this.updateHeaderFileName(fileNameContainer, currentParameters.headerDisplayText);
     };
 
@@ -201,14 +202,20 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
   }// updateHeaderButtons
 
-  private updateHeaderCollapseIcon(collapseIcon: HTMLElement | null, header: HTMLElement, currentBlock: HTMLPreElement, parameters: CBCParameters): HTMLElement | null {
+  private updateHeaderCollapseIcon(collapseIcon: HTMLElement | null, header: HTMLElement, currentBlock: HTMLPreElement, parameters: CBCParameters, lineCount: number): HTMLElement | null {
     if (collapseIcon && collapseIcon.parentElement === header) {
       header.removeChild(collapseIcon);
     }
 
     const disableFoldUnlessSpecified = this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified;
-    const inverseFold = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
-    const isCollapseEnabled = !((disableFoldUnlessSpecified && !inverseFold && !parameters.fold) || (disableFoldUnlessSpecified && inverseFold && !parameters.unfold));
+    const specificHeader = isSpecificHeader(parameters, this.plugin.settings, true, lineCount, "reading");
+    const { foldByDefault } = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
+    const isCollapseEnabled = !disableFoldUnlessSpecified || foldByDefault;
+    /*const { inverseFold, ignoreShortBlocksOnInverseFold } = this.plugin.settings.pluginSettings.codeblock.folding;
+    const { enableSemiFold, visibleLines } = this.plugin.settings.pluginSettings.semiFold;
+    const canSemiFold = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount;
+    const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold));
+    const isCollapseEnabled = !disableFoldUnlessSpecified || foldByDefault;*/
     let newCollapseIcon: HTMLElement | null = null;
 
     if (isCollapseEnabled) {
@@ -285,9 +292,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     });
   }// hideGroupedCodeBlocks
 
-  private createHeader(params: CBCParameters, groupName: string): HTMLElement {
+  private createHeader(params: CBCParameters, groupName: string, lineCount: number): HTMLElement {
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(params.language, this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    const container = createContainer(params.specificHeader, params.language, false, codeblockLanguageSpecificClass, 'codeblock-customizer-header-group-container');
+    const specificHeader = isSpecificHeader(params, this.plugin.settings, true, lineCount, "reading");
+    const container = createContainer(specificHeader, params.language, false, codeblockLanguageSpecificClass, 'codeblock-customizer-header-group-container');
     container.setAttribute("group", groupName);
     return container;
   }// createHeader

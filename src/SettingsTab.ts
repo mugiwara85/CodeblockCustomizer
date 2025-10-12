@@ -1068,6 +1068,23 @@ export class SettingsTab extends PluginSettingTab {
     // folding
     const foldDetails = this.createDetailsGroup(behaviorDiv, 'Folding Settings', 'foldDetailsOpen');
 
+    const updateFoldingSettingsVisibility = () => {
+      const semiFoldEnabled = this.plugin.settings.pluginSettings.semiFold.enableSemiFold;
+      const inverseFoldEnabled = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
+
+      if (semiFoldLinesDropDown) 
+        semiFoldLinesDropDown.setDisabled(!semiFoldEnabled);
+      if (semiFoldShowButton) 
+        semiFoldShowButton.setDisabled(!semiFoldEnabled);
+      if (autoFoldSetting) 
+        autoFoldSetting.settingEl.style.display = semiFoldEnabled ? '' : 'none';
+
+      if (ignoreShortBlocksSetting) {
+        const showIgnoreShortBlocks = semiFoldEnabled && inverseFoldEnabled;
+        ignoreShortBlocksSetting.settingEl.style.display = showIgnoreShortBlocks ? '' : 'none';
+      }
+    };
+
     new Setting(foldDetails)
       .setName('Inverse fold behavior')
       .setDesc('If enabled, all code blocks are folded by default when opening a document. To disable this behavior for a specific code block, use the "unfold" parameter.')
@@ -1076,8 +1093,89 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.folding.inverseFold = value;
           await this.plugin.saveSettings();
+          updateFoldingSettingsVisibility();
+          this.plugin.renderReadingViews();
         })
       );
+
+    const ignoreShortBlocksSetting = new Setting(foldDetails)
+      .setName('Only apply inverse fold to semi-foldable blocks')
+      .setDesc('When `Inverse fold` and `Enable semi-fold` are both enabled, this prevents short code blocks (that cannot be semi-folded) from being fully folded by default.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold = value;
+          await this.plugin.saveSettings();
+          this.plugin.renderReadingViews();
+        })
+      );
+
+    let semiFoldLinesDropDown: DropdownComponent;
+    let semiFoldShowButton: ToggleComponent;
+    
+    new Setting(foldDetails)
+      .setName('Enable semi-fold')
+      .setDesc('If enabled folding will use semi-fold method. This means, that the first X lines will be visible only. Select the number of visisble lines. You can also enable an additional uncollapse button. Please refer to the README for more information.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.semiFold.enableSemiFold)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.semiFold.enableSemiFold = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+          updateFoldingSettingsVisibility();
+        })
+      )
+      .addDropdown((dropdown) => { semiFoldLinesDropDown = dropdown
+        dropdown.selectEl.empty();
+        dropdown.addOptions(Object.fromEntries([...Array(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
+        dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString())
+        dropdown.onChange(async (value) => {
+          const number = parseInt(value);
+          this.plugin.settings.pluginSettings.semiFold.visibleLines = number;
+          await this.plugin.saveSettings();
+        })
+      })
+      .addToggle(toggle => semiFoldShowButton = toggle
+        .setValue(this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon)
+        .setTooltip('Show additional uncollapse button')
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    let longCodeblockLinesInput: TextComponent;
+    const autoFoldSetting = new Setting(foldDetails)
+      .setName('Auto semi-fold long code blocks')
+      .setDesc('If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks = value;
+          longCodeblockLinesInput.setDisabled(!value);
+          longCodeblockLinesInput.inputEl.classList.toggle('is-disabled', !value);
+          await this.plugin.saveSettings();
+        })
+      )
+      .addText(text => {
+        longCodeblockLinesInput = text;
+        const isDisabled = !this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks;
+        text
+          .setPlaceholder('30')
+          .setValue(this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines.toString())
+          .setDisabled(isDisabled)
+        text.inputEl.classList.toggle('is-disabled', isDisabled); 
+        text.onChange(async (value) => {
+            const lines = parseInt(value);
+            if (!isNaN(lines)) {
+              this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
+
+    updateFoldingSettingsVisibility();
 
     new Setting(foldDetails)
       .setName('Save code blocks folded state')
@@ -1151,81 +1249,6 @@ export class SettingsTab extends PluginSettingTab {
           });
       }
     }
-
-    let enableSemiFoldToggle: ToggleComponent;
-    let semiFoldLinesDropDown: DropdownComponent;
-    let semiFoldShowButton: ToggleComponent;
-
-    const updateDependentSettings = () => {
-      const value = enableSemiFoldToggle.getValue();
-      semiFoldLinesDropDown.setDisabled(!value);
-      semiFoldShowButton.setDisabled(!value);
-      autoFoldSetting.settingEl.style.display = value ? '' : 'none';
-    };
-    
-    new Setting(foldDetails)
-      .setName('Enable semi-fold')
-      .setDesc('If enabled folding will use semi-fold method. This means, that the first X lines will be visible only. Select the number of visisble lines. You can also enable an additional uncollapse button. Please refer to the README for more information.')
-      .addToggle(toggle => enableSemiFoldToggle = toggle
-        .setValue(this.plugin.settings.pluginSettings.semiFold.enableSemiFold)
-        .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.semiFold.enableSemiFold = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-          updateDependentSettings();
-        })
-      )
-      .addDropdown((dropdown) => { semiFoldLinesDropDown = dropdown
-        dropdown.selectEl.empty();
-        dropdown.addOptions(Object.fromEntries([...Array(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
-        dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString())
-        dropdown.onChange(async (value) => {
-          const number = parseInt(value);
-          this.plugin.settings.pluginSettings.semiFold.visibleLines = number;
-          await this.plugin.saveSettings();
-        })
-      })
-      .addToggle(toggle => semiFoldShowButton = toggle
-        .setValue(this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon)
-        .setTooltip('Show additional uncollapse button')
-        .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon = value;
-          await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.app);
-        })
-      );
-
-    let longCodeblockLinesInput: TextComponent;
-    const autoFoldSetting = new Setting(foldDetails)
-      .setName('Auto semi-fold long code blocks')
-      .setDesc('If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks)
-        .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks = value;
-          longCodeblockLinesInput.setDisabled(!value);
-          longCodeblockLinesInput.inputEl.classList.toggle('is-disabled', !value);
-          await this.plugin.saveSettings();
-        })
-      )
-      .addText(text => {
-        longCodeblockLinesInput = text;
-        const isDisabled = !this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks;
-        text
-          .setPlaceholder('30')
-          .setValue(this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines.toString())
-          .setDisabled(isDisabled)
-        text.inputEl.classList.toggle('is-disabled', isDisabled); 
-        text.onChange(async (value) => {
-            const lines = parseInt(value);
-            if (!isNaN(lines)) {
-              this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
-              await this.plugin.saveSettings();
-            }
-          });
-      });
-
-    updateDependentSettings();
 
     // extra buttons
     const buttonsDetails = this.createDetailsGroup(behaviorDiv, 'Extra Button Settings', 'buttonsDetailsOpen');
@@ -1907,7 +1930,7 @@ export class SettingsTab extends PluginSettingTab {
     
     const autoParseLanguagesSetting = new Setting(promptSettingsDetails)
       .setName("Languages for Auto-parse")
-      .setDesc("Comma-separated list of code block languages for which this prompt's parser should be used\n(e.g., bash, shell).\nWARNING: This could effect performance if you have a lot of code blocks with the specified languages.")
+      .setDesc("Comma-separated list of code block languages for which this prompt's parser should be used\n(e.g., bash, shell).\nWARNING: This could affect performance if you have a lot of code blocks with the specified languages.")
       .addText(text => {
         parseLanguagesTextComponent = text;
         text.setValue((currentPromptData.autoParseLanguages ?? []).join(', '));

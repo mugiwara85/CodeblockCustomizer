@@ -110,6 +110,7 @@ export interface PluginSettings {
       rememberFoldState: boolean;
       scope: FoldingScope;
       persistence: FoldingPersistence;
+      ignoreShortBlocksOnInverseFold: boolean;
     },
   },
   textHighlight: {
@@ -231,6 +232,7 @@ const defaultThemeSettings: PluginSettings = {
       rememberFoldState: true,
       scope: FoldingScope.NoFoldSpecified,
       persistence: FoldingPersistence.Session,
+      ignoreShortBlocksOnInverseFold: false,
     },
   },
   textHighlight: {

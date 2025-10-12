@@ -2,7 +2,7 @@ import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, 
 
 import { EditorState } from "@codemirror/state";
 
-import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR, EXECUTE_CODE_SUPPORTED_LANGUAGES } from "./Const";
+import { Languages, manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, DEFAULT_COLLAPSE_TEXT, DEFAULT_TEXT_SEPARATOR, DEFAULT_LINE_SEPARATOR, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
 import {defaultPrompts, PromptLines } from "./PromptManager";
 import { generatePromptColorStyles, getPromptDefinition } from "./PromptUtils";
 import { CodeblockCustomizerSettings, Colors, PluginSettings, ThemeColors } from "./Settings";
@@ -262,12 +262,12 @@ export interface CBCParameters {
   isSpecificNumber: boolean;
   lineNumberOffset: number;
   showNumbers: string;
-  headerDisplayText: string;
+  hasTitle: boolean;            // this is just a boolean if file or title was specified or not
+  headerDisplayText: string;    // this is the actual text resulting from file/title or default
   fold: boolean;
   unfold: boolean;
   language: string;
   displayLanguage: string;
-  specificHeader: boolean;
   hasLangBorderColor: boolean;
   exclude: boolean;
   fenceChar: '`' | '~' | null;
@@ -324,15 +324,13 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // fileName/Title
   let headerDisplayText = extractFileTitle(parsedParameters);
+  const hasTitle = !!headerDisplayText;
 
   // fold
-  let fold = isFoldDefined(lineText);
+  const fold = isFoldDefined(lineText);
 
   // unfold
   const unfold = isUnFoldDefined(lineText);
-  if (settings.pluginSettings.codeblock.folding.inverseFold) {
-    fold = unfold ? false : true;
-  }
 
   // language
   const language = getCodeBlockLanguage(lineText, isReadingView);
@@ -350,13 +348,10 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const tab = extractParameter(parsedParameters, "tab") ?? '';
 
   // specificHeader and hasLangBorderColor
-  let specificHeader = true;
   let hasLangBorderColor = false;
   if (!exclude) {
     if (headerDisplayText === null || headerDisplayText === "") {
       headerDisplayText = settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
-      if (!fold && !(language.length > 0 && (settings.pluginSettings.header.alwaysDisplayCodeblockIcon || settings.pluginSettings.header.alwaysDisplayCodeblockLang)))
-        specificHeader = false;
       if (group)
         headerDisplayText = ''; // if tabs are in use, header should not display any text by default
     }
@@ -406,12 +401,12 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     isSpecificNumber: isSpecificNumber,
     lineNumberOffset: lineNumberOffset,
     showNumbers: showNumbers,
+    hasTitle: hasTitle,
     headerDisplayText: headerDisplayText,
     fold: fold,
     unfold: unfold,
     language: language,
     displayLanguage: displayLanguage,
-    specificHeader: specificHeader,
     hasLangBorderColor: hasLangBorderColor,
     exclude: exclude,
     fenceChar: fenceChar,
@@ -442,12 +437,12 @@ export function getDefaultParameters(): CBCParameters {
     isSpecificNumber: false,
     lineNumberOffset: 0,
     showNumbers: "",
+    hasTitle: false,
     headerDisplayText: "",
     fold: false,
     unfold: false,
     language: "",
     displayLanguage: "",
-    specificHeader: false,
     hasLangBorderColor: false,
     exclude: false,
     fenceChar: null,
@@ -466,6 +461,61 @@ export function getDefaultParameters(): CBCParameters {
     tab: '',
   }
 }// getDefaultParameters
+
+export function isSpecificHeader(parameters: CBCParameters, settings: CodeblockCustomizerSettings, isMemberOfTabbedGroup: boolean, lineCount: number, mode: "editor" | "reading"): boolean {
+  // file or title specified
+  if (parameters.hasTitle) {
+    return true;
+  }
+
+  // block is a grouped code block
+  if (isMemberOfTabbedGroup) {
+    return true;
+  }
+
+  // inversefold
+  /*const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
+  const { enableSemiFold, visibleLines } = settings.pluginSettings.semiFold;
+  const canSemiFold = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount + (mode === "editor" ? 2 : 0);
+  const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold));*/
+  const { foldByDefault } = determineDefaultFoldState(parameters, settings, lineCount, false, mode);
+  if (foldByDefault) {
+    return true;
+  }
+
+  // always show icon or language tag
+  if (parameters.language.length > 0 && (settings.pluginSettings.header.alwaysDisplayCodeblockIcon || settings.pluginSettings.header.alwaysDisplayCodeblockLang)) {
+    return true;
+  }
+
+  return false;
+}// isSpecificHeader
+
+export function determineDefaultFoldState(parameters: CBCParameters, settings: CodeblockCustomizerSettings, lineCount: number, isSpecificHeader: boolean, mode: "editor" | "reading"): { foldByDefault: boolean; useSemiFold: boolean } {
+  const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
+  const { enableSemiFold, visibleLines, autoFoldLongCodeblocks, longCodeBlockLines } = settings.pluginSettings.semiFold;
+  
+  const contentLineCount = mode === "editor" ? lineCount - 2 : lineCount;
+  
+  const canSemiFold = enableSemiFold && contentLineCount >= visibleLines + fadeOutLineCount;
+  const autoFold = isSpecificHeader && enableSemiFold && autoFoldLongCodeblocks && contentLineCount >= longCodeBlockLines;
+  //const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold)) || autoFold;
+
+  let doInverseFold = false;
+  if (inverseFold && !parameters.unfold) {
+    if (enableSemiFold && ignoreShortBlocksOnInverseFold) {
+      // ignoreShortBlocksOnInverseFold is true so only fold blocks which meet the criteria for semi-folding
+      doInverseFold = canSemiFold;
+    } else {
+      // ignoreShortBlocksOnInverseFold is false ==> apply inverse fold
+      doInverseFold = true;
+    }
+  }
+
+  const foldByDefault = parameters.fold || doInverseFold || autoFold;
+
+  return { foldByDefault: foldByDefault, useSemiFold: enableSemiFold };
+}// determineDefaultFoldState
 
 function sortAndRemoveDuplicates(numbers: number[]): number[] {
   // sort
@@ -2034,7 +2084,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
     const width = elementToSnapshot.clientWidth;
     const height = elementToSnapshot.clientHeight;
     const dpr = window.devicePixelRatio || 1;
-    const pixelRatio = Math.max(Math.ceil(dpr), 2);// 3 would be for 250% or 300% scaling
+    const pixelRatio = (dpr === 1) ? 1 : Math.max(Math.ceil(dpr), 2);// 3 would be for 250% or 300% scaling
     
     const blobOptions = {pixelRatio: pixelRatio, width: width, height: height, ...options,};
 

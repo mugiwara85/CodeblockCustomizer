@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, loadPrism, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, CBCParameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, CBCParameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
 import { fadeOutLineCount } from "./Const";
@@ -359,12 +359,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   
     this.cleanupPreviousElements(preElement);
-  
-    const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, charPos);
+    const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, codeblockLines.length - 2, "reading");
+    const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, specificHeader, charPos);
     const {container: buttons, observer} = createButtons(parameters, codeblockLines, this.plugin, preElement);
     this.observer = observer;
 
-    if (parameters.specificHeader || !isPrinting) {
+    if (specificHeader || !isPrinting) {
       frag.appendChild(header);
     }
     frag.appendChild(buttons);
@@ -419,33 +419,40 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
     }
 
-    let shouldFold = false;
+    let foldByDefault = false;
     let useSemiFold = false;
     const globalCommand = this.plugin.foldCommandTrigger;
   
     switch (globalCommand) {
       case FoldCommand.FoldAll:
-        shouldFold = true;
+        foldByDefault = true;
         useSemiFold = settings.semiFold.enableSemiFold;
         break;
       case FoldCommand.UnfoldAll:
-        shouldFold = false;
+        foldByDefault = false;
         break;
       case FoldCommand.Default:
       default:
         if (rememberedState !== undefined) {
-          shouldFold = rememberedState === FoldingState.FullyFolded || rememberedState === FoldingState.SemiFolded;
+          foldByDefault = rememberedState === FoldingState.FullyFolded || rememberedState === FoldingState.SemiFolded;
           useSemiFold = rememberedState === FoldingState.SemiFolded;
         } else {
-          const inverseFold = settings.codeblock.folding.inverseFold;
-          const autoFold = parameters.specificHeader && settings.semiFold.enableSemiFold && settings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.semiFold.longCodeBlockLines;
-          shouldFold = parameters.fold || (inverseFold && !parameters.unfold) || autoFold;
-          useSemiFold = settings.semiFold.enableSemiFold;
+          const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, lineCount, "reading");
+          const foldState = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
+          foldByDefault = foldState.foldByDefault;
+          useSemiFold = foldState.useSemiFold;
+          /*const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.codeblock.folding;
+          const { enableSemiFold, visibleLines } = settings.semiFold;
+          const isSemiFoldable = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount;
+          const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, lineCount, "reading");
+          const autoFold = specificHeader && settings.semiFold.enableSemiFold && settings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.semiFold.longCodeBlockLines;
+          shouldFold = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || isSemiFoldable)) || autoFold;
+          useSemiFold = settings.semiFold.enableSemiFold;*/
         }
         break;
     }
     
-    if (shouldFold) {
+    if (foldByDefault) {
       const canSemiFold = lineCount >= settings.semiFold.visibleLines + fadeOutLineCount;
       if (useSemiFold && canSemiFold) {
         preElement.classList.add('codeblock-customizer-codeblock-semi-collapsed');
@@ -458,9 +465,9 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// applyInitialFoldState
 
-  private HeaderWidget(preElement: HTMLElement, parameters: CBCParameters, settings: CodeblockCustomizerSettings, charPos?: number) {
+  private HeaderWidget(preElement: HTMLElement, parameters: CBCParameters, settings: CodeblockCustomizerSettings, specificHeader: boolean, charPos?: number) {
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    const container = createContainer(parameters.specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
+    const container = createContainer(specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
     const frag = document.createDocumentFragment();
 
     if (parameters.displayLanguage) {

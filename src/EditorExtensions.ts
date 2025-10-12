@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -243,14 +243,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
 
       if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState|| settingsUpdated || tr.reconfigured) {
+        if (settingsUpdated || globalFoldCmdChanged) {
+          value = Decoration.none;  // remove fold e.g. when inversefold is disabled
+        }
         const decorationsToAdd: Range<Decoration>[] = [];
         const state = tr.state;
         const rememberedFolds = newFoldState ?? {};
         const unfoldedBlocks = state.field(defaultFoldUnfoldedField, false) ?? new Set<number>();
-
-        if (globalFoldCmdChanged) {
-          value = Decoration.none;
-        }
+        const grouped = tr.state.field(groupedCodeBlocksField, false) ?? {};
 
         for (const pos of newCodeBlockPositions) {
           // don't process fold commands for `run-` code blocks
@@ -263,9 +263,16 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             continue;
           }
 
+          const group = pos.parameters.group;
+          const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === pos.codeBlockStartPos));
           const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-          const autoFold = pos.parameters.specificHeader && settings.pluginSettings.semiFold.enableSemiFold && settings.pluginSettings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.pluginSettings.semiFold.longCodeBlockLines + 2;
-          const foldByDefault = pos.parameters.fold || (settings.pluginSettings.codeblock.folding.inverseFold && !pos.parameters.unfold);
+          const specificHeader = isSpecificHeader(pos.parameters, settings, isMemberOfTabbedGroup, lineCount, "editor");
+          const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
+          /*const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
+          const { enableSemiFold, visibleLines } = settings.pluginSettings.semiFold;
+          const canSemiFold = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount + 2;
+          const autoFold = specificHeader && enableSemiFold && settings.pluginSettings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.pluginSettings.semiFold.longCodeBlockLines + 2;
+          const foldByDefault = pos.parameters.fold || (inverseFold && !pos.parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold));*/
           let foldNow = false;
           let useSemiFold = false;
           
@@ -292,7 +299,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
                   foldNow = true; useSemiFold = true;
                 } else if (rememberedState === FoldingState.Unfolded) {
                   foldNow = false;
-                } else if (rememberedState === undefined && (foldByDefault || autoFold)) {
+                } else if (rememberedState === undefined && foldByDefault) {
                   foldNow = true;
                   useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
                 }
@@ -1288,6 +1295,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     enableLinks: boolean;
     languageSpecificColors: Record<string, string>;
     parameters: CBCParameters;
+    specificHeader: boolean;
     pos: CodeBlockPositions
     buttonConfigs: Array<ButtonConfig>;
     groupMembers: CodeBlockPositions[];
@@ -1296,9 +1304,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     disableFoldUnlessSpecified: boolean;
     plugin: CodeBlockCustomizerPlugin;
   
-    constructor(parameters: CBCParameters, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+    constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
       super();
       this.parameters = parameters;
+      this.specificHeader = specificHeader;
       this.pos = pos;
       this.buttonConfigs = buttonConfigs;
       this.enableLinks = plugin.settings.pluginSettings.codeblock.enableLinks;
@@ -1317,7 +1326,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
     eq(other: HeaderWidget) {
       return other.parameters.headerDisplayText === this.parameters.headerDisplayText && other.parameters.language === this.parameters.language && 
-      other.parameters.specificHeader === this.parameters.specificHeader && other.parameters.fold === this.parameters.fold && 
+      other.specificHeader === this.specificHeader && other.parameters.fold === this.parameters.fold && 
       other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
       other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
       other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) &&
@@ -1326,7 +1335,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
-      const container = createContainer(this.parameters.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
+      const container = createContainer(this.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
       const isGrouped = this.parameters.group.length > 0 && this.groupMembers.length > 1;
 
       if (this.parameters.displayLanguage){
@@ -1714,8 +1723,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return false;
     if (params1.displayLanguage !== params2.displayLanguage) 
       return false;
-    if (params1.specificHeader !== params2.specificHeader) 
-      return false;
     if (params1.hasLangBorderColor !== params2.hasLangBorderColor) 
       return false;
     if (params1.exclude !== params2.exclude) 
@@ -1982,7 +1989,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       let hideBlock = false;
       let createHeader = true;
 
-      const isMemberOfTabbedGroup = group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === codeBlockStartPos);
+      const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === codeBlockStartPos));
 
       if (isMemberOfTabbedGroup) {
         const groupMembers = grouped[group];
@@ -2008,12 +2015,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       if (createHeader) {
-        if (!parameters.specificHeader && isMemberOfTabbedGroup)
-          parameters.specificHeader = true; // code blocks which are members of a group, but do not have file/title set must be specific!
-        
+        const specificHeader = isSpecificHeader(parameters, settings, isMemberOfTabbedGroup, state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1, "editor");
         if (!parameters.language.toLowerCase().startsWith('run-')) {
           const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, state, parameters);
-          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin), block: true }).range(codeBlockStartPos));
+          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin), block: true }).range(codeBlockStartPos));
         }
       }
     }
@@ -2749,11 +2754,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     codeBlockPositionsField, 
     groupedCodeBlocksField, 
     activeGroupTabField, 
-    collapseField, 
-    headerField, 
-    defaultFoldUnfoldedField, 
     rememberedFoldField, 
     foldCommandField, 
+    defaultFoldUnfoldedField, 
+    collapseField,
+    headerField, 
     viewPlugin, 
     linkViewPlugin, 
     inlineCodeViewPlugin, 
