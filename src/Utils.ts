@@ -172,6 +172,11 @@ export function getFenceDetails(lineText: string): { char: '`' | '~' | null, cou
 }// getFenceDetails
 
 // inerfaces for highlight
+export type HighlightedWord = {
+  text: string;
+  occurrences: number[];
+};
+
 interface LinesToHighlight {
   lineNumbers: number[];
   words: string[];
@@ -186,18 +191,25 @@ type LineSpecificWords = {
 type TextBetween = {
   from: string;
   to: string;
+  occurrences: number[];
 };
 
 type LineSpecificTextBetween = {
   from: string;
   to: string;
   lineNumber: number;
+  occurrences: number[];
+};
+
+type TextHighlightLineSpecificWords = {
+  words: HighlightedWord[];
+  lineNumber: number;
 };
 
 interface TextHighlight {
   allWordsInLine: number[];
-  words: string[];
-  lineSpecificWords: LineSpecificWords[];
+  words: HighlightedWord[];
+  lineSpecificWords: TextHighlightLineSpecificWords[];
   textBetween: TextBetween[];
   lineSpecificTextBetween: LineSpecificTextBetween[];
 }
@@ -239,15 +251,24 @@ type AlternativeWords = {
   colorName: string;
 };
 
+type AlternativeTextHighlightWords = {
+  words: HighlightedWord[];
+  colorName: string;
+};
+
+type AlternativeTextHighlightLineSpecificWords = TextHighlightLineSpecificWords & {
+  colorName: string;
+};
+
 interface AlternativeTextHighlight {
-  allWordsInLine: AlternativeAllWordsInLine[];
-  words: AlternativeWords[];
-  lineSpecificWords: AlternativeLineSpecificWords[];
+allWordsInLine: AlternativeAllWordsInLine[];
+  words: AlternativeTextHighlightWords[];
+  lineSpecificWords: AlternativeTextHighlightLineSpecificWords[];
   textBetween: AlternativeTextBetween[];
   lineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
   outputAllWordsInLine: AlternativeAllWordsInLine[];
-  outputWords: AlternativeWords[];
-  outputLineSpecificWords: AlternativeLineSpecificWords[];
+  outputWords: AlternativeTextHighlightWords[];
+  outputLineSpecificWords: AlternativeTextHighlightLineSpecificWords[];
   outputTextBetween: AlternativeTextBetween[];
   outputLineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
 }
@@ -474,10 +495,6 @@ export function isSpecificHeader(parameters: CBCParameters, settings: CodeblockC
   }
 
   // inversefold
-  /*const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
-  const { enableSemiFold, visibleLines } = settings.pluginSettings.semiFold;
-  const canSemiFold = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount + (mode === "editor" ? 2 : 0);
-  const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold));*/
   const { foldByDefault } = determineDefaultFoldState(parameters, settings, lineCount, false, mode);
   if (foldByDefault) {
     return true;
@@ -629,10 +646,16 @@ function getTextHighlight(parsedParameters: ParsedParams, parameter: string | nu
   }
 
   const trimmedParams = parameterValue.trim();
-  const segments = trimmedParams.split(",");
+  const segments = trimmedParams.split(/,(?![^[]*\])/g);
 
   for (const segment of segments) {
-    const { line, range, word, from, to } = parseSegment(segment, textSeparator, lineSeparator);
+    const trimmedSegment = segment.trim();
+    if (!trimmedSegment) {
+      continue;
+    }
+
+    const { line, range, word, from, to, occurrences } = parseSegment(trimmedSegment, textSeparator, lineSeparator);
+    const occurrenceNumbers = getOccurrences(occurrences);
 
     // allWordsInLine
     if ((line || range ) && !word && !from && !to ){
@@ -641,20 +664,20 @@ function getTextHighlight(parsedParameters: ParsedParams, parameter: string | nu
 
     // words
     if (word && !line && !range && !from && !to){
-      result.words.push(word);
+      result.words.push({ text: word, occurrences: occurrenceNumbers });
     }
     // lineSpecificWords
     if (word && (line || range) && !from && !to){
-      getLineSpecificWords(result, line, range, word);
+      getLineSpecificWords(result, line, range, { text: word, occurrences: occurrenceNumbers });
     }
 
     // textBetween
     if ((from || to) && !word && !line && !range){
-      result.textBetween.push({ from: from, to: to });
+      result.textBetween.push({ from: from, to: to, occurrences: occurrenceNumbers });
     }
     // lineSpecificTextBetween
     if ((from || to ) && !word && (line || range)){
-      getLineSpecificTextBetween(result, line, range, from, to);
+      getLineSpecificTextBetween(result, line, range, from, to, occurrenceNumbers);
     }
   }
 
@@ -672,31 +695,38 @@ function getAllWordsInLine(result: TextHighlight, line: string, range: string) {
   }
 }// getAllWordsInLine
 
-function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: string, range: string, word: string) {
+function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: string, range: string, word: string | HighlightedWord) {
   if (range !== '') { // range with text
     processRange(range, word, result.lineSpecificWords);
   } else { // number with text
     const lineNum = Number(line);
-    const existingEntry = result.lineSpecificWords.find(entry => entry.lineNumber === lineNum);
-    const words = word.split(',');
+    const lineSpecificWords = (result as any).lineSpecificWords;
+    const existingEntry = lineSpecificWords.find((entry: { lineNumber: number; }) => entry.lineNumber === lineNum);
+
+    let wordsToAdd: any[];
+    if (typeof word === 'string') {
+      wordsToAdd = word.split(',');
+    } else {
+      wordsToAdd = [word];
+    }
 
     if (existingEntry) {
-      existingEntry.words.push(...words);
+      existingEntry.words.push(...wordsToAdd);
     } else {
-      result.lineSpecificWords.push({ lineNumber: lineNum, words: words });
+      result.lineSpecificWords.push({ lineNumber: lineNum, words: wordsToAdd });
     }
   }
 }// getLineSpecificWords
 
-function getLineSpecificTextBetween(result: TextHighlight, line: string, range: string, from: string, to: string) {
+function getLineSpecificTextBetween(result: TextHighlight, line: string, range: string, from: string, to: string, occurrences: number[]) {
   if (range !== '') {
     const ranges = getLineRanges(range);
     ranges.forEach((num) => {
-      result.lineSpecificTextBetween.push({ lineNumber: num, from: from, to: to });
+      result.lineSpecificTextBetween.push({ lineNumber: num, from: from, to: to, occurrences: occurrences });
     });
   } else if (!isNaN(Number(line))) {
     const lineNum = Number(line);
-    result.lineSpecificTextBetween.push({ lineNumber: lineNum, from: from, to: to });
+    result.lineSpecificTextBetween.push({ lineNumber: lineNum, from: from, to: to, occurrences: occurrences });
   }
 }// getLineSpecificTextBetween
 
@@ -704,12 +734,93 @@ function isWholeNumber(input: string): boolean {
   return validator.isInt(input, { allow_leading_zeroes: false });
 }// isWholeNumber
 
-function parseSegment(segment: string, textSeparator: string, lineSeparator: string): { line: string, range: string, word: string, from: string, to: string } {
+export function getOccurrences(params: string | null): number[] {
+  if (!params) {
+    return [];
+  }
+
+  const trimmedParams = params.trim();
+  if (trimmedParams === "") {
+    return [];
+  }
+
+  const parts = trimmedParams.split(",");
+  const occurrences: number[] = [];
+
+  for (const part of parts) {
+    const trimmedPart = part.trim();
+    const rangeMatch = trimmedPart.match(/^(-?\d+)-(-?\d+)$/);
+
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1], 10);
+      const end = parseInt(rangeMatch[2], 10);
+
+      if (!isNaN(start) && !isNaN(end) && start <= end) {
+        for (let i = start; i <= end; i++) {
+          occurrences.push(i);
+        }
+      } else {
+        console.warn(`Invalid occurrence range detected: ${trimmedPart}`);
+      }
+    } else {
+      const number = parseInt(trimmedPart, 10);
+      if (!isNaN(number)) {
+        occurrences.push(number);
+      } else {
+        console.warn(`Invalid occurrence number detected: ${trimmedPart}`);
+      }
+    }
+  }
+
+  const uniqueOccurrences = [...new Set(occurrences)].sort((a, b) => a - b);
+
+  return uniqueOccurrences;
+}// getOccurrences
+
+export function filterOccurrences(allMatches: { from: number, to: number }[], occurrencesFilter?: number[]): { from: number, to: number }[] {
+  if (!occurrencesFilter || occurrencesFilter.length === 0) {
+    return allMatches;
+  }
+
+  const totalMatches = allMatches.length;
+  const filteredMatches: { from: number, to: number }[] = [];
+  const selectedIndices = new Set<number>();
+
+  for (const occurrence of occurrencesFilter) {
+    let index: number;
+    if (occurrence > 0) {
+      // positive index => from start
+      index = occurrence - 1;
+    } else if (occurrence < 0) {
+      // negative index => from end
+      index = totalMatches + occurrence;
+    } else {
+      // 0 is invalid => skip
+      continue;
+    }
+
+    if (index >= 0 && index < totalMatches && !selectedIndices.has(index)) {
+      selectedIndices.add(index);
+    }
+  }
+
+  // return matches in their original order
+  const sortedIndices = Array.from(selectedIndices).sort((a, b) => a - b);
+  
+  for (const index of sortedIndices) {
+    filteredMatches.push(allMatches[index]);
+  }
+  
+  return filteredMatches;
+}// filterOccurrences
+
+function parseSegment(segment: string, textSeparator: string, lineSeparator: string): { line: string, range: string, word: string, from: string, to: string, occurrences: string } {
   let from = '';
   let to = '';
   let line = '';
   let range = '';
   let word = '';
+  let occurrences = '';
 
   const lineSeparatorIndex = segment.indexOf(lineSeparator);
   const fromToSeparatorIndex = segment.indexOf(textSeparator);
@@ -721,10 +832,15 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
     } else{ // hlt:|:
       const lineOrRange = segment.substring(0, lineSeparatorIndex).trim();
       const val = segment.substring(lineSeparatorIndex + 1).trim();
-      if (lineOrRange.includes("-"))
-        range = lineOrRange;
-      else if (isWholeNumber(lineOrRange))
-        line = lineOrRange;
+
+      const occurrenceMatch = lineOrRange.match(/\[(.*?)\]/);
+      occurrences = occurrenceMatch ? occurrenceMatch[1] : '';
+      const cleanedLineOrRange = lineOrRange.replace(/\[.*?\]/, '').trim();
+      
+      if (cleanedLineOrRange.includes("-"))
+        range = cleanedLineOrRange;
+      else if (isWholeNumber(cleanedLineOrRange))
+        line = cleanedLineOrRange;
 
       //if (val.includes(":")) {
       const valFromToSeparatorIndex = val.indexOf(textSeparator);
@@ -741,10 +857,14 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
   } else if (lineSeparatorIndex !== -1 && fromToSeparatorIndex === -1){ // only contains |
     const lineOrRange = segment.substring(0, lineSeparatorIndex).trim();
     const val = segment.substring(lineSeparatorIndex + 1).trim();
-    if (lineOrRange.includes("-"))
-      range = lineOrRange;
-    else if (isWholeNumber(lineOrRange))
-      line = lineOrRange;
+    const occurrenceMatch = lineOrRange.match(/\[(.*?)\]/);
+    occurrences = occurrenceMatch ? occurrenceMatch[1] : '';
+    const cleanedLineOrRange = lineOrRange.replace(/\[.*?\]/, '').trim();
+    
+    if (cleanedLineOrRange.includes("-"))
+      range = cleanedLineOrRange;
+    else if (isWholeNumber(cleanedLineOrRange))
+      line = cleanedLineOrRange;
 
     word = val;
   } else { // does not contains : nor |
@@ -756,7 +876,7 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
       word = segment.trim();
   }
 
-  return { line, range, word, from, to };
+  return { line, range, word, from, to, occurrences };
 }// parseSegment
 
 interface AlternativeHighlight {
@@ -901,20 +1021,22 @@ export function extractParameter(parsedParameters: ParsedParams, searchTerm: str
   return parsedParameters[searchTerm.toLowerCase()] || null;
 }// extractParameter
 
-function processRange<T>(segment: string, segmentValue: string, result: T): void {
+function processRange<T>(segment: string, segmentValue: string | HighlightedWord, result: T): void {
   const range = getLineRanges(segment);
-  const words = segmentValue.split(',');
+  let wordsToAdd: string[] | HighlightedWord[];
+  if (typeof segmentValue === 'string') {
+    wordsToAdd = segmentValue.split(',');
+  } else {
+    wordsToAdd = [segmentValue];
+  }
 
   range.forEach((num) => {
-    const existingEntry = (result as LineSpecificWords[]).find(entry => entry.lineNumber === num);
+    const existingEntry = (result as { lineNumber: number, words: any[] }[]).find(entry => entry.lineNumber === num);
 
     if (existingEntry) {
-      existingEntry.words.push(...words);
+      existingEntry.words.push(...wordsToAdd);
     } else {
-      (result as LineSpecificWords[]).push({
-        lineNumber: num,
-        words: words,
-      });
+      (result as { lineNumber: number, words: any[] }[]).push({lineNumber: num, words: wordsToAdd,});
     }
   });
 }// processRange

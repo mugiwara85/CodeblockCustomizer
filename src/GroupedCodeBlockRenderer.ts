@@ -211,11 +211,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const specificHeader = isSpecificHeader(parameters, this.plugin.settings, true, lineCount, "reading");
     const { foldByDefault } = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
     const isCollapseEnabled = !disableFoldUnlessSpecified || foldByDefault;
-    /*const { inverseFold, ignoreShortBlocksOnInverseFold } = this.plugin.settings.pluginSettings.codeblock.folding;
-    const { enableSemiFold, visibleLines } = this.plugin.settings.pluginSettings.semiFold;
-    const canSemiFold = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount;
-    const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold));
-    const isCollapseEnabled = !disableFoldUnlessSpecified || foldByDefault;*/
     let newCollapseIcon: HTMLElement | null = null;
 
     if (isCollapseEnabled) {

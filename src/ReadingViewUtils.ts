@@ -1,6 +1,6 @@
 import { setIcon, MarkdownRenderer, Notice} from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, CBCParameters, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot } from "./Utils";
+import { createUncollapseCodeButton, addTextToClipboard, CBCParameters, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
@@ -482,135 +482,163 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
 }// isLineHighlighted
 
 function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lineNumber: number): string {
-  const applyHighlightsToString = (html: string, rules: { from?: string; to?: string; words?: string[]; all?: boolean; className: string }[]): string => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-
-    const highlightRangesInNode = (node: Node, ranges: { start: number, end: number }[], className: string): void => {
-      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
-      const textNodes: Text[] = [];
-      while (walker.nextNode()) {
-        let parent = walker.currentNode.parentElement;
-        let alreadyStyled = false;
-        while (parent && parent !== node) {
-          if (parent.classList.contains(className)) {
-            alreadyStyled = true;
-            break;
-          }
-          parent = parent.parentElement;
-        }
-        if (!alreadyStyled) {
-          textNodes.push(walker.currentNode as Text);
-        }
-      }
-
-      let textOffset = 0;
-      let rangeIndex = 0;
-
-      for (const currentNode of textNodes) {
-        if (rangeIndex >= ranges.length) break;
-
-        const parent = currentNode.parentNode;
-        if (!parent) 
-          continue;
-
-        const nodeText = currentNode.textContent || '';
-        const nodeLength = nodeText.length;
-        let lastIndex = 0;
-        const fragment = document.createDocumentFragment();
-
-        while (rangeIndex < ranges.length) {
-          const range = ranges[rangeIndex];
-          if (range.end <= textOffset) {
-            rangeIndex++;
-            continue;
-          }
-          if (range.start >= textOffset + nodeLength) {
-            break;
-          }
-          
-          const localStart = Math.max(0, range.start - textOffset);
-          const localEnd = Math.min(nodeLength, range.end - textOffset);
-
-          if (localStart > lastIndex) {
-            fragment.appendChild(document.createTextNode(nodeText.substring(lastIndex, localStart)));
-          }
-          if (localEnd > localStart) {
-            const span = document.createElement('span');
-            span.className = className;
-            span.appendChild(document.createTextNode(nodeText.substring(localStart, localEnd)));
-            fragment.appendChild(span);
-          }
-          
-          lastIndex = localEnd;
-
-          if (range.end <= textOffset + nodeLength) {
-            rangeIndex++;
-          } else {
-            break;
-          }
-        }
-
-        if (lastIndex < nodeLength) {
-          fragment.appendChild(document.createTextNode(nodeText.substring(lastIndex)));
-        }
-        if (fragment.childNodes.length > 0) {
-          parent.replaceChild(fragment, currentNode);
-        }
-        textOffset += nodeLength;
-      }
-    };
-
-    for (const rule of rules) {
-      let ranges: { start: number, end: number }[] = [];
-      const currentText = tempDiv.textContent || '';
-
-      if (rule.words) {
-        const escapeRegex = (str: string) => str.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-        for (const word of rule.words) {
-          if (!word) 
-            continue;
-
-          const regex = new RegExp(escapeRegex(word), 'gi');
-          let match;
-          while ((match = regex.exec(currentText)) !== null) {
-            ranges.push({ start: match.index, end: match.index + match[0].length });
-          }
-        }
-      } else { // from:to and all
-        ranges = findHighlightRanges(currentText, rule.from ?? '', rule.to ?? '');
-      }
-
-      if (ranges.length > 0) {
-        highlightRangesInNode(tempDiv, ranges, rule.className);
-      }
-    }
-
-    return tempDiv.innerHTML;
+  type HighlightedWord = {
+    text: string;
+    occurrences: number[];
   };
 
-  const rulesToApply: { from?: string; to?: string; words?: string[]; all?: boolean; className: string }[] = [];
+  const rulesToApply: { from?: string; to?: string; words?: HighlightedWord[]; all?: boolean; occurrences?: number[]; className: string }[] = [];
 
-  const addRule = (details: { from?: string; to?: string; words?: string[]; all?: boolean }, colorName = '') => {
+  const addRule = (details: { from?: string; to?: string; words?: HighlightedWord[]; all?: boolean; occurrences?: number[] }, colorName = '') => {
     rulesToApply.push({ ...details, className: colorName ? `codeblock-customizer-highlighted-text-${colorName}` : 'codeblock-customizer-highlighted-text' });
   };
   
   if (parameters.defaultTextToHighlight.words.length > 0) addRule({ words: parameters.defaultTextToHighlight.words });
   parameters.defaultTextToHighlight.lineSpecificWords.forEach(r => { if (r.lineNumber === lineNumber) addRule({ words: r.words }); });
-  parameters.defaultTextToHighlight.textBetween.forEach(r => addRule({ from: r.from, to: r.to }));
-  parameters.defaultTextToHighlight.lineSpecificTextBetween.forEach(r => { if (r.lineNumber === lineNumber) addRule({ from: r.from, to: r.to }); });
+  parameters.defaultTextToHighlight.textBetween.forEach(r => addRule({ from: r.from, to: r.to, occurrences: r.occurrences }));
+  parameters.defaultTextToHighlight.lineSpecificTextBetween.forEach(r => { if (r.lineNumber === lineNumber) addRule({ from: r.from, to: r.to, occurrences: r.occurrences }); });
   if (parameters.defaultTextToHighlight.allWordsInLine.includes(lineNumber)) addRule({ all: true });
 
   parameters.alternativeTextToHighlight.words.forEach(r => addRule({ words: r.words }, r.colorName));
   parameters.alternativeTextToHighlight.lineSpecificWords.forEach(r => { if (r.lineNumber === lineNumber) addRule({ words: r.words }, r.colorName); });
-  parameters.alternativeTextToHighlight.textBetween.forEach(r => addRule({ from: r.from, to: r.to }, r.colorName));
-  parameters.alternativeTextToHighlight.lineSpecificTextBetween.forEach(r => { if (r.lineNumber === lineNumber) addRule({ from: r.from, to: r.to }, r.colorName); });
+  parameters.alternativeTextToHighlight.textBetween.forEach(r => addRule({ from: r.from, to: r.to, occurrences: r.occurrences }, r.colorName));
+  parameters.alternativeTextToHighlight.lineSpecificTextBetween.forEach(r => { if (r.lineNumber === lineNumber) addRule({ from: r.from, to: r.to, occurrences: r.occurrences }, r.colorName); });
   parameters.alternativeTextToHighlight.allWordsInLine.forEach(r => { if (r.allWordsInLine.includes(lineNumber)) addRule({ all: true }, r.colorName); });
   
-  if (rulesToApply.length === 0) 
+  if (rulesToApply.length === 0) {
     return lineHtml;
+  }
 
-  return applyHighlightsToString(lineHtml, rulesToApply);
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = lineHtml;
+  const lineTextContent = tempDiv.textContent || '';
+  const escapeRegex = (str: string) => str.replace(/[-/\\^$*+?.()|[\]{}%]/g, '\\$&');
+
+  type HighlightPoint = {
+    index: number;
+    type: 'start' | 'end';
+    className: string;
+    // lower priority means it's an "outer" span
+    priority: number; // (end - start)
+  };
+  
+  const allPoints: HighlightPoint[] = [];
+
+  for (const rule of rulesToApply) {
+    let ranges: { from: number, to: number }[] = [];
+    
+    if (rule.words) {
+      for (const word of rule.words) {
+        if (!word || !word.text) continue;
+        const regex = new RegExp(escapeRegex(word.text), 'gi');
+        const allMatches: { from: number, to: number }[] = [];
+        let match;
+        while ((match = regex.exec(lineTextContent)) !== null) {
+          allMatches.push({ from: match.index, to: match.index + match[0].length });
+        }
+        ranges.push(...filterOccurrences(allMatches, word.occurrences));
+      }
+    } else { // from:to and all
+      ranges = findHighlightRanges(lineTextContent, rule.from ?? '', rule.to ?? '', rule.occurrences ?? []);
+    }
+
+    for (const range of ranges) {
+      if (range.from === range.to) {
+        continue;
+      }
+
+      allPoints.push({index: range.from, type: 'start', className: rule.className, priority: range.to - range.from});
+      allPoints.push({index: range.to, type: 'end', className: rule.className, priority: range.to - range.from});
+    }
+  }
+
+  if (allPoints.length === 0) {
+    return lineHtml;
+  }
+
+  allPoints.sort((a, b) => {
+    if (a.index !== b.index) {
+      return a.index - b.index;
+    }
+    if (a.type !== b.type) {
+      return a.type === 'end' ? -1 : 1;
+    }
+    if (a.type === 'start') {
+      return b.priority - a.priority;
+    }
+    return a.priority - b.priority;
+  });
+ 
+  const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null);
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode as Text);
+  }
+
+  let textOffset = 0;
+  let pointIndex = 0;
+  const activeSpans: { className: string; span: HTMLElement }[] = [];
+
+  for (const currentNode of textNodes) {
+    const parent = currentNode.parentNode;
+    if (!parent) continue;
+
+    const nodeText = currentNode.textContent || '';
+    const nodeLength = nodeText.length;
+    let lastSliceIndex = 0;
+    const fragment = document.createDocumentFragment();
+    let currentWrapper: Node = fragment;
+
+    for (const active of activeSpans) {
+      const newSpan = document.createElement('span');
+      newSpan.className = active.className;
+      currentWrapper.appendChild(newSpan);
+      currentWrapper = newSpan;
+      active.span = newSpan;
+    }
+
+    while (pointIndex < allPoints.length && allPoints[pointIndex].index < textOffset + nodeLength) {
+      const point = allPoints[pointIndex];
+      const localIndex = point.index - textOffset;
+
+      if (localIndex > lastSliceIndex) {
+        currentWrapper.appendChild(document.createTextNode(nodeText.substring(lastSliceIndex, localIndex)));
+        lastSliceIndex = localIndex;
+      }
+
+      if (point.type === 'start') {
+        const newSpan = document.createElement('span');
+        newSpan.className = point.className;
+        currentWrapper.appendChild(newSpan);
+        currentWrapper = newSpan;
+        activeSpans.push({ className: point.className, span: newSpan });
+      } else {
+        const matchingSpanIndex = activeSpans.findLastIndex(s => s.className === point.className);
+        if (matchingSpanIndex > -1) {
+          while (activeSpans.length - 1 > matchingSpanIndex) {
+            const lastActive = activeSpans.pop();
+            if (lastActive && lastActive.span.parentNode) {
+              currentWrapper = lastActive.span.parentNode;
+            }
+          }
+          const closingSpan = activeSpans.pop();
+          if (closingSpan && closingSpan.span.parentNode) {
+            currentWrapper = closingSpan.span.parentNode;
+          }
+        }
+      }
+      pointIndex++;
+    }
+
+    if (lastSliceIndex < nodeLength) {
+      currentWrapper.appendChild(document.createTextNode(nodeText.substring(lastSliceIndex)));
+    }
+    
+    parent.replaceChild(fragment, currentNode);
+    textOffset += nodeLength;
+  }
+
+  return tempDiv.innerHTML;
 }// getHighlightedLineHtml
 
 export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fragment: DocumentFragment; annotations: AnnotationInfo[] }> {
@@ -666,7 +694,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     const htmlLine = htmlLines[index] ?? '';
     const textLine = textLines[index] ?? '';
     const lineNumber = index + 1;
-    const caseInsensitiveLineText = htmlLine.toLowerCase();
+    const caseInsensitiveLineText = textLine.toLowerCase();
 
     let processedLine = htmlLine;
     let annotationData = null;
@@ -935,45 +963,81 @@ function getLineClass(lineNumber: number, caseInsensitiveLineText: string, param
   return { lineClasses: lineClasses.trim(), uncollapseButton, updatedFadeOutLineIndex };
 }// getLineClass
 
-function findHighlightRanges(fullText: string, from: string, to: string): { start: number, end: number }[] {
-  const ranges: { start: number, end: number }[] = [];
-  
-  const escapeRegex = (str: string) => str.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+function findHighlightRanges(fullText: string, from: string, to: string, occurrences: number[] = []): { from: number, to: number }[] {
+  const ranges: { from: number, to: number }[] = [];
+  const escapeRegex = (str: string) => str.replace(/[-/\\^$*+?.()|[\]{}%]/g, '\\$&');
 
   if (!from && !to) { // neither is specified -> highlight entire line
     const trimmedText = fullText.trim();
     if (trimmedText.length > 0) {
       const start = fullText.indexOf(trimmedText);
       const end = start + trimmedText.length;
-      ranges.push({ start, end });
+      ranges.push({ from: start, to: end });
     }
-    return ranges;
+    return filterOccurrences(ranges, occurrences);
   }
   
   const fromPattern = from ? escapeRegex(from) : '^';
   const toPattern = to ? escapeRegex(to) : '$';
   
   if (from && to) { // from and to are specified
-    const regex = new RegExp(fromPattern + '([\\s\\S]*?)' + toPattern, 'gi');
+    const fromRegex = new RegExp(fromPattern, 'gi');
+    const toRegex = new RegExp(toPattern, 'gi');
+    
+    const fromIndices: number[] = [];
+    const toMatches: { index: number, length: number }[] = [];
     let match;
-    while ((match = regex.exec(fullText)) !== null) {
-      ranges.push({ start: match.index, end: match.index + match[0].length });
+    while ((match = fromRegex.exec(fullText)) !== null) {
+      if (match.index === fromRegex.lastIndex) fromRegex.lastIndex++;
+      fromIndices.push(match.index);
+    }
+
+    while ((match = toRegex.exec(fullText)) !== null) {
+      if (match.index === toRegex.lastIndex) toRegex.lastIndex++;
+      toMatches.push({ index: match.index, length: match[0].length });
+    }
+
+    for (const fromIndex of fromIndices) {
+      const nextToMatch = toMatches.find(toMatch => toMatch.index > fromIndex);
+      
+      if (nextToMatch) {
+        const range = { from: fromIndex, to: nextToMatch.index + nextToMatch.length };
+        ranges.push(range);
+      }
     }
   } else if (from) { // from is specified -> highlight to end
-    const regex = new RegExp(fromPattern + '([\\s\\S]*?)$', 'gi');
-    let match;
-    if ((match = regex.exec(fullText)) !== null) {
-      ranges.push({ start: match.index, end: match.index + match[0].length });
+    if (occurrences.length > 0) {
+      const fromOnlyRegex = new RegExp(fromPattern, 'gi');
+      let match;
+      while ((match = fromOnlyRegex.exec(fullText)) !== null) {
+        if (match.index === fromOnlyRegex.lastIndex) fromOnlyRegex.lastIndex++;
+        ranges.push({ from: match.index, to: fullText.length });
+      }
+    } else {
+      const regex = new RegExp(fromPattern + '([\\s\\S]*?)$', 'gi');
+      let match;
+      if ((match = regex.exec(fullText)) !== null) {
+        ranges.push({ from: match.index, to: match.index + match[0].length });
+      }
     }
-  } else if (to) { // to is specified -> highlight from start
-    const regex = new RegExp('^([\\s\\S]*?)' + toPattern, 'gi');
-    let match;
-    if ((match = regex.exec(fullText)) !== null) {
-      ranges.push({ start: match.index, end: match.index + match[0].length });
+  } else { // to is specified -> highlight from start
+    if (occurrences.length > 0) {
+      const toOnlyRegex = new RegExp(toPattern, 'gi');
+      let match;
+      while ((match = toOnlyRegex.exec(fullText)) !== null) {
+        if (match.index === toOnlyRegex.lastIndex) toOnlyRegex.lastIndex++;
+        ranges.push({ from: 0, to: match.index + match[0].length });
+      }
+    } else {
+      const regex = new RegExp('^([\\s\\S]*?)' + toPattern, 'gi');
+      let match;
+      if ((match = regex.exec(fullText)) !== null) {
+        ranges.push({ from: match.index, to: match.index + match[0].length });
+      }
     }
   }
   
-  return ranges;
+  return filterOccurrences(ranges, occurrences);
 }// findHighlightRanges
 
 function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomizerPlugin): string {

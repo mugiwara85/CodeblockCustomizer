@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, HighlightedWord, filterOccurrences} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -268,11 +268,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
           const specificHeader = isSpecificHeader(pos.parameters, settings, isMemberOfTabbedGroup, lineCount, "editor");
           const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
-          /*const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
-          const { enableSemiFold, visibleLines } = settings.pluginSettings.semiFold;
-          const canSemiFold = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount + 2;
-          const autoFold = specificHeader && enableSemiFold && settings.pluginSettings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.pluginSettings.semiFold.longCodeBlockLines + 2;
-          const foldByDefault = pos.parameters.fold || (inverseFold && !pos.parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold));*/
           let foldNow = false;
           let useSemiFold = false;
           
@@ -2413,10 +2408,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return className;
     };
   
-    const highlighText = (words: string[], name = '') => {
-      const caseInsensitiveWords = words.map(word => word.toLowerCase());
-      for (const word of caseInsensitiveWords) {
-        setClass(line, decorations, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase());
+    const highlighText = (words: HighlightedWord[], name = '') => {
+      for (const wordObj of words) {
+        const word = wordObj.text.toLowerCase();
+        setClass(line, decorations, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase(), wordObj.occurrences);
       }
     };
   
@@ -2429,13 +2424,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   
     // highlight every line which contains a specific word hl:test
-    let words = parameters.defaultLinesToHighlight.words;
+    const words = parameters.defaultLinesToHighlight.words;
     if (words.length > 0 && words.some(word => caseInsensitiveLineText.includes(word))) {
       lineClass = addHighlightClass();
     }
 
     // highlight specific lines if they contain the specified word hl:1|test,3-5|test
-    let lineSpecificWords = parameters.defaultLinesToHighlight.lineSpecificWords;
+    const lineSpecificWords = parameters.defaultLinesToHighlight.lineSpecificWords;
     if (lineSpecificWords.length > 0) {
       lineSpecificWords.forEach(lsWord => {
         if (lsWord.lineNumber === lineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
@@ -2445,14 +2440,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     // highlight text in every line if linetext contains the specified word hlt:test
-    words = parameters.defaultTextToHighlight.words;
-    if (words.length > 0) {
-      highlighText(words);
+    const defaultWords = parameters.defaultTextToHighlight.words;
+    if (defaultWords.length > 0) {
+      highlighText(defaultWords);
     }
 
     // highlight text in specific lines if linetext contains the specified word hlt:1|test,3-5|test
-    lineSpecificWords = parameters.defaultTextToHighlight.lineSpecificWords;
-    const lineSpecificWord = lineSpecificWords.filter(item => item.lineNumber === lineNumber);
+    const defaultLineSpecificWords = parameters.defaultTextToHighlight.lineSpecificWords;
+    const lineSpecificWord = defaultLineSpecificWords.filter(item => item.lineNumber === lineNumber);
     if (lineSpecificWord.length > 0) {
       lineSpecificWord.forEach(rule => {
         highlighText(rule.words);
@@ -2461,10 +2456,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     
     // highlight text with specific text between markers hlt:start:end
     const textBetween = parameters.defaultTextToHighlight.textBetween;
-    for (const { from, to } of textBetween) {
+    for (const { from, to, occurrences } of textBetween) {
       if (caseInsensitiveLineText.includes(from.toLowerCase()) && caseInsensitiveLineText.includes(to.toLowerCase())) {
         const highlightText = `${from}${textSeparator}${to}`;
-        highlighText([highlightText]);
+        const word: HighlightedWord = { text: highlightText, occurrences: occurrences };
+        highlighText([word]);
       }
     }
   
@@ -2475,7 +2471,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       specificTextBetween.forEach(rule => {
         if (caseInsensitiveLineText.includes(rule.from.toLowerCase()) && caseInsensitiveLineText.includes(rule.to.toLowerCase())) {
           const highlightText = `${rule.from}${textSeparator}${rule.to}`;
-          highlighText([highlightText]);
+          const word: HighlightedWord = { text: highlightText, occurrences: rule.occurrences };
+          highlighText([word]);
         }
       });
     }
@@ -2505,7 +2502,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     // highlight specific lines if they contain the specified word imp:1|test,3-5|test
-    let altLineSpecificWords = parameters.alternativeLinesToHighlight.lineSpecificWords;
+    const altLineSpecificWords = parameters.alternativeLinesToHighlight.lineSpecificWords;
     if (altLineSpecificWords.length > 0) {
       altLineSpecificWords.forEach(lsWord => {
         if (lsWord.lineNumber === lineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
@@ -2526,8 +2523,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     // highlight text in specific lines if linetext contains the specified word impt:1|test,3-5|test
-    altLineSpecificWords = parameters.alternativeTextToHighlight.lineSpecificWords;
-    const altLineSpecificWord = altLineSpecificWords.filter(item => item.lineNumber === lineNumber);
+    const altTextSpecificWords = parameters.alternativeTextToHighlight.lineSpecificWords;
+    const altLineSpecificWord = altTextSpecificWords.filter(item => item.lineNumber === lineNumber);
     if (altLineSpecificWord.length > 0) {
       altLineSpecificWord.forEach(rule => {
         const { colorName, words } = rule;
@@ -2537,10 +2534,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   
     // highlight text with specific text between markers impt:start:end
     const altTextBetween = parameters.alternativeTextToHighlight.textBetween;
-    for (const { from, to, colorName } of altTextBetween) {
+    for (const { from, to, colorName, occurrences } of altTextBetween) {
       if (caseInsensitiveLineText.includes(from.toLowerCase()) && caseInsensitiveLineText.includes(to.toLowerCase())) {
         const highlightText = `${from}${textSeparator}${to}`;
-        highlighText([highlightText], colorName);
+        const word: HighlightedWord = { text: highlightText, occurrences: occurrences };
+        highlighText([word], colorName);
       }
     }
   
@@ -2551,7 +2549,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       altSpecificTextBetween.forEach(rule => {
         if (caseInsensitiveLineText.includes(rule.from.toLowerCase()) && caseInsensitiveLineText.includes(rule.to.toLowerCase())) {
           const highlightText = `${rule.from}${textSeparator}${rule.to}`;
-          highlighText([highlightText], rule.colorName);
+          const word: HighlightedWord = { text: highlightText, occurrences: rule.occurrences };
+          highlighText([word], rule.colorName);
         }
       });
     }
@@ -2566,36 +2565,60 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return lineClass;
   }// highlightLinesOrWords
   
-  function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, textSeparator: string, customClass = '') {
+  function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, textSeparator: string, customClass = '', occurrencesFilter?: number[]) {
+    const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
+
     if (word.includes(textSeparator)) {
       const [start, end] = word.split(textSeparator).map(w => w.trim().toLowerCase());
       const lineTextLength = caseInsensitiveLineText.length;
       const startLength = start.length;
       const endLength = end.length;
-      const classToUse = customClass 
-        ? `codeblock-customizer-highlighted-text-${customClass}` 
-        : 'codeblock-customizer-highlighted-text';
       
       const firstNonWhiteSpaceIndex = caseInsensitiveLineText.match(/\S/)?.index || 0;
-      let startIndex = start ? caseInsensitiveLineText.indexOf(start) : 0;
+      const allMatches: { from: number, to: number }[] = [];
 
-      while (startIndex !== -1) {
-        const endIndex = end 
-          ? caseInsensitiveLineText.indexOf(end, startIndex + startLength) 
-          : lineTextLength - 1;
-    
-        if ((startIndex !== -1 || start === '') && (endIndex !== -1 || end === '')) {
-          const from = line.from + (start ? startIndex : firstNonWhiteSpaceIndex);
-          const to = line.from + (end ? endIndex + endLength : lineTextLength);
-    
-          if (to > from)
-            decorations.push(Decoration.mark({ class: classToUse }).range(from, to));
+      if (start === '' && end === '') {
+        const from = line.from + firstNonWhiteSpaceIndex;
+        const to = line.from + lineTextLength;
+        if (to > from) {
+          allMatches.push({ from, to });
         }
-    
-        startIndex = start ? caseInsensitiveLineText.indexOf(start, startIndex + 1) : -1;
+      } else if (start === '') {
+        const endIndices = findAllOccurrences(caseInsensitiveLineText, end);
+        for (const endIndex of endIndices) {
+          const from = line.from + firstNonWhiteSpaceIndex;
+          const to = line.from + endIndex + endLength;
+          if (to > from) {
+            allMatches.push({ from, to });
+          }
+        }
+      } else if (end === '') {
+        const startIndices = findAllOccurrences(caseInsensitiveLineText, start);
+        for (const startIndex of startIndices) {
+          const from = line.from + startIndex;
+          const to = line.from + lineTextLength;
+          if (to > from) {
+            allMatches.push({ from, to });
+          }
+        }
+      } else {
+        const startIndices = findAllOccurrences(caseInsensitiveLineText, start);
+        for (const startIndex of startIndices) {
+          const endIndex = caseInsensitiveLineText.indexOf(end, startIndex + startLength);
+          if (endIndex !== -1) {
+            const from = line.from + startIndex;
+            const to = line.from + endIndex + endLength;
+            if (to > from) {
+              allMatches.push({ from, to });
+            }
+          }
+        }
       }
+      const matchesToHighlight = filterOccurrences(allMatches, occurrencesFilter);
+      matchesToHighlight.forEach(match => {
+        decorations.push(Decoration.mark({ class: classToUse }).range(match.from, match.to));
+      });
     } else if (word === '') {
-      const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
       const lineText = line.text;
       const startPosInLine = lineText.search(/\S/);
       if (startPosInLine === -1) {
@@ -2620,15 +2643,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         decorations.push(Decoration.mark({ class: classToUse }).range(startRange, endRange));
       }
     } else {
-      const occurrences = findAllOccurrences(caseInsensitiveLineText, word);
-  
-      occurrences.forEach((index) => {
-        const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
-        decorations.push(Decoration.mark({ class: classToUse }).range(line.from + index, line.from + index + word.length));
+      const allOccurrences = findAllOccurrences(caseInsensitiveLineText, word);
+      const allMatches = allOccurrences.map(index => ({ from: line.from + index, to: line.from + index + word.length }));
+      const matchesToHighlight = filterOccurrences(allMatches, occurrencesFilter);
+      matchesToHighlight.forEach(match => {
+        decorations.push(Decoration.mark({ class: classToUse }).range(match.from, match.to));
       });
     }
   }// setClass
-      
+  
   function getFoldingState(state: EditorState, startPos: number, endPos: number): FoldingState {
     const currentFoldedStates = state.field(rememberedFoldField, false) ?? {};
     const storedState = currentFoldedStates[startPos];

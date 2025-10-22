@@ -441,13 +441,6 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           const foldState = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
           foldByDefault = foldState.foldByDefault;
           useSemiFold = foldState.useSemiFold;
-          /*const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.codeblock.folding;
-          const { enableSemiFold, visibleLines } = settings.semiFold;
-          const isSemiFoldable = enableSemiFold && lineCount >= visibleLines + fadeOutLineCount;
-          const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, lineCount, "reading");
-          const autoFold = specificHeader && settings.semiFold.enableSemiFold && settings.semiFold.autoFoldLongCodeblocks && lineCount >= settings.semiFold.longCodeBlockLines;
-          shouldFold = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || isSemiFoldable)) || autoFold;
-          useSemiFold = settings.semiFold.enableSemiFold;*/
         }
         break;
     }
