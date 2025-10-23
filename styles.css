@@ -1265,9 +1265,13 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   font-style: var(--codeblock-customizer-language-tag-text-italic, normal);
   display: flex;
   justify-content: center;
-  flex-direction: column;
+  flex-direction: row; /*column;*/
+  align-items: center;
   transition: background-color 0.2s ease, color 0.2s ease;
   border-right: 1px solid rgba(0, 0, 0, 0.2);
+}
+.codeblock-customizer-show-grouped-add-remove-buttons .markdown-source-view .codeblock-customizer-header-group-tab {
+  padding-right: 0px;
 }
 /* remove the border from last tab */
 .codeblock-customizer-header-group-tab:last-child {
@@ -1275,6 +1279,11 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   border-right-color: transparent;
   border-top-right-radius: var(--border-radius);
   margin-right: var(--header-spacing);
+}
+/* if the + button is there don't apply the margin-right */
+.codeblock-customizer-show-grouped-add-remove-buttons .codeblock-customizer-header-group-tab:has(+ .codeblock-customizer-tab-add) {
+  border-right-color: transparent;
+  border-top-right-radius: var(--border-radius);
 }
 .codeblock-customizer-header-group-tab:first-child {
   border-top-left-radius: var(--border-radius);
@@ -1296,6 +1305,53 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   /*border-right: none;*/
   border-right-color: transparent;
 }
+/* style for the 'x' button on a tab */
+.codeblock-customizer-tab-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  margin-bottom: 8px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  opacity: 0.6;
+}
+.codeblock-customizer-tab-remove .svg-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 4px;
+}
+.codeblock-customizer-tab-remove:hover {
+  background-color: var(--color-red);
+  color: white;
+}
+/* style for the '+' button after tabs */
+.codeblock-customizer-tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--size-4-1) var(--size-4-2);
+  margin-left: 2px;
+  margin-right: 5px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  /*height: 30px;*/
+  /*min-width: 26px;*/
+  border-radius: var(--radius-s);
+  cursor: var(--cursor);
+  /*opacity: 0.6;*/
+  color: var(--text-muted);
+}
+.codeblock-customizer-tab-add .svg-icon {
+  height: 24px;
+}
+.codeblock-customizer-tab-add:hover {
+  background-color: var(--background-modifier-hover);
+  opacity: 1;
+}
+
 /* remove the gap between header and code */
 .markdown-rendered .codeblock-customizer-pre.displayedInGroup {
   margin-top: 0px !important;

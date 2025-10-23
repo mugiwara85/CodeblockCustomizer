@@ -1297,6 +1297,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     foldingState: FoldingState;
     sourcePath: string;
     disableFoldUnlessSpecified: boolean;
+    showAddRemoveButtons: boolean;
     plugin: CodeBlockCustomizerPlugin;
   
     constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
@@ -1316,6 +1317,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.foldingState = foldingState;
       this.sourcePath = sourcePath;
       this.disableFoldUnlessSpecified = plugin.settings.pluginSettings.header.disableFoldUnlessSpecified;
+      this.showAddRemoveButtons = plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons;
       this.plugin = plugin;
     }
   
@@ -1325,13 +1327,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
       other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
       other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) &&
-      other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers);
+      other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers) && other.showAddRemoveButtons === this.showAddRemoveButtons;
     }
   
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
       const container = createContainer(this.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
-      const isGrouped = this.parameters.group.length > 0 && this.groupMembers.length > 1;
+      const minGroupSize = this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons ? 1 : 2;
+      const isGrouped = this.parameters.group.length > 0 && this.groupMembers.length >= minGroupSize;
 
       if (this.parameters.displayLanguage){
         const Icon = getLanguageIcon(this.parameters.displayLanguage);
@@ -1770,21 +1773,27 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const activeStartPos = activeGroup?.[parameters.group];
 
     groupMembers.forEach((member, index) => {
-      const tab = createTab(member, activeStartPos, index);
+      const tab = createTab(view, member, activeStartPos, index, parameters.group);
       tab.dataset.startPos = String(member.codeBlockStartPos);
       tabsContainer.appendChild(tab);
     });
 
+    if (plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons) {
+      addAddTabButton(parameters, groupMembers, view, tabsContainer);
+    }
+
     tabsContainer.onclick = (event) => {
       const tabElement = (event.target as HTMLElement).closest<HTMLElement>('.codeblock-customizer-header-group-tab');
-
       if (!tabElement) {
+        return;
+      }
+
+      if ((event.target as HTMLElement).closest('.codeblock-customizer-tab-remove')) {
         return;
       }
 
       const startPos = Number(tabElement.dataset.startPos);
       const clickedMember = groupMembers.find(m => m.codeBlockStartPos === startPos);
-
       if (clickedMember) {
         handleTabClick(view, clickedMember, parameters);
       }
@@ -1793,7 +1802,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     container.appendChild(tabsContainer);
   }// addTabs
 
-  function createTab(member: CodeBlockPositions, activeStartPos: number, index: number): HTMLElement {
+  function createTab(view: EditorView, member: CodeBlockPositions, activeStartPos: number, index: number, groupName: string): HTMLElement {
     const displayLangName = getDisplayLanguageName(member.parameters.language);
     const tabText = member.parameters.tab || displayLangName || `Tab ${index + 1}`;
     const tab = createCodeblockLang(member.parameters.language, `codeblock-customizer-header-group-tab`, tabText);
@@ -1802,8 +1811,58 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       tab.classList.add("active");
     }
 
+    if (plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons) {
+      addRemoveTabButton(view, member, groupName, tab);
+    }
+
     return tab;
   }// createTab
+
+  function addAddTabButton(parameters: CBCParameters, groupMembers: CodeBlockPositions[], view: EditorView, tabsContainer: HTMLDivElement) {
+    const addButton = createDiv({ cls: "codeblock-customizer-tab-add" });
+    setIcon(addButton, "plus");
+    addButton.setAttribute("aria-label", "Add new code block to group");
+    
+    addButton.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const groupName = parameters.group;
+      if (!groupName || groupMembers.length === 0) {
+        return;
+      }
+
+      const lastMember = groupMembers[groupMembers.length - 1];
+      const insertPos = lastMember.codeBlockEndPos;
+      const fenceChar = lastMember.parameters.fenceChar || '`';
+      const fenceCount = lastMember.parameters.fenceCount || 3;
+      const fence = fenceChar.repeat(fenceCount);
+      const newBlockText = `\n${fence} group:${groupName}\n\n${fence}`;
+      
+      view.dispatch({changes: { from: insertPos, to: insertPos, insert: newBlockText }});
+    };
+    
+    tabsContainer.appendChild(addButton);
+  }// addAddTabButton
+
+  function addRemoveTabButton(view: EditorView, member: CodeBlockPositions, groupName: string, tab: HTMLDivElement) {
+    const removeButton = createSpan({ cls: "codeblock-customizer-tab-remove" });
+    setIcon(removeButton, "x");
+    removeButton.setAttribute("aria-label", "Remove from group");
+    
+    removeButton.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const line = view.state.doc.lineAt(member.codeBlockStartPos);
+      const regex = new RegExp(`\\s*group([:=])(["']?${groupName}["']?)\\s*`);
+      const newLineText = line.text.replace(regex, ' ').trim();
+
+      view.dispatch({changes: { from: line.from, to: line.to, insert: newLineText }});
+    };
+    
+    tab.appendChild(removeButton);
+  }// addRemoveTabButton
 
   function handleTabClick(view: EditorView, member: CodeBlockPositions, parameters: CBCParameters) {
     const groupName = parameters.group;
@@ -1955,7 +2014,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           }
         }
 
-        if (currentConsecutiveSequence.length > 1) {
+        const minGroupSize = settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons ? 1 : 2;
+        if (currentConsecutiveSequence.length >= minGroupSize) {
           grouped[group] = currentConsecutiveSequence;
         }
       }
@@ -1984,7 +2044,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       let hideBlock = false;
       let createHeader = true;
 
-      const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === codeBlockStartPos));
+      const minGroupSize = settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons ? 1 : 2;
+      const groupMembers = (group && grouped[group]) ? grouped[group] : [];
+      const isMemberOfTabbedGroup = !!(group && groupMembers.length >= minGroupSize && groupMembers.some(member => member.codeBlockStartPos === codeBlockStartPos));
 
       if (isMemberOfTabbedGroup) {
         const groupMembers = grouped[group];
@@ -2219,7 +2281,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         filter: (node: HTMLElement) => {
           if (node.classList?.contains('codeblock-customizer-button-container') ||          // first-line button container
               node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
-              node.classList?.contains('codeblock-customizer-header-collapse')) {           // header collapse icon
+              node.classList?.contains('codeblock-customizer-header-collapse') ||           // header collapse icon
+              node.classList?.contains('codeblock-customizer-tab-remove') ||                // grouped code block 'x' button
+              node.classList?.contains('codeblock-customizer-tab-add')) {                   // grouped code block '+' button
             return false;
           }
           return !(node.tagName === 'IMG' && node.classList.contains('cm-widgetBuffer'));

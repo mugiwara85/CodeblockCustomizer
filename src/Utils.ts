@@ -1661,6 +1661,12 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.remove('codeblock-customizer-show-snapshot-code-button');
   }
 
+  if (settings.groupedCodeBlocks.showAddRemoveButtons) {
+    document.body.classList.add('codeblock-customizer-show-grouped-add-remove-buttons');
+  } else{
+    document.body.classList.remove('codeblock-customizer-show-grouped-add-remove-buttons');
+  }
+
 }// updateSettingClasses
 
 function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurrentColorUse: boolean) {
@@ -2175,6 +2181,20 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
 
     offscreenWrapper.appendChild(elementToSnapshot);
     appendTo.appendChild(offscreenWrapper);
+
+    // the '+' and 'x' buttons on grouped code blocks must be removed so they don't take up any space
+    elementToSnapshot.querySelectorAll(
+      '.codeblock-customizer-tab-remove, ' +
+      '.codeblock-customizer-tab-add'
+    ).forEach(el => el.remove());
+
+    // restore original padding
+    if (settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons) {
+      elementToSnapshot.querySelectorAll('.codeblock-customizer-header-group-tab')
+        .forEach(tab => {
+          (tab as HTMLElement).style.paddingRight = 'var(--header-spacing)';
+        });
+    }
 
     const gutterEl = elementToSnapshot.querySelector<HTMLElement>('.codeblock-customizer-line-number, .codeblock-customizer-line-number-specific');
     const gutterWidth = gutterEl?.offsetWidth;

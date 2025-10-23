@@ -166,6 +166,7 @@ export interface PluginSettings {
   groupedCodeBlocks: {
     rememberTabState: boolean;
     persistence: TabPersistence;
+    showAddRemoveButtons: boolean;
   },
   annotations: {
     convertAllComments: boolean;
@@ -288,6 +289,7 @@ const defaultThemeSettings: PluginSettings = {
   groupedCodeBlocks: {
     rememberTabState: true,
     persistence: TabPersistence.Session,
+    showAddRemoveButtons: true,
   },
   annotations: {
     convertAllComments: false,

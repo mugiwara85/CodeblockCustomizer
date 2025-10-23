@@ -1059,6 +1059,17 @@ export class SettingsTab extends PluginSettingTab {
       }
     }
 
+    new Setting(groupedCodeBlocksDetails)
+      .setName('Show tab "Add" and "Remove" buttons (only editing view)')
+      .setDesc('If enabled, a "+" button will appear after the last tab to add a new block, and an "x" button will appear on each tab to remove it from the group.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     this.createPickrSetting(groupedCodeBlocksDetails, 'Active tab background color', 'Background color of the currently active tab.', "groupedCodeBlocks.activeTabBackgroundColor");
     this.createPickrSetting(groupedCodeBlocksDetails, 'Active tab text color', 'Text color of the currently active tab.', "groupedCodeBlocks.activeTabTextColor");
     this.createPickrSetting(groupedCodeBlocksDetails, 'Header line color', 'Sets the color of the separator line at the bottom of the header for grouped code blocks.', "groupedCodeBlocks.headerLineColor");
