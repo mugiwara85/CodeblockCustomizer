@@ -204,7 +204,7 @@ function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustom
     return;
   }
 
-  const sourceCodeElement = preElement.querySelector('code:not(.language-output)');
+  const sourceCodeElement = preElement.querySelector('code:not(.language-output):not(.codeblock-customizer-hidden-code)');
   if (!sourceCodeElement) {
     const codeText = preElement.textContent || '';
     addTextToClipboard(codeText);
@@ -262,7 +262,7 @@ function wrapCode(preElement: HTMLElement, event: Event) {
   if (!preElement)
     return;
 
-  const codeElement = preElement.querySelector('code');
+  const codeElement = preElement.querySelector('code:not(.codeblock-customizer-hidden-code)') as HTMLElement;
   if (!codeElement)
     return;
 
@@ -1193,27 +1193,29 @@ function handleUncollapseClick(event: Event) {
   const button = event.target as HTMLElement;
 
   const codeElement = button.parentElement?.parentElement;
-  if (!codeElement)
+  if (!codeElement) {
     return;
+  }
 
-  const pre = codeElement?.parentElement;
-  if (!pre)
+  const pre = button.closest('pre.codeblock-customizer-pre');
+  if (!pre) {
     return;
+  }
 
-  let header: HTMLElement;
+  let header: HTMLElement| null = null;
   if (pre.classList.contains("displayedInGroup")) {
     // grouped code blocks
     const group = pre.getAttribute("groupname");
     header = document.querySelector(`.markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[group="${group}"]`) as HTMLElement;
   } else {
     // ungrouped code blocks
-    header = button.parentElement?.parentElement?.previousSibling?.previousSibling as HTMLElement;
+    header = pre.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');
   }
 
   if (header) {
     const collapseIcon = header.querySelector(".codeblock-customizer-header-collapse") as HTMLElement;
-    if (collapseIcon && pre) {
-      toggleFold(pre, collapseIcon, `codeblock-customizer-codeblock-semi-collapsed`);
+    if (collapseIcon) {
+      collapseIcon.click();
     }
   }
 }// handleUncollapseClick

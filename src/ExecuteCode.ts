@@ -21,11 +21,21 @@ export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPr
     const observer = setupExecuteCodeObserver(targetPreElement, clearButton, parameters, plugin);
 
     executeButton.addEventListener("click", (event) => {
-      executeCode(event, parentContainer, parameters);
+      const currentPre = (event.currentTarget as HTMLElement).closest('pre');
+      const currentParentContainer = currentPre?.parentElement;
+
+      if (currentParentContainer) {
+        executeCode(event, currentParentContainer, parameters);
+      }
     });
 
     clearButton.addEventListener("click", (event) => {
-      clearOutput(event, parentContainer);
+      const currentPre = (event.currentTarget as HTMLElement).closest('pre');
+      const currentParentContainer = currentPre?.parentElement;
+
+      if (currentParentContainer) {
+        clearOutput(event, currentParentContainer);
+      }
     });
 
     return observer;

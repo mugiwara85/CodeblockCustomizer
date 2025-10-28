@@ -1667,6 +1667,12 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.remove('codeblock-customizer-show-grouped-add-remove-buttons');
   }
 
+  if (settings.plugins.executeCode.enabled) {
+    document.body.classList.add('codeblock-customizer-support-execute-code');
+  } else{
+    document.body.classList.remove('codeblock-customizer-support-execute-code');
+  }
+
 }// updateSettingClasses
 
 function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurrentColorUse: boolean) {

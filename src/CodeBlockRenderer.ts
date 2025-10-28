@@ -3,7 +3,7 @@ import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInfor
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, CBCParameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
-import { fadeOutLineCount } from "./Const";
+import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition } from "./ReadingViewUtils";
 
@@ -33,8 +33,15 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   onunload() {
     if (this.observer) {
       this.observer.disconnect();
-      if (this.containerEl.parentElement)
-        this.plugin.executeCodeObservers.delete(this.containerEl.parentElement);
+    }
+
+    if (this.allPreElements) {
+      for (const preElement of this.allPreElements) {
+        if (this.plugin.executeCodeObservers.has(preElement)) {
+          this.plugin.executeCodeObservers.get(preElement)?.disconnect();
+          this.plugin.executeCodeObservers.delete(preElement);
+        }
+      }
     }
   }// onunload
   
@@ -240,13 +247,13 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const { firstLine: codeBlockFirstLine, contentLines, isIndentedBlock } = blockData;
     const { charPos, isParameterRerender = false, isPrinting } = options;
 
-    const preCodeElm = preElement.querySelector('code');
-    if (!preCodeElm) {
+    const originalCodeEl = preElement.querySelector('code:not(.codeblock-customizer-displayed-code)') as HTMLElement;
+    if (!originalCodeEl) {
       return;
     }
 
-    if (Array.from(preCodeElm.classList).some(className => /^language-\S+/.test(className))) {
-      while (!preCodeElm.classList.contains("is-loaded")) {
+    if (Array.from(originalCodeEl.classList).some(className => /^language-\S+/.test(className))) {
+      while (!originalCodeEl.classList.contains("is-loaded")) {
         await sleep(2);
       }
     }
@@ -261,12 +268,14 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       isRerender = result.isRerender;
     }
 
-    if (isPrinting && preCodeElm.querySelector("code [class*='codeblock-customizer-line']")) { // just for print or both?
+    if (isPrinting && preElement.querySelector("code.codeblock-customizer-displayed-code [class*='codeblock-customizer-line']")) { // just for print or both?
       return;
     }
 
     const parameters = getAllParameters(firstLine, this.plugin.settings, true);
     if (parameters.exclude) {
+      originalCodeEl.classList.remove('codeblock-customizer-hidden-code');
+      preElement.querySelector('code.codeblock-customizer-displayed-code')?.remove();
       return;
     }
 
@@ -277,11 +286,33 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (!isPrinting && parameters.group && parameters.group.length > 0) {
       this.setGroupedCodeBlockAttributes(preElement, parameters, charPos);
     }
+    
+    const isExecutable = isPluginLoaded('execute-code', this.plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase());
+    let codeElToProcess: HTMLElement;
 
-    await this.checkCustomSyntaxHighlight(contentLines, parameters, preCodeElm);
+    if (isExecutable) {
+      preElement.querySelector('code.codeblock-customizer-displayed-code')?.remove();
+      originalCodeEl.classList.add('codeblock-customizer-hidden-code'); 
+
+      const displayedCodeEl = preElement.createEl('code', { cls: 'codeblock-customizer-displayed-code' });
+      originalCodeEl.classList.forEach(cls => {
+        if (cls !== 'codeblock-customizer-hidden-code') {
+          displayedCodeEl.classList.add(cls);
+        }
+      });
+
+      codeElToProcess = displayedCodeEl;
+    } else {
+      originalCodeEl.classList.remove('codeblock-customizer-hidden-code');
+      preElement.querySelector('code.codeblock-customizer-displayed-code')?.remove();
+      
+      codeElToProcess = originalCodeEl;
+    }
+
+    await this.checkCustomSyntaxHighlight(contentLines, parameters, originalCodeEl, isRerender);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await this.addClasses(preElement, parameters, contentLines, preCodeElm, codeblockLanguageSpecificClass, charPos, isIndentedBlock || false, isRerender, isPrinting);
+    await this.addClasses(preElement, parameters, contentLines, codeElToProcess, codeblockLanguageSpecificClass, originalCodeEl, charPos, isIndentedBlock || false, isRerender, isPrinting);
   }// processSingleCodeBlock
 
   private handleRerenderOverride(lineStart: number, initialFirstLine: string, initialIsRerender: boolean): { firstLine: string; isRerender: boolean } {
@@ -315,12 +346,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// handleGroupedCodeBlocks
 
-  private async checkCustomSyntaxHighlight(codeblockLines: string[], parameters: CBCParameters, preCodeElm: HTMLElement) {
+  private async checkCustomSyntaxHighlight(codeblockLines: string[], parameters: CBCParameters, preCodeElm: HTMLElement, isRerender: boolean) {
     const customLangConfig = getLanguageConfig(parameters.language, this.plugin);
     const customFormat = customLangConfig?.format ?? undefined;
     if (customFormat) {
       const highlightedLines = await this.addCustomSyntaxHighlight(codeblockLines, customFormat);
-      if (highlightedLines.length > 0) {
+      if (highlightedLines.length > 0 && !isRerender) {
         preCodeElm.innerHTML = highlightedLines;
       }
     }
@@ -344,7 +375,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     return html || "";
   }// addCustomSyntaxHighlight
   
-  private async addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], preCodeElm: HTMLElement, codeblockLanguageSpecificClass: string, charPos?: number, isIndentedBlock = false, isParameterRerender = false, isPrinting = false) {
+  private async addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], preCodeElm: HTMLElement, codeblockLanguageSpecificClass: string, htmlSourceEl: HTMLElement, charPos?: number, isIndentedBlock = false, isParameterRerender = false, isPrinting = false) {
     const frag = document.createDocumentFragment();
     
     this.applyBaseStyling(preElement, parameters, codeblockLanguageSpecificClass, isPrinting);
@@ -372,7 +403,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     preElement.insertBefore(frag, preElement.firstChild);
       
     await this.applyInitialFoldState(preElement, parameters, charPos, codeblockLines);    
-    await this.highlightLines(preCodeElm, parameters, codeblockLines, isIndentedBlock || false, isParameterRerender, isPrinting);
+    await this.highlightLines(preCodeElm, parameters, codeblockLines, isIndentedBlock || false, isParameterRerender, isPrinting, htmlSourceEl);
   }// addClasses
 
   private applyBaseStyling(preElement: HTMLElement, parameters: CBCParameters, codeblockLanguageSpecificClass: string, isPrinting: boolean) {
@@ -491,8 +522,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         return;
       }
 
-      const codeElements = preElement.getElementsByTagName("CODE");
-      const lines = this.convertHTMLCollectionToArray(codeElements, true);
+      const codeElements = preElement.querySelector('code:not(.codeblock-customizer-hidden-code)');
+      let lines: Element[] = [];
+      if (codeElements) {
+        const children = Array.from(codeElements.children);
+        lines = children.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line'));
+      }
       const canSemiFold = lines.length >= visibleLines + fadeOutLineCount;
       const useSemiFold = semiFold && canSemiFold;
 
@@ -521,13 +556,16 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     return container
   }// HeaderWidget
 
-  private async highlightLines(preCodeElm: HTMLElement, parameters: CBCParameters, rawCodeLines: string[], isIndentedBlock: boolean, isRerender = false, isPrinting = false) {
+  private async highlightLines(preCodeElm: HTMLElement, parameters: CBCParameters, rawCodeLines: string[], isIndentedBlock: boolean, isRerender = false, isPrinting = false, htmlSourceEl: HTMLElement) {
     if (!preCodeElm) {
       return;
     }
 
+    const sourceEl = htmlSourceEl || preCodeElm;
     const isAlreadyProcessed = preCodeElm.innerHTML.includes('codeblock-customizer-line');
-    const rebuild = isRerender || isAlreadyProcessed;
+    const isRunLanguage = Array.from(htmlSourceEl.classList).some(cls => cls.startsWith('language-run-'));
+    const isNotHighlighted = isRunLanguage && !htmlSourceEl.innerHTML.includes('<span') && this.plugin.settings.pluginSettings.plugins.executeCode.enabled;
+    const rebuild = isRerender || isAlreadyProcessed || isNotHighlighted;
     const tempCodeElm = document.createElement('div');
     const settings = this.plugin.settings.pluginSettings;
 
@@ -551,7 +589,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
     } else {
       // initial render
-      tempCodeElm.innerHTML = preCodeElm.innerHTML;
+      tempCodeElm.innerHTML = sourceEl.innerHTML;
     }
 
     preCodeElm.innerHTML = '';
@@ -766,17 +804,4 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const preElements: Array<HTMLElement> = Array.from(element.querySelectorAll("pre:not(.frontmatter)"));
     return preElements;
   }// getPreElements
-
-  private convertHTMLCollectionToArray(elements: HTMLCollection, excludeCmdOutput = false) {
-    const result: Element[] = [];
-    for (let i = 0; i < elements.length; i++) {
-      const children = Array.from(elements[i].children);
-      if (excludeCmdOutput) {
-        result.push(...children.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line')));
-      } else {
-        result.push(...children);
-      }
-    }
-    return result;
-  }// convertHTMLCollectionToArray
 }// CodeBlockRenderer

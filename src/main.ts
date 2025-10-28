@@ -108,7 +108,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           this.registerGroupedRenderChildForView(leaf.view);
         }
       });
-      this.renderReadingViewOnStart();
     });
 
     console.log("loading CodeBlock Customizer plugin");
@@ -879,15 +878,4 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }
   }// rerenderCodeblock
-  
-  async renderReadingViewOnStart() {
-    this.app.workspace.iterateRootLeaves((currentLeaf: WorkspaceLeaf) => {
-      if (currentLeaf.view instanceof MarkdownView) {
-        const leafMode = currentLeaf.view.getMode();
-        if (leafMode === "preview") {
-          currentLeaf.view.previewMode.rerender(true);
-        }
-      }
-    });
-  }// renderReadingViewOnStart
 }

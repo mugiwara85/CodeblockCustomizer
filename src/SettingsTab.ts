@@ -1584,8 +1584,8 @@ export class SettingsTab extends PluginSettingTab {
     const executeCodeDetails = this.createDetailsGroup(pluginsDiv, 'Execute Code Settings', 'executeCodeDetailsOpen');
 
     new Setting(executeCodeDetails)
-      .setName('Enable Execute Code support')
-      .setDesc('Enable styling for the Execute Code plugin.')
+      .setName('Enable Execute Code plugin support')
+      .setDesc('When disabled, this plugin completely ignores the Execute Code plugin, and does not apply any styling at all. Switch documents after changing this option, to refresh the view.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.plugins.executeCode.enabled)
         .onChange(async (value) => {

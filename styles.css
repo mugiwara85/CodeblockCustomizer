@@ -1551,12 +1551,12 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 /* -------------------- Execute code plugin compatibility -------------------- */
 
 /* hide original buttons */
-.markdown-rendered pre.codeblock-customizer-pre .run-code-button,
-.markdown-rendered pre.codeblock-customizer-pre .clear-button {
+.codeblock-customizer-support-execute-code .markdown-rendered pre.codeblock-customizer-pre .run-code-button,
+.codeblock-customizer-support-execute-code .markdown-rendered pre.codeblock-customizer-pre .clear-button {
   display: none;
 }
 /* remove hover effect */
-pre.codeblock-customizer-pre:hover code.language-output {
+.codeblock-customizer-support-execute-code pre.codeblock-customizer-pre:hover code.language-output {
   margin-bottom: 0 !important;
 }
 /* execute code button, clear code button and edit code button styling */
@@ -1575,7 +1575,10 @@ pre.codeblock-customizer-pre:hover code.language-output {
 .markdown-rendered .codeblock-customizer-execute-code-edit-button:hover {
   background-color: rgba(var(--mono-rgb-100), 0.075);
 }
-
+/* hide original code */
+.codeblock-customizer-pre-parent > .codeblock-customizer-pre > code.codeblock-customizer-hidden-code {
+  display: none;
+}
 /* code output styling */
 pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output {
   border-top: 2px solid var(--header-line-color, var(--codeblock-customizer-header-line-color));
@@ -1586,7 +1589,7 @@ body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customiz
   display: inline-block;
   white-space: pre-wrap;
 }
-pre.codeblock-customizer-pre .codeblock-customizer-output .codeblock-customizer-line-text{
+pre.codeblock-customizer-pre .codeblock-customizer-output .codeblock-customizer-line-text {
   color: var(--text-muted) !important;
 }
 /* line number */
