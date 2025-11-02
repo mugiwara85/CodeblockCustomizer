@@ -75,8 +75,10 @@
   right: -0.5em;
   padding-right: 0.5rem;
 }
-/* hide code line collapse indicator when printing */
-.print .codeblock-customizer-collapse-indicator {
+/* hide code line collapse indicator, buttons, and collapse icon when printing */
+.print .codeblock-customizer-collapse-indicator,
+.print .codeblock-customizer-button-container,
+.print .codeblock-customizer-header-collapse {
   display: none !important;
 }
 .markdown-reading-view .codeblock-customizer-collapse-icon,
@@ -1602,6 +1604,16 @@ pre.codeblock-customizer-pre .codeblock-customizer-output .codeblock-customizer-
 .markdown-rendered .codeblock-customizer-pre .codeblock-customizer-execute-code-output .codeblock-customizer-output > div:first-child > .codeblock-customizer-line-number {
   border-top-left-radius: 5px;
   border-top-right-radius: 5px;
+}
+/* interactive stdin */
+.codeblock-customizer-execute-code-output input.interactive-stdin {
+  /*padding: 2px 8px;*/
+  color: var(--text-normal);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--code-comment);
+  border-radius: var(--border-radius);
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
 }
 /* hide original output */
 .codeblock-customizer-original-output-hidden {

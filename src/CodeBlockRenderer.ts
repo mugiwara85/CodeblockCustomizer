@@ -287,7 +287,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       this.setGroupedCodeBlockAttributes(preElement, parameters, charPos);
     }
     
-    const isExecutable = isPluginLoaded('execute-code', this.plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase());
+    const isExecutable = this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', this.plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase());
     let codeElToProcess: HTMLElement;
 
     if (isExecutable) {

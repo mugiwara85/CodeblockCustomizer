@@ -278,10 +278,16 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
   private hideGroupedCodeBlocks(group: HTMLPreElement[]) {
     group.forEach(blockElement => {
-      const existingHeader = blockElement.querySelector('.codeblock-customizer-header-container-specific');
+      const existingHeader = blockElement.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');
       if (existingHeader) {
         existingHeader.remove();
       }
+
+      const existingButtons = blockElement.querySelector('.codeblock-customizer-button-container');
+      if (existingButtons && existingButtons.parentElement === blockElement) {
+        existingButtons.remove();
+      }
+
       blockElement.style.display = 'none';
       blockElement.classList.add('displayedInGroup');
     });

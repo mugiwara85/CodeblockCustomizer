@@ -12,11 +12,6 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     return;
   }
 
-  const calloutPreElements: Array<HTMLElement> = Array.from(callouts.querySelectorAll('pre:not(.frontmatter)'));
-  if (!calloutPreElements) {
-    return;
-  }
-
   const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
   if (markdownView?.getMode() !== "source") {
     return;
@@ -35,6 +30,11 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   // @ts-ignore
   const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
   if (!calloutText)  {
+    return;
+  }
+
+  const calloutPreElements: Array<HTMLElement> = Array.from(callouts.querySelectorAll('pre:not(.frontmatter)'));
+  if (!calloutPreElements) {
     return;
   }
 

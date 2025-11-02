@@ -172,6 +172,12 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
         elementToClone = preEl.cloneNode(true) as HTMLElement;
       }
 
+      // remove hidden-code element (execute code)
+      const hiddenCodeEl = elementToClone.querySelector('code.codeblock-customizer-hidden-code');
+      if (hiddenCodeEl) {
+        hiddenCodeEl.remove();
+      }
+
       const snapshotOptions = {
         style: { padding: '0px', margin: '0' },
         filter: (node: HTMLElement) => 
@@ -1165,9 +1171,10 @@ function getCodeElementFromCollapseIcon(collapseIcon: HTMLElement): HTMLElement 
   let parentElement = collapseIcon.parentElement;
   while (parentElement) {
     if (parentElement.classList.contains('codeblock-customizer-pre')) {
-      const codeElements = parentElement.querySelector('code');
-      if (codeElements)
-        return codeElements;
+      const codeElement = parentElement.querySelector('code:not(.codeblock-customizer-hidden-code)');
+      if (codeElement) {
+        return codeElement as HTMLElement;
+      }
     }
     parentElement = parentElement.parentElement;
   }

@@ -254,7 +254,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         for (const pos of newCodeBlockPositions) {
           // don't process fold commands for `run-` code blocks
-          if (pos.parameters.language.toLowerCase().startsWith('run-')) {
+          if (settings.pluginSettings.plugins.executeCode.enabled && pos.parameters.language.toLowerCase().startsWith('run-') && isPluginLoaded("execute-code", plugin)) {
             continue;
           }
 
@@ -1336,14 +1336,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const minGroupSize = this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons ? 1 : 2;
       const isGrouped = this.parameters.group.length > 0 && this.groupMembers.length >= minGroupSize;
 
-      if (this.parameters.displayLanguage){
+      if (this.parameters.displayLanguage) {
         const Icon = getLanguageIcon(this.parameters.displayLanguage);
         if (Icon) {
           container.appendChild(createCodeblockIcon(this.parameters.displayLanguage));
-        } else if (isGrouped) // set default icon for tab when language is not defined
+        } else if (isGrouped) {
+          // set default icon for tab when language is not defined
+          container.appendChild(createCodeblockIcon("NoIcon"));
+        }
+      } else if (isGrouped) {
+        // set default icon for tab when the language defined does not has an icon
         container.appendChild(createCodeblockIcon("NoIcon"));
-      } else if (isGrouped) // set default icon for tab when the language defined does not has an icon
-        container.appendChild(createCodeblockIcon("NoIcon"));
+      }
 
       if (isGrouped)
         addTabs(view, container, this.parameters, this.groupMembers);
@@ -2072,8 +2076,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       if (createHeader) {
-        const specificHeader = isSpecificHeader(parameters, settings, isMemberOfTabbedGroup, state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1, "editor");
-        if (!parameters.language.toLowerCase().startsWith('run-')) {
+        const isExecuteCodeBlock = parameters.language.toLowerCase().startsWith('run-');
+        if (!isExecuteCodeBlock || !isPluginLoaded("execute-code", plugin)) {
+          const specificHeader = isSpecificHeader(parameters, settings, isMemberOfTabbedGroup, state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1, "editor");
           const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, state, parameters);
           decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin), block: true }).range(codeBlockStartPos));
         }

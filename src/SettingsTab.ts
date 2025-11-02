@@ -1,6 +1,6 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
 
-import {  getColorOfCssVariable, getCurrentMode, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, updateSettingClasses, updateSettingStyles } from "./Utils";
+import {  getColorOfCssVariable, getCurrentMode, updateSettingClasses, updateSettingStyles } from "./Utils";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence, ButtonModifierKeys, ColorTheme } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
@@ -1585,15 +1585,11 @@ export class SettingsTab extends PluginSettingTab {
 
     new Setting(executeCodeDetails)
       .setName('Enable Execute Code plugin support')
-      .setDesc('When disabled, this plugin completely ignores the Execute Code plugin, and does not apply any styling at all. Switch documents after changing this option, to refresh the view.')
+      .setDesc('When disabled, this plugin completely ignores the Execute Code plugin, and does not apply any styling at all to run-* code blocks. Switch documents after changing this option, to refresh the view.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.plugins.executeCode.enabled)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.plugins.executeCode.enabled = value;
-          if (value)
-            registerExecuteCodeSyntaxHighlighting();
-          else
-            unregisterExecuteCodeSyntaxHighlighting();
           styleOutputSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
           await this.plugin.saveSettings();
           this.plugin.renderReadingViews();
