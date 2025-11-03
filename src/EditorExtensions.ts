@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences, getDisplayLanguageName} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -15,7 +15,7 @@ import { PromptLineRenderResult, PromptManager } from "./PromptManager";
 import { createButtons, extractCodeBlocksFromAdmonition, extractLinesFromHTML, renderCodeBlockLines } from "./ReadingViewUtils";
 import { createExecuteCodeEditButton, verifyAndRevealExecuteButtons } from "./ExecuteCode";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
-import { CBCParameters, getAllParameters, getDisplayLanguageName, HighlightedWord } from "./Parsing";
+import { CBCParameters, getAllParameters, HighlightedWord } from "./Parsing";
 
 let settingsUpdated = false;
 export function updateValue(newValue: boolean) {

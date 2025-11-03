@@ -1,8 +1,8 @@
-import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR, Languages, manualLang } from "./Const";
+import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { defaultPrompts, PromptLines } from "./PromptManager";
 import { getPromptDefinition } from "./PromptUtils";
 import { CodeblockCustomizerSettings } from "./Settings";
-import { getBorderColorByLanguage, getCurrentMode, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { getBorderColorByLanguage, getCurrentMode, getDisplayLanguageName, getPropertyFromLanguageSpecificColors } from "./Utils";
 
 import validator from 'validator';
 
@@ -892,23 +892,6 @@ function getCodeBlockLanguage(str: string, isReadingView = false): string {
   }
   return '';
 }// getCodeBlockLanguage
-
-export function getDisplayLanguageName(code: string | null) {
-  if (!code)
-    return "";
-  
-  code = code.toLowerCase();
-  
-  if (Languages.hasOwnProperty(code)) {
-    return Languages[code];
-  } else if (manualLang.hasOwnProperty(code)) {
-    return manualLang[code];
-  } else if (code){
-    return code.charAt(0).toUpperCase() + code.slice(1);
-  }
-
-  return "";
-}// getDisplayLanguageName
 
 function isExcluded(lineText: string, excludeLangs: string) : boolean {
   if (isParameterDefined("exclude", lineText))

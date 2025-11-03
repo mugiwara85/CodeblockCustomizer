@@ -2,11 +2,11 @@ import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, 
 
 import { EditorState } from "@codemirror/state";
 
-import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
+import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
 import { CodeblockCustomizerSettings, Colors, PluginSettings, ThemeColors } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
-import { CBCParameters, getDisplayLanguageName } from "./Parsing";
+import { CBCParameters } from "./Parsing";
 
 import { toBlob } from 'html-to-image';
 
@@ -1342,3 +1342,20 @@ function getCanvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     }, 'image/png');
   });
 }// getCanvasBlob
+
+export function getDisplayLanguageName(code: string | null) {
+  if (!code)
+    return "";
+  
+  code = code.toLowerCase();
+  
+  if (Languages.hasOwnProperty(code)) {
+    return Languages[code];
+  } else if (manualLang.hasOwnProperty(code)) {
+    return manualLang[code];
+  } else if (code){
+    return code.charAt(0).toUpperCase() + code.slice(1);
+  }
+
+  return "";
+}// getDisplayLanguageName
