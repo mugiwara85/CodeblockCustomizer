@@ -1,11 +1,12 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, loadPrism, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, CBCParameters, getAllParameters, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
 import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition } from "./ReadingViewUtils";
+import { CBCParameters, getAllParameters } from "./Parsing";
 
 enum DataSource {
   Dataset = 'dataset',
@@ -243,6 +244,27 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// processCodeBlockFirstLines
 
+  private waitForClass(targetElement: HTMLElement, className: string): Promise<void> {
+    return new Promise((resolve) => {
+      if (targetElement.classList.contains(className)) {
+        resolve();
+        return;
+      }
+
+      const observer = new MutationObserver(() => {
+        if (targetElement.classList.contains(className)) {
+          observer.disconnect();
+          resolve();
+        }
+      });
+
+      observer.observe(targetElement, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    });
+  }// waitForClass
+
   private async processSingleCodeBlock(preElement: HTMLElement, blockData: CodeBlockData, options: { charPos?: number; isParameterRerender?: boolean; isPrinting: boolean; }) {
     const { firstLine: codeBlockFirstLine, contentLines, isIndentedBlock } = blockData;
     const { charPos, isParameterRerender = false, isPrinting } = options;
@@ -252,10 +274,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    if (Array.from(originalCodeEl.classList).some(className => /^language-\S+/.test(className))) {
-      while (!originalCodeEl.classList.contains("is-loaded")) {
-        await sleep(2);
-      }
+    if (/(^|\s)language-\S+/.test(originalCodeEl.className)) {
+      await this.waitForClass(originalCodeEl, "is-loaded");
     }
 
     let firstLine = codeBlockFirstLine;

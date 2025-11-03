@@ -1,6 +1,6 @@
 import { Notice, setIcon } from "obsidian";
 
-import { CBCParameters } from "./Utils";
+import { CBCParameters } from "./Parsing";
 import CodeBlockCustomizerPlugin from "./main";
 import { renderCodeBlockLines } from "./ReadingViewUtils";
 

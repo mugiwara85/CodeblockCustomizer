@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, getAllParameters, CBCParameters, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getDisplayLanguageName, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, HighlightedWord, filterOccurrences} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences} from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -15,6 +15,7 @@ import { PromptLineRenderResult, PromptManager } from "./PromptManager";
 import { createButtons, extractCodeBlocksFromAdmonition, extractLinesFromHTML, renderCodeBlockLines } from "./ReadingViewUtils";
 import { createExecuteCodeEditButton, verifyAndRevealExecuteButtons } from "./ExecuteCode";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
+import { CBCParameters, getAllParameters, getDisplayLanguageName, HighlightedWord } from "./Parsing";
 
 let settingsUpdated = false;
 export function updateValue(newValue: boolean) {
@@ -2478,9 +2479,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     };
   
     const highlighText = (words: HighlightedWord[], name = '') => {
-      for (const wordObj of words) {
-        const word = wordObj.text.toLowerCase();
-        setClass(line, decorations, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase(), wordObj.occurrences);
+      for (const highlightedWord of words) {
+        const word = highlightedWord.text.toLowerCase();
+        setClass(line, decorations, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase(), highlightedWord.occurrences);
       }
     };
   
@@ -2562,10 +2563,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     // highlight every line which contains a specific word imp:test
     const altwords = parameters.alternativeLinesToHighlight.words;
-    if (altwords.length > 0 && altwords.some(altwordObj => altwordObj.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase())))) {
-      altwords.forEach(altwordObj => {
-        if (altwordObj.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase()))) {
-          lineClass = addHighlightClass(altwordObj.colorName);
+    if (altwords.length > 0 && altwords.some(altword => altword.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase())))) {
+      altwords.forEach(altword => {
+        if (altword.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase()))) {
+          lineClass = addHighlightClass(altword.colorName);
         }
       });
     }

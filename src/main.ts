@@ -5,13 +5,14 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, CBCParameters, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting} from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting} from "./Utils";
 import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
 import { InlineCodeRenderer } from "./InlineCodeRenderer";
 import { admonitionPostProcessor, calloutPostProcessor } from "./PostProcessors";
+import { CBCParameters } from "./Parsing";
 
 import * as _ from 'lodash';
 

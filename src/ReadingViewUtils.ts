@@ -1,12 +1,13 @@
 import { setIcon, MarkdownRenderer, Notice} from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, CBCParameters, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences } from "./Utils";
+import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
 import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, rhombusSVG } from "./Const";
 import { addAndObserveExecuteCodeButtons } from "./ExecuteCode";
 import { PluginSettings } from "./Settings";
+import { CBCParameters } from "./Parsing";
 
 interface IndentationInfo {
   indentationLevels: number;
@@ -448,11 +449,11 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
   let isAlternativeHighlightedByWord = false;
   let isAlternativeHighlightedByWordColor = '';
   const altwords = parameters.alternativeLinesToHighlight.words;
-  if (altwords.length > 0 && altwords.some(altwordObj => altwordObj.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase())))) {
-    altwords.forEach(altwordObj => {
-      if (altwordObj.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase()))) {
+  if (altwords.length > 0 && altwords.some(altword => altword.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase())))) {
+    altwords.forEach(altword => {
+      if (altword.words.some(word => caseInsensitiveLineText.includes(word.toLowerCase()))) {
         isAlternativeHighlightedByWord = true;
-        isAlternativeHighlightedByWordColor = altwordObj.colorName;
+        isAlternativeHighlightedByWordColor = altword.colorName;
       }
     });
   }
@@ -840,8 +841,14 @@ function applyPromptStylesToString(htmlLine: string, styledParts: { from: number
 
     if (char === '<') {
       inTag = true;
+      result += char;
+      i++;
+      continue;
     } else if (char === '>') {
       inTag = false;
+      result += char;
+      i++;
+      continue;
     }
 
     if (!inTag && char === '&') {

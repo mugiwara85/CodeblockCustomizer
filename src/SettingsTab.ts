@@ -2215,19 +2215,17 @@ export class SettingsTab extends PluginSettingTab {
   setPromptColorDiff(promptId: string, className: string, color: string, editingRoot: boolean) {
     const defaultColor = this.getDefaultPromptColor(promptId, className, editingRoot);
   
-    const diffObj = editingRoot
-      ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors
-      : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors;
+    const diff = editingRoot ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors;
   
     if (color.toLowerCase() === defaultColor.toLowerCase()) {
-      delete diffObj?.[promptId]?.[className];
-      if (Object.keys(diffObj?.[promptId] ?? {}).length === 0) {
-        delete diffObj?.[promptId];
+      delete diff?.[promptId]?.[className];
+      if (Object.keys(diff?.[promptId] ?? {}).length === 0) {
+        delete diff?.[promptId];
       }
     } else {
-      if (!diffObj[promptId]) 
-        diffObj[promptId] = {};
-      diffObj[promptId][className] = color;
+      if (!diff[promptId]) 
+        diff[promptId] = {};
+      diff[promptId][className] = color;
     }
   }// setPromptColorDiff
   
@@ -2472,9 +2470,9 @@ export class SettingsTab extends PluginSettingTab {
 
   setAndSavePickrSetting(className: string, savedColor: string): void {
     const currentMode = getCurrentMode();
-    const colorsObject = this.plugin.settings.SelectedTheme.colors[currentMode];
+    const colors = this.plugin.settings.SelectedTheme.colors[currentMode];
 
-    this.setNestedValue(colorsObject, className, savedColor);
+    this.setNestedValue(colors, className, savedColor);
 
     this.plugin.saveSettings();
   }// setAndSavePickrSetting
