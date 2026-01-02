@@ -856,7 +856,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
             const inlineCodeText = view.state.sliceDoc(node.from, node.to);
             const match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
-            if (!match) 
+            // fix for #147
+            if (!match || match[1].trim().startsWith('{')) 
               return;
 
             const fullMatchText = match[0];
@@ -930,7 +931,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             if (node.type.name.startsWith('inline-code')) {
               const text = view.state.sliceDoc(node.from, node.to);
               const match = text.match(INLINE_CODE_LANG_REGEX);
-              const textToCopy = match && match[2] ? match[2] : text;
+              // fix for #147
+              const isValidMatch = match && match[1] && !match[1].trim().startsWith('{');
+              const textToCopy = isValidMatch && match[2] ? match[2] : text;
                 addTextToClipboard(textToCopy);
                 found = true;
               

@@ -34,8 +34,10 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     const text = this.containerEl.textContent ?? "";
     const match = text.match(INLINE_CODE_LANG_REGEX);
     const settings = this.plugin.settings.pluginSettings.inlineCode;
+    // fix for #147
+    const isValidMatch = match && match[1] && !match[1].trim().startsWith('{') && match[2];
 
-    if (settings.enableSyntaxHighlight && match) {
+    if (settings.enableSyntaxHighlight && isValidMatch) {
       const prism = await loadPrism();
       this.processInlineCodeElement(prism, match);
     } else {

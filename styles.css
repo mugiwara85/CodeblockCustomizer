@@ -1695,7 +1695,7 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 
 /* pickr start */
 .pcr-app .pcr-swatches > button {
-    padding: 0;
+  padding: 0;
 }
 
 /*! Pickr 1.9.1 MIT | https://github.com/Simonwep/pickr */
