@@ -189,6 +189,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const remapRecord = (record: Record<number, FoldingState>): Record<number, FoldingState> => {
       const newRecord: Record<number, FoldingState> = {};
       for (const oldPosStr in record) {
+        //fix for #144
+        const oldPos = Number(oldPosStr);
+        if (oldPos > changes.length) 
+          continue;
+
         const newPos = changes.mapPos(Number(oldPosStr));
         if (newPos !== -1) {
           newRecord[newPos] = record[oldPosStr];
@@ -200,6 +205,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const remapMap = (map: Map<number, FoldingState>): Map<number, FoldingState> => {
       const newMap = new Map<number, FoldingState>();
       for (const [oldPos, state] of map.entries()) {
+        //fix for #144
+        if (oldPos > changes.length) 
+          continue;
+
         const newPos = changes.mapPos(oldPos);
         if (newPos !== -1) {
           newMap.set(newPos, state);
@@ -234,13 +243,17 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       
       this.requestSavePermanentData();
     }
-}// remapFolds
+  }// remapFolds
   
   remapTabs(filePath: string, changes: ChangeSet): void {
     const remapRecord = (record: Record<string, number>): Record<string, number> => {
       const newRecord: Record<string, number> = {};
       for (const groupName in record) {
         const oldPos = record[groupName];
+        //fix for #144
+        if (oldPos > changes.length) 
+          continue;
+
         const newPos = changes.mapPos(oldPos);
         if (newPos !== -1) {
           newRecord[groupName] = newPos;
@@ -255,7 +268,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (this.permanentReadingViewTabs[filePath]) {
       this.permanentReadingViewTabs[filePath] = remapRecord(this.permanentReadingViewTabs[filePath]);
     }
-}// remapTabs
+  }// remapTabs
   
   async clearAllFoldData(): Promise<void> {
     this.activeEditorFolds.clear();

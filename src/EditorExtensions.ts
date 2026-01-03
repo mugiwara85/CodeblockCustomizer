@@ -381,6 +381,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (docStateMap && docStateMap.size > 0) {
           const newDocStateMap = new Map<string, number>();
           for (const [groupName, savedPos] of docStateMap.entries()) {
+            //fix for #144
+            if (savedPos > transaction.changes.length) 
+              continue;
+
             const newPos = transaction.changes.mapPos(savedPos);
             if (newPos !== -1) {
               newDocStateMap.set(groupName, newPos);
@@ -588,6 +592,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (transaction.docChanged) {
         const newUnfolded = new Set<number>();
         for (const pos of newValue) {
+          //fix for #144
+          if (pos > transaction.changes.length) 
+            continue;
+
           const mappedPos = transaction.changes.mapPos(pos);
           const newCodeBlocks = transaction.state.field(codeBlockPositionsField, false) || [];
           if (newCodeBlocks.some(block => block.codeBlockStartPos === mappedPos)) {
