@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
-import { CodeblockCustomizerSettings, Colors, PluginSettings, ThemeColors } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -34,6 +34,7 @@ export function getDefaultParameters(): CBCParameters {
     alternativeTextToHighlight: { allWordsInLine: [], lineSpecificWords: [], words: [], textBetween: [], lineSpecificTextBetween: [], outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: []},
     isSpecificNumber: false,
     lineNumberOffset: 0,
+    lineNumberJumps: [],
     showNumbers: "",
     hasTitle: false,
     headerDisplayText: "",
@@ -640,7 +641,7 @@ export function updateSettingClasses(settings: PluginSettings) {
 
   if (settings.inlineCode.enableInlineCodeStyling){
     document.body.classList.add('codeblock-customizer-style-inline-code');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-style-inline-code');
   }
 
@@ -657,68 +658,82 @@ export function updateSettingClasses(settings: PluginSettings) {
 
   if (settings.semiFold.enableSemiFold) {
     document.body.classList.add('codeblock-customizer-use-semifold');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-use-semifold');
   }
 
   if (settings.semiFold.showAdditionalUncollapseButon) {
     document.body.classList.add('codeblock-customizer-show-uncollapse-code-button');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-uncollapse-code-button');
   }
 
   if (settings.codeblock.showIndentationLines) {
     document.body.classList.add('codeblock-customizer-show-indentation-lines');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-indentation-lines');
   }
 
   if (settings.codeblock.buttons.enableSelectCodeButton) {
     document.body.classList.add('codeblock-customizer-show-select-code-button');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-select-code-button');
   }
 
   if (settings.codeblock.buttons.enableWrapCodeButton) {
     document.body.classList.add('codeblock-customizer-show-wrap-code-button');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-wrap-code-button');
   }
 
   if (settings.codeblock.buttons.alwaysShowCopyCodeButton) {
     document.body.classList.add('codeblock-customizer-always-show-copy-code-button');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-always-show-copy-code-button');
   }
 
   if (settings.inlineCode.showIcons) {
     document.body.classList.add('codeblock-customizer-show-inline-code-icons');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-inline-code-icons');
   }
 
   if (settings.plugins.executeCode.styleOutput) {
     document.body.classList.add('codeblock-customizer-style-execute-code-output');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-style-execute-code-output');
   }
 
   if (settings.codeblock.buttons.enableSnapshotButton) {
     document.body.classList.add('codeblock-customizer-show-snapshot-code-button');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-snapshot-code-button');
   }
 
   if (settings.groupedCodeBlocks.showAddRemoveButtons) {
     document.body.classList.add('codeblock-customizer-show-grouped-add-remove-buttons');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-show-grouped-add-remove-buttons');
   }
 
   if (settings.plugins.executeCode.enabled) {
     document.body.classList.add('codeblock-customizer-support-execute-code');
-  } else{
+  } else {
     document.body.classList.remove('codeblock-customizer-support-execute-code');
+  }
+
+  if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Zigzag) {
+    document.body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
+    document.body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
+    document.body.classList.add('codeblock-customizer-linenumberseparator-zigzag');
+  } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.DoubleLine) {
+    document.body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
+    document.body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
+    document.body.classList.add('codeblock-customizer-linenumberseparator-doubleline');
+  } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Dashed) {
+    document.body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
+    document.body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
+    document.body.classList.add('codeblock-customizer-linenumberseparator-dashed');
   }
 
 }// updateSettingClasses

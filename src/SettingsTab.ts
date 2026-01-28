@@ -1,7 +1,7 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
 
 import {  getColorOfCssVariable, getCurrentMode, updateSettingClasses, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence, ButtonModifierKeys, ColorTheme } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence, ButtonModifierKeys, ColorTheme, LineNumberSeparatorStyle } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { ANNOTATION_TYPE_ICONS } from "./TooltipManager";
@@ -413,6 +413,22 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.unwrapcode = value;
           await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(codeBlockDetails)
+      .setName('Line number jump separator style')
+      .setDesc('Select the style of the separator line shown when code is folded/skipped.')
+      .addDropdown(dropdown => dropdown
+        .addOption(LineNumberSeparatorStyle.Zigzag, 'Zigzag')
+        .addOption(LineNumberSeparatorStyle.Dashed, 'Dashed')
+        .addOption(LineNumberSeparatorStyle.DoubleLine, 'Double Line')
+        .setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle)
+        .onChange(async (value: LineNumberSeparatorStyle) => {
+          this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
+          await this.plugin.saveSettings();
+          //this.plugin.renderReadingViews();
+          updateSettingStyles(this.plugin.settings, this.app);
         })
       );
 

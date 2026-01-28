@@ -82,6 +82,12 @@ export enum ButtonModifierKeys {
   NONE = 'none',
 }
 
+export enum LineNumberSeparatorStyle {
+  Zigzag = 'zigzag',
+  Dashed = 'dashed',
+  DoubleLine = 'double-line',
+}
+
 export interface PluginSettings {
   codeblock: {
     enableLineNumbers: boolean;
@@ -95,6 +101,7 @@ export interface PluginSettings {
     enableSelectionMatching: boolean;
     unwrapcode: boolean;
     hideFenceLines: boolean;
+    lineNumberSeparatorStyle: LineNumberSeparatorStyle;
     buttons: {
       alwaysShowButtons: boolean;
       alwaysShowCopyCodeButton: boolean;
@@ -219,6 +226,7 @@ const defaultThemeSettings: PluginSettings = {
     enableSelectionMatching: true,
     unwrapcode: false,
     hideFenceLines: false,
+    lineNumberSeparatorStyle: LineNumberSeparatorStyle.Dashed,
     buttons: {
       alwaysShowButtons: false,
       alwaysShowCopyCodeButton: false,

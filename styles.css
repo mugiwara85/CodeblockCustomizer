@@ -1367,6 +1367,66 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   display: none;
 }
 
+/* line number jumps */
+.codeblock-customizer-line-separator {
+  display: flex !important;
+  width: 100%;
+  min-height: 24px;
+  align-items: stretch;
+  background-color: var(--codeblock-customizer-codeblock-background-color); 
+}
+.codeblock-customizer-line-separator .codeblock-customizer-line-number {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end;
+  width: var(--gutter-width, 3em); 
+  padding-right: 12px;
+  line-height: normal; 
+  color: var(--codeblock-customizer-gutter-text-color);
+  background-color: var(--codeblock-customizer-gutter-background-color);
+  user-select: none;
+}
+.codeblock-customizer-linenumberseparator-zigzag .codeblock-customizer-line-separator .codeblock-customizer-separator-content {
+  flex-grow: 1;
+  align-self: center !important; 
+  --s: 10px;
+  --b: 2px;
+  --a: 90deg;
+  height: calc(var(--b) + var(--s)/2); 
+  width: 100%;
+  background: var(--text-muted, #888); 
+  opacity: 0.5;
+  --_g: var(--s) repeat-x conic-gradient(from calc(var(--a)/-2) at bottom, #0000, #000 1deg calc(var(--a) - 1deg), #0000 var(--a));
+  mask: 50% calc(-1*var(--b)) / var(--_g) exclude, 50% / var(--_g);
+  -webkit-mask: 50% calc(-1*var(--b)) / var(--_g) exclude, 50% / var(--_g);
+}
+.codeblock-customizer-linenumberseparator-dashed .codeblock-customizer-line-separator .codeblock-customizer-separator-content {
+  flex-grow: 1;
+  align-self: center !important; 
+  width: 100%;
+  height: 1px;
+  background: none;
+  mask: none;
+  -webkit-mask: none;
+  border-bottom: 1px dashed var(--text-muted);
+  opacity: 0.5;
+}
+.codeblock-customizer-linenumberseparator-doubleline .codeblock-customizer-line-separator .codeblock-customizer-separator-content {
+  flex-grow: 1;
+  align-self: center !important; 
+  width: 100%;
+  background: none;
+  mask: none;
+  -webkit-mask: none;
+  height: 3px;
+  border-top: 1px solid var(--text-muted);
+  border-bottom: 1px solid var(--text-muted);
+  opacity: 0.3;
+}
+.markdown-rendered .codeblock-customizer-separator-content {
+  margin-left: var(--line-number-gutter-padding);
+}
+
 /* Frontmatter */
 .markdown-source-view .cm-hmd-frontmatter.cm-operator {
   color: var(--code-operator);
@@ -1526,7 +1586,8 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 .markdown-rendered div.has-prompt:has(> .codeblock-customizer-line-text) {
   display: flow-root;
 }
-.markdown-rendered .has-prompt .codeblock-customizer-line-number {
+.markdown-rendered .has-prompt .codeblock-customizer-line-number,
+.markdown-rendered .has-prompt .codeblock-customizer-line-number-specific {
   float: left;
   height: 100%;
 }

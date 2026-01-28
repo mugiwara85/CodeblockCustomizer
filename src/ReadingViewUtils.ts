@@ -287,7 +287,7 @@ function wrapCode(preElement: HTMLElement, event: Event) {
 
 }// wrapCode
 
-function createLineNumberElement(lineNumber: number, showNumbers: string) {
+function createLineNumberElement(lineNumber: number, showNumbers: string, maxDigits: number) {
   const lineNumberWrapper = createDiv();
   if (showNumbers === "specific")
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number-specific`);
@@ -296,6 +296,11 @@ function createLineNumberElement(lineNumber: number, showNumbers: string) {
   else 
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number`);
   
+  if (maxDigits > 0) {
+    lineNumberWrapper.style.minWidth = `${maxDigits}ch`;
+    lineNumberWrapper.style.boxSizing = "content-box";
+  }
+
   const lineNumberElement = createSpan({cls : `codeblock-customizer-line-number-element`});
   lineNumberElement.setText(lineNumber === -1 ? '' : lineNumber.toString());
     
@@ -415,14 +420,14 @@ export function extractLinesFromHTML(container: HTMLElement): { htmlLines: strin
   return { htmlLines: finalHtmlLines, textLines: finalTextLines };
 }// extractLinesFromHTML
 
-function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters) {
+function isLineHighlighted(displayedLineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters) {
   const result = {
     isHighlighted: false,
     color: ''
   };
 
   // Highlight by line number hl:1,3-5
-  const isHighlightedByLineNumber = parameters.defaultLinesToHighlight.lineNumbers.includes(lineNumber + parameters.lineNumberOffset);
+  const isHighlightedByLineNumber = parameters.defaultLinesToHighlight.lineNumbers.includes(displayedLineNumber);
   
   // Highlight every line which contains a specific word hl:test
   let isHighlightedByWord = false;
@@ -436,14 +441,14 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
   const lineSpecificWords = parameters.defaultLinesToHighlight.lineSpecificWords;
   if (lineSpecificWords.length > 0) {
     lineSpecificWords.forEach(lsWord => {
-      if (lsWord.lineNumber === lineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
+      if (lsWord.lineNumber === displayedLineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
         isHighlightedByLineSpecificWord = true;
       }
     });
   }
 
   // Highlight line by line number imp:1,3-5
-  const altHLMatch = parameters.alternativeLinesToHighlight.lines.filter((hl) => hl.lineNumbers.includes(lineNumber + parameters.lineNumberOffset));
+  const altHLMatch = parameters.alternativeLinesToHighlight.lines.filter((hl) => hl.lineNumbers.includes(displayedLineNumber));
 
   // Highlight every line which contains a specific word imp:test
   let isAlternativeHighlightedByWord = false;
@@ -464,7 +469,7 @@ function isLineHighlighted(lineNumber: number, caseInsensitiveLineText: string, 
   const altLineSpecificWords = parameters.alternativeLinesToHighlight.lineSpecificWords;
   if (altLineSpecificWords.length > 0) {
     altLineSpecificWords.forEach(lsWord => {
-      if (lsWord.lineNumber === lineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
+      if (lsWord.lineNumber === displayedLineNumber && lsWord.words.some(word => caseInsensitiveLineText.includes(word))) {
         isAlternativeHighlightedByLineSpecificWord = true;
         isAlternativeHighlightedByLineSpecificWordColor = lsWord.colorName;
       }
@@ -648,6 +653,45 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
   return tempDiv.innerHTML;
 }// getHighlightedLineHtml
 
+function createLineNumberSeparator(maxDigits: number) {
+  const container = createDiv({cls: `codeblock-customizer-line-separator`});
+  const gutter = createSpan({cls: `codeblock-customizer-line-number-specific codeblock-customizer-line-number-specific-number`});
+
+  if (maxDigits > 0) {
+    gutter.style.minWidth = `${maxDigits}ch`;
+    gutter.style.boxSizing = "content-box";
+  }
+
+  const gutterNum = createSpan({cls: `codeblock-customizer-line-number-element`, text: "..."});
+
+  gutter.appendChild(gutterNum);
+
+  const content = createSpan({cls: `codeblock-customizer-separator-content`});
+
+  container.appendChild(gutter);
+  container.appendChild(content);
+
+  return container;
+}// createLineNumberSeparator
+
+function calculateMaxLineDigits(lineCount: number, parameters: CBCParameters): number {
+  let counter = parameters.lineNumberOffset;
+  let maxNum = counter;
+  let jumpIdx = 0;
+  const jumps = parameters.lineNumberJumps || [];
+
+  for (let i = 0; i < lineCount; i++) {
+    counter++;
+    if (jumpIdx < jumps.length && counter === jumps[jumpIdx].lineNumber) {
+      counter = jumps[jumpIdx].newStartNumber;
+      jumpIdx++;
+    }
+    if (counter > maxNum) maxNum = counter;
+  }
+  
+  return maxNum.toString().length;
+}// calculateMaxLineDigits
+
 export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fragment: DocumentFragment; annotations: AnnotationInfo[] }> {
   const {
     htmlLines,
@@ -697,10 +741,33 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
   const useSemiFold = lineCount >= settings.semiFold.visibleLines + fadeOutLineCount;
   let fadeOutLineIndex = 0;
 
+  let jumpCounter = parameters.lineNumberOffset; // counter to track line numbers with jumps
+  const jumps = parameters.lineNumberJumps || [];
+  let jumpIdx = 0;
+  const hasJumps = jumps.length > 0;
+  let maxDigits = 0;
+
+  if (hasJumps) {
+    const calculatedDigits = calculateMaxLineDigits(lineCount, parameters);
+    // only apply dynamic width if the end number is bigger than 3 digits, which would fit in the default gutter min-width
+    if (calculatedDigits > 3) {
+      maxDigits = calculatedDigits;
+    }
+  }
+
   for (let index = 0; index < lineCount; index++) {
     const htmlLine = htmlLines[index] ?? '';
     const textLine = textLines[index] ?? '';
-    const lineNumber = index + 1;
+
+    const physicalLineNumber = index + 1; // this is the physical line number. if a code block contains 5 lines, then this is 1,2,3,4,5...
+    jumpCounter++;
+    if (jumps.length > 0 && jumpIdx < jumps.length && jumpCounter === jumps[jumpIdx].lineNumber) {
+      jumpCounter = jumps[jumpIdx].newStartNumber;
+      jumpIdx++;
+      frag.appendChild(createLineNumberSeparator(maxDigits));
+    }
+
+    const displayedLineNumber = jumpCounter; // this is the displayed number (including offsets and/or line number jumps)
     const caseInsensitiveLineText = textLine.toLowerCase();
 
     let processedLine = htmlLine;
@@ -712,7 +779,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
       annotationData = result.annotationData;
     }
     
-    const { lineClasses, uncollapseButton, updatedFadeOutLineIndex } = getLineClass(lineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
+    const { lineClasses, uncollapseButton, updatedFadeOutLineIndex } = getLineClass(physicalLineNumber, displayedLineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
     fadeOutLineIndex = updatedFadeOutLineIndex;
     const lineWrapper = createDiv();
 
@@ -723,22 +790,22 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     }
 
     //if (showLineNumbers) {
-    const lineNumberEl = createLineNumberElement(lineNumber + parameters.lineNumberOffset, parameters.showNumbers);
+    const lineNumberEl = createLineNumberElement(displayedLineNumber, parameters.showNumbers, maxDigits);
     lineWrapper.appendChild(lineNumberEl);
     //}
 
     if (annotationData) {
       const annotationIcon = createSpan({cls: `codeblock-customizer-annotation-icon`});
-      const selector = `[data-line-number="${lineNumber}"] .codeblock-customizer-annotation-icon`;
+      const selector = `[data-line-number="${physicalLineNumber}"] .codeblock-customizer-annotation-icon`;
       annotationsToProcess.push({ selector, type: annotationData.type, content: annotationData.content, title: annotationData.title });
       annotationIcon.classList.add(`codeblock-customizer-annotation-icon-${annotationData.type}`);
       lineWrapper.appendChild(annotationIcon);
     }
     
     let promptOutput: { className: string, text: string }[] = [];
-    const isPromptLine = processPrompts && prompt && (parameters.parsePromptId || prompt.promptLines.has(lineNumber + parameters.lineNumberOffset));
+    const isPromptLine = processPrompts && prompt && (parameters.parsePromptId || prompt.promptLines.has(displayedLineNumber));
     if (isPromptLine) {
-      const promptResult = prompt.renderLine(textLine, lineNumber + parameters.lineNumberOffset);
+      const promptResult = prompt.renderLine(textLine, displayedLineNumber);
 
       if (parameters.parsePromptId) {
         // parsed prompt
@@ -775,7 +842,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     }
 
     const lineTextEl = createDiv({ cls: `codeblock-customizer-line-text` });
-    const finalLineHtml = getHighlightedLineHtml(processedLine, parameters, lineNumber);
+    const finalLineHtml = getHighlightedLineHtml(processedLine, parameters, displayedLineNumber);
     lineTextEl.innerHTML = finalLineHtml.trim() === '' ? '<br>' : finalLineHtml;
     lineWrapper.appendChild(lineTextEl);
     
@@ -787,16 +854,16 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     }
 
     if (addIndentationGuides) {
-      const indentLevel = indentationLevels && indentationLevels[lineNumber - 1] ? indentationLevels[lineNumber - 1].indentationLevels.toString() : "-1";
+      const indentLevel = indentationLevels && indentationLevels[index] ? indentationLevels[index].indentationLevels.toString() : "-1";
       lineWrapper.setAttribute('indentLevel', indentLevel);
     }
 
-    lineWrapper.setAttribute('data-line-number', lineNumber.toString());
+    lineWrapper.setAttribute('data-line-number', physicalLineNumber.toString());
     
     if (uncollapseButton) {
       lineWrapper.appendChild(uncollapseButton);
     }
-        
+
     frag.appendChild(lineWrapper);
   }
 
@@ -945,12 +1012,12 @@ function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeB
   return { lineContent: tempDiv.innerHTML, annotationData };
 }// processAnnotations
   
-function getLineClass(lineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
+function getLineClass(physicalLineNumber: number, displayedLineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
   let lineClasses = '';
   let uncollapseButton: HTMLElement | null = null;
   let updatedFadeOutLineIndex = fadeOutLineIndex;
 
-  const result = isLineHighlighted(lineNumber, caseInsensitiveLineText, parameters);
+  const result = isLineHighlighted(displayedLineNumber, caseInsensitiveLineText, parameters);
   if (result.isHighlighted) {
     if (result.color) {
       lineClasses = `codeblock-customizer-line-highlighted-${result.color.replace(/\s+/g, '-').toLowerCase()}`;
@@ -961,7 +1028,7 @@ function getLineClass(lineNumber: number, caseInsensitiveLineText: string, param
     lineClasses = `codeblock-customizer-line`;
   }
 
-  if (useSemiFold && lineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
+  if (useSemiFold && physicalLineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
     lineClasses += ` codeblock-customizer-fade-out-line${fadeOutLineIndex}`;
     updatedFadeOutLineIndex++;
     if (fadeOutLineIndex === fadeOutLineCount - 1) {
@@ -969,7 +1036,7 @@ function getLineClass(lineNumber: number, caseInsensitiveLineText: string, param
     }
   }
 
-  if (useSemiFold && lineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
+  if (useSemiFold && physicalLineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
     lineClasses += ` codeblock-customizer-fade-out-line-hide`;
   }
 

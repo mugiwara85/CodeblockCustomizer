@@ -117,6 +117,11 @@ allWordsInLine: AlternativeAllWordsInLine[];
   outputLineSpecificTextBetween: AlternativeLineSpecificTextBetween[];
 }
 
+export interface LineNumberJump {
+  lineNumber: number;
+  newStartNumber: number;
+}
+
 export interface CBCParameters {
   defaultLinesToHighlight: LinesToHighlight;
   defaultTextToHighlight: TextHighlight;
@@ -126,6 +131,7 @@ export interface CBCParameters {
   alternativeTextToHighlight: AlternativeTextHighlight;
   isSpecificNumber: boolean;
   lineNumberOffset: number;
+  lineNumberJumps: LineNumberJump[];
   showNumbers: string;
   hasTitle: boolean;            // this is just a boolean if file or title was specified or not
   headerDisplayText: string;    // this is the actual text resulting from file/title or default
@@ -185,7 +191,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const {alternativeLinesToHighlight, alternativeTextToHighlight} = extractAlternativeHighlights(parsedParameters, textSeparator, lineSeparator, settings);
 
   // isSpecificNumber and showNumbers
-  const { isSpecificNumber, showNumbers, lineNumberOffset } = determineLineNumberDisplay(parsedParameters);
+  const { isSpecificNumber, showNumbers, lineNumberOffset, lineNumberJumps } = determineLineNumberDisplay(parsedParameters);
 
   // fileName/Title
   let headerDisplayText = extractFileTitle(parsedParameters);
@@ -265,6 +271,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     alternativeTextToHighlight: alternativeTextToHighlight,
     isSpecificNumber: isSpecificNumber,
     lineNumberOffset: lineNumberOffset,
+    lineNumberJumps,
     showNumbers: showNumbers,
     hasTitle: hasTitle,
     headerDisplayText: headerDisplayText,
@@ -800,24 +807,55 @@ function determineLineNumberDisplay(parsedParameters: ParsedParams) {
   let isSpecificNumber = false;
   let showNumbers = "";
   let lineNumberOffset = 0;
+  const lineNumberJumps: LineNumberJump[] = [];
 
   if (specificLN.toLowerCase() === "true") {
     showNumbers = "specific";
   } else if (specificLN.toLowerCase() === "false") {
     showNumbers = "hide";
   } else {
-    lineNumberOffset = parseInt(specificLN);
-    if (!isNaN(lineNumberOffset) && lineNumberOffset >= 0) {
+    const parts = specificLN.split(",");
+    let foundConfig = false;
+    let startNumberFound = false;
+
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) {
+        continue;
+      }
+
+      if (trimmed.includes(":")) {
+        // jump definition (e.g. 10:50)
+        const [indexStr, newNumStr] = trimmed.split(":");
+        const lineNumber = parseInt(indexStr, 10);
+        const newStartNumber = parseInt(newNumStr, 10);
+        
+        if (!isNaN(lineNumber) && !isNaN(newStartNumber)) {
+          lineNumberJumps.push({ lineNumber, newStartNumber });
+          foundConfig = true;
+        }
+      } else {
+        // simple offset definition (e.g. 5)
+        if (!startNumberFound) {
+          const startNum = parseInt(trimmed, 10);
+          if (!isNaN(startNum) && startNum >= 0) {
+            lineNumberOffset = startNum - 1;
+            foundConfig = true;
+            startNumberFound = true;
+          }
+        }
+      }
+    }
+
+    if (foundConfig) {
       showNumbers = "specific";
       isSpecificNumber = true;
-    } else {
-      lineNumberOffset = 0;
     }
+    
+    lineNumberJumps.sort((a, b) => a.lineNumber - b.lineNumber);
   }
 
-  lineNumberOffset = lineNumberOffset === 0 ? lineNumberOffset : lineNumberOffset - 1;
-
-  return { isSpecificNumber, showNumbers, lineNumberOffset };
+  return { isSpecificNumber, showNumbers, lineNumberOffset, lineNumberJumps };
 }// determineLineNumberDisplay
 
 function isFoldDefined(str: string): boolean {

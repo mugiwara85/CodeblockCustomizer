@@ -635,6 +635,31 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     },
   });// foldCommandField
 
+  const jumpSeparatorField = StateField.define<DecorationSet>({
+    create(state) {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state)){
+        return Decoration.none;
+      }
+
+      const positions = state.field(codeBlockPositionsField, false) ?? [];
+      return getLineNumberJumps(state, positions);
+    },
+    update(value, transaction) {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state)) {
+        return Decoration.none;
+      }
+
+      const prevPositions = transaction.startState.field(codeBlockPositionsField, false) ?? [];
+      const positions = transaction.state.field(codeBlockPositionsField, false) ?? [];
+      if (!transaction.docChanged && prevPositions === positions) {
+        return value;
+      }
+
+      return getLineNumberJumps(transaction.state, positions);
+    },
+    provide: (field) => EditorView.decorations.from(field),
+  });// jumpSeparatorField
+
   /* Extensions */
 
   const customBracketMatching = bracketMatching({
@@ -741,13 +766,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (parameters.exclude)
           continue;
         
-        let lineNumber = 0;
-        const lineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + parameters.lineNumberOffset;
-        const gutterWidth = lineCount.toString().length * defaultCharWidth + 12; // padding-left + padding-right
-        const gutterStyle = parameters.isSpecificNumber ? lineCount.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
-        
+        let lineNumber = parameters.lineNumberOffset;
         const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
+        const gutterStyle = getGutterStyle(parameters, rawLineCount, defaultCharWidth);
         const prompt = new PromptManager(parameters, rawLineCount, settings);
+        const jumps = parameters.lineNumberJumps;
+        let jumpIdx = 0;
 
         for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
           const startLine = line === firstCodeBlockLine;
@@ -756,9 +780,19 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           const lineStartPos = currentLine.from;
           let promptRenderResult: PromptLineRenderResult = { styledParts: [], output: [], matchedLength: 0, lineClassName: null, isRoot: false };
 
-          const isPromptLine = !startLine && !endLine && (parameters.parsePromptId || prompt.promptLines.has(lineNumber + parameters.lineNumberOffset));
+          // line number jumps
+          if (!startLine && !endLine) {
+            lineNumber++;
+
+            if (jumps && jumpIdx < jumps.length && lineNumber === jumps[jumpIdx].lineNumber) {
+              lineNumber = jumps[jumpIdx].newStartNumber;
+              jumpIdx++;
+            }
+          }
+
+          const isPromptLine = !startLine && !endLine && (parameters.parsePromptId || prompt.promptLines.has(lineNumber));
           if (isPromptLine) {
-            promptRenderResult = prompt.renderLine(currentLine.text, lineNumber + parameters.lineNumberOffset);
+            promptRenderResult = prompt.renderLine(currentLine.text, lineNumber);
           }
 
           // lines
@@ -782,7 +816,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           
           // line number
           if (settings.pluginSettings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
-            decorations.push(Decoration.widget({ widget: new LineNumberWidget((startLine || endLine) ? " " : (lineNumber + parameters.lineNumberOffset).toString(), parameters, spanClass),}).range(lineStartPos));
+            const number = (startLine || endLine) ? " " : lineNumber.toString();
+            decorations.push(Decoration.widget({ widget: new LineNumberWidget(number, parameters, spanClass),}).range(lineStartPos));
           }
 
           // prompt
@@ -797,7 +832,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               }
             }
           } else {
-            if (prompt.promptLines.has(lineNumber + parameters.lineNumberOffset) && !startLine && !endLine) {
+            if (prompt.promptLines.has(lineNumber) && !startLine && !endLine) {
               const promptPart = promptRenderResult.styledParts[0];
 
               if (promptPart?.node && promptPart.key) {
@@ -819,7 +854,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             }
             decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
           }
-          lineNumber++;
+          //lineNumber++;
         }
       }
       return RangeSet.of(decorations, true);
@@ -1607,7 +1642,141 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// AnnotationIconWidget
 
+  class LineNumberSeparatorWidget extends WidgetType {
+    constructor(private parameters: CBCParameters& { gutterStyle?: string }) {
+      super();
+    }
+
+    eq(other: LineNumberSeparatorWidget) {
+      return (this.parameters.gutterStyle === other.parameters.gutterStyle && this.parameters.lineNumberOffset === other.parameters.lineNumberOffset && this.parameters.isSpecificNumber === other.parameters.isSpecificNumber);
+    }
+
+    toDOM(view: EditorView): HTMLElement {
+      const container = createDiv({cls: `codeblock-customizer-line-separator HyperMD-codeblock cm-line`});
+      if (this.parameters.gutterStyle) {
+        container.setAttribute("style", this.parameters.gutterStyle);
+      }
+
+      const gutter = createSpan({cls: `codeblock-customizer-line-number-specific codeblock-customizer-line-number-specific-number`}); // this will be always specific, since the specified new line numbers are offsets
+      const gutterNum = createSpan({cls: `codeblock-customizer-line-number-element`});
+      gutterNum.textContent = "...";
+
+      gutter.appendChild(gutterNum);
+
+      const content = createSpan({cls: `codeblock-customizer-separator-content`});
+
+      container.appendChild(gutter);
+      container.appendChild(content);
+
+      return container;
+    }
+  }// LineNumberSeparatorWidget
+
   /* functions */
+
+  function getLineNumberJumps(state: EditorState, positions: CodeBlockPositions[]): DecorationSet {
+    if (positions.length === 0) {
+      return Decoration.none;
+    }
+
+    const decorations: Range<Decoration>[] = [];
+    const defaultCharWidth = state.field(editorEditorField).defaultCharacterWidth;
+
+    for (const { codeBlockStartPos, codeBlockEndPos, parameters } of positions) {
+      if (parameters.exclude || !parameters.lineNumberJumps || parameters.lineNumberJumps.length === 0) {
+        continue;
+      }
+
+      const firstCodeBlockLine = state.doc.lineAt(codeBlockStartPos).number;
+      const lastCodeBlockLine = state.doc.lineAt(codeBlockEndPos).number;
+      const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
+      const gutterStyle = getGutterStyle(parameters, rawLineCount, defaultCharWidth);
+
+      const jumps = parameters.lineNumberJumps;
+      if (!jumps || jumps.length === 0) {
+        continue;
+      }
+
+      let currentDisplayed = parameters.lineNumberOffset;
+      let currentDocLine = firstCodeBlockLine;
+      const maxContentLines = rawLineCount;
+
+      for (const jump of jumps) {
+        const delta = jump.lineNumber - currentDisplayed;
+        if (delta <= 0) {
+          continue;
+        }
+
+        const targetContentIndex = (currentDocLine - firstCodeBlockLine) + delta;
+        if (targetContentIndex < 1 || targetContentIndex > maxContentLines) {
+          continue;
+        }
+
+        const targetDocLine = firstCodeBlockLine + targetContentIndex;
+        const lineStartPos = state.doc.line(targetDocLine).from;
+
+        decorations.push(Decoration.widget({widget: new LineNumberSeparatorWidget({ ...parameters, gutterStyle }), block: true, side: -1}).range(lineStartPos));
+
+        currentDocLine = targetDocLine;
+        currentDisplayed = jump.newStartNumber;
+      }
+    }
+    return RangeSet.of(decorations, true);
+  }// getLineNumberJumps
+
+  function getGutterStyle(parameters: CBCParameters, rawLineCount: number, defaultCharWidth: number) {
+    const maxLineNumber = getMaxLineNumber(parameters, rawLineCount);
+    const gutterWidth = maxLineNumber.toString().length * defaultCharWidth + 12; // padding-left + padding-right
+    const gutterStyle = parameters.isSpecificNumber ? maxLineNumber.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
+    
+    return gutterStyle;    
+  }// getGutterStyle
+
+  function getMaxLineNumber(parameters: CBCParameters, rawLineCount: number) {
+    let calculatedMax = parameters.lineNumberOffset;
+    let currentCalc = parameters.lineNumberOffset;
+    let remainingLines = rawLineCount;
+
+    if (parameters.lineNumberJumps && parameters.lineNumberJumps.length > 0) {
+      for (const jump of parameters.lineNumberJumps) {
+        if (remainingLines <= 0) {
+          break;
+        }
+        
+        const dist = jump.lineNumber - currentCalc;
+        if (dist > 0) {
+          if (remainingLines >= dist) {
+            remainingLines -= dist;
+            
+            const peakBeforeJump = jump.lineNumber - 1;
+            if (peakBeforeJump > calculatedMax) {
+              calculatedMax = peakBeforeJump;
+            }
+            
+            currentCalc = jump.newStartNumber;
+            if (currentCalc > calculatedMax) {
+              calculatedMax = currentCalc;
+            }
+          } else {
+            currentCalc += remainingLines;
+            if (currentCalc > calculatedMax) {
+              calculatedMax = currentCalc;
+            }
+            remainingLines = 0;
+          }
+        }
+      }
+    }
+    
+    if (remainingLines > 0) {
+      currentCalc += remainingLines;
+      if (currentCalc > calculatedMax) {
+        calculatedMax = currentCalc;
+      }
+    }
+
+    return calculatedMax;
+  }// getMaxLineNumber
 
   async function styleExecuteCodeWidget(preElement: HTMLElement, rawLines: string) {
     const codeElement = preElement.querySelector('code');
@@ -2405,7 +2574,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     borderColor = getBorderColorByLanguage(parameters.language, languageBorderColors); // handles nolang
   
     let lineClass = `codeblock-customizer-line`;
-    lineClass = highlightLinesOrWords(lineNumber + parameters.lineNumberOffset, startLine, endLine, parameters, line, decorations, lineClass);
+    lineClass = highlightLinesOrWords(lineNumber, startLine, endLine, parameters, line, decorations, lineClass);
     lineClass = lineClass + " " + codeblockLanguageClass + " " + codeblockLanguageSpecificClass;
 
     if (borderColor.length > 0)
@@ -2863,6 +3032,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     defaultFoldUnfoldedField, 
     collapseField,
     headerField, 
+    jumpSeparatorField,
     viewPlugin, 
     linkViewPlugin, 
     inlineCodeViewPlugin, 
