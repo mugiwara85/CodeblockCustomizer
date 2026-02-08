@@ -1,0 +1,187 @@
+/* Settings page */
+.codeblock-customizer-general-settingsDiv-hide,
+.codeblock-customizer-appearance-settingsDiv-hide,
+.codeblock-customizer-highlighting-settingsDiv-hide,
+.codeblock-customizer-behavior-settingsDiv-hide,
+.codeblock-customizer-prompts-settingsDiv-hide,
+.codeblock-customizer-plugin-compatibility-settingsDiv-hide {
+  display: none;
+}
+
+.codeblock-customizer-setting-hidden {
+  display: none !important;
+}
+
+.codeblock-customizer-settingspage {
+  .setting-item .is-disabled {
+    color: #666;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .detailpage .pickr {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .setting-item .pcr-button::before,
+  .setting-item .pcr-button::after {
+    border-radius: 50%;
+  }
+
+  .pickr .pcr-button {
+    box-shadow: unset;
+  }
+}
+
+/* Settings page (prompts) - Prompt preview */
+.codeblock-customizer-prompt-preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 12px 0;
+  margin-bottom: 24px;
+}
+
+.codeblock-customizer-prompt-preview {
+  width: 100%;
+  max-width: 600px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  margin: 12px 0;
+  background-color: var(--codeblock-customizer-codeblock-background-color, var(--background-secondary));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  font-family: var(--font-monospace, monospace);
+  text-align: center;
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.prompt-preview-container {
+  position: relative;
+  display: flex;
+  min-height: 3em;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+}
+
+.normal-preview,
+.root-preview {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.root-preview {
+  overflow: hidden;
+  height: 0;
+  opacity: 0;
+  visibility: hidden;
+
+  &.is-visible {
+    height: auto;
+    animation: slide-fade-in 200ms ease-out;
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.normal-preview {
+  animation: slide-fade-in 200ms ease-out;
+}
+
+/* Settings page (prompts) - highlightgroups */
+.codeblock-customizer-highlightgroups-textarea {
+  width: 100%;
+  max-width: 250px;
+  min-height: 120px;
+  box-sizing: border-box;
+  font-size: 0.9em;
+  resize: vertical;
+}
+
+.codeblock-customizer-highlightgroups-setting .setting-item-info {
+  max-width: 300px;
+}
+
+@keyframes slide-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Settings page - settings groups */
+.settings-group {
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  margin: 12px 0;
+  background-color: var(--background-secondary);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  @media (hover: hover) {
+    &:has(> summary:hover) {
+      border-color: var(--background-modifier-border-hover);
+      background-color: var(--background-secondary-alt);
+      box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+    }
+  }
+
+  &>summary {
+    padding: 6px 0;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    list-style: none;
+
+    &::before {
+      display: inline-block;
+      margin-right: 8px;
+      content: '▶';
+      font-size: 0.8em;
+      transition: transform 0.2s ease-in-out;
+    }
+  }
+
+  &[open]>summary::before {
+    transform: rotate(90deg);
+  }
+}
+
+/* Settings page (prompts) - regex input */
+.codeblock-customizer-regex-input {
+  width: 100%;
+}
+
+/* disabled button */
+.clickable-icon.extra-setting-button.is-disabled,
+.codeblock-customizer-prompt-name input[disabled] {
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Settings */
+.codeblock-customizer-Donation {
+  width: 70%;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.codeblock-customizer-readMe {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  margin-top: 32px;
+}

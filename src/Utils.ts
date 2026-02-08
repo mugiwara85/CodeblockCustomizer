@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
-import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -12,7 +12,7 @@ import { toBlob } from 'html-to-image';
 
 export function getCurrentMode() {
   const body = document.querySelector('body');
-  if (body !== null){
+  if (body !== null) {
     if (body.classList.contains('theme-light')) {
       return "light";
     } else if (body.classList.contains('theme-dark')) {
@@ -26,12 +26,12 @@ export function getCurrentMode() {
 
 export function getDefaultParameters(): CBCParameters {
   return {
-    defaultLinesToHighlight: {lineNumbers: [], words: [], lineSpecificWords: []},
-    outputLinesToHighlight: {lineNumbers: [], words: [], lineSpecificWords: []},
-    defaultTextToHighlight: {allWordsInLine: [], lineSpecificTextBetween: [], lineSpecificWords: [], textBetween: [], words: []},
-    outputTextToHighlight: {allWordsInLine: [], lineSpecificTextBetween: [], lineSpecificWords: [], textBetween: [], words: []},
-    alternativeLinesToHighlight: {lines: [], words: [], lineSpecificWords: [], outputLines: [], outputWords: [], outputLineSpecificWords: []},
-    alternativeTextToHighlight: { allWordsInLine: [], lineSpecificWords: [], words: [], textBetween: [], lineSpecificTextBetween: [], outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: []},
+    defaultLinesToHighlight: { lineNumbers: [], words: [], lineSpecificWords: [] },
+    outputLinesToHighlight: { lineNumbers: [], words: [], lineSpecificWords: [] },
+    defaultTextToHighlight: { allWordsInLine: [], lineSpecificTextBetween: [], lineSpecificWords: [], textBetween: [], words: [] },
+    outputTextToHighlight: { allWordsInLine: [], lineSpecificTextBetween: [], lineSpecificWords: [], textBetween: [], words: [] },
+    alternativeLinesToHighlight: { lines: [], words: [], lineSpecificWords: [], outputLines: [], outputWords: [], outputLineSpecificWords: [] },
+    alternativeTextToHighlight: { allWordsInLine: [], lineSpecificWords: [], words: [], textBetween: [], lineSpecificTextBetween: [], outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: [] },
     isSpecificNumber: false,
     lineNumberOffset: 0,
     lineNumberJumps: [],
@@ -50,7 +50,7 @@ export function getDefaultParameters(): CBCParameters {
     indentCharacter: 0,
     lineSeparator: '',
     textSeparator: '',
-    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null, module: null}},
+    prompt: { lineNumbers: [], text: "", values: { user: null, host: null, path: null, db: null, branch: null, module: null } },
     parsePromptId: null,
     noPrompt: false,
     noPromptLines: [],
@@ -58,6 +58,7 @@ export function getDefaultParameters(): CBCParameters {
     noParseLines: [],
     group: '',
     tab: '',
+    output: false,
   }
 }// getDefaultParameters
 
@@ -89,9 +90,9 @@ export function isSpecificHeader(parameters: CBCParameters, settings: CodeblockC
 export function determineDefaultFoldState(parameters: CBCParameters, settings: CodeblockCustomizerSettings, lineCount: number, isSpecificHeader: boolean, mode: "editor" | "reading"): { foldByDefault: boolean; useSemiFold: boolean } {
   const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
   const { enableSemiFold, visibleLines, autoFoldLongCodeblocks, longCodeBlockLines } = settings.pluginSettings.semiFold;
-  
+
   const contentLineCount = mode === "editor" ? lineCount - 2 : lineCount;
-  
+
   const canSemiFold = enableSemiFold && contentLineCount >= visibleLines + fadeOutLineCount;
   const autoFold = isSpecificHeader && enableSemiFold && autoFoldLongCodeblocks && contentLineCount >= longCodeBlockLines;
   //const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold)) || autoFold;
@@ -141,11 +142,11 @@ export function filterOccurrences(allMatches: { from: number, to: number }[], oc
 
   // return matches in their original order
   const sortedIndices = Array.from(selectedIndices).sort((a, b) => a - b);
-  
+
   for (const index of sortedIndices) {
     filteredMatches.push(allMatches[index]);
   }
-  
+
   return filteredMatches;
 }// filterOccurrences
 
@@ -156,12 +157,12 @@ export function getLanguageIcon(DisplayName: string) {
   if (Icons.hasOwnProperty(DisplayName)) {
     return Icons[DisplayName];
   }
-  
+
   return null;
 }// getLanguageIcon
 
 export const BLOBS: Record<string, string> = {};
-export async function loadIcons(plugin: CodeBlockCustomizerPlugin){
+export async function loadIcons(plugin: CodeBlockCustomizerPlugin) {
   /*for (const [key, value] of Object.entries(Icons)) {
     BLOBS[key.replace(/\s/g, "_")] = URL.createObjectURL(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`], { type: "image/svg+xml" }));
   }*/
@@ -190,7 +191,7 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
   const svgJsonContent = await plugin.app.vault.adapter.read(plugin.app.vault.configDir + SVG_FILE_PATH);
   if (!svgJsonContent)
     return;
-  
+
   let languageConfig: customLanguageConfig;
   try {
     languageConfig = JSON.parse(svgJsonContent) as customLanguageConfig;
@@ -220,7 +221,7 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
 
 export function loadSyntaxHighlightForCustomLanguages(plugin: CodeBlockCustomizerPlugin, unload = false) {
   const customLanguageConfig = plugin.customLanguageConfig;
-  if (!customLanguageConfig) 
+  if (!customLanguageConfig)
     return;
 
   for (const lang of customLanguageConfig.languages) {
@@ -234,10 +235,10 @@ export function loadSyntaxHighlightForCustomLanguages(plugin: CodeBlockCustomize
 
 export function getLanguageConfig(codeblockLanguage: string, plugin: CodeBlockCustomizerPlugin): LanguageConfig | undefined {
   codeblockLanguage = codeblockLanguage.toLowerCase();
-  if (!plugin.customLanguageConfig) 
+  if (!plugin.customLanguageConfig)
     return undefined;
 
-  return plugin.customLanguageConfig.languages.find((langConfig: LanguageConfig) => 
+  return plugin.customLanguageConfig.languages.find((langConfig: LanguageConfig) =>
     langConfig.codeblockLanguages.includes(codeblockLanguage)
   );
 }// getLanguageConfig
@@ -292,7 +293,7 @@ export function unregisterExecuteCodeSyntaxHighlighting() {
 // Functions for displaying header BEGIN
 export function createContainer(specific: boolean, languageName: string, hasLangBorderColor: boolean, codeblockLanguageSpecificClass: string, cls?: string) {
   const lang = languageName.length > 0 ? languageName.toLowerCase() : "nolang"
-  const container = createDiv({cls: cls ? cls : `codeblock-customizer-header-container${specific ? '-specific' : ''}`});
+  const container = createDiv({ cls: cls ? cls : `codeblock-customizer-header-container${specific ? '-specific' : ''}` });
   container.classList.add(`codeblock-customizer-language-${lang.toLowerCase()}`);
 
   if (codeblockLanguageSpecificClass)
@@ -312,25 +313,25 @@ export function createCodeblockLang(lang: string, langClass?: string, tabName?: 
   } else {
     textToDisplay = getDisplayLanguageName(lang);
   }
-  const codeblockLang = createDiv({cls: langClass ?? `codeblock-customizer-header-language-tag`, text: textToDisplay || ""});
+  const codeblockLang = createDiv({ cls: langClass ?? `codeblock-customizer-header-language-tag`, text: textToDisplay || "" });
 
   return codeblockLang;
 }// createCodeblockLang
 
 export function createCodeblockIcon(displayLang: string, cls?: string) {
-  const div = createDiv({cls: `codeblock-customizer-icon-container`});
+  const div = createDiv({ cls: `codeblock-customizer-icon-container` });
   const img = document.createElement("img");
   img.classList.add(cls ? cls : "codeblock-customizer-icon");
   img.width = 28; //32
   img.src = BLOBS[displayLang.replace(/\s/g, "_")];
 
   div.appendChild(img);
-  
+
   return div;
 }// createCodeblockIcon
 
 export function createCodeblockCollapse(defaultFold: boolean) {
-  const collapse = createDiv({ cls: `codeblock-customizer-header-collapse`});
+  const collapse = createDiv({ cls: `codeblock-customizer-header-collapse` });
   //collapse.innerText = defaultFold ? "+" : "-";
   if (defaultFold)
     setIcon(collapse, "chevrons-down-up");
@@ -341,7 +342,7 @@ export function createCodeblockCollapse(defaultFold: boolean) {
 }// createCodeblockLang
 
 export function createFileName(text: string, enableLinks: boolean, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
-  const fileName = createDiv({cls: "codeblock-customizer-header-text"});
+  const fileName = createDiv({ cls: "codeblock-customizer-header-text" });
 
   if (enableLinks) {
     MarkdownRenderer.render(plugin.app, text, fileName, sourcePath, plugin);
@@ -349,12 +350,12 @@ export function createFileName(text: string, enableLinks: boolean, sourcePath: s
   else {
     fileName.innerText = text;
   }
-  
+
   return fileName;
 }// createFileName
 
 export function createUncollapseCodeButton() {
-  const uncollapseCodeButton = createSpan( {cls: `codeblock-customizer-uncollapse-code`});
+  const uncollapseCodeButton = createSpan({ cls: `codeblock-customizer-uncollapse-code` });
   uncollapseCodeButton.setAttribute("aria-label", "Uncollapse code block");
   setIcon(uncollapseCodeButton, "chevron-down");
 
@@ -415,7 +416,7 @@ const stylesDict: StylesDict = {
 export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
   const styleId = 'codeblock-customizer-styles';
   let styleTag = document.getElementById(styleId);
-  if (typeof(styleTag) == 'undefined' || styleTag == null) {
+  if (typeof (styleTag) == 'undefined' || styleTag == null) {
     styleTag = document.createElement('style');
     styleTag.id = styleId;
     document.getElementsByTagName('head')[0].appendChild(styleTag);
@@ -427,8 +428,8 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       .codeblock-customizer-line-highlighted-${colorName.replace(/\s+/g, '-').toLowerCase()} {
         background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
       }
-    ` + 
-    `
+    ` +
+      `
       .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()}{
         background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
       }
@@ -437,27 +438,29 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
 
   const languageSpecificStyling = Object.entries(settings.SelectedTheme.colors[currentMode].languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
     const languageStyling = Object.entries(attributes || {}).reduce((languageStyling, [attribute, hexValue]) => {
-        const attributeName = attribute.toLowerCase().replace(/\./g, '-');
+      const attributeName = attribute.toLowerCase().replace(/\./g, '-');
 
-        const mappedAttributeName = stylesDict[attribute] || attributeName;
-        let selector = `.codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
-        //.markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()},
-        let style = `${mappedAttributeName}: ${hexValue}`;        
-        if (mappedAttributeName === "codeblock-textcolor") {
-            selector += `, 
+      const mappedAttributeName = stylesDict[attribute] || attributeName;
+      let selector = `.codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
+      //.markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()},
+      let style = `${mappedAttributeName}: ${hexValue}`;
+      if (mappedAttributeName === "codeblock-textcolor") {
+        selector += `, 
             .markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} [class^="cm-"], 
             .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .codeblock-customizer-line-text, 
-            .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token`;
-            style = `color: ${hexValue} !important`;
-        }
-        if (mappedAttributeName === "codeblock-bracket-highlight-color-match" || mappedAttributeName === "codeblock-bracket-highlight-background-color-match") {
-          selector += ` .codeblock-customizer-bracket-highlight-match`;
-        }
-        if (mappedAttributeName === "codeblock-bracket-highlight-color-nomatch" || mappedAttributeName === "codeblock-bracket-highlight-background-color-nomatch") {
-          selector += ` .codeblock-customizer-bracket-highlight-nomatch`;
-        }
+            .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token,
+            .print .codeblock-customizer-languageSpecific-${language.toLowerCase()} .codeblock-customizer-line-text,
+            .print .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token`;
+        style = `color: ${hexValue} !important`;
+      }
+      if (mappedAttributeName === "codeblock-bracket-highlight-color-match" || mappedAttributeName === "codeblock-bracket-highlight-background-color-match") {
+        selector += ` .codeblock-customizer-bracket-highlight-match`;
+      }
+      if (mappedAttributeName === "codeblock-bracket-highlight-color-nomatch" || mappedAttributeName === "codeblock-bracket-highlight-background-color-nomatch") {
+        selector += ` .codeblock-customizer-bracket-highlight-nomatch`;
+      }
 
-        return languageStyling + `
+      return languageStyling + `
           ${selector} {
             ${mappedAttributeName === "codeblock-textcolor" ? '' : '--'}${style};
           }
@@ -558,7 +561,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       }
     `;
   }
-  
+
   const annotationStyling = `
     body.codeblock-customizer.theme-${currentMode} {
       ${annotationVars}
@@ -588,21 +591,21 @@ export function updateSettingClasses(settings: PluginSettings) {
     // Only inside codeblocks
     document.body.classList.add("codeblock-customizer-active-line-highlight-codeblock");
   }
-  
+
   if (settings.codeblock.enableLineNumbers) {
     document.body.classList.add("codeblock-customizer-show-line-numbers");
   } else {
     document.body.classList.remove("codeblock-customizer-show-line-numbers");
   }
 
-  document.body.classList.remove("codeblock-customizer-show-langnames","codeblock-customizer-show-langnames-always");
+  document.body.classList.remove("codeblock-customizer-show-langnames", "codeblock-customizer-show-langnames-always");
   if (settings.header.alwaysDisplayCodeblockLang && settings.header.displayCodeBlockLanguage) {
     document.body.classList.add("codeblock-customizer-show-langnames-always");
   } else if (settings.header.displayCodeBlockLanguage) {
     document.body.classList.add("codeblock-customizer-show-langnames");
   }
 
-  document.body.classList.remove("codeblock-customizer-show-langicons","codeblock-customizer-show-langicons-always");
+  document.body.classList.remove("codeblock-customizer-show-langicons", "codeblock-customizer-show-langicons-always");
   if (settings.header.alwaysDisplayCodeblockIcon && settings.header.displayCodeBlockIcon) {
     document.body.classList.add("codeblock-customizer-show-langicons-always");
   } else if (settings.header.displayCodeBlockIcon) {
@@ -614,11 +617,11 @@ export function updateSettingClasses(settings: PluginSettings) {
   } else {
     document.body.classList.remove('codeblock-customizer-gutter-highlight');
   }
-  
+
   if (settings.gutter.highlightActiveLineNr)
-		document.body.classList.add('codeblock-customizer-gutter-active-line');
-	else
-		document.body.classList.remove('codeblock-customizer-gutter-active-line');
+    document.body.classList.add('codeblock-customizer-gutter-active-line');
+  else
+    document.body.classList.remove('codeblock-customizer-gutter-active-line');
 
   if (settings.header.collapseIconPosition === "hide") {
     document.body.classList.add('codeblock-customizer-collapseIconNone');
@@ -636,10 +639,10 @@ export function updateSettingClasses(settings: PluginSettings) {
 
   if (settings.codeblock.buttons.enableDeleteCodeButton)
     document.body.classList.add('codeblock-customizer-show-delete-code-button');
-	else
-		document.body.classList.remove('codeblock-customizer-show-delete-code-button');
+  else
+    document.body.classList.remove('codeblock-customizer-show-delete-code-button');
 
-  if (settings.inlineCode.enableInlineCodeStyling){
+  if (settings.inlineCode.enableInlineCodeStyling) {
     document.body.classList.add('codeblock-customizer-style-inline-code');
   } else {
     document.body.classList.remove('codeblock-customizer-style-inline-code');
@@ -660,6 +663,17 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.add('codeblock-customizer-use-semifold');
   } else {
     document.body.classList.remove('codeblock-customizer-use-semifold');
+  }
+
+  document.body.classList.remove('codeblock-customizer-semifold-effect-opacity');
+  document.body.classList.remove('codeblock-customizer-semifold-effect-blur');
+  if (settings.semiFold.semifoldEffect === SemiFoldEffect.Opacity) {
+    document.body.classList.add('codeblock-customizer-semifold-effect-opacity');
+  } else if (settings.semiFold.semifoldEffect === SemiFoldEffect.Blur) {
+    document.body.classList.add('codeblock-customizer-semifold-effect-blur');
+  } else {
+    document.body.classList.add('codeblock-customizer-semifold-effect-opacity');
+    document.body.classList.add('codeblock-customizer-semifold-effect-blur');
   }
 
   if (settings.semiFold.showAdditionalUncollapseButon) {
@@ -745,33 +759,33 @@ function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurren
     }
     body.codeblock-customizer.theme-light {
       ${Object.keys(stylesDict).reduce((variables, key) => {
-        const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
-        let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.light);
+    const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
+    let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.light);
 
-        if (cssValue != null) {
-          if (cssValue.toString().startsWith("--")) {
-            cssValue = "var(" + cssValue + ")";
-          }
-          return variables + `${cssVariable}: ${cssValue};`;
-        } else {
-          return variables;
-        }
-      },addAltHighlightColors(colors.light.codeblock.alternateHighlightColors))}
+    if (cssValue != null) {
+      if (cssValue.toString().startsWith("--")) {
+        cssValue = "var(" + cssValue + ")";
+      }
+      return variables + `${cssVariable}: ${cssValue};`;
+    } else {
+      return variables;
+    }
+  }, addAltHighlightColors(colors.light.codeblock.alternateHighlightColors))}
     } 
     body.codeblock-customizer.theme-dark {
       ${Object.keys(stylesDict).reduce((variables, key) => {
-        const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
-        let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.dark);
+    const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
+    let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.dark);
 
-        if (cssValue != null) {
-          if (cssValue.toString().startsWith("--")) {
-            cssValue = "var(" + cssValue + ")";
-          }
-          return variables + `${cssVariable}: ${cssValue};`;
-        } else {
-          return variables;
-        }
-      },addAltHighlightColors(colors.dark.codeblock.alternateHighlightColors))}
+    if (cssValue != null) {
+      if (cssValue.toString().startsWith("--")) {
+        cssValue = "var(" + cssValue + ")";
+      }
+      return variables + `${cssVariable}: ${cssValue};`;
+    } else {
+      return variables;
+    }
+  }, addAltHighlightColors(colors.dark.codeblock.alternateHighlightColors))}
     }
   `;
 }// formatStyles
@@ -780,14 +794,14 @@ export function getColorOfCssVariable(cssVariable: string) {
   const body = document.body;
   const computedStyle = getComputedStyle(body);
   const colorValue = computedStyle.getPropertyValue(cssVariable).trim();
-  
+
   if (colorValue.startsWith("rgb"))
     return rgbOrRgbaToHex(colorValue);
   if (colorValue.startsWith("hsl"))
     return hslOrHslaToHex(colorValue);
   if (colorValue.startsWith("#"))
     return colorValue;
-  else 
+  else
     return "";
 }// getColorOfCssVariable
 
@@ -935,9 +949,9 @@ function accessSetting(key: string, settings: Colors) {
 export function removeCharFromStart(input: string, charToRemove: string): string {
   let startIndex = 0;
   while (startIndex < input.length && (input[startIndex] === charToRemove || input[startIndex] === ' ')) {
-      startIndex++;
+    startIndex++;
   }
-  
+
   return input.slice(startIndex);
 }// removeCharFromStart
 
@@ -978,10 +992,10 @@ export function getTextValues(rawText: string) {
 
 function extractText(input: string): { before: string, after: string } | string {
   if (input.includes('|')) {
-      const [before, after] = input.split('|');
-      return { before, after };
+    const [before, after] = input.split('|');
+    return { before, after };
   } else {
-      return input;
+    return input;
   }
 }// extractText
 
@@ -993,7 +1007,7 @@ export function getLanguageSpecificColorClass(codeblockLanguage: string, languag
   // Check if languageSpecificColors contains properties
   if (languageSpecificColors) {
     const result = Object.keys(languageSpecificColors).find(key => key.toLowerCase() === lowerCaseLanguage);
-    
+
     if (result && Object.keys(languageSpecificColors[result]).length > 0) {
       codeblockLanguageSpecificClass = "codeblock-customizer-languageSpecific-" + lowerCaseLanguage;
     }
@@ -1007,7 +1021,7 @@ export function getLanguageSpecificColorClass(codeblockLanguage: string, languag
   return codeblockLanguageSpecificClass;
 }// getLanguageSpecificColorClass
 
-export function createObjectCopy(object: Record<string, string>){
+export function createObjectCopy(object: Record<string, string>) {
   const newObject: Record<string, string> = {};
   for (const [property, value] of Object.entries(object)) {
     newObject[property] = value;
@@ -1029,17 +1043,17 @@ export function findAllOccurrences(mainString: string, substring: string): numbe
     indices.push(currentIndex);
     currentIndex = mainString.indexOf(substring, currentIndex + substring.length);
   }
-  
+
   return indices;
 }// findAllOccurrences
 
 export function removeFirstLine(inputString: string): string {
   const lines = inputString.split('\n');
-  
+
   if (lines.length > 1) {
     const modifiedLines = lines.slice(1);
     const resultString = modifiedLines.join('\n');
-    
+
     return resultString;
   } else {
     // If there's only one line or the input is empty, return an empty string
@@ -1047,7 +1061,7 @@ export function removeFirstLine(inputString: string): string {
   }
 }// removeFirstLine
 
-export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin ,settings: CodeblockCustomizerSettings) {
+export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const borderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors;
 
   Object.entries(borderColors).forEach(([languageName, borderColor]) => {
@@ -1064,7 +1078,7 @@ export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomiz
     delete settings.SelectedTheme.colors.light.codeblock.languageBorderColors[languageName];
     delete settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[languageName];
   });
-  (async () => {await app.saveSettings()})();
+  (async () => { await app.saveSettings() })();
 
 }// mergeBorderColorsToLanguageSpecificColors
 
@@ -1083,11 +1097,11 @@ export function getPropertyFromLanguageSpecificColors(propertyName: string, sett
 
 export async function getFileCacheAndContentLines(plugin: CodeBlockCustomizerPlugin, filePath: string): Promise<{ cache: CachedMetadata | null, fileContentLines: string[] | null }> {
   if (filePath === '')
-    return {cache: null, fileContentLines: null};
-  
+    return { cache: null, fileContentLines: null };
+
   const cache = plugin.app.metadataCache.getCache(filePath);
   if (!cache)
-    return {cache: null, fileContentLines: null};
+    return { cache: null, fileContentLines: null };
 
   const file = plugin.app.vault.getAbstractFileByPath(filePath);
   if (!file) {
@@ -1117,7 +1131,7 @@ export function removeIndentation(input: string[]): string[] {
   return input.map(removeSpaces);
 }// removeIndentation
 
-export async function indentCodeBlock(editor: Editor, view: MarkdownView){
+export async function indentCodeBlock(editor: Editor, view: MarkdownView) {
   const cursorPos = editor.getCursor();
   const { cache, fileContentLines } = await getFileCacheAndContentLines(this, view.file?.path ?? '')
   if (!cache || !fileContentLines)
@@ -1128,8 +1142,8 @@ export async function indentCodeBlock(editor: Editor, view: MarkdownView){
       if (sections.type === "code" && cursorPos.line >= sections.position.start.line && cursorPos.line <= sections.position.end.line) {
         const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
         const indentedLines = addIndentation(codeBlockLines);
-        const pos: EditorPosition = {line: sections.position.start.line, ch: 0};
-        const endPos: EditorPosition = {line: sections.position.end.line, ch: sections.position.end.col};
+        const pos: EditorPosition = { line: sections.position.start.line, ch: 0 };
+        const endPos: EditorPosition = { line: sections.position.end.line, ch: sections.position.end.col };
         editor.replaceRange(indentedLines.join('\n'), pos, endPos);
         view.save();
       }
@@ -1148,8 +1162,8 @@ export async function unIndentCodeBlock(editor: Editor, view: MarkdownView) {
       if (sections.type === "code" && cursorPos.line >= sections.position.start.line && cursorPos.line <= sections.position.end.line) {
         const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
         const indentedLines = removeIndentation(codeBlockLines);
-        const pos: EditorPosition = {line: sections.position.start.line, ch: 0};
-        const endPos: EditorPosition = {line: sections.position.end.line, ch: sections.position.end.col};
+        const pos: EditorPosition = { line: sections.position.start.line, ch: 0 };
+        const endPos: EditorPosition = { line: sections.position.end.line, ch: sections.position.end.col };
         editor.replaceRange(indentedLines.join('\n'), pos, endPos);
         view.save();
       }
@@ -1161,8 +1175,8 @@ export function getInlineCodeIcon(displayLanguage: string, additionalClass?: str
   const container = createSpan({ cls: `codeblock-customizer-inline-code-icon-container` });
   if (additionalClass)
     container.classList.add(additionalClass);
-  
-  const iconSpan = createSpan({cls: `codeblock-customizer-icon-container`}); // these icons must be in an SPAN not a DIV... have to change this later
+
+  const iconSpan = createSpan({ cls: `codeblock-customizer-inline-icon-wrapper` }); // these icons must be in an SPAN not a DIV... have to change this later
   const iconDiv = createCodeblockIcon(displayLanguage, `codeblock-customizer-inline-code-icon`);
   if (iconDiv.firstChild) {
     iconSpan.appendChild(iconDiv.firstChild);
@@ -1254,7 +1268,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
 
         if (isHighlighted) {
           const highlightColor = window.getComputedStyle(line).backgroundColor;
-          
+
           if (settings.pluginSettings.gutter.enableHighlight) {
             line.style.background = highlightColor;
           } else {
@@ -1273,8 +1287,8 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
     const height = elementToSnapshot.clientHeight;
     const dpr = window.devicePixelRatio || 1;
     const pixelRatio = (dpr === 1) ? 1 : Math.max(Math.ceil(dpr), 2);// 3 would be for 250% or 300% scaling
-    
-    const blobOptions = {pixelRatio: pixelRatio, width: width, height: height, ...options,};
+
+    const blobOptions = { pixelRatio: pixelRatio, width: width, height: height, ...options, };
 
     const dataBlob = await toBlob(elementToSnapshot, blobOptions);
     if (!dataBlob) {
@@ -1305,13 +1319,13 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
     ctx.arcTo(0, 0, borderRadius, 0, borderRadius);
     ctx.closePath();
     ctx.clip();
-    
+
     const image = await createImageBitmap(dataBlob);
     ctx.drawImage(image, 0, 0, canvasWidth, canvasHeight);
 
     const finalBlob = await getCanvasBlob(canvas);
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': finalBlob })]);
-    
+
     new Notice("Snapshot copied to clipboard!");
 
   } catch (error) {
@@ -1361,14 +1375,14 @@ function getCanvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 export function getDisplayLanguageName(code: string | null) {
   if (!code)
     return "";
-  
+
   code = code.toLowerCase();
-  
+
   if (Languages.hasOwnProperty(code)) {
     return Languages[code];
   } else if (manualLang.hasOwnProperty(code)) {
     return manualLang[code];
-  } else if (code){
+  } else if (code) {
     return code.charAt(0).toUpperCase() + code.slice(1);
   }
 

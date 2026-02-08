@@ -1,0 +1,37 @@
+{
+    "extends": [
+        "stylelint-config-standard-scss",
+        "stylelint-config-idiomatic-order"
+    ],
+    "plugins": [
+        "@stylistic/stylelint-plugin",
+        "stylelint-declaration-block-no-ignored-properties",
+        "stylelint-no-nested-media",
+        "stylelint-plugin-defensive-css",
+        "stylelint-high-performance-animation",
+        "stylelint-gamut"
+    ],
+    "rules": {
+        "plugin/declaration-block-no-ignored-properties": true,
+        "pitcher/no-nested-media": true,
+        "plugin/use-defensive-css": [
+            true,
+            {
+                "accidental-hover": true,
+                "background-repeat": true,
+                "custom-property-fallbacks": false,
+                "flex-wrapping": true,
+                "scroll-chaining": true,
+                "vendor-prefix-grouping": true
+            }
+        ],
+        "plugin/no-low-performance-animation-properties": true,
+        "gamut/color-no-out-gamut-range": true,
+        "no-descending-specificity": null,
+        "selector-class-pattern": null,
+        "scss/at-mixin-pattern": null,
+        "scss/dollar-variable-pattern": null,
+        "@stylistic/indentation": 2,
+        "@stylistic/declaration-colon-space-after": "always"
+    }
+}

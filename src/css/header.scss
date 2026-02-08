@@ -1,0 +1,348 @@
+@use 'mixins';
+
+/* Header styling */
+body {
+  &:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langicons) {
+    .codeblock-customizer-header-container-specific,
+    .codeblock-customizer-header-group-container {
+      .codeblock-customizer-icon-container {
+        display: none;
+      }
+    }
+  }
+
+  &:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container .codeblock-customizer-icon-container {
+    display: none;
+  }
+
+  &:not(.codeblock-customizer-show-langnames-always, .codeblock-customizer-show-langnames) {
+    .codeblock-customizer-header-container-specific,
+    .codeblock-customizer-header-group-container {
+      .codeblock-customizer-header-language-tag {
+        display: none;
+      }
+    }
+  }
+
+  &:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container .codeblock-customizer-header-language-tag {
+    display: none;
+  }
+
+  &:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langnames-always) .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container {
+    display: none !important;
+  }
+
+  &:not(.codeblock-customizer-show-langnames-always) .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container:not(.has-icon) {
+    display: none !important;
+  }
+
+  .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container:not(.has-icon) {
+    display: none !important;
+  }
+
+  &[class*='codeblock-customizer-show-langnames'] {
+    .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text,
+    .codeblock-customizer-header-group-container .codeblock-customizer-header-group-tabs+.codeblock-customizer-header-text,
+    .codeblock-customizer-header-container-specific .codeblock-customizer-header-group-tabs+.codeblock-customizer-header-text {
+      padding-left: 0;
+    }
+  }
+
+  &[class*='codeblock-customizer-show-langicons'] {
+    .codeblock-customizer-header-container-specific.has-icon .codeblock-customizer-header-text,
+    .codeblock-customizer-header-group-container.has-icon .codeblock-customizer-header-text {
+      padding-left: 0;
+    }
+  }
+
+  &[class*='codeblock-customizer-show-langnames-always'] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text,
+  &[class*='codeblock-customizer-show-langicons-always'] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container.has-icon .codeblock-customizer-header-text {
+    padding-left: 0;
+  }
+
+  &.codeblock-customizer-show-langicons-always .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) .codeblock-customizer-header-text,
+  &.codeblock-customizer-show-langnames-always .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) .codeblock-customizer-header-text {
+    padding-left: 0;
+  }
+
+  &.codeblock-customizer-style-codeblock-border-left {
+    &:not([class*="codeblock-customizer-show-langicons"]) {
+      .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag,
+      .codeblock-customizer-header-group-container.hasLangBorderColor .codeblock-customizer-header-group-tab:first-child,
+      .codeblock-customizer-header-container-specific .codeblock-customizer-header-group-tab {
+        border-bottom-left-radius: 0 !important;
+        border-top-left-radius: 0 !important;
+      }
+    }
+
+    &:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container .codeblock-customizer-header-language-tag {
+      border-bottom-left-radius: 0 !important;
+      border-top-left-radius: 0 !important;
+    }
+
+    .codeblock-customizer-header-container-specific:not(:has(div > img.codeblock-customizer-icon)) .codeblock-customizer-header-language-tag,
+    .codeblock-customizer-header-group-container.hasLangBorderColor:not(:has(div > img.codeblock-customizer-icon)) .codeblock-customizer-header-group-tab:first-child,
+    .codeblock-customizer-header-container-specific:not(:has(div > img.codeblock-customizer-icon)) .codeblock-customizer-header-group-tab {
+      border-bottom-left-radius: 0 !important;
+      border-top-left-radius: 0 !important;
+    }
+  }
+}
+
+.codeblock-customizer {
+  &-header-container,
+  &-header-container-specific,
+  &-header-group-container {
+    position: relative;
+    display: flex !important;
+    overflow: visible;
+    height: var(--language-icon-size);
+    flex-wrap: nowrap;
+    padding-top: var(--header-padding);
+
+    /* border-bottom: 2px groove var(--codeblock-customizer-header-line-color); */
+
+    padding-bottom: 2px;
+    background-color: var(--header-background-color, var(--codeblock-customizer-header-background-color));
+    background-image: linear-gradient(var(--header-line-color, var(--codeblock-customizer-header-line-color)), var(--header-line-color, var(--codeblock-customizer-header-line-color)));
+    background-position: bottom;
+    background-repeat: no-repeat;
+    background-size: 100% 2px;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+    font-family: var(--font-text);
+
+    /* font-size: 14px; */
+    font-size: var(--code-size);
+    user-select: none;
+
+    .codeblock-customizer-header-text {
+      padding-left: var(--header-spacing);
+    }
+  }
+
+  &-header-collapse {
+    position: absolute;
+
+    /* var(--header-text-color, var(--codeblock-customizer-header-text-color)); */
+    top: 50%;
+    padding-top: 0.3em;
+    color: var(--text-muted);
+    font-size: large;
+    font-weight: bold;
+
+    /* width: 20px; */
+  }
+
+  &-collapseIconRight &-header-collapse {
+    /* display the collapse icon on the right side */
+    right: 15px;
+    transform: translate(0, -50%);
+  }
+
+  &-collapseIconMiddle &-header-collapse {
+    /* display the collapse icon centered */
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  &-collapseIconNone &-header-collapse {
+    display: none
+  }
+
+  // grouped code blocks
+  &-header-group-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  &-header-group-tab {
+    display: flex;
+    height: 100%;
+    flex-flow: row nowrap;
+
+    /* column; */
+    align-items: center;
+    justify-content: center;
+    padding: calc(1em * 0.3) var(--header-spacing) calc(1em * 0.3) var(--header-spacing);
+    border-right: 1px solid rgb(0 0 0 / 20%);
+
+    /* border-radius: var(--border-radius) var(--border-radius) 0px 0px; */
+    background-color: var(--header-language-tag-background-color, var(--codeblock-customizer-header-language-tag-background-color));
+    color: var(--header-language-tag-text-color, var(--codeblock-customizer-header-language-tag-text-color));
+    font-size: 14px;
+    font-style: var(--codeblock-customizer-language-tag-text-italic, normal);
+    font-weight: var(--codeblock-customizer-language-tag-text-bold, normal);
+    /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+    transition: background-color 0.2s ease, color 0.2s ease;
+
+    &:last-child {
+      /* border-right: none; */
+      border-right-color: transparent;
+      margin-right: var(--header-spacing);
+      border-top-right-radius: var(--border-radius);
+    }
+
+    &:first-child {
+      border-top-left-radius: var(--border-radius);
+    }
+
+    // If an inactive tab is directly before the active tab, remove its right border
+    &:not(.active)+.active {
+      // border-right: none;
+      border-right-color: transparent;
+    }
+
+    @media (hover: hover) {
+      &:not(.active):hover {
+        background-color: var(--codeblock-customizer-groupedcodeblock-hover-tab-background-color);
+        color: var(--codeblock-customizer-groupedcodeblock-hover-tab-text-color);
+      }
+    }
+
+    &.active {
+      // border-right: none;
+      border-right-color: transparent;
+      background-color: var(--codeblock-customizer-groupedcodeblock-active-tab-color);
+      color: var(--codeblock-customizer-groupedcodeblock-active-tab-text-color);
+      font-weight: var(--codeblock-customizer-language-tag-text-bold, normal);
+      opacity: 1;
+    }
+  }
+
+  &-show-grouped-add-remove-buttons .markdown-source-view .codeblock-customizer-header-group-tab {
+    padding-right: 0;
+  }
+
+  // if the + button is there don't apply the margin-right
+  &-show-grouped-add-remove-buttons .codeblock-customizer-header-group-tab:has(+ .codeblock-customizer-tab-add) {
+    border-right-color: transparent;
+    border-top-right-radius: var(--border-radius);
+  }
+
+  // style for the 'x' button on a tab
+  &-tab-remove {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius);
+    margin-bottom: 8px;
+    margin-left: 3px;
+    cursor: pointer;
+    opacity: 0.6;
+
+    .svg-icon {
+      width: 12px;
+      height: 12px;
+      stroke-width: 4px;
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: var(--color-red);
+        color: white;
+      }
+    }
+  }
+
+  // style for the '+' button after tabs
+  &-tab-add {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    padding: var(--size-4-1) var(--size-4-2);
+
+    /* height: 30px; */
+
+    /* min-width: 26px; */
+    border-radius: var(--radius-s);
+    margin: 2px 5px 2px 2px;
+
+    /* opacity: 0.6; */
+    color: var(--text-muted);
+    cursor: var(--cursor);
+
+    .svg-icon {
+      height: 24px;
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: var(--background-modifier-hover);
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.markdown-source-view .codeblock-customizer-header-container.collapsed,
+.markdown-source-view .codeblock-customizer-header-container-specific:not(.markdown-rendered *).collapsed,
+.markdown-rendered .codeblock-customizer-header-container.collapsed,
+.markdown-rendered .codeblock-customizer-header-container-specific.collapsed,
+.markdown-rendered .codeblock-customizer-header-group-container.collapsed {
+  /*  padding-bottom: var(--header-padding); */
+  border-bottom-left-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
+
+  /* border-bottom: none; */
+
+  /* must be removed, because it causes the icon to expand and shrink vertically on collapse/uncollapse. */
+}
+
+.codeblock-customizer-header-container,
+.codeblock-customizer-header-container-specific {
+  .codeblock-customizer-header-language-tag {
+    display: flex;
+    height: 100%;
+    flex-flow: column nowrap;
+    justify-content: center;
+    padding: calc(1em * 0.3) var(--header-spacing) calc(1em * 0.3) var(--header-spacing);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    margin-right: var(--header-spacing);
+    background-color: var(--header-language-tag-background-color, var(--codeblock-customizer-header-language-tag-background-color));
+    color: var(--header-language-tag-text-color, var(--codeblock-customizer-header-language-tag-text-color));
+
+    /* font-size: inherit; */
+    font-size: 14px;
+    font-style: var(--codeblock-customizer-language-tag-text-italic, normal);
+    font-weight: var(--codeblock-customizer-language-tag-text-bold, normal);
+  }
+}
+
+.markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-language-tag,
+/* .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-language-tag, */
+.markdown-rendered .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-language-tag,
+.markdown-rendered .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-language-tag {
+  border-radius: var(--border-radius);
+}
+
+.codeblock-customizer-header-text,
+.codeblock-customizer-header-text>p {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+  padding-top: calc(1em * 0.3);
+  padding-bottom: calc(1em * 0.3);
+  padding-left: 0;
+  color: var(--header-text-color, var(--codeblock-customizer-header-text-color));
+
+  /* font-size: inherit; */
+  font-size: 14px;
+  font-style: var(--codeblock-customizer-header-text-italic, normal);
+  font-weight: var(--codeblock-customizer-header-text-bold, normal);
+}
+
+.codeblock-customizer-header-text>p {
+  display: inline-block;
+  margin: 0;
+}
+
+.codeblock-customizer-show-langicons-always .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) .codeblock-customizer-header-text,
+.codeblock-customizer-show-langnames-always .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) .codeblock-customizer-header-text,
+.codeblock-customizer-header-group-container .codeblock-customizer-header-text {
+  padding-left: 0;
+}

@@ -204,7 +204,7 @@ export const defaultPrompts: Record<string, PromptDefinition> = {
     defaultUser: "Administrator",
     defaultHost: "localhost",
     defaultDir: "C:\\Users\\Administrator",
-    parsePromptRegex: /^PS (?<path>.+?)>\s*/, 
+    parsePromptRegex: /^PS (?<path>.+?)>\s*/,
     highlightGroups: {
       path: "path"
     },
@@ -320,7 +320,7 @@ export interface StyledPart {
   from: number;
   to: number;
   className: string;
-  node?: HTMLElement; 
+  node?: HTMLElement;
   key?: string;
 }
 
@@ -392,7 +392,7 @@ export class PromptManager {
 
     this.promptEnv = result.newEnv;
     this.cache = result.newCache;
-    
+
     const output = this.getCommandOutput(lineText, this.promptEnv, false);
     const isRoot = !!(snapshot.user === "root" && this.context.promptDef.supportsRootStyling);
     const styledParts = [{ from: 0, to: 0, className: 'widget', node: result.node, key: result.key }];
@@ -402,25 +402,25 @@ export class PromptManager {
 
   private renderParseModeLine(lineText: string): PromptLineRenderResult {
     const match = this.parsePromptRegex ? lineText.match(this.parsePromptRegex) : null;
-    
+
     if (match && match.index === 0) {
       const matchedPromptText = match[0];
       const commandText = lineText.substring(matchedPromptText.length);
 
       if (match.groups) {
-        if (match.groups.path) 
+        if (match.groups.path)
           this.promptEnv.dir = match.groups.path;
-        if (match.groups.user) 
+        if (match.groups.user)
           this.promptEnv.user = match.groups.user;
-        if (match.groups.host) 
+        if (match.groups.host)
           this.promptEnv.host = match.groups.host;
-        if (match.groups.db) 
+        if (match.groups.db)
           this.promptEnv.db = match.groups.db;
-        if (match.groups.branch) 
+        if (match.groups.branch)
           this.promptEnv.branch = match.groups.branch;
-        if (match.groups.keyword) 
+        if (match.groups.keyword)
           this.promptEnv.msfKeyword = match.groups.keyword;
-        if (match.groups.module) 
+        if (match.groups.module)
           this.promptEnv.msfModule = match.groups.module;
       }
 
@@ -429,7 +429,7 @@ export class PromptManager {
       const output = this.getCommandOutput(commandText, this.promptEnv, true);
 
       this.promptEnv = this.parsePromptCommands(commandText, this.context.promptDef, this.promptEnv);
-      
+
       const lineClassName = `codeblock-customizer-prompt-${this.context.promptType}`;
 
       return { styledParts, output, matchedLength: matchedPromptText.length, lineClassName, isRoot };
@@ -482,7 +482,7 @@ export class PromptManager {
         parts.push({ from: i, to: i + 1, className: `prompt-part ${cls}` });
       }
     }
-    
+
     return parts;
   }// getStyledPromptParts
 
@@ -535,16 +535,30 @@ export class PromptManager {
       }
     }
 
-    if (!promptText) 
+    if (!promptText) {
       return lines;
+    }
 
     if (parameters.prompt.lineNumbers.length > 0) {
+      // (displayed) lines are provided
       for (const ln of parameters.prompt.lineNumbers) {
         lines.add(ln);
       }
     } else {
-      for (let i = 1; i <= totalLines; i++) {
-        lines.add(i);
+      // no specific lines --> apply to all lines
+      let currentDisplayedLineNumber = parameters.lineNumberOffset;
+      const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
+      let jumpIdx = 0;
+
+      for (let i = 0; i < totalLines; i++) {
+        currentDisplayedLineNumber++;
+
+        if (jumpIdx < jumps.length && currentDisplayedLineNumber === jumps[jumpIdx].lineNumber) {
+          currentDisplayedLineNumber = jumps[jumpIdx].newStartNumber;
+          jumpIdx++;
+        }
+
+        lines.add(currentDisplayedLineNumber);
       }
     }
 
@@ -557,7 +571,7 @@ export class PromptManager {
 
     return lines;
   }// computePromptLines
-  
+
   private parsePromptCommands(lineText: string, promptDef: PromptDefinition | undefined, env: PromptEnvironment): PromptEnvironment {
     const envCopy = { ...env };
     envCopy.userStack = [...(env.userStack ?? [])];
@@ -608,7 +622,7 @@ export class PromptManager {
       if (envCopy.userStack.length < 5) {
         envCopy.userStack.push(env.user);
       }
-      
+
       envCopy.user = suMatch[1] || "root";
       if (isWindowsShell) {
         envCopy.homeDir = `C:\\Users\\${envCopy.user}`;
@@ -650,20 +664,20 @@ export class PromptManager {
   private resolvePath(current: string, target: string, isWindows: boolean, homeDir?: string): string {
     const separator = isWindows ? "\\" : "/";
     const home = homeDir || (isWindows ? "C:\\Users\\User" : "/home/user");
-  
+
     // cd "" or cd " " should do nothing, just return the current path
     if (target.trim() === "") {
       return current;
     }
-    
+
     // cd (with no argument) or cd ~ should go to the home directory
     if (target === null || target === undefined || target.trim() === "~") {
       return "~";
     }
-  
+
     let path_to_process: string;
     const isUNC = isWindows && (target.startsWith("\\\\") || target.startsWith("//"));
-  
+
     if (isUNC) {
       path_to_process = "\\\\" + target.slice(2).replace(/[\\/]+/g, separator);
     } else {
@@ -671,7 +685,7 @@ export class PromptManager {
       if (resolvingTarget.startsWith("~" + separator)) {
         resolvingTarget = home + resolvingTarget.slice(1);
       }
-  
+
       const isTargetAbsolute = isWindows ? /^[a-zA-Z]:\\/.test(resolvingTarget) || resolvingTarget.startsWith(separator) : resolvingTarget.startsWith(separator);
       if (isTargetAbsolute) {
         if (isWindows && resolvingTarget.startsWith(separator)) {
@@ -687,11 +701,11 @@ export class PromptManager {
         path_to_process = absoluteCurrent + separator + resolvingTarget;
       }
     }
-   
+
     let prefix: string;
     let parts: string[];
     const stack: string[] = [];
-  
+
     if (isWindows && path_to_process.startsWith("\\\\")) { // UNC Path
       const pathParts = path_to_process.slice(2).split(separator);
       prefix = `\\\\${pathParts.shift() || ""}\\${pathParts.shift() || ""}`;
@@ -703,13 +717,13 @@ export class PromptManager {
       prefix = "/";
       parts = path_to_process.substring(1).split(separator);
     }
-  
-    if(isWindows && !path_to_process.startsWith("\\\\")){
-      stack.push(...prefix.split(separator).filter(p=>p && p.includes(':') === false));
-    } else if (!isWindows){
-        stack.push(...prefix.split(separator).filter(p=>p));
+
+    if (isWindows && !path_to_process.startsWith("\\\\")) {
+      stack.push(...prefix.split(separator).filter(p => p && p.includes(':') === false));
+    } else if (!isWindows) {
+      stack.push(...prefix.split(separator).filter(p => p));
     }
-  
+
     for (const part of parts) {
       if (part === ".." && stack.length > 0) {
         stack.pop();
@@ -717,13 +731,13 @@ export class PromptManager {
         stack.push(part);
       }
     }
-  
+
     if (isWindows) {
       if (path_to_process.startsWith("\\\\")) { // rebuild UNC path
         return prefix + (stack.length > 0 ? separator + stack.join(separator) : separator);
       }
       // rebuild windows path, and ensure C:\ for root.
-      return prefix.substring(0,2) + separator + stack.join(separator);
+      return prefix.substring(0, 2) + separator + stack.join(separator);
     } else { // rebuild linux path
       return prefix + stack.join(separator);
     }
@@ -788,7 +802,7 @@ export class PromptManager {
 
     const newEnv = shellCmdRegex.test(lineText) ? this.parsePromptCommands(lineText, ctx.promptDef, snapshotEnv) : snapshotEnv;
 
-    return { promptData: promptContent, newEnv, newCache: cache, node, key};
+    return { promptData: promptContent, newEnv, newCache: cache, node, key };
   }// renderPromptLine
 
   private promptEnvKey(env: PromptEnvironment): string {

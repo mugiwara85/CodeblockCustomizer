@@ -1,0 +1,208 @@
+/* Line number gutter styling */
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .codeblock-customizer-line-number,
+.codeblock-customizer-line-number-hide {
+  display: none;
+}
+
+.markdown-rendered .codeblock-customizer-pre>code {
+  &>div:first-child,
+  &>.codeblock-customizer-lines-below-collapsed {
+    &>.codeblock-customizer-line-number,
+    &>.codeblock-customizer-line-number-specific {
+      /* Maintain gutter color when padded */
+      box-shadow: 0 calc(-1 * var(--code-padding)) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+    }
+  }
+
+  &>div:last-child,
+  &>.codeblock-customizer-lines-below-collapsed {
+    &>.codeblock-customizer-line-number,
+    &>.codeblock-customizer-line-number-specific {
+      /* Maintain gutter color when padded */
+      box-shadow: 0 var(--code-padding) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+    }
+  }
+
+  &>div:only-child {
+    &>.codeblock-customizer-line-number,
+    &>.codeblock-customizer-line-number-specific {
+      /* Maintain gutter color when padded */
+      box-shadow: 0 calc(-1 * var(--code-padding)) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)), 0 var(--code-padding) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+    }
+  }
+}
+
+.codeblock-customizer-line-number,
+.codeblock-customizer-line-number-specific {
+  position: sticky;
+  z-index: 1;
+  left: 0;
+  min-width: var(--line-number-gutter-width);
+  padding-top: 2px;
+  padding-right: 8px;
+  padding-left: 4px;
+  background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+  color: var(--gutter-text-color, var(--codeblock-customizer-gutter-text-color));
+  font-family: var(--font-monospace);
+  font-size: var(--code-size);
+  text-align: right;
+  user-select: none;
+}
+
+.codeblock-customizer-line-number-specific {
+  width: var(--gutter-width);
+}
+
+.markdown-source-view {
+  .codeblock-customizer-line-number,
+  .codeblock-customizer-line-number-specific {
+    position: absolute;
+    left: 0;
+    display: inline-block;
+    height: 100%;
+  }
+
+  .codeblock-customizer-line-number {
+    width: var(--line-number-gutter-width);
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .codeblock-customizer-line-number-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific-number) {
+  --gutter-width: var(--line-number-gutter-width);
+
+  padding-left: calc(var(--gutter-width) + var(--line-number-gutter-padding)) !important;
+}
+
+.markdown-rendered .codeblock-customizer-line-number,
+.markdown-rendered .codeblock-customizer-line-number-specific {
+  flex-grow: 1;
+  flex-shrink: 0;
+}
+
+/* Active line highlight in gutter */
+.codeblock-customizer-gutter-highlight {
+  &.codeblock-customizer-active-line-highlight,
+  &.codeblock-customizer-active-line-highlight-codeblock {
+    .markdown-source-view [class*="codeblock-customizer-line"].cm-active {
+      .codeblock-customizer-line-number,
+      .codeblock-customizer-line-number-specific {
+        background-color: rgb(0 0 0 / 0%);
+      }
+    }
+  }
+
+  [class*="codeblock-customizer-line-highlighted"] {
+    .codeblock-customizer-line-number,
+    .codeblock-customizer-line-number-specific {
+      background-color: rgb(0 0 0 / 0%);
+    }
+  }
+}
+
+.codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-source-view {
+  [class*="codeblock-customizer-line"].HyperMD-codeblock:has(.codeblock-customizer-line-number) {
+    padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
+  }
+}
+
+.codeblock-customizer .markdown-source-view {
+  [class*="codeblock-customizer-line"].HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) {
+    padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
+  }
+
+  [class^="codeblock-customizer-line"][style*="--level:"] {
+    padding-left: var(--line-number-gutter-padding);
+  }
+}
+
+/* Active gutter line number highlight */
+.codeblock-customizer-gutter-active-line .cm-active .cbc-line-num {
+  color: var(--gutter-active-linenr-color, var(--codeblock-customizer-gutter-active-linenr-color));
+}
+
+/* line number jumps */
+.codeblock-customizer-line-with-jump {
+  position: relative;
+  padding-bottom: 1.5em !important;
+}
+
+.markdown-rendered .codeblock-customizer-line-with-jump {
+  padding-bottom: 0 !important;
+
+  .codeblock-customizer-line-text {
+    padding-bottom: 1.5em !important;
+  }
+}
+
+.codeblock-customizer-line-separator {
+  position: absolute;
+  z-index: 10;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: 100%;
+  height: 1.5em;
+  align-items: center;
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+  pointer-events: none;
+
+  .codeblock-customizer-line-separator-gutter {
+    display: flex;
+    width: var(--gutter-width);
+    min-width: var(--line-number-gutter-width);
+    height: 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 2px;
+    padding-right: 8px;
+    padding-left: 4px;
+    background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+    color: var(--gutter-text-color, var(--codeblock-customizer-gutter-text-color));
+    font-family: var(--font-monospace);
+    font-size: var(--code-size);
+  }
+}
+
+.codeblock-customizer-linenumberseparator-dashed .codeblock-customizer-line-separator-content {
+  height: 1px;
+  flex-grow: 1;
+  border-bottom: 2px dashed var(--text-muted);
+  margin-left: var(--line-number-gutter-padding);
+  opacity: 0.5;
+}
+
+.codeblock-customizer-linenumberseparator-doubleline .codeblock-customizer-line-separator-content {
+  height: 3px;
+  flex-grow: 1;
+  align-self: center !important;
+  border-top: 1px solid var(--text-muted);
+  border-bottom: 1px solid var(--text-muted);
+  margin-left: var(--line-number-gutter-padding);
+  background: none;
+  mask: none;
+  opacity: 0.5;
+}
+
+.codeblock-customizer-linenumberseparator-zigzag .codeblock-customizer-line-separator-content {
+  height: calc(var(--b) + var(--s) / 2);
+  flex-grow: 1;
+  align-self: center !important;
+  margin-left: var(--line-number-gutter-padding);
+  background: var(--text-muted, #888);
+  mask: 50% calc(-1 * var(--b)) / var(--mask-gradient) exclude, 50% / var(--mask-gradient);
+  opacity: 0.5;
+
+  --s: 10px;
+  --b: 2px;
+  --a: 90deg;
+  --mask-gradient: var(--s) repeat-x conic-gradient(from calc(var(--a) / -2) at bottom, #0000, #000 1deg calc(var(--a) - 1deg), #0000 var(--a));
+}

@@ -1,0 +1,28 @@
+/* Icons */
+.codeblock-customizer-icon-container {
+  display: flex !important;
+  flex-wrap: nowrap;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 var(--header-spacing);
+}
+
+.codeblock-customizer-icon {
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* display icons as they should */
+body.codeblock-customizer {
+  .markdown-rendered,
+  .markdown-source-view {
+    .codeblock-customizer-pre-parent,
+    .codeblock-customizer-header-container,
+    .codeblock-customizer-header-group-container,
+    .codeblock-customizer-header-container-specific {
+      .codeblock-customizer-icon-container img.codeblock-customizer-icon {
+        max-width: 100%;
+      }
+    }
+  }
+}

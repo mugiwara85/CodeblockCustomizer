@@ -1,0 +1,57 @@
+/* Prompts */
+.markdown-rendered {
+  .has-prompt {
+    .codeblock-customizer-prompt,
+    .codeblock-customizer-prompt-cmd-output {
+      padding-left: var(--line-number-gutter-padding);
+    }
+
+    .codeblock-customizer-line-number,
+    .codeblock-customizer-line-number-specific {
+      height: 100%;
+      float: left;
+    }
+  }
+
+  div.has-prompt:has(> .codeblock-customizer-line-text) {
+    display: flow-root;
+  }
+
+  .codeblock-customizer-prompt,
+  .codeblock-customizer-prompt-cmd-output {
+    float: left;
+  }
+}
+
+.codeblock-customizer-prompt,
+.codeblock-customizer-prompt-cmd-output {
+  user-select: none;
+
+  /* font-weight: bold; */
+  white-space: pre;
+
+  /* font-family: var(--font-monospace, monospace); */
+}
+
+/* underline msf6, and beacon */
+.prompt-msf,
+.prompt-beacon {
+  text-decoration: underline;
+}
+
+/* wrap long prompt lines in reading view */
+.codeblock-customizer {
+  &.codeblock-customizer-show-line-numbers {
+    .markdown-rendered [class*="codeblock-customizer-line"].has-prompt .codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output) {
+      padding-left: calc(var(--line-number-gutter-width) + var(--line-number-gutter-padding));
+      white-space-collapse: break-spaces;
+    }
+  }
+
+  &:not(.codeblock-customizer-show-line-numbers) {
+    .markdown-rendered [class*="codeblock-customizer-line"].has-prompt .codeblock-customizer-line-text:not(.codeblock-customizer-prompt-cmd-output) {
+      padding-left: var(--line-number-gutter-padding);
+      white-space-collapse: break-spaces;
+    }
+  }
+}

@@ -105,7 +105,7 @@ type AlternativeTextHighlightLineSpecificWords = TextHighlightLineSpecificWords 
 };
 
 interface AlternativeTextHighlight {
-allWordsInLine: AlternativeAllWordsInLine[];
+  allWordsInLine: AlternativeAllWordsInLine[];
   words: AlternativeTextHighlightWords[];
   lineSpecificWords: AlternativeTextHighlightLineSpecificWords[];
   textBetween: AlternativeTextBetween[];
@@ -155,6 +155,7 @@ export interface CBCParameters {
   noParseLines: number[];
   group: string;
   tab: string;
+  output: boolean;
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false): CBCParameters {
@@ -188,7 +189,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const outputTextToHighlight = getTextHighlight(parsedParameters, "hlto", textSeparator, lineSeparator);
 
   // highlight with alternative colors (lines, words, lineSpecificWords, from - to)
-  const {alternativeLinesToHighlight, alternativeTextToHighlight} = extractAlternativeHighlights(parsedParameters, textSeparator, lineSeparator, settings);
+  const { alternativeLinesToHighlight, alternativeTextToHighlight } = extractAlternativeHighlights(parsedParameters, textSeparator, lineSeparator, settings);
 
   // isSpecificNumber and showNumbers
   const { isSpecificNumber, showNumbers, lineNumberOffset, lineNumberJumps } = determineLineNumberDisplay(parsedParameters);
@@ -214,7 +215,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 
   // group 
   const group = extractParameter(parsedParameters, "group") ?? '';
-  
+
   // tab
   const tab = extractParameter(parsedParameters, "tab") ?? '';
 
@@ -254,13 +255,15 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     const allPrompts = { ...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts };
     for (const promptId in allPrompts) {
       const { def: promptDef } = getPromptDefinition(promptId, settings);
-      
+
       if (promptDef.autoParsePrompt && promptDef.autoParseLanguages?.includes(language)) {
         parsePromptId = promptId;
         break;
       }
     }
   }
+
+  const output = isParameterDefined("output", lineText);
 
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
@@ -294,14 +297,15 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     noParse,
     noParseLines,
     group,
-    tab
+    tab,
+    output
   };
 }// getParameters
 
 function parseParameters(input: string): ParsedParams {
   const params: ParsedParams = {};
   const { char, count } = getFenceDetails(input);
-  if (!char) { 
+  if (!char) {
     return params;
   }
 
@@ -347,7 +351,7 @@ function getIndentationLevel(line: string) {
 
     const indentationLevel = spacesCount + tabsCount;
     const additionalCharacters = spacesCount * 4 + tabsCount;
-     
+
     return {
       level: indentationLevel,
       characters: additionalCharacters,
@@ -362,9 +366,9 @@ function getIndentationLevel(line: string) {
 }// getIndentationLevel
 
 function extractFileTitle(parsedParameters: ParsedParams): string {
-  const file =  extractParameter(parsedParameters, "file");
-  const title =  extractParameter(parsedParameters, "title");
-  
+  const file = extractParameter(parsedParameters, "file");
+  const title = extractParameter(parsedParameters, "title");
+
   if (file && title)
     return file;
   else if (file && !title)
@@ -407,11 +411,11 @@ function getHighlightedLines(parsedParameters: ParsedParams, parameter: string, 
     }
 
     // words
-    if (word && !line && !range && !from && !to){
+    if (word && !line && !range && !from && !to) {
       result.words.push(word);
     }
     // lineSpecificWords
-    if (word && (line || range) && !from && !to){
+    if (word && (line || range) && !from && !to) {
       getLineSpecificWords(result, line, range, word);
     }
   }
@@ -433,17 +437,17 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
   const fromToSeparatorIndex = segment.indexOf(textSeparator);
 
   if (lineSeparatorIndex !== -1 && fromToSeparatorIndex !== -1) { // string contains both : and | 
-    if (lineSeparatorIndex > fromToSeparatorIndex){ // hlt::|
+    if (lineSeparatorIndex > fromToSeparatorIndex) { // hlt::|
       from = segment.substring(0, fromToSeparatorIndex).trim();
       to = segment.substring(fromToSeparatorIndex + 1).trim();
-    } else{ // hlt:|:
+    } else { // hlt:|:
       const lineOrRange = segment.substring(0, lineSeparatorIndex).trim();
       const val = segment.substring(lineSeparatorIndex + 1).trim();
 
       const occurrenceMatch = lineOrRange.match(/\[(.*?)\]/);
       occurrences = occurrenceMatch ? occurrenceMatch[1] : '';
       const cleanedLineOrRange = lineOrRange.replace(/\[.*?\]/, '').trim();
-      
+
       if (cleanedLineOrRange.includes("-"))
         range = cleanedLineOrRange;
       else if (isWholeNumber(cleanedLineOrRange))
@@ -452,22 +456,22 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
       //if (val.includes(":")) {
       const valFromToSeparatorIndex = val.indexOf(textSeparator);
       if (valFromToSeparatorIndex !== -1) {
-        from = val.substring(0, valFromToSeparatorIndex ).trim();
-        to = val.substring(valFromToSeparatorIndex  + 1).trim();
+        from = val.substring(0, valFromToSeparatorIndex).trim();
+        to = val.substring(valFromToSeparatorIndex + 1).trim();
       } else {
         word = val;
       }
     }
-  } else if (fromToSeparatorIndex !== -1 && lineSeparatorIndex === -1){ // only contains :
+  } else if (fromToSeparatorIndex !== -1 && lineSeparatorIndex === -1) { // only contains :
     from = segment.substring(0, fromToSeparatorIndex).trim();
     to = segment.substring(fromToSeparatorIndex + 1).trim();
-  } else if (lineSeparatorIndex !== -1 && fromToSeparatorIndex === -1){ // only contains |
+  } else if (lineSeparatorIndex !== -1 && fromToSeparatorIndex === -1) { // only contains |
     const lineOrRange = segment.substring(0, lineSeparatorIndex).trim();
     const val = segment.substring(lineSeparatorIndex + 1).trim();
     const occurrenceMatch = lineOrRange.match(/\[(.*?)\]/);
     occurrences = occurrenceMatch ? occurrenceMatch[1] : '';
     const cleanedLineOrRange = lineOrRange.replace(/\[.*?\]/, '').trim();
-    
+
     if (cleanedLineOrRange.includes("-"))
       range = cleanedLineOrRange;
     else if (isWholeNumber(cleanedLineOrRange))
@@ -566,7 +570,7 @@ function processRange<T>(segment: string, segmentValue: string | HighlightedWord
     if (existingEntry) {
       existingEntry.words.push(...wordsToAdd);
     } else {
-      (result as { lineNumber: number, words: any[] }[]).push({lineNumber: num, words: wordsToAdd,});
+      (result as { lineNumber: number, words: any[] }[]).push({ lineNumber: num, words: wordsToAdd, });
     }
   });
 }// processRange
@@ -580,7 +584,7 @@ function getTextHighlight(parsedParameters: ParsedParams, parameter: string | nu
     lineSpecificTextBetween: [],
   };
 
-  if (!parameter){
+  if (!parameter) {
     return result;
   }
 
@@ -602,25 +606,25 @@ function getTextHighlight(parsedParameters: ParsedParams, parameter: string | nu
     const occurrenceNumbers = getOccurrences(occurrences);
 
     // allWordsInLine
-    if ((line || range ) && !word && !from && !to ){
+    if ((line || range) && !word && !from && !to) {
       getAllWordsInLine(result, line, range);
     }
 
     // words
-    if (word && !line && !range && !from && !to){
+    if (word && !line && !range && !from && !to) {
       result.words.push({ text: word, occurrences: occurrenceNumbers });
     }
     // lineSpecificWords
-    if (word && (line || range) && !from && !to){
+    if (word && (line || range) && !from && !to) {
       getLineSpecificWords(result, line, range, { text: word, occurrences: occurrenceNumbers });
     }
 
     // textBetween
-    if ((from || to) && !word && !line && !range){
+    if ((from || to) && !word && !line && !range) {
       result.textBetween.push({ from: from, to: to, occurrences: occurrenceNumbers });
     }
     // lineSpecificTextBetween
-    if ((from || to ) && !word && (line || range)){
+    if ((from || to) && !word && (line || range)) {
       getLineSpecificTextBetween(result, line, range, from, to, occurrenceNumbers);
     }
   }
@@ -676,7 +680,7 @@ function getOccurrences(params: string | null): number[] {
 function getAllWordsInLine(result: TextHighlight, line: string, range: string) {
   if (line && isWholeNumber(line)) { // number only
     result.allWordsInLine.push(Number(line));
-  } else if (range){
+  } else if (range) {
     const ranges = getLineRanges(range);
     result.allWordsInLine.push(...ranges);
   }
@@ -715,10 +719,10 @@ function extractAlternativeHighlights(parsedParameters: ParsedParams, textSepara
 
     // lines or ranges
     if (lineHighlight.lineNumbers.length > 0) {
-      alternativeLinesToHighlight.lines.push({lineNumbers: lineHighlight.lineNumbers, colorName: alternateColorName});
+      alternativeLinesToHighlight.lines.push({ lineNumbers: lineHighlight.lineNumbers, colorName: alternateColorName });
     }
     if (lineHighlight.words.length > 0) {
-      alternativeLinesToHighlight.words.push({words: lineHighlight.words, colorName: alternateColorName});
+      alternativeLinesToHighlight.words.push({ words: lineHighlight.words, colorName: alternateColorName });
     }
     if (lineHighlight.lineSpecificWords.length > 0) {
       lineHighlight.lineSpecificWords.forEach((lineSpecificWord) => {
@@ -761,45 +765,45 @@ function extractAlternativeHighlights(parsedParameters: ParsedParams, textSepara
     const outputTextHighlight = getTextHighlight(parsedParameters, `${alternateColorName}to`, textSeparator, lineSeparator);
 
     // for 'warno', 'erroro', etc.
-    if (outputLineHighlight.lineNumbers.length > 0) { 
-      alternativeLinesToHighlight.outputLines.push({lineNumbers: outputLineHighlight.lineNumbers, colorName: alternateColorName}); 
+    if (outputLineHighlight.lineNumbers.length > 0) {
+      alternativeLinesToHighlight.outputLines.push({ lineNumbers: outputLineHighlight.lineNumbers, colorName: alternateColorName });
     }
-    if (outputLineHighlight.words.length > 0) { 
-      alternativeLinesToHighlight.outputWords.push({words: outputLineHighlight.words, colorName: alternateColorName}); 
+    if (outputLineHighlight.words.length > 0) {
+      alternativeLinesToHighlight.outputWords.push({ words: outputLineHighlight.words, colorName: alternateColorName });
     }
-    if (outputLineHighlight.lineSpecificWords.length > 0) { 
-      outputLineHighlight.lineSpecificWords.forEach((lsw) => { 
-        alternativeLinesToHighlight.outputLineSpecificWords.push({ ...lsw, colorName: alternateColorName }); 
-      }); 
+    if (outputLineHighlight.lineSpecificWords.length > 0) {
+      outputLineHighlight.lineSpecificWords.forEach((lsw) => {
+        alternativeLinesToHighlight.outputLineSpecificWords.push({ ...lsw, colorName: alternateColorName });
+      });
     }
 
     // for 'warnto', 'errorto', etc.
-    if (outputTextHighlight.allWordsInLine.length > 0) { 
+    if (outputTextHighlight.allWordsInLine.length > 0) {
       alternativeTextToHighlight.outputAllWordsInLine.push({
-        allWordsInLine: outputTextHighlight.allWordsInLine, colorName: alternateColorName 
-      }); 
+        allWordsInLine: outputTextHighlight.allWordsInLine, colorName: alternateColorName
+      });
     }
-    if (outputTextHighlight.words.length > 0) { 
-      alternativeTextToHighlight.outputWords.push({ words: outputTextHighlight.words, colorName: alternateColorName }); 
+    if (outputTextHighlight.words.length > 0) {
+      alternativeTextToHighlight.outputWords.push({ words: outputTextHighlight.words, colorName: alternateColorName });
     }
-    if (outputTextHighlight.lineSpecificWords.length > 0) { 
-      outputTextHighlight.lineSpecificWords.forEach((lsw) => { 
-        alternativeTextToHighlight.outputLineSpecificWords.push({ ...lsw, colorName: alternateColorName }); 
-      }); 
+    if (outputTextHighlight.lineSpecificWords.length > 0) {
+      outputTextHighlight.lineSpecificWords.forEach((lsw) => {
+        alternativeTextToHighlight.outputLineSpecificWords.push({ ...lsw, colorName: alternateColorName });
+      });
     }
-    if (outputTextHighlight.textBetween.length > 0) { 
-      outputTextHighlight.textBetween.forEach((tb) => { 
-        alternativeTextToHighlight.outputTextBetween.push({ ...tb, colorName: alternateColorName }); 
-      }); 
+    if (outputTextHighlight.textBetween.length > 0) {
+      outputTextHighlight.textBetween.forEach((tb) => {
+        alternativeTextToHighlight.outputTextBetween.push({ ...tb, colorName: alternateColorName });
+      });
     }
-    if (outputTextHighlight.lineSpecificTextBetween.length > 0) { 
-      outputTextHighlight.lineSpecificTextBetween.forEach((lstb) => { 
-        alternativeTextToHighlight.outputLineSpecificTextBetween.push({ ...lstb, colorName: alternateColorName }); 
-      }); 
+    if (outputTextHighlight.lineSpecificTextBetween.length > 0) {
+      outputTextHighlight.lineSpecificTextBetween.forEach((lstb) => {
+        alternativeTextToHighlight.outputLineSpecificTextBetween.push({ ...lstb, colorName: alternateColorName });
+      });
     }
   }
 
-  return {alternativeLinesToHighlight, alternativeTextToHighlight};
+  return { alternativeLinesToHighlight, alternativeTextToHighlight };
 }// extractAlternativeHighlights
 
 function determineLineNumberDisplay(parsedParameters: ParsedParams) {
@@ -829,7 +833,7 @@ function determineLineNumberDisplay(parsedParameters: ParsedParams) {
         const [indexStr, newNumStr] = trimmed.split(":");
         const lineNumber = parseInt(indexStr, 10);
         const newStartNumber = parseInt(newNumStr, 10);
-        
+
         if (!isNaN(lineNumber) && !isNaN(newStartNumber)) {
           lineNumberJumps.push({ lineNumber, newStartNumber });
           foundConfig = true;
@@ -851,7 +855,7 @@ function determineLineNumberDisplay(parsedParameters: ParsedParams) {
       showNumbers = "specific";
       isSpecificNumber = true;
     }
-    
+
     lineNumberJumps.sort((a, b) => a.lineNumber - b.lineNumber);
   }
 
@@ -873,8 +877,8 @@ function isParameterDefined(searchTerm: string, str: string): boolean {
   if (str.includes(` ${searchTerm} `)) {
     return true;
   }
-  const index = str.indexOf(searchTerm);
-  if (index !== -1 && index === str.length - searchTerm.length && str[index - 1] === " ") {
+  // check if parameter is at end of string with space before it
+  if (str.endsWith(' ' + searchTerm)) {
     return true;
   }
   const fenceAndLangRegex = new RegExp(`^(?:\`|~){3,}\\w*\\s*${searchTerm}\\s`);
@@ -918,12 +922,12 @@ function getCodeBlockLanguage(str: string, isReadingView = false): string {
       }
       else {
         const lang = removeLeadingFenceChars(word);
-        
+
         // only override the language in ReadingView
         if (isReadingView && lang.toLowerCase().startsWith("run-")) {
           return lang.substring(4);
         }
-        
+
         return lang;
       }
     }
@@ -931,19 +935,19 @@ function getCodeBlockLanguage(str: string, isReadingView = false): string {
   return '';
 }// getCodeBlockLanguage
 
-function isExcluded(lineText: string, excludeLangs: string) : boolean {
+function isExcluded(lineText: string, excludeLangs: string): boolean {
   if (isParameterDefined("exclude", lineText))
     return true;
-  
+
   const codeBlockLang = getCodeBlockLanguage(lineText);
   const regexLangs = splitAndTrimString(excludeLangs).map(lang => new RegExp(`^${lang.replace(/\*/g, '.*')}$`, 'i'));
-  
+
   for (const regexLang of regexLangs) {
     if (codeBlockLang && regexLang.test(codeBlockLang)) {
       return true;
     }
   }
-  
+
   return false;
 }// isExcluded
 
@@ -951,14 +955,14 @@ function splitAndTrimString(str: string) {
   if (!str) {
     return [];
   }
-  
+
   // Replace * with .*
   str = str.replace(/\*/g, '.*');
-  
+
   if (!str.includes(",")) {
     return [str];
   }
-  
+
   return str.split(",").map(s => s.trim());
 }// splitAndTrimString
 
@@ -974,7 +978,7 @@ function getPromptLines(parsedParameters: ParsedParams, parameter: string, textS
       branch: null,
       module: null,
     }
-  };  
+  };
 
   const parameterValue = extractParameter(parsedParameters, parameter);
   if (!parameterValue) {

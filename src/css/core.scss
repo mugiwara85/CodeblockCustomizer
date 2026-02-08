@@ -1,0 +1,58 @@
+/* Codeblock background colors */
+.codeblock-customizer {
+  .markdown-rendered pre.codeblock-customizer-pre,
+  .markdown-source-view .HyperMD-codeblock.codeblock-customizer-line {
+    background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+  }
+
+  // Shimmering focus
+  pre.codeblock-customizer-pre::before,
+  pre.codeblock-customizer-pre::after {
+    content: none !important;
+  }
+
+  .markdown-source-view .HyperMD-codeblock[class*='codeblock-customizer-line']::before {
+    content: none !important;
+  }
+}
+
+.markdown-source-view.mod-cm6 .code-block-flair {
+  display: inline-block !important;
+}
+
+/* Indentation lines */
+.codeblock-customizer-indentation-guide::before {
+  display: none;
+}
+
+.codeblock-customizer-show-indentation-lines .markdown-reading-view .codeblock-customizer-indentation-guide {
+  position: relative;
+  display: inline-block;
+
+  &::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: block;
+    width: 1px;
+    border-right: var(--indentation-guide-width) solid var(--indentation-guide-color);
+    color: transparent;
+    content: "\200B";
+    transform: translateX(0.15em);
+  }
+}
+
+/* indent in edit mode */
+.markdown-source-view:not(.is-readable-line-width) .indented-line {
+  left: calc(var(--list-indent) * var(--level) + var(--diff, 0px)) !important;
+  width: calc(100% - var(--list-indent) * var(--level));
+}
+
+/* Themes */
+
+/* Everforest */
+
+/* .codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-begin,
+.codeblock-customizer .markdown-source-view [class*="codeblock-customizer-line"].HyperMD-codeblock-end {
+  height: calc(var(--line-height-normal) * 1em);
+} */

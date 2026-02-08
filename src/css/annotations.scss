@@ -1,0 +1,108 @@
+/* Annotations */
+
+/* hide comment */
+.codeblock-customizer-hidden-annotation {
+  display: none;
+}
+
+/* style annotation icon */
+.codeblock-customizer-annotation-icon {
+  z-index: 20;
+  width: 12px;
+  height: 12px;
+  color: var(--text-faint);
+  cursor: pointer;
+  transform: translateY(-50%);
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--text-normal);
+    }
+  }
+}
+
+.markdown-source-view .codeblock-customizer-annotation-icon {
+  position: absolute;
+  top: calc(50% - 2px);
+}
+
+.markdown-rendered {
+  .codeblock-customizer-annotation-icon {
+    position: relative;
+    top: calc(50% - 2px);
+    margin-right: -14px;
+    margin-left: 2px;
+  }
+
+  .has-prompt .codeblock-customizer-annotation-icon {
+    float: left;
+  }
+}
+
+.codeblock-customizer .markdown-source-view {
+  // ln false - linenumbers disabled
+  .HyperMD-codeblock:has(.codeblock-customizer-line-number-hide) .codeblock-customizer-annotation-icon,
+  .HyperMD-codeblock:not(.codeblock-customizer-line-number) .codeblock-customizer-annotation-icon {
+    left: 2px;
+  }
+}
+
+.codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number) .codeblock-customizer-annotation-icon {
+  left: calc(var(--gutter-width, 0px) + var(--line-number-gutter-width) + 2px);
+}
+
+.codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) .codeblock-customizer-annotation-icon {
+  left: calc(var(--gutter-width, 0px) + 2px);
+}
+
+/* popup tooltip */
+.codeblock-customizer-annotation-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 450px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-right: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--background-modifier-border);
+  border-left: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%), 0 0 0 1px var(--background-modifier-border);
+  color: var(--text-normal);
+  font-family: var(--font-ui-sans);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
+
+  &.is-visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.codeblock-customizer-popup-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  margin-bottom: 5px;
+  gap: 8px;
+}
+
+.codeblock-customizer-popup-type-text {
+  font-weight: bold;
+}
+
+.codeblock-customizer-popup-icon {
+  position: relative;
+  top: 2px;
+  flex-shrink: 0;
+
+  svg {
+    stroke-width: 3px;
+  }
+}
+
+.codeblock-customizer-popup-content p {
+  margin: 0;
+}

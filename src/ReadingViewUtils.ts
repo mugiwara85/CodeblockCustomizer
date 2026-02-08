@@ -1,4 +1,4 @@
-import { setIcon, MarkdownRenderer, Notice} from "obsidian";
+import { setIcon, MarkdownRenderer, Notice } from "obsidian";
 
 import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
@@ -29,11 +29,11 @@ export interface ExtractionOptions {
   handleIndentedBlocks?: boolean;     // check for non-fenced indented code blocks
 }
 
-type AnnotationInfo = { 
-  selector: string; 
-  type: string; 
-  content: string; 
-  title?: string 
+type AnnotationInfo = {
+  selector: string;
+  type: string;
+  content: string;
+  title?: string
 };
 
 export function trackIndentation(lines: string[]): IndentationInfo[] {
@@ -41,15 +41,15 @@ export function trackIndentation(lines: string[]): IndentationInfo[] {
   for (let i = 0; i < lines.length; i++) {
     const currentLineIsBlank = lines[i].trim() === '';
     let currentLevel = getIndentLevel(lines[i]);
-    
-    let nextNonBlankLineLevel = -1; 
+
+    let nextNonBlankLineLevel = -1;
     for (let j = i + 1; j < lines.length; j++) {
       if (lines[j].trim() !== '') {
         nextNonBlankLineLevel = getIndentLevel(lines[j]);
-        break; 
+        break;
       }
     }
-    
+
     if (currentLineIsBlank && nextNonBlankLineLevel > 0) {
       currentLevel = nextNonBlankLineLevel;
     }
@@ -80,7 +80,7 @@ function getIndentLevel(line: string, tabSize = 4): number {
       totalWidth += 1;
     }
   }
-  
+
   return Math.floor(totalWidth / tabSize);
 }// getIndentLevel
 
@@ -100,8 +100,8 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
-export function createButtons(parameters: CBCParameters, codeblockLines: string[] | undefined, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement){
-  const container = createDiv({cls: `codeblock-customizer-button-container`});
+export function createButtons(parameters: CBCParameters, codeblockLines: string[] | undefined, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement) {
+  const container = createDiv({ cls: `codeblock-customizer-button-container` });
   const frag = document.createDocumentFragment();
   let observer: MutationObserver | null = null;
 
@@ -148,7 +148,7 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
       new Notice("Error: Could not find code block container.");
       return;
     }
-    
+
     const parentContainer = preEl.parentElement;
 
     //container.style.visibility = 'hidden';
@@ -181,9 +181,9 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
 
       const snapshotOptions = {
         style: { padding: '0px', margin: '0' },
-        filter: (node: HTMLElement) => 
-          !node.classList?.contains('codeblock-customizer-button-container') && 
-          !node.classList?.contains('codeblock-customizer-header-collapse'), 
+        filter: (node: HTMLElement) =>
+          !node.classList?.contains('codeblock-customizer-button-container') &&
+          !node.classList?.contains('codeblock-customizer-header-collapse'),
       };
 
       await generateSnapshot(elementToClone, preEl, parentContainer, plugin.settings, parameters, snapshotOptions);
@@ -207,7 +207,7 @@ function createWrapCodeButton() {
 function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustomizerPlugin, codeblockLines?: string[]) {
   event.stopPropagation();
 
-  if (!preElement){
+  if (!preElement) {
     return;
   }
 
@@ -238,7 +238,7 @@ function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustom
     if (commandTextEl) {
       commandLineParts.push(commandTextEl.textContent ?? "");
     }
-    
+
     let commandLine = commandLineParts.join("");
     if (!excludeAnnotations) {
       const annotationEl = lineEl.querySelector<HTMLElement>('.codeblock-customizer-annotation-source-comment');
@@ -289,39 +289,40 @@ function wrapCode(preElement: HTMLElement, event: Event) {
 
 function createLineNumberElement(lineNumber: number, showNumbers: string, maxDigits: number) {
   const lineNumberWrapper = createDiv();
+  lineNumberWrapper.classList.add("cbc-line-num");
   if (showNumbers === "specific")
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number-specific`);
   else if (showNumbers === "hide")
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number-hide`);
-  else 
+  else
     lineNumberWrapper.classList.add(`codeblock-customizer-line-number`);
-  
+
   if (maxDigits > 0) {
     lineNumberWrapper.style.minWidth = `${maxDigits}ch`;
     lineNumberWrapper.style.boxSizing = "content-box";
   }
 
-  const lineNumberElement = createSpan({cls : `codeblock-customizer-line-number-element`});
+  const lineNumberElement = createSpan({ cls: `codeblock-customizer-line-number-element` });
   lineNumberElement.setText(lineNumber === -1 ? '' : lineNumber.toString());
-    
+
   lineNumberWrapper.appendChild(lineNumberElement);
 
   return lineNumberWrapper;
 }// createLineNumberElement
 
 function addIndentLine(inputString: string, insertCollapse = false, logicalIndentLevel = 0): string {
-  const indentRegex = /^((?:<span[^>]*>)*)(?:\t+|( {4})*)/; 
+  const indentRegex = /^((?:<span[^>]*>)*)(?:\t+|( {4})*)/;
   const match = inputString.match(indentRegex);
-  
+
   if (!match) {
     return inputString;
   }
-  
+
   const leadingTags = match[1] || '';
   const indent = match[0].replace(leadingTags, '');
   const isTabIndentation = /\t/.test(indent);
   let numIndentCharacters = isTabIndentation ? (indent.match(/\t/g) || []).length : (indent.match(/ {4}/g) || []).length;
-  
+
   if (numIndentCharacters === 0 && logicalIndentLevel > 0) {
     numIndentCharacters = logicalIndentLevel;
   }
@@ -343,7 +344,7 @@ function addIndentLine(inputString: string, insertCollapse = false, logicalInden
 
   const finalSpans = spansArray.join('');
   const finalReplacement = leadingTags + finalSpans;
-  
+
   return inputString.replace(indentRegex, finalReplacement);
 }// addIndentLine
 
@@ -362,7 +363,7 @@ export function extractLinesFromHTML(container: HTMLElement): { htmlLines: strin
       for (let j = openTags.length - 1; j >= 0; j--) {
         lines[lines.length - 1] += `</${openTags[j].tagName.toLowerCase()}>`;
       }
-      
+
       lines.push('');
 
       for (let j = 0; j < openTags.length; j++) {
@@ -393,7 +394,7 @@ export function extractLinesFromHTML(container: HTMLElement): { htmlLines: strin
       const el = node as HTMLElement;
       const attrs = Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ');
       const openingTag = `<${el.tagName.toLowerCase()}${attrs ? ' ' + attrs : ''}>`;
-      
+
       lines[lines.length - 1] += openingTag;
       openTags.push(el);
       el.childNodes.forEach(walk);
@@ -428,7 +429,7 @@ function isLineHighlighted(displayedLineNumber: number, caseInsensitiveLineText:
 
   // Highlight by line number hl:1,3-5
   const isHighlightedByLineNumber = parameters.defaultLinesToHighlight.lineNumbers.includes(displayedLineNumber);
-  
+
   // Highlight every line which contains a specific word hl:test
   let isHighlightedByWord = false;
   const words = parameters.defaultLinesToHighlight.words;
@@ -504,7 +505,7 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
   const addRule = (details: { from?: string; to?: string; words?: HighlightedWord[]; all?: boolean; occurrences?: number[] }, colorName = '') => {
     rulesToApply.push({ ...details, className: colorName ? `codeblock-customizer-highlighted-text-${colorName}` : 'codeblock-customizer-highlighted-text' });
   };
-  
+
   if (parameters.defaultTextToHighlight.words.length > 0) addRule({ words: parameters.defaultTextToHighlight.words });
   parameters.defaultTextToHighlight.lineSpecificWords.forEach(r => { if (r.lineNumber === lineNumber) addRule({ words: r.words }); });
   parameters.defaultTextToHighlight.textBetween.forEach(r => addRule({ from: r.from, to: r.to, occurrences: r.occurrences }));
@@ -516,7 +517,7 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
   parameters.alternativeTextToHighlight.textBetween.forEach(r => addRule({ from: r.from, to: r.to, occurrences: r.occurrences }, r.colorName));
   parameters.alternativeTextToHighlight.lineSpecificTextBetween.forEach(r => { if (r.lineNumber === lineNumber) addRule({ from: r.from, to: r.to, occurrences: r.occurrences }, r.colorName); });
   parameters.alternativeTextToHighlight.allWordsInLine.forEach(r => { if (r.allWordsInLine.includes(lineNumber)) addRule({ all: true }, r.colorName); });
-  
+
   if (rulesToApply.length === 0) {
     return lineHtml;
   }
@@ -533,12 +534,12 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
     // lower priority means it's an "outer" span
     priority: number; // (end - start)
   };
-  
+
   const allPoints: HighlightPoint[] = [];
 
   for (const rule of rulesToApply) {
     let ranges: { from: number, to: number }[] = [];
-    
+
     if (rule.words) {
       for (const word of rule.words) {
         if (!word || !word.text) continue;
@@ -559,8 +560,8 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
         continue;
       }
 
-      allPoints.push({index: range.from, type: 'start', className: rule.className, priority: range.to - range.from});
-      allPoints.push({index: range.to, type: 'end', className: rule.className, priority: range.to - range.from});
+      allPoints.push({ index: range.from, type: 'start', className: rule.className, priority: range.to - range.from });
+      allPoints.push({ index: range.to, type: 'end', className: rule.className, priority: range.to - range.from });
     }
   }
 
@@ -580,7 +581,7 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
     }
     return a.priority - b.priority;
   });
- 
+
   const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null);
   const textNodes: Text[] = [];
   while (walker.nextNode()) {
@@ -645,7 +646,7 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
     if (lastSliceIndex < nodeLength) {
       currentWrapper.appendChild(document.createTextNode(nodeText.substring(lastSliceIndex)));
     }
-    
+
     parent.replaceChild(fragment, currentNode);
     textOffset += nodeLength;
   }
@@ -653,32 +654,26 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
   return tempDiv.innerHTML;
 }// getHighlightedLineHtml
 
-function createLineNumberSeparator(maxDigits: number) {
-  const container = createDiv({cls: `codeblock-customizer-line-separator`});
-  const gutter = createSpan({cls: `codeblock-customizer-line-number-specific codeblock-customizer-line-number-specific-number`});
+function LineSeparatorWidget(maxDigits: number): HTMLElement {
+  const container = createDiv({ cls: 'codeblock-customizer-line-separator' });
+  const gutter = createSpan({ cls: 'codeblock-customizer-line-separator-gutter', text: '...' });
 
   if (maxDigits > 0) {
     gutter.style.minWidth = `${maxDigits}ch`;
     gutter.style.boxSizing = "content-box";
   }
 
-  const gutterNum = createSpan({cls: `codeblock-customizer-line-number-element`, text: "..."});
-
-  gutter.appendChild(gutterNum);
-
-  const content = createSpan({cls: `codeblock-customizer-separator-content`});
-
+  const content = createSpan({ cls: 'codeblock-customizer-line-separator-content' });
   container.appendChild(gutter);
   container.appendChild(content);
-
   return container;
-}// createLineNumberSeparator
+}// LineSeparatorWidget
 
 function calculateMaxLineDigits(lineCount: number, parameters: CBCParameters): number {
   let counter = parameters.lineNumberOffset;
   let maxNum = counter;
   let jumpIdx = 0;
-  const jumps = parameters.lineNumberJumps || [];
+  const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
 
   for (let i = 0; i < lineCount; i++) {
     counter++;
@@ -688,7 +683,7 @@ function calculateMaxLineDigits(lineCount: number, parameters: CBCParameters): n
     }
     if (counter > maxNum) maxNum = counter;
   }
-  
+
   return maxNum.toString().length;
 }// calculateMaxLineDigits
 
@@ -742,7 +737,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
   let fadeOutLineIndex = 0;
 
   let jumpCounter = parameters.lineNumberOffset; // counter to track line numbers with jumps
-  const jumps = parameters.lineNumberJumps || [];
+  const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
   let jumpIdx = 0;
   const hasJumps = jumps.length > 0;
   let maxDigits = 0;
@@ -764,7 +759,6 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     if (jumps.length > 0 && jumpIdx < jumps.length && jumpCounter === jumps[jumpIdx].lineNumber) {
       jumpCounter = jumps[jumpIdx].newStartNumber;
       jumpIdx++;
-      frag.appendChild(createLineNumberSeparator(maxDigits));
     }
 
     const displayedLineNumber = jumpCounter; // this is the displayed number (including offsets and/or line number jumps)
@@ -778,12 +772,12 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
       processedLine = result.lineContent;
       annotationData = result.annotationData;
     }
-    
+
     const { lineClasses, uncollapseButton, updatedFadeOutLineIndex } = getLineClass(physicalLineNumber, displayedLineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
     fadeOutLineIndex = updatedFadeOutLineIndex;
-    const lineWrapper = createDiv();
+    const lineWrapper = createDiv({ cls: 'codeblock-customizer-line-wrapper' });
 
-    for (const lineClass of lineClasses.split(' ')){
+    for (const lineClass of lineClasses.split(' ')) {
       if (lineClass) {
         lineWrapper.classList.add(lineClass);
       }
@@ -795,13 +789,13 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     //}
 
     if (annotationData) {
-      const annotationIcon = createSpan({cls: `codeblock-customizer-annotation-icon`});
+      const annotationIcon = createSpan({ cls: `codeblock-customizer-annotation-icon` });
       const selector = `[data-line-number="${physicalLineNumber}"] .codeblock-customizer-annotation-icon`;
       annotationsToProcess.push({ selector, type: annotationData.type, content: annotationData.content, title: annotationData.title });
       annotationIcon.classList.add(`codeblock-customizer-annotation-icon-${annotationData.type}`);
       lineWrapper.appendChild(annotationIcon);
     }
-    
+
     let promptOutput: { className: string, text: string }[] = [];
     const isPromptLine = processPrompts && prompt && (parameters.parsePromptId || prompt.promptLines.has(displayedLineNumber));
     if (isPromptLine) {
@@ -811,17 +805,17 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
         // parsed prompt
         if (promptResult.matchedLength > 0) {
           lineWrapper.classList.add(`has-prompt`);
-          if (promptResult.lineClassName) 
+          if (promptResult.lineClassName)
             lineWrapper.classList.add(promptResult.lineClassName);
-          if (promptResult.isRoot) 
+          if (promptResult.isRoot)
             lineWrapper.classList.add(`is-root`);
-          
+
           processedLine = applyPromptStylesToString(processedLine, promptResult.styledParts);
         }
       } else {
         // normal prompts
         const promptPart = promptResult.styledParts[0];
-        promptOutput = promptResult.output; 
+        promptOutput = promptResult.output;
         if (promptPart?.node) {
           lineWrapper.classList.add(`has-prompt`);
           if (promptResult.isRoot) {
@@ -845,12 +839,18 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     const finalLineHtml = getHighlightedLineHtml(processedLine, parameters, displayedLineNumber);
     lineTextEl.innerHTML = finalLineHtml.trim() === '' ? '<br>' : finalLineHtml;
     lineWrapper.appendChild(lineTextEl);
-    
+
     if (promptOutput.length > 0) {
       promptOutput.forEach(out => {
         const outputEl = createDiv({ cls: `${out.className} codeblock-customizer-line-text`, text: out.text, });
         lineWrapper.appendChild(outputEl);
       });
+    }
+
+    // Check if the next line will have a jump - if so, add the separator to this line
+    if (hasJumps && jumpIdx < jumps.length && jumpCounter + 1 === jumps[jumpIdx].lineNumber) {
+      lineWrapper.classList.add('codeblock-customizer-line-with-jump');
+      lineWrapper.appendChild(LineSeparatorWidget(maxDigits));
     }
 
     if (addIndentationGuides) {
@@ -859,7 +859,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     }
 
     lineWrapper.setAttribute('data-line-number', physicalLineNumber.toString());
-    
+
     if (uncollapseButton) {
       lineWrapper.appendChild(uncollapseButton);
     }
@@ -892,15 +892,20 @@ function applyPromptStylesToString(htmlLine: string, styledParts: { from: number
   let inTag = false;
   const entityRegex = /&[#a-zA-Z0-9]+;/g;
 
-  for (let i = 0; i < htmlLine.length; ) {
+  for (let i = 0; i < htmlLine.length;) {
     if (!inTag) {
       const endCount = ends.get(textIndex);
       if (endCount) {
         result += '</span>'.repeat(endCount);
+        ends.delete(textIndex);
       }
-      const startSpans = starts.get(textIndex);
-      if (startSpans) {
-        result += startSpans.join('');
+
+      if (htmlLine[i] !== '<') {
+        const startSpans = starts.get(textIndex);
+        if (startSpans) {
+          result += startSpans.join('');
+          starts.delete(textIndex);
+        }
       }
     }
 
@@ -961,12 +966,25 @@ export function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockC
     setIcon(icon as HTMLElement, "chevron-down");
     icon.addEventListener("click", handleClick);
   });
-  
+
   // uncollapse button for semi-folded code blocks
   const uncollapseButton = preCodeElm.querySelector(".codeblock-customizer-uncollapse-code");
   if (uncollapseButton) {
     uncollapseButton.addEventListener("click", handleUncollapseClick);
   }
+
+  preCodeElm.addEventListener("mousedown", (event) => {
+    const preEl = preCodeElm.closest('pre');
+    const semiCollapsed = preEl?.classList.contains("codeblock-customizer-codeblock-semi-collapsed");
+    if (!semiCollapsed)
+      return;
+
+    const target = event.target as HTMLElement;
+    if (target.closest('[class*="codeblock-customizer-fade-out-line"]')) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  });
 }// attachEventListeners
 
 function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeBlockCustomizerPlugin): { lineContent: string; annotationData: { type: string; content: string; title?: string } | null } {
@@ -1011,8 +1029,8 @@ function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeB
   }
   return { lineContent: tempDiv.innerHTML, annotationData };
 }// processAnnotations
-  
-function getLineClass(physicalLineNumber: number, displayedLineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number) { 
+
+function getLineClass(physicalLineNumber: number, displayedLineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number) {
   let lineClasses = '';
   let uncollapseButton: HTMLElement | null = null;
   let updatedFadeOutLineIndex = fadeOutLineIndex;
@@ -1056,14 +1074,14 @@ function findHighlightRanges(fullText: string, from: string, to: string, occurre
     }
     return filterOccurrences(ranges, occurrences);
   }
-  
+
   const fromPattern = from ? escapeRegex(from) : '^';
   const toPattern = to ? escapeRegex(to) : '$';
-  
+
   if (from && to) { // from and to are specified
     const fromRegex = new RegExp(fromPattern, 'gi');
     const toRegex = new RegExp(toPattern, 'gi');
-    
+
     const fromIndices: number[] = [];
     const toMatches: { index: number, length: number }[] = [];
     let match;
@@ -1079,7 +1097,7 @@ function findHighlightRanges(fullText: string, from: string, to: string, occurre
 
     for (const fromIndex of fromIndices) {
       const nextToMatch = toMatches.find(toMatch => toMatch.index > fromIndex);
-      
+
       if (nextToMatch) {
         const range = { from: fromIndex, to: nextToMatch.index + nextToMatch.length };
         ranges.push(range);
@@ -1116,7 +1134,7 @@ function findHighlightRanges(fullText: string, from: string, to: string, occurre
       }
     }
   }
-  
+
   return filterOccurrences(ranges, occurrences);
 }// findHighlightRanges
 
@@ -1149,7 +1167,7 @@ function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomiz
       const textBeforeMatch = textContent.slice(lastIndex, match.index);
       fragment.appendChild(document.createTextNode(textBeforeMatch));
 
-      const span = createSpan({cls: "codeblock-customizer-link"});
+      const span = createSpan({ cls: "codeblock-customizer-link" });
       MarkdownRenderer.render(plugin.app, match[0], span, sourcePath, plugin);
       fragment.appendChild(span);
 
@@ -1171,7 +1189,7 @@ function handleClick(event: Event) {
   const collapseIcon = event.currentTarget as HTMLElement;
   if (!collapseIcon)
     return;
-  
+
   const codeElement = getCodeElementFromCollapseIcon(collapseIcon);
   if (!codeElement)
     return;
@@ -1213,7 +1231,7 @@ function handleClick(event: Event) {
     for (const line of lines) {
       const lineTextEl = collapseIconParent.querySelector('.codeblock-customizer-line-text');
       if (lineTextEl) {
-        const foldPlaceholder = createSpan({text: "…", cls: 'codeblock-customizer-foldPlaceholder'});
+        const foldPlaceholder = createSpan({ text: "…", cls: 'codeblock-customizer-foldPlaceholder' });
         const existingFoldPlaceholder = lineTextEl.querySelector('.codeblock-customizer-foldPlaceholder');
         if (!existingFoldPlaceholder) {
           lineTextEl.appendChild(foldPlaceholder);
@@ -1283,7 +1301,7 @@ function handleUncollapseClick(event: Event) {
     return;
   }
 
-  let header: HTMLElement| null = null;
+  let header: HTMLElement | null = null;
   if (pre.classList.contains("displayedInGroup")) {
     // grouped code blocks
     const group = pre.getAttribute("groupname");
@@ -1344,7 +1362,7 @@ function extractCodeBlocks(lines: string[], options: ExtractionOptions = {}): Co
   for (let i = startingIndex; i < lines.length; i++) {
     const lineContent = lines[i] ?? "";
     let trimmedLine = lineContent.trim();
-    
+
     if (options.stripCalloutMarkers) {
       trimmedLine = removeCharFromStart(trimmedLine, ">");
     }
@@ -1365,7 +1383,7 @@ function extractCodeBlocks(lines: string[], options: ExtractionOptions = {}): Co
       } else if (char === openingFenceChar && (options.allowLongerClosingFence ? count >= openingFenceCount : count === openingFenceCount)) {
         const endLine = i;
         let contentLines = lines.slice(startLine, endLine + 1);
-        
+
         if (options.stripCalloutMarkers) {
           contentLines = contentLines.map(line => line.replace(/^(\s*>\s*)+/, ''));
         }
@@ -1385,7 +1403,7 @@ function extractCodeBlocks(lines: string[], options: ExtractionOptions = {}): Co
   if (inCodeBlock && !options.skipFirstLine) {
     const endLine = lines.length - 1;
     let contentLines = lines.slice(startLine, endLine + 1);
-    
+
     if (options.stripCalloutMarkers) {
       contentLines = contentLines.map(line => line.replace(/^(\s*>\s*)+/, ''));
     }

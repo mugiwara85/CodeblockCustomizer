@@ -5,8 +5,8 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
 import { SettingsTab } from "./SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting} from "./Utils";
-import { CodeBlockPositions, extensions, FoldCommand, FoldingState, updateValue } from "./EditorExtensions";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting } from "./Utils";
+import { CodeBlockPositions, extensions, FoldCommand, FoldingState, resetFoldDecos, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
@@ -34,7 +34,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
   extensions: Extension[];
   theme: string;
-  editorExtensions: { extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]> | Extension)[];
+  editorExtensions: {
+    extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]> | Extension)[];
     foldAll: (view: EditorView) => void;
     unfoldAll: (view: EditorView) => void;
     restoreDefaultFold: (view: EditorView) => void;
@@ -67,11 +68,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.extensions = [];
     this.customLanguageConfig = null;
     // npm install eslint@8.39.0 -g
-    
+
     this.groupedChildrenMap = new Map<MarkdownView, GroupedCodeBlockRenderChild>();
 
     this.addCommands();
-    
+
     await loadIcons(this);
     loadSyntaxHighlightForCustomLanguages(this); // load syntax highlight
     registerExecuteCodeSyntaxHighlighting();
@@ -89,7 +90,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
 
     this.registerEditorExtension(this.extensions);
-    
+
     const settingsTab = new SettingsTab(this.app, this);
     this.addSettingTab(settingsTab);
     if (this.settings.ThemeName == "") {
@@ -97,11 +98,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     } else {
       updateSettingStyles(this.settings, this.app);
     }
-    
+
     this.registerPostProcessors();
 
     this.registerEvents(settingsTab);
-    
+
     // process existing open preview views when the plugin loads
     this.app.workspace.onLayoutReady(() => {
       this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
@@ -117,8 +118,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   setFoldState(filePath: string, key: number, newState: FoldingState, viewType: 'editor' | 'reading', parameters: CBCParameters, lineCount: number): void {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (markdownView) {
-      const isGlobalCommandActive = (markdownView.getMode() === 'source' && markdownView.containerEl.classList.contains('codeblock-customizer-header-collapse-command')) || 
-                                    (markdownView.getMode() === 'preview' && this.foldCommandTrigger !== FoldCommand.Default);
+      const isGlobalCommandActive = (markdownView.getMode() === 'source' && markdownView.containerEl.classList.contains('codeblock-customizer-header-collapse-command')) ||
+        (markdownView.getMode() === 'preview' && this.foldCommandTrigger !== FoldCommand.Default);
 
       if (isGlobalCommandActive) {
         return;
@@ -128,12 +129,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const foldSettings = this.settings.pluginSettings.codeblock.folding;
     const semiFoldSettings = this.settings.pluginSettings.semiFold;
 
-    if (!foldSettings.rememberFoldState) 
+    if (!foldSettings.rememberFoldState)
       return;
 
     let defaultState: FoldingState = FoldingState.Unfolded;
     const foldByDefault = parameters.fold || (foldSettings.inverseFold && !parameters.unfold);
-    
+
     if (foldByDefault) {
       const canSemiFold = semiFoldSettings.enableSemiFold && (lineCount >= semiFoldSettings.visibleLines + fadeOutLineCount);
       defaultState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
@@ -157,7 +158,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         } else {
           fileRecord[key] = newState;
         }
-        
+
         if (Object.keys(fileRecord).length === 0) {
           delete permanentStore[filePath];
         }
@@ -183,7 +184,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
   remapFolds(filePath: string, changes: ChangeSet): void {
     const foldSettings = this.settings.pluginSettings.codeblock.folding;
-    if (!foldSettings.rememberFoldState) 
+    if (!foldSettings.rememberFoldState)
       return;
 
     const remapRecord = (record: Record<number, FoldingState>): Record<number, FoldingState> => {
@@ -191,7 +192,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       for (const oldPosStr in record) {
         //fix for #144
         const oldPos = Number(oldPosStr);
-        if (oldPos > changes.length) 
+        if (oldPos > changes.length)
           continue;
 
         const newPos = changes.mapPos(Number(oldPosStr));
@@ -201,12 +202,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
       return newRecord;
     };
-    
+
     const remapMap = (map: Map<number, FoldingState>): Map<number, FoldingState> => {
       const newMap = new Map<number, FoldingState>();
       for (const [oldPos, state] of map.entries()) {
         //fix for #144
-        if (oldPos > changes.length) 
+        if (oldPos > changes.length)
           continue;
 
         const newPos = changes.mapPos(oldPos);
@@ -232,26 +233,26 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
 
     if (foldSettings.persistence === FoldingPersistence.Permanent) {
-      if (this.permanentEditorFolds[filePath]) 
+      if (this.permanentEditorFolds[filePath])
         this.permanentEditorFolds[filePath] = remapRecord(this.permanentEditorFolds[filePath]);
-      
+
       if (this.permanentReadingViewFolds[filePath]) {
         const newlyRemappedRecord = remapRecord(this.permanentReadingViewFolds[filePath]);
 
         this.permanentReadingViewFolds[filePath] = newlyRemappedRecord;
       }
-      
+
       this.requestSavePermanentData();
     }
   }// remapFolds
-  
+
   remapTabs(filePath: string, changes: ChangeSet): void {
     const remapRecord = (record: Record<string, number>): Record<string, number> => {
       const newRecord: Record<string, number> = {};
       for (const groupName in record) {
         const oldPos = record[groupName];
         //fix for #144
-        if (oldPos > changes.length) 
+        if (oldPos > changes.length)
           continue;
 
         const newPos = changes.mapPos(oldPos);
@@ -269,16 +270,16 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       this.permanentReadingViewTabs[filePath] = remapRecord(this.permanentReadingViewTabs[filePath]);
     }
   }// remapTabs
-  
+
   async clearAllFoldData(): Promise<void> {
     this.activeEditorFolds.clear();
     this.activeReadingViewFolds.clear();
 
     this.permanentEditorFolds = {};
     this.permanentReadingViewFolds = {};
-    
+
     await this.savePermanentData();
-    
+
     this.app.workspace.updateOptions();
     this.renderReadingViews();
   }// clearAllFoldData
@@ -305,18 +306,18 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// loadAllPermanentData
 
   requestSavePermanentData(): void {
-    if (this.debounceTimer) 
+    if (this.debounceTimer)
       clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => this.savePermanentData(), 3000);
   }// requestSavePermanentData
-  
+
   private async savePermanentData(): Promise<void> {
     await this.writePermanentDataFile<PermanentFoldData>('permanent-editor-folds.json', this.permanentEditorFolds);
     await this.writePermanentDataFile<PermanentFoldData>('permanent-reading-folds.json', this.permanentReadingViewFolds);
     await this.writePermanentDataFile<PermanentTabData>('permanent-editor-tabs.json', this.permanentEditorTabs);
     await this.writePermanentDataFile<PermanentTabData>('permanent-reading-tabs.json', this.permanentReadingViewTabs);
   }// savePermanentData
-  
+
   async loadPermanentDataFile<T>(fileName: string): Promise<T> {
     try {
       const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
@@ -350,7 +351,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const tabsRecord = this.permanentEditorTabs[filePath];
     return tabsRecord ? new Map(Object.entries(tabsRecord)) : new Map();
   }// loadPermanentEditorTabs
-  
+
   loadPermanentReadingViewTabs(filePath: string): Map<string, number> {
     const tabsRecord = this.permanentReadingViewTabs[filePath];
     return tabsRecord ? new Map(Object.entries(tabsRecord)) : new Map();
@@ -359,12 +360,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   handleCssChange(settingsTab: SettingsTab) {
     this.updateTheme(settingsTab);
   }// handleCssChange
-    
+
   updateTheme(settingsTab: SettingsTab) {
     settingsTab.applyTheme();
     this.saveSettings();
   }// updateTheme
-  
+
   async onunload() {
     console.log("unloading CodeBlock Customizer plugin");
 
@@ -385,12 +386,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     loadSyntaxHighlightForCustomLanguages(this, true);
     unregisterExecuteCodeSyntaxHighlighting();
 
-    if (this.debounceTimer) 
+    if (this.debounceTimer)
       clearTimeout(this.debounceTimer);
 
     await this.savePermanentData();
   }// onunload
-  
+
   registerGroupedRenderChildForView(markdownView: MarkdownView) {
     if (!markdownView || !markdownView.containerEl) {
       return;
@@ -405,7 +406,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       this.groupedChildrenMap.set(markdownView, renderChild);
     }
   }// registerGroupedRenderChildForView
-  
+
   async handleFileRename(file: TAbstractFile, oldPath: string) {
     const markdownFiles = this.app.vault.getMarkdownFiles();
     let linkUpdateCount = 0;
@@ -423,7 +424,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           if (sections.type === "code") {
             const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
             const codeBlockText = codeBlockLines.join('\n');
-            codeBlocks.push({codeBlockText, from: sections.position.start.line, to: sections.position.end.line});
+            codeBlocks.push({ codeBlockText, from: sections.position.start.line, to: sections.position.end.line });
           }
         }
         for (const codeBlock of codeBlocks) {
@@ -452,7 +453,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (!matches) {
       return 0;
     }
-    
+
     for (const match of matches) {
       const { updatedCodeBlockText: updatedText, updated } = this.updateCodeBlockContent(match, currentFile, oldPath, newPath, modifiedCodeBlockText);
       modifiedCodeBlockText = updatedText;
@@ -505,7 +506,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }
 
-    return {updatedCodeBlockText, updated};
+    return { updatedCodeBlockText, updated };
   }// updateCodeBlockContent
 
   async updateLinksInFiles(vault: Vault, file: TFile, startLine: number, endLine: number, newContent: string[]): Promise<void> {
@@ -531,23 +532,23 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   getDisplayNameAndReference(input: string): { displayName: string, reference: string } {
     const displayNameMarker = "|";
     const referenceMarker = "#";
-    
+
     const displayNameIndex = input.lastIndexOf(displayNameMarker);
     const referenceIndex = input.indexOf(referenceMarker);
-    
+
     const result: { displayName: string, reference: string } = {
       displayName: '',
       reference: ''
     };
-    
+
     if (displayNameIndex !== -1) {
       result.displayName = input.substring(displayNameIndex);
     }
-    
+
     if (referenceIndex !== -1) {
       result.reference = input.substring(referenceIndex, displayNameIndex !== -1 ? displayNameIndex : undefined);
     }
-    
+
     return result;
   }// getDisplayNameAndReference
 
@@ -556,10 +557,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     if (loadedData && loadedData.SelectedTheme?.settings && !loadedData.pluginSettings) {
       console.log("Codeblock Customizer: Migrating settings to new structure.");
-      
+
       // use the old settings from SelectedTheme
       loadedData.pluginSettings = structuredClone(loadedData.SelectedTheme.settings);
-      
+
       // delete settings object for all old themes
       for (const themeName in loadedData.Themes) {
         if (loadedData.Themes[themeName]?.settings) {
@@ -567,7 +568,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         }
       }
       delete loadedData.SelectedTheme.settings;
-      
+
       console.log("Codeblock Customizer: Settigns migrated successfully.");
     }
 
@@ -593,7 +594,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
       }
     });
-    
+
     // merge master theme with SelectedTheme
     const masterTheme = this.settings.Themes[this.settings.ThemeName];
     const workingCopyTheme = loadedData?.SelectedTheme;
@@ -616,7 +617,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.settings.SelectedTheme.colors.dark.prompts.rootPromptColors = {};
   }// loadSettings
 
-  async saveSettings() {
+  async saveSettings(resetFoldDecorations = false) {
     const clonedSettings = structuredClone(this.settings);
 
     // Strip base colors before saving to avoid bloat and overwrite
@@ -636,7 +637,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
 
     await this.saveData(clonedSettings);
-    updateValue(true);
+    updateValue(true); // re-render decorations, re-scan codeblocks
+    if (resetFoldDecorations) {
+      resetFoldDecos(true); // reset fold decorations to their initial state
+    }
+
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
 
@@ -693,7 +698,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (markdownView) {
           markdownView.containerEl.classList.add('codeblock-customizer-header-collapse-command');
-          const mode = markdownView.getMode(); 
+          const mode = markdownView.getMode();
           if (mode === "source") {
             // @ts-ignore
             this.editorExtensions.unfoldAll(markdownView.editor.cm);
@@ -744,7 +749,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
   }// addCommands
 
-  registerPostProcessors(){
+  registerPostProcessors() {
     // reading mode
     this.registerMarkdownPostProcessor((el, ctx) => {
       const hasCodeBlock = el.querySelector("pre > code");
@@ -773,7 +778,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
   registerEvents(settingsTab: SettingsTab) {
     this.registerEvent(this.app.workspace.on('css-change', this.handleCssChange.bind(this, settingsTab), this));
-    
+
     this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
       if (this.settings.pluginSettings.codeblock.enableLinks && this.settings.pluginSettings.codeblock.enableLinkUpdate) {
         this.handleFileRename(file, oldPath); // until Obsidian doesn't adds code block links to metadatacache
@@ -789,7 +794,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       // check if there is a pending save operation scheduled by the timer and save it
       if (this.debounceTimer) {
         clearTimeout(this.debounceTimer);
-        this.debounceTimer = null; 
+        this.debounceTimer = null;
         this.savePermanentData();
       }
     }));
@@ -807,7 +812,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
             for (const key of keysToProcess) {
               const [filePath, lineStartStr] = key.split('|');
-              
+
               if (filePath === file?.path) {
                 const lineStart = parseInt(lineStartStr, 10);
                 const newParametersLine = this.modifiedBlocks.get(key);
@@ -815,19 +820,19 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
                 if (newParametersLine !== undefined) {
                   this.rerenderCodeblock(file, lineStart, newParametersLine);
                 }
-                
+
                 this.modifiedBlocks.delete(key);
               }
             }
           }
         }
-        
+
         if (currentMode === 'preview') {
           this.registerGroupedRenderChildForView(markdownView);
         }
       }
     }));
-    
+
     this.registerEvent(this.app.workspace.on('file-open', (file) => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (!view) {
@@ -884,7 +889,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       if (newParametersLine !== undefined) {
         this.rerenderQueue.set(lineStart, { content: newParametersLine, count: targets.length });
       }
-      
+
       for (const target of targets) {
         target.section.rendered = false;
         target.section.html = '';

@@ -1,0 +1,90 @@
+/* Inline code editor */
+.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code {
+  background-color: var(--codeblock-customizer-inline-code-background-color) !important;
+  color: var(--codeblock-customizer-inline-code-text-color);
+}
+
+.cm-s-obsidian {
+  span.cm-inline-code {
+    padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
+    border-radius: var(--border-radius) !important;
+    margin: 0 !important;
+    font-size: var(--code-size);
+  }
+
+  // remove margin and padding for code when editing
+  span.cm-formatting-code+span.cm-inline-code:not(.cm-formatting-code) {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  // remove margin and padding for last backtick when editing
+  span.cm-inline-code:not(.cm-formatting-code)+span.cm-formatting-code {
+    padding-right: var(--inline-code-padding-horizontal) !important;
+    padding-left: 0 !important;
+    border-radius: 0 var(--border-radius) var(--border-radius) 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  // set border radius for inline code, if an icon is displayed
+  span.codeblock-customizer-inline-code-icon-container~span.cm-inline-code:not(.cm-formatting-code) {
+    padding-left: 0 !important;
+    border-radius: 0 var(--border-radius) var(--border-radius) 0 !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* Inline code editor - language */
+.markdown-source-view .codeblock-customizer-inline-code-langauge {
+  color: var(--code-comment);
+}
+
+/* remove margin and padding for first backtick when editing */
+body.codeblock-customizer-show-inline-code-icons .cm-s-obsidian span.codeblock-customizer-inline-code-icon-container,
+.cm-s-obsidian span.cm-formatting-code:has(+ span.cm-inline-code:not(.cm-formatting-code)) {
+  padding-right: 0 !important;
+  padding-left: var(--inline-code-padding-horizontal) !important;
+  border-radius: var(--border-radius) 0 0 var(--border-radius) !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* inline code icon container */
+body.codeblock-customizer-show-inline-code-icons .cm-s-obsidian span.codeblock-customizer-inline-code-icon-container,
+.codeblock-customizer.codeblock-customizer-show-inline-code-icons .markdown-rendered code.codeblock-customizer-inline-code:has(.codeblock-customizer-inline-icon-wrapper) {
+  padding-left: 0 !important;
+}
+
+body:not(.codeblock-customizer-show-inline-code-icons) {
+  span.codeblock-customizer-inline-code-icon-container,
+  .markdown-rendered code .codeblock-customizer-inline-icon-wrapper {
+    display: none;
+  }
+
+  div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code~span.cm-inline-code {
+    padding-left: var(--inline-code-padding-horizontal) !important;
+    border-radius: var(--border-radius) var(--border-radius) var(--border-radius) var(--border-radius) !important;
+  }
+}
+
+/* Inline code icon */
+.codeblock-customizer-inline-code-icon-container .codeblock-customizer-inline-code-icon {
+  display: inline-block !important;
+  height: calc(var(--code-size) * 1.4);
+  margin-bottom: 2px !important;
+  vertical-align: middle;
+}
+
+/* Inline code reading view */
+.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code {
+  padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
+  border-radius: var(--border-radius) !important;
+  margin: 0 !important;
+  background-color: var(--codeblock-customizer-inline-code-background-color);
+  color: var(--codeblock-customizer-inline-code-text-color);
+  font-family: var(--font-monospace);
+  font-size: var(--code-size);
+}

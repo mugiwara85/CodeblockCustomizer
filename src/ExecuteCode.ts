@@ -7,7 +7,7 @@ import { renderCodeBlockLines } from "./ReadingViewUtils";
 export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPreElement: HTMLElement | undefined, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin): MutationObserver | null {
   const executeButton = createExecuteCodeRunButton();
   const clearButton = createExecuteCodeClearButton();
-  
+
   frag.appendChild(executeButton);
   frag.appendChild(clearButton);
 
@@ -69,7 +69,7 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
     } else {
       clearButton.classList.add('codeblock-customizer-execute-code-clear-button-hidden');
     }
-    
+
     const outputElement = preElement.querySelector('code.language-output') as HTMLElement;
     if (!outputElement) {
       return;
@@ -77,18 +77,18 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
 
     let needsProcessing = false;
     const unprocessedSpans = outputElement.querySelectorAll('span.stdout:not([data-cbc-processed]), span.stdin:not([data-cbc-processed]), span.stderr:not([data-cbc-processed])');
-    
+
     for (const span of Array.from(unprocessedSpans)) {
       if (span.textContent?.trim()) {
         needsProcessing = true;
         break;
       }
     }
-    
+
     if (needsProcessing && outputElement.dataset.cbcProcessing !== 'true') {
       outputElement.dataset.cbcProcessing = 'true';
-      
-      if (!outputElement.classList.contains('codeblock-customizer-execute-code-output')){
+
+      if (!outputElement.classList.contains('codeblock-customizer-execute-code-output')) {
         outputElement.classList.add('codeblock-customizer-execute-code-output');
       }
       processExecuteCodeOutput(outputElement as HTMLElement, executionObserver, preElement, parameters, plugin);
@@ -110,7 +110,7 @@ export function verifyAndRevealExecuteButtons(scope?: HTMLElement) {
     if (!searchContainer) {
       return;
     }
-    
+
     const originalRunButton = searchContainer.querySelector('.run-code-button');
 
     if (originalRunButton) {
@@ -198,7 +198,7 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
       outputElement.childNodes.forEach(node => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
-          const isSourceSpan = el.tagName.toLowerCase() === 'span' && (el.classList.contains('stdout') || el.classList.contains('stdin') ||  el.classList.contains('stderr'));
+          const isSourceSpan = el.tagName.toLowerCase() === 'span' && (el.classList.contains('stdout') || el.classList.contains('stdin') || el.classList.contains('stderr'));
           if (isSourceSpan) {
             rawTextContent += el.textContent;
           }
@@ -206,7 +206,7 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
       });
 
       const existingCustomOutput = outputElement.querySelector('.codeblock-customizer-output') as HTMLElement;
-      
+
       const hideOriginalElements = () => {
         outputElement.childNodes.forEach(child => {
           if (child.nodeType === Node.ELEMENT_NODE) {

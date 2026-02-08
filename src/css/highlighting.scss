@@ -1,0 +1,116 @@
+/* Highlighting */
+.codeblock-customizer-line-highlighted,
+.codeblock-customizer-highlighted-text {
+  background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
+}
+
+.codeblock-customizer-active-line-highlight,
+.codeblock-customizer-active-line-highlight-editor {
+  .cm-active {
+    background-color: var(--codeblock-customizer-editor-active-line-color) !important;
+  }
+}
+
+.codeblock-customizer-active-line-highlight,
+.codeblock-customizer-active-line-highlight-codeblock {
+  .markdown-source-view [class*="codeblock-customizer-line"].cm-active {
+    background-color: var(--codeblock-active-line-color, var(--codeblock-customizer-codeblock-active-line-color)) !important;
+  }
+}
+
+/* Bracket highlight */
+.markdown-source-view {
+  [class*="codeblock-customizer-line"] {
+    .codeblock-customizer-bracket-highlight-match {
+      background-color: var(--codeblock-bracket-highlight-background-color-match, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-match));
+      color: var(--codeblock-bracket-highlight-color-match, var(--codeblock-customizer-codeblock-bracket-highlight-color-match));
+    }
+
+    .codeblock-customizer-bracket-highlight-nomatch {
+      background-color: var(--codeblock-bracket-highlight-background-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-nomatch));
+      color: var(--codeblock-bracket-highlight-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-color-nomatch));
+    }
+  }
+
+  .codeblock-customizer-bracket-highlight-match,
+  .codeblock-customizer-bracket-highlight-nomatch {
+    &:not([class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-match),
+    &:not([class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-nomatch) {
+      /* dont apply to non-codeblock lines */
+      background-color: transparent;
+    }
+  }
+
+  // Selection matching
+  .codeblock-customizer-line .cm-selectionMatch {
+    background-color: var(--codeblock-selectionmatch-highlight-color, var(--codeblock-customizer-codeblock-selectionmatch-highlight-color));
+  }
+
+  .cm-selectionMatch:not(.codeblock-customizer-line .cm-selectionMatch) {
+    /* dont apply to non-codeblock lines */
+    background-color: transparent !important;
+  }
+
+  // Frontmatter
+  .cm-hmd-frontmatter {
+    &.cm-operator {
+      color: var(--code-operator);
+    }
+
+    &.cm-keyword {
+      color: var(--code-keyword);
+    }
+
+    &.cm-atom {
+      color: var(--code-important)
+    }
+
+    &.cm-number {
+      color: var(--code-value);
+    }
+
+    &.cm-tag {
+      color: var(--code-tag);
+    }
+
+    &.cm-variable-2,
+    &.cm-variable,
+    &.cm-variable-3,
+    &.cm-link {
+      color: var(--code-property);
+    }
+
+    &.cm-type .markdown-source-view .cm-hmd-frontmatter.cm-property,
+    &.cm-attribute,
+    &.cm-builtin {
+      color: var(--code-function);
+    }
+
+    &:not([class*="cm-"]),
+    &.cm-type .cm-property {
+      color: var(--code-function);
+    }
+
+    &.cm-meta,
+    &.cm-hmd-frontmatter.cm-def.cm-def,
+    &.cm-comment {
+      color: var(--code-comment);
+    }
+
+    &.cm-string-2,
+    &.cm-qualifier,
+    &.cm-string {
+      color: var(--code-string);
+    }
+
+    &.cm-math,
+    &.cm-inline-code {
+      color: var(--code-normal);
+    }
+
+    &.cm-bracket,
+    &.cm-hr .markdown-source-view .cm-hmd-frontmatter.cm-punctuation {
+      color: var(--code-punctuation);
+    }
+  }
+}

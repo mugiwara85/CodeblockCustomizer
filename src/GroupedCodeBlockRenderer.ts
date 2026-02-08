@@ -17,7 +17,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private plugin: CodeBlockCustomizerPlugin;
   private hoverListeners: Array<() => void> = [];
   private activeExecuteCodeObserver: MutationObserver | null = null;
-  
+
   constructor(containerEl: HTMLElement, view: MarkdownView, childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>, plugin: CodeBlockCustomizerPlugin) {
     super(containerEl);
     this.view = view;
@@ -28,7 +28,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
   async onload() {
     this.processGroupedCodeBlocks();
-    this.setupMutationObserver(['class', 'groupname']);  
+    this.setupMutationObserver(['class', 'groupname']);
   }// onload
 
   onunload() {
@@ -70,12 +70,12 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     this.reconnectObserver();
   }// processGroupedCodeBlocks
 
-  private cleanup() { 
+  private cleanup() {
     this.disconnectObserver();
 
     this.containerEl.querySelectorAll('.codeblock-customizer-header-group-container').forEach(header => header.remove());
     this.containerEl.querySelectorAll('.markdown-rendered .codeblock-customizer-header-group-tabs').forEach(tabs => tabs.remove());
-    
+
     if (this.activeExecuteCodeObserver) {
       this.activeExecuteCodeObserver.disconnect();
       this.activeExecuteCodeObserver = null;
@@ -94,11 +94,14 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const lineCount = firstBlock.querySelectorAll('code > div').length;
     const header = this.createHeader(parameters, groupName, lineCount)
     const frag = document.createDocumentFragment();
-  
+
     let languageIconElement: HTMLElement;
     if (parameters.displayLanguage) {
       const Icon = getLanguageIcon(parameters.displayLanguage);
       languageIconElement = Icon ? createCodeblockIcon(parameters.displayLanguage) : createCodeblockIcon("NoIcon");
+      if (Icon) {
+        header.classList.add('has-icon');
+      }
     } else {
       languageIconElement = createCodeblockIcon("NoIcon");
     }
@@ -119,12 +122,12 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     };
 
     const documentPath = this.view.file?.path || 'unknown_document';
-    const tabsContainer = this.addTabs(frag, group, updateGroupHeader, groupName, documentPath );
+    const tabsContainer = this.addTabs(frag, group, updateGroupHeader, groupName, documentPath);
 
     frag.appendChild(fileNameContainer);
     frag.appendChild(groupButtonsContainer);
     header.appendChild(frag);
-    
+
     const currentlyActiveBlock = group[this.getStoredTabIndex(groupName, documentPath)];
     if (currentlyActiveBlock) {
       updateGroupHeader(currentlyActiveBlock);
@@ -166,11 +169,19 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
 
     let newIconElement: HTMLElement;
+    let hasRealIcon = false;
     if (displayLanguage) {
       const Icon = getLanguageIcon(displayLanguage);
       newIconElement = Icon ? createCodeblockIcon(displayLanguage) : createCodeblockIcon("NoIcon");
+      hasRealIcon = !!Icon;
     } else {
       newIconElement = createCodeblockIcon("NoIcon");
+    }
+
+    if (hasRealIcon) {
+      container.classList.add('has-icon');
+    } else {
+      container.classList.remove('has-icon');
     }
 
     container.prepend(newIconElement);
@@ -228,11 +239,11 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         header.classList.add("semi-collapsed");
       }
     } else {
-      header.classList.add(`noCollapseIcon`); 
+      header.classList.add(`noCollapseIcon`);
       header.classList.remove("collapsed", "semi-collapsed");
     }
 
-    return newCollapseIcon; 
+    return newCollapseIcon;
   }// updateHeaderCollapseIcon
 
   private updateHeaderFileName(fileNameElement: HTMLElement, headerDisplayText: string) {
@@ -244,10 +255,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const headerClickHandler = (event: MouseEvent) => {
       if (!tabsContainer.contains(event.target as Node)) {
         const activeBlock = group.find(block => block.style.display !== 'none');
-        if (!activeBlock) 
+        if (!activeBlock)
           return;
 
-       this.foldCodeBlcok(activeBlock, headerContainer);
+        this.foldCodeBlcok(activeBlock, headerContainer);
       }
     };
     headerContainer.addEventListener('click', headerClickHandler);
@@ -366,7 +377,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
   }// reconnectObserver
 
-  private cleanupListeners(){
+  private cleanupListeners() {
     this.clickListeners.forEach(removeListener => removeListener());
     this.clickListeners = [];
     this.hoverListeners.forEach(removeListener => removeListener());
@@ -413,34 +424,34 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         if (currentConsecutiveGroup.length === 0) {
           currentConsecutiveGroup.push(currentPreElement);
         } else {
-            const lastContainerInGroup = currentConsecutiveGroup[currentConsecutiveGroup.length - 1].closest('.el-pre.codeblock-customizer-pre-parent');
-            if (!lastContainerInGroup) {
-              if (currentConsecutiveGroup.length > 0) {
-                distinctConsecutiveGroups.push(currentConsecutiveGroup);
-              }
-              currentConsecutiveGroup = [currentPreElement];
-              continue;
+          const lastContainerInGroup = currentConsecutiveGroup[currentConsecutiveGroup.length - 1].closest('.el-pre.codeblock-customizer-pre-parent');
+          if (!lastContainerInGroup) {
+            if (currentConsecutiveGroup.length > 0) {
+              distinctConsecutiveGroups.push(currentConsecutiveGroup);
+            }
+            currentConsecutiveGroup = [currentPreElement];
+            continue;
+          }
+
+          let nextNode: ChildNode | null = lastContainerInGroup.nextSibling;
+          let foundDirectConsecutiveContainer = false;
+
+          while (nextNode) {
+            if (nextNode === currentContainer) {
+              foundDirectConsecutiveContainer = true;
+              break;
             }
 
-            let nextNode: ChildNode | null = lastContainerInGroup.nextSibling;
-            let foundDirectConsecutiveContainer = false;
-
-            while (nextNode) {
-              if (nextNode === currentContainer) {
-                foundDirectConsecutiveContainer = true;
-                break;
-              }
-
-              if (nextNode.nodeType === Node.ELEMENT_NODE) {
-                break;
-              }
-
-              if (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent && nextNode.textContent.trim().length > 0) {
-                break;
-              }
-
-              nextNode = nextNode.nextSibling;
+            if (nextNode.nodeType === Node.ELEMENT_NODE) {
+              break;
             }
+
+            if (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent && nextNode.textContent.trim().length > 0) {
+              break;
+            }
+
+            nextNode = nextNode.nextSibling;
+          }
 
           if (foundDirectConsecutiveContainer && currentGroupName === currentConsecutiveGroup[0].getAttribute('groupname')) {
             currentConsecutiveGroup.push(currentPreElement);
@@ -476,7 +487,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     } else {
       documentState = this.plugin.activeReadingViewTabs.get(documentPath);
     }
-    
+
     if (documentState) {
       const storedIndex = documentState.get(groupName);
       if (storedIndex !== undefined) {
@@ -535,7 +546,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         tab.classList.remove('active');
         blockElement.style.display = 'none';
       }
-      
+
       tabsContainer.appendChild(tab);
     });
 
@@ -548,12 +559,12 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private addTabClickHandler(tabsContainer: HTMLElement, groupMembers: HTMLPreElement[], updateGroupHeader: (currentBlock: HTMLPreElement, tabsContainer: HTMLElement) => void, groupName: string, documentPath: string) {
     const tabClickHandler = (event: MouseEvent) => {
       const clickedTab = (event.target as HTMLElement).closest('.codeblock-customizer-header-group-tab') as HTMLElement | null;
-      if (!clickedTab) 
+      if (!clickedTab)
         return;
 
       const targetIndex = parseInt(clickedTab.getAttribute('data-codeblock-target-index') || '0', 10);
       const blockElement = groupMembers[targetIndex];
-      if (!blockElement) 
+      if (!blockElement)
         return;
 
       const isActive = clickedTab.classList.contains('active');
@@ -579,7 +590,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const codeblockLineCount = lines.length;
     const semiFoldSettings = this.plugin.settings.pluginSettings.semiFold;
     const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
-    
+
     const currentCollapseIcon = header.querySelector('.codeblock-customizer-header-collapse') as HTMLElement | null;
     if (!currentCollapseIcon)
       return;
@@ -648,8 +659,8 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number, imm
   let timeout: NodeJS.Timeout | null;
   let result: ReturnType<T> | undefined;
 
-  return function(this: any, ...args: any[]) {
-    const later = function() {
+  return function (this: any, ...args: any[]) {
+    const later = function () {
       timeout = null;
       if (!immediate) {
         result = func.apply(this, args);

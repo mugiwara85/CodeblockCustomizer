@@ -1,7 +1,7 @@
 import { Notice, PluginSettingTab, Setting, DropdownComponent, App, TextComponent, ToggleComponent, ExtraButtonComponent } from "obsidian";
 
-import {  getColorOfCssVariable, getCurrentMode, updateSettingClasses, updateSettingStyles } from "./Utils";
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence, ButtonModifierKeys, ColorTheme, LineNumberSeparatorStyle } from './Settings';
+import { getColorOfCssVariable, getCurrentMode, updateSettingClasses, updateSettingStyles } from "./Utils";
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, Colors, DEFAULT_THEMES, FoldingScope, FoldingPersistence, InlineCodeModifierKeys, TabPersistence, ButtonModifierKeys, ColorTheme, LineNumberSeparatorStyle, SemiFoldEffect } from './Settings';
 import CodeBlockCustomizerPlugin from "./main";
 import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { ANNOTATION_TYPE_ICONS } from "./TooltipManager";
@@ -79,11 +79,11 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   display(): void {
-    const {containerEl} = this;
+    const { containerEl } = this;
     containerEl.empty();
     containerEl.classList.add(`codeblock-customizer-settingspage`);
-    containerEl.createEl('h3', {text: 'Codeblock Customizer Settings'});
-    
+    containerEl.createEl('h3', { text: 'Codeblock Customizer Settings' });
+
     let dropdown: DropdownComponent;
     let restoreButton: ExtraButtonComponent;
     new Setting(containerEl)
@@ -95,7 +95,7 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.ThemeName = value;
           this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[this.plugin.settings.ThemeName]);
           this.display();
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
         });// onChange
         dropdown = dropdownObj;
       })// addDropdown
@@ -105,7 +105,7 @@ export class SettingsTab extends PluginSettingTab {
         button.onClick(() => {
           this.plugin.settings.Themes[this.plugin.settings.ThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
           new Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
         });
       })// addExtraButton
       .addExtraButton(button => {
@@ -113,7 +113,7 @@ export class SettingsTab extends PluginSettingTab {
         button.setIcon('reset');
         button.onClick(() => {
           this.restoreThemes(this.plugin.settings.ThemeName, false);
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
           new Notice(`Theme "${this.plugin.settings.ThemeName}" restored to its original state!`);
         });
         button.setDisabled(!(this.plugin.settings.ThemeName in DEFAULT_THEMES))
@@ -134,7 +134,7 @@ export class SettingsTab extends PluginSettingTab {
             this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[this.plugin.settings.ThemeName]);
             this.refreshDropdown(dropdown, this.plugin.settings);
             this.display();
-            (async () => {await this.plugin.saveSettings()})();
+            (async () => { await this.plugin.saveSettings() })();
           }
         });// onClick
         button.setDisabled(this.plugin.settings.ThemeName in DEFAULT_THEMES);
@@ -157,40 +157,40 @@ export class SettingsTab extends PluginSettingTab {
         button.setTooltip("Save theme");
         button.setIcon('plus');
         button.onClick(() => {
-        if (this.plugin.settings.newThemeName.trim().length === 0)
-          new Notice('Set a name for your theme!');
-        else if (this.plugin.settings.newThemeName in DEFAULT_SETTINGS.Themes) {
-          new Notice('You can\'t overwrite default themes');
-        } else {
-          if (this.plugin.settings.newThemeName in this.plugin.settings.Themes) {
-            this.plugin.settings.Themes[this.plugin.settings.newThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-            new Notice(`Theme "${this.plugin.settings.newThemeName}" updated successfully!`);
+          if (this.plugin.settings.newThemeName.trim().length === 0)
+            new Notice('Set a name for your theme!');
+          else if (this.plugin.settings.newThemeName in DEFAULT_SETTINGS.Themes) {
+            new Notice('You can\'t overwrite default themes');
           } else {
-            this.plugin.settings.Themes[this.plugin.settings.newThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-            new Notice(`Theme "${this.plugin.settings.newThemeName}" saved successfully!`);
+            if (this.plugin.settings.newThemeName in this.plugin.settings.Themes) {
+              this.plugin.settings.Themes[this.plugin.settings.newThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
+              new Notice(`Theme "${this.plugin.settings.newThemeName}" updated successfully!`);
+            } else {
+              this.plugin.settings.Themes[this.plugin.settings.newThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
+              new Notice(`Theme "${this.plugin.settings.newThemeName}" saved successfully!`);
+            }
+            this.plugin.settings.ThemeName = this.plugin.settings.newThemeName;
+            this.refreshDropdown(dropdown, this.plugin.settings);
+            restoreButton.setDisabled(true);
+            this.plugin.settings.newThemeName = "";
+            text.setValue("");
+            (async () => { await this.plugin.saveSettings() })();
+            this.display();
           }
-          this.plugin.settings.ThemeName = this.plugin.settings.newThemeName;
-          this.refreshDropdown(dropdown, this.plugin.settings);
-          restoreButton.setDisabled(true);
-          this.plugin.settings.newThemeName = "";
-          text.setValue("");
-          (async () => {await this.plugin.saveSettings()})();
-          this.display();
-        }
+        });
       });
-    });
 
     new Setting(containerEl)
       .setName('Select settings page')
       .setDesc('Select which settings group you want to modify.')
       .addDropdown((dropdown) => dropdown
         .addOptions({
-          "general"         : "⚙️ General",
-          "appearance"      : "🎨 Appearance & Styling",
-          "highlighting"    : "🖌️ Highlighting",
-          "behavior"        : "👆 Behavior & Interaction",
-          "prompts"         : "⌨️ Prompts",
-          "plugins"         : "🧩 Plugin Compatibility"
+          "general": "⚙️ General",
+          "appearance": "🎨 Appearance & Styling",
+          "highlighting": "🖌️ Highlighting",
+          "behavior": "👆 Behavior & Interaction",
+          "prompts": "⌨️ Prompts",
+          "plugins": "🧩 Plugin Compatibility"
         })
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
@@ -201,10 +201,10 @@ export class SettingsTab extends PluginSettingTab {
           behaviorDiv.toggleClass("codeblock-customizer-behavior-settingsDiv-hide", this.plugin.settings.settingsType !== "behavior");
           promptsDiv.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
           pluginsDiv.toggleClass("codeblock-customizer-plugin-compatibility-settingsDiv-hide", this.plugin.settings.settingsType !== "plugins");
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
         })
       );
-      
+
     this.createReadMeLink(containerEl);
 
     containerEl.createEl("hr");
@@ -217,23 +217,23 @@ export class SettingsTab extends PluginSettingTab {
     const pluginsDiv = this.createPluginCompatibilitySettingsPage(containerEl);
 
     // donation
-    const cDonationDiv = containerEl.createDiv({ cls: "codeblock-customizer-Donation", });    
+    const cDonationDiv = containerEl.createDiv({ cls: "codeblock-customizer-Donation", });
     const credit = createEl("p");
     const donateText = createEl("p");
     donateText.appendText("If you like this plugin, and would like to help support continued development, use the button below!");
-    
+
     credit.setAttribute("style", "color: var(--text-muted)");
     cDonationDiv.appendChild(donateText);
     cDonationDiv.appendChild(credit);
 
     cDonationDiv.appendChild(
       this.createDonateButton("https://www.buymeacoffee.com/ThePirateKing")
-    ); 
+    );
   }// display
 
   private createDetailsGroup(container: HTMLElement, title: string, key: keyof SettingsTab, ...extraClasses: string[]): HTMLElement {
     const details = container.createEl('details');
-    
+
     details.addClasses(['settings-group', ...extraClasses]);
 
     if (this[key]) {
@@ -249,7 +249,7 @@ export class SettingsTab extends PluginSettingTab {
   createGeneralSettings(containerEl: HTMLElement) {
     const generalDiv = containerEl.createDiv({ cls: "codeblock-customizer-general-settingsDiv-hide" });
     generalDiv.toggleClass("codeblock-customizer-general-settingsDiv-hide", this.plugin.settings.settingsType !== "general");
-    generalDiv.createEl('h3', {text: '⚙️ General Settings'});
+    generalDiv.createEl('h3', { text: '⚙️ General Settings' });
 
     new Setting(generalDiv)
       .setName('Enable plugin in source mode')
@@ -258,7 +258,7 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.common.enableInSourceMode)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.common.enableInSourceMode = value;
-          await this.plugin.saveSettings();
+          await this.plugin.saveSettings(true);
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
@@ -275,7 +275,7 @@ export class SettingsTab extends PluginSettingTab {
             clearTimeout(this.debounceTimer);
           }
           this.debounceTimer = setTimeout(async () => {
-            await this.plugin.saveSettings();
+            await this.plugin.saveSettings(true);
             this.plugin.renderReadingViews();
           }, 750);
         })
@@ -297,50 +297,50 @@ export class SettingsTab extends PluginSettingTab {
     const printToPDFDetails = this.createDetailsGroup(generalDiv, 'Print to PDF Settings', 'printToPDFDetailsOpen');
 
     new Setting(printToPDFDetails)
-    .setName('Enable print to PDF')
-    .setDesc('If enabled, the styling is applied to documents when printed to PDF. By default PDF printing uses light theme colors.')
-    .addToggle(toggle => toggle
-      .setValue(this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling)
-      .onChange(async (value) => {
-        this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling = value;
-        await this.plugin.saveSettings();
-        this.display();
-      })
-    );
+      .setName('Enable print to PDF')
+      .setDesc('If enabled, the styling is applied to documents when printed to PDF. By default PDF printing uses light theme colors.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling = value;
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      );
 
     if (this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling) {
       new Setting(printToPDFDetails)
-      .setName('Force current color mode use')
-      .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.pluginSettings.printing.forceCurrentColorUse)
-        .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.printing.forceCurrentColorUse = value;
-          await this.plugin.saveSettings();
-        })
-      );
+        .setName('Force current color mode use')
+        .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.pluginSettings.printing.forceCurrentColorUse)
+          .onChange(async (value) => {
+            this.plugin.settings.pluginSettings.printing.forceCurrentColorUse = value;
+            await this.plugin.saveSettings();
+          })
+        );
 
-    new Setting(printToPDFDetails)
-      .setName('Avoid page breaks in code blocks')
-      .setDesc('If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.pluginSettings.printing.avoidPageBreaks)
-        .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.printing.avoidPageBreaks = value;
-          await this.plugin.saveSettings();
-        })
-      );
+      new Setting(printToPDFDetails)
+        .setName('Avoid page breaks in code blocks')
+        .setDesc('If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.pluginSettings.printing.avoidPageBreaks)
+          .onChange(async (value) => {
+            this.plugin.settings.pluginSettings.printing.avoidPageBreaks = value;
+            await this.plugin.saveSettings();
+          })
+        );
 
-    new Setting(printToPDFDetails)
-      .setName('Expand all code blocks during printing')
-      .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint)
-        .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint = value;
-          await this.plugin.saveSettings();
-        })
-      );
+      new Setting(printToPDFDetails)
+        .setName('Expand all code blocks during printing')
+        .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint)
+          .onChange(async (value) => {
+            this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint = value;
+            await this.plugin.saveSettings();
+          })
+        );
     }
 
     new Setting(printToPDFDetails)
@@ -356,12 +356,12 @@ export class SettingsTab extends PluginSettingTab {
 
     return generalDiv;
   }// createGeneralSettings
-  
+
   createAppearanceSettings(containerEl: HTMLElement) {
     const appearanceDiv = containerEl.createDiv({ cls: "codeblock-customizer-appearance-settingsDiv-hide" });
     appearanceDiv.toggleClass("codeblock-customizer-appearance-settingsDiv-hide", this.plugin.settings.settingsType !== "appearance");
-    appearanceDiv.createEl('h3', {text: '🎨 Appearance & Styling'});
-    
+    appearanceDiv.createEl('h3', { text: '🎨 Appearance & Styling' });
+
     new Setting(appearanceDiv)
       .setName('Enable editor active line highlight')
       .setDesc('If enabled, you can set the color for the active line (including codeblocks).')
@@ -374,7 +374,7 @@ export class SettingsTab extends PluginSettingTab {
           editorActiveLineSetting.settingEl.style.display = value ? '' : 'none';
         })
       );
-    
+
     const editorActiveLineSetting = this.createPickrSetting(appearanceDiv, 'Editor active line color', '', "editorActiveLineColor");
     editorActiveLineSetting.settingEl.style.display = this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight ? '' : 'none';
 
@@ -433,8 +433,8 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     // gutter settings
-    codeBlockDetails.createEl('h4', {text: 'Gutter Settings'});
-    
+    codeBlockDetails.createEl('h4', { text: 'Gutter Settings' });
+
     new Setting(codeBlockDetails)
       .setName('Highlight gutter')
       .setDesc('If enabled, highlighted lines will also highlight the gutter (line number), not just the line.')
@@ -443,12 +443,12 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.gutter.enableHighlight = value;
           await this.plugin.saveSettings();
-      })
-    );
-    
+        })
+      );
+
     this.createPickrSetting(codeBlockDetails, 'Gutter text color', '', "gutter.textColor");
     this.createPickrSetting(codeBlockDetails, 'Gutter background color', '', "gutter.backgroundColor");
-    
+
     new Setting(codeBlockDetails)
       .setName('Highlight active line number')
       .setDesc('If enabled, the active line number will be highlighted with a separate color.')
@@ -456,7 +456,7 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr)
         .onChange((value) => {
           this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr = value;
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
           updateSettingStyles(this.plugin.settings, this.app);
           highlightActiveLineNrSetting.settingEl.style.display = value ? '' : 'none';
         })
@@ -467,10 +467,10 @@ export class SettingsTab extends PluginSettingTab {
 
     // header settings
     const headerDetails = this.createDetailsGroup(appearanceDiv, 'Header Settings', 'headerDetailsOpen');
-    
+
     this.createPickrSetting(headerDetails, 'Header color', 'Sets the background color of the code block header.', "header.backgroundColor");
     this.createPickrSetting(headerDetails, 'Header text color', '', "header.textColor");
-    
+
     new Setting(headerDetails)
       .setName('Header bold text')
       .setDesc('If enabled, the header text will be set to bold.')
@@ -479,9 +479,9 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.header.boldText = value;
           await this.plugin.saveSettings();
-      })
-    );
-    
+        })
+      );
+
     new Setting(headerDetails)
       .setName('Header italic text')
       .setDesc('If enabled, the header text will be set to italic.')
@@ -490,11 +490,11 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.header.italicText = value;
           await this.plugin.saveSettings();
-      })
-    );
-    
+        })
+      );
+
     this.createPickrSetting(headerDetails, 'Header line color', 'Sets the color of the separator line at the bottom of the header.', "header.lineColor");
-    
+
     new Setting(headerDetails)
       .setName('Disable folding for code blocks without `fold` or `unfold` specified')
       .setDesc('If enabled, code blocks without `fold` or `unfold` specified will not collapse when clicking the header.')
@@ -504,6 +504,7 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
+          this.plugin.renderReadingViews();
         })
       );
 
@@ -511,35 +512,35 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Collapse icon position')
       .setDesc('If enabled a collapse icon will be displayed in the header. Select the position of the collapse icon.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({"hide": "Hide", "middle": "Middle", "right": "Right"})
+        .addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" })
         .setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition)
         .onChange((value) => {
           this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
 
     new Setting(headerDetails)
-    .setName('Collapsed code text')
-    .setDesc('Overwrite the default "Collapsed Code" text in the header, when the file parameter is not defined.')
-    .addText(text => text
-      .setPlaceholder(DEFAULT_COLLAPSE_TEXT)
-      .setValue(this.plugin.settings.pluginSettings.header.collapsedCodeText)
-      .onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.collapsedCodeText = value;
-        await this.plugin.saveSettings();
-        if (this.debounceTimer) {
+      .setName('Collapsed code text')
+      .setDesc('Overwrite the default "Collapsed Code" text in the header, when the file parameter is not defined.')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_COLLAPSE_TEXT)
+        .setValue(this.plugin.settings.pluginSettings.header.collapsedCodeText)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.header.collapsedCodeText = value;
+          await this.plugin.saveSettings();
+          if (this.debounceTimer) {
             clearTimeout(this.debounceTimer);
           }
           this.debounceTimer = setTimeout(async () => {
             await this.plugin.saveSettings();
             this.plugin.renderReadingViews();
           }, 750);
-      })
-    );
+        })
+      );
 
-    headerDetails.createEl('h4', {text: 'Header Language Tag & Header Icon Settings'});
+    headerDetails.createEl('h4', { text: 'Header Language Tag & Header Icon Settings' });
 
     new Setting(headerDetails)
       .setName('Display codeblock language (if language is defined)')
@@ -553,13 +554,13 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage = value;
           await this.plugin.saveSettings();
           this.display();
-      })
-    );
+        })
+      );
 
     if (this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage) {
-      this.createPickrSetting(headerDetails, 'Codeblock language text color', '', "header.codeBlockLangTextColor");    
-      this.createPickrSetting(headerDetails, 'Codeblock language background color', '', "header.codeBlockLangBackgroundColor");    
-      
+      this.createPickrSetting(headerDetails, 'Codeblock language text color', '', "header.codeBlockLangTextColor");
+      this.createPickrSetting(headerDetails, 'Codeblock language background color', '', "header.codeBlockLangBackgroundColor");
+
       const boldToggle = new Setting(headerDetails)
         .setName('Bold text')
         .setDesc('If enabled, the codeblock language text will be set to bold.')
@@ -568,10 +569,10 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.pluginSettings.header.codeblockLangBoldText = value;
             await this.plugin.saveSettings();
-        })
-      );
+          })
+        );
       this.headerLangToggles.push(boldToggle);
-      
+
       const italicToggle = new Setting(headerDetails)
         .setName('Italic text')
         .setDesc('If enabled, the codeblock language text will be set to italic.')
@@ -580,10 +581,10 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.pluginSettings.header.codeblockLangItalicText = value;
             await this.plugin.saveSettings();
-        })
-      );
+          })
+        );
       this.headerLangToggles.push(italicToggle);
-      
+
       const alwaysDisplayToggle = new Setting(headerDetails)
         .setName('Always display codeblock language')
         .setDesc('If enabled, the codeblock language will always be displayed (if a language is defined), even if the `file` parameter is not specified.')
@@ -592,17 +593,17 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang = value;
             await this.plugin.saveSettings();
-        })
-      );
+          })
+        );
       this.headerLangToggles.push(alwaysDisplayToggle);
-      
-      if (!this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage){
+
+      if (!this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage) {
         this.headerLangToggles.forEach(item => {
           item.setDisabled(true);
         });
       }
     }
-    
+
     new Setting(headerDetails)
       .setName('Display codeblock language icon (if available)')
       .setDesc('If enabled, the codeblock language icon will be displayed in the header.')
@@ -615,9 +616,9 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.header.displayCodeBlockIcon = value;
           await this.plugin.saveSettings();
           this.display();
-      })
-    );
-    
+        })
+      );
+
     if (this.plugin.settings.pluginSettings.header.displayCodeBlockIcon) {
       const alwaysDisplayIconToggle = new Setting(headerDetails)
         .setName('Always display codeblock language icon (if available)')
@@ -627,11 +628,11 @@ export class SettingsTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon = value;
             await this.plugin.saveSettings();
-        })
-      );
+          })
+        );
       this.headerLangIconToggles.push(alwaysDisplayIconToggle);
-      
-      if (!this.plugin.settings.pluginSettings.header.displayCodeBlockIcon){
+
+      if (!this.plugin.settings.pluginSettings.header.displayCodeBlockIcon) {
         this.headerLangIconToggles.forEach(item => {
           item.setDisabled(true);
         });
@@ -649,7 +650,7 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.annotations.convertAllComments = value;
           await this.plugin.saveSettings();
-          this.plugin.renderReadingViews(); 
+          this.plugin.renderReadingViews();
         })
       );
 
@@ -675,7 +676,7 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(langSpecificDetails)
       .setName("Add languages to set colors")
       .setDesc('Add a language, to set the colors for this specific language. If you want to set colors for code blocks without a language, add "nolang" as a language.')
-      .addText(value => { 
+      .addText(value => {
         languageSpecificColorDisplayText = value
         languageSpecificColorDisplayText.setPlaceholder('e.g. cpp, csharp')
         languageSpecificColorDisplayText.onChange(async (languageSpecific) => {
@@ -710,11 +711,11 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Code block border styling position')
       .setDesc('Select on which side the border should be displayed.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({"disable": "Disable", "left": "Left", "right": "Right"})
+        .addOptions({ "disable": "Disable", "left": "Left", "right": "Right" })
         .setValue(this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition)
         .onChange((value) => {
           this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition = value;
-          (async () => {await this.plugin.saveSettings()})();
+          (async () => { await this.plugin.saveSettings() })();
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
@@ -738,7 +739,7 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.renderReadingViews();
         })
       );
-    
+
     if (this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick) {
       new Setting(inlineCodeDetails)
         .setName('Modifier key for copy')
@@ -804,7 +805,7 @@ export class SettingsTab extends PluginSettingTab {
   createHighlightingSettings(containerEl: HTMLElement) {
     const highlightingDiv = containerEl.createDiv({ cls: "codeblock-customizer-highlighting-settingsDiv-hide" });
     highlightingDiv.toggleClass("codeblock-customizer-highlighting-settingsDiv-hide", this.plugin.settings.settingsType !== "highlighting");
-    highlightingDiv.createEl('h3', {text: '🖌️ Highlighting Settings'});
+    highlightingDiv.createEl('h3', { text: '🖌️ Highlighting Settings' });
 
     new Setting(highlightingDiv)
       .setName('Enable codeblock active line highlight')
@@ -812,16 +813,16 @@ export class SettingsTab extends PluginSettingTab {
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight)
         .onChange(async (value) => {
-          this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight = value;          
+          this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
           activeLineSetting.settingEl.style.display = value ? '' : 'none';
         })
       );
-        
+
     const activeLineSetting = this.createPickrSetting(highlightingDiv, 'Codeblock active line color', '', "codeblock.activeLineColor");
     activeLineSetting.settingEl.style.display = this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight ? '' : 'none';
-    
+
     this.createPickrSetting(highlightingDiv, 'Highlight color (used by the "hl" parameter)', 'Sets the default color for highlighting lines using the `hl` parameter (e.g., `hl:5`).', "codeblock.highlightColor");
 
     // bracket highlight
@@ -834,10 +835,10 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight = value;
-          if (value){
+          if (value) {
             this.plugin.extensions.push(this.plugin.editorExtensions.customBracketMatching);
           }
-          else{
+          else {
             this.plugin.extensions.remove(this.plugin.editorExtensions.customBracketMatching);
           }
           await this.plugin.saveSettings();
@@ -878,10 +879,10 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching = value;
-          if (value){
+          if (value) {
             this.plugin.extensions.push(this.plugin.editorExtensions.selectionMatching);
           }
-          else{
+          else {
             this.plugin.extensions.remove(this.plugin.editorExtensions.selectionMatching);
           }
           await this.plugin.saveSettings();
@@ -926,7 +927,8 @@ export class SettingsTab extends PluginSettingTab {
     new Setting(altColorsDetails)
       .setName("Add alternative highlight color")
       .setDesc('Define a name, by which you will reference the color. You can set the color itself after adding it to the list.')
-      .addText(value => { alternateColorDisplayText = value
+      .addText(value => {
+        alternateColorDisplayText = value
         alternateColorDisplayText = value;
         alternateColorDisplayText.setPlaceholder('e.g. error, warn')
         alternateColorDisplayText.onChange(async (alternateHLColorName) => {
@@ -962,19 +964,19 @@ export class SettingsTab extends PluginSettingTab {
           }
         });
       });
-      
+
     const colorContainer = altColorsDetails.createDiv({ cls: "codeblock-customizer-alternateHLcolorContainer" });
 
     // Update the color container on page load
     this.updateColorContainer(colorContainer);
-    
+
     return highlightingDiv;
   }// createHighlightingSettings
 
   createBehaviorSettings(containerEl: HTMLElement) {
     const behaviorDiv = containerEl.createDiv({ cls: "codeblock-customizer-behavior-settingsDiv-hide" });
     behaviorDiv.toggleClass("codeblock-customizer-behavior-settingsDiv-hide", this.plugin.settings.settingsType !== "behavior");
-    behaviorDiv.createEl('h3', {text: '👆 Behavior & Interaction'});
+    behaviorDiv.createEl('h3', { text: '👆 Behavior & Interaction' });
 
     new Setting(behaviorDiv)
       .setName('Enable links usage')
@@ -1005,8 +1007,8 @@ export class SettingsTab extends PluginSettingTab {
         );
       this.linkUpdateToggle.push(enableLinkUpdate);
     }
-  
-    if (!this.plugin.settings.pluginSettings.codeblock.enableLinks){
+
+    if (!this.plugin.settings.pluginSettings.codeblock.enableLinks) {
       this.linkUpdateToggle.forEach(item => {
         item.setDisabled(true);
       });
@@ -1091,7 +1093,7 @@ export class SettingsTab extends PluginSettingTab {
     this.createPickrSetting(groupedCodeBlocksDetails, 'Header line color', 'Sets the color of the separator line at the bottom of the header for grouped code blocks.', "groupedCodeBlocks.headerLineColor");
     this.createPickrSetting(groupedCodeBlocksDetails, 'Tab hover background color', 'Background color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabBackgroundColor");
     this.createPickrSetting(groupedCodeBlocksDetails, 'Tab hover text color', 'Text color when the mouse hovers over a tab.', "groupedCodeBlocks.hoverTabTextColor");
-    
+
     // folding
     const foldDetails = this.createDetailsGroup(behaviorDiv, 'Folding Settings', 'foldDetailsOpen');
 
@@ -1099,11 +1101,11 @@ export class SettingsTab extends PluginSettingTab {
       const semiFoldEnabled = this.plugin.settings.pluginSettings.semiFold.enableSemiFold;
       const inverseFoldEnabled = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
 
-      if (semiFoldLinesDropDown) 
+      if (semiFoldLinesDropDown)
         semiFoldLinesDropDown.setDisabled(!semiFoldEnabled);
-      if (semiFoldShowButton) 
+      if (semiFoldShowButton)
         semiFoldShowButton.setDisabled(!semiFoldEnabled);
-      if (autoFoldSetting) 
+      if (autoFoldSetting)
         autoFoldSetting.settingEl.style.display = semiFoldEnabled ? '' : 'none';
 
       if (ignoreShortBlocksSetting) {
@@ -1119,7 +1121,7 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.codeblock.folding.inverseFold)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.folding.inverseFold = value;
-          await this.plugin.saveSettings();
+          await this.plugin.saveSettings(true);
           updateFoldingSettingsVisibility();
           this.plugin.renderReadingViews();
         })
@@ -1132,14 +1134,14 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold = value;
-          await this.plugin.saveSettings();
+          await this.plugin.saveSettings(true);
           this.plugin.renderReadingViews();
         })
       );
 
     let semiFoldLinesDropDown: DropdownComponent;
     let semiFoldShowButton: ToggleComponent;
-    
+
     new Setting(foldDetails)
       .setName('Enable semi-fold')
       .setDesc('If enabled folding will use semi-fold method. This means, that the first X lines will be visible only. Select the number of visisble lines. You can also enable an additional uncollapse button. Please refer to the README for more information.')
@@ -1147,19 +1149,20 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.semiFold.enableSemiFold)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.semiFold.enableSemiFold = value;
-          await this.plugin.saveSettings();
+          await this.plugin.saveSettings(true);
           updateSettingStyles(this.plugin.settings, this.app);
           updateFoldingSettingsVisibility();
         })
       )
-      .addDropdown((dropdown) => { semiFoldLinesDropDown = dropdown
+      .addDropdown((dropdown) => {
+        semiFoldLinesDropDown = dropdown
         dropdown.selectEl.empty();
         dropdown.addOptions(Object.fromEntries([...Array(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
         dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString())
         dropdown.onChange(async (value) => {
           const number = parseInt(value);
           this.plugin.settings.pluginSettings.semiFold.visibleLines = number;
-          await this.plugin.saveSettings();
+          await this.plugin.saveSettings(true);
         })
       })
       .addToggle(toggle => semiFoldShowButton = toggle
@@ -1167,6 +1170,21 @@ export class SettingsTab extends PluginSettingTab {
         .setTooltip('Show additional uncollapse button')
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+        })
+      );
+
+    new Setting(foldDetails)
+      .setName('Semi-fold effect')
+      .setDesc('Select the visual effect for semi-folded code blocks.')
+      .addDropdown(dropdown => dropdown
+        .addOption(SemiFoldEffect.Opacity, 'Opacity only')
+        .addOption(SemiFoldEffect.Blur, 'Blur only')
+        .addOption(SemiFoldEffect.Both, 'Both')
+        .setValue(this.plugin.settings.pluginSettings.semiFold.semifoldEffect)
+        .onChange(async (value: SemiFoldEffect) => {
+          this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
         })
@@ -1182,7 +1200,7 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks = value;
           longCodeblockLinesInput.setDisabled(!value);
           longCodeblockLinesInput.inputEl.classList.toggle('is-disabled', !value);
-          await this.plugin.saveSettings();
+          await this.plugin.saveSettings(true);
         })
       )
       .addText(text => {
@@ -1192,14 +1210,14 @@ export class SettingsTab extends PluginSettingTab {
           .setPlaceholder('30')
           .setValue(this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines.toString())
           .setDisabled(isDisabled)
-        text.inputEl.classList.toggle('is-disabled', isDisabled); 
+        text.inputEl.classList.toggle('is-disabled', isDisabled);
         text.onChange(async (value) => {
-            const lines = parseInt(value);
-            if (!isNaN(lines)) {
-              this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
-              await this.plugin.saveSettings();
-            }
-          });
+          const lines = parseInt(value);
+          if (!isNaN(lines)) {
+            this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
+            await this.plugin.saveSettings();
+          }
+        });
       });
 
     updateFoldingSettingsVisibility();
@@ -1384,14 +1402,14 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
-    
+
     return behaviorDiv;
   }// createBehaviorSettings
 
   createPromptSettingsPage(containerEl: HTMLElement) {
     const promptsDiv = containerEl.createDiv({ cls: "codeblock-customizer-prompts-settingsDiv-hide" });
     promptsDiv.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
-    promptsDiv.createEl('h3', {text: '⌨️ Prompts Settings '});
+    promptsDiv.createEl('h3', { text: '⌨️ Prompts Settings ' });
 
     new Setting(promptsDiv)
       .setName('Include prompts when copying')
@@ -1494,12 +1512,12 @@ export class SettingsTab extends PluginSettingTab {
             new Notice('Set a name for your prompt!');
             return;
           }
-          
+
           if (newPromptId in defaultPrompts) {
             new Notice('You can\'t overwrite default prompts!');
             return;
           }
-          
+
           const exists = newPromptId in this.plugin.settings.pluginSettings.prompts.customPrompts;
 
           this.plugin.settings.pluginSettings.prompts.customPrompts[this.plugin.settings.newPromptName] = {
@@ -1533,10 +1551,10 @@ export class SettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
           this.createPromptSettings(promptEditorContainer, selectedPromptId);
           this.plugin.renderReadingViews();
+        });
       });
-    });
 
-    const promptEditorContainer = promptsDiv.createDiv({cls: 'codeblock-customizer-prompt-editor-container'});
+    const promptEditorContainer = promptsDiv.createDiv({ cls: 'codeblock-customizer-prompt-editor-container' });
     this.createPromptSettings(promptEditorContainer, selectedPromptId);
 
     return promptsDiv;
@@ -1545,7 +1563,7 @@ export class SettingsTab extends PluginSettingTab {
   createPluginCompatibilitySettingsPage(containerEl: HTMLElement) {
     const pluginsDiv = containerEl.createDiv({ cls: "codeblock-customizer-plugin-compatibility-settingsDiv-hide" });
     pluginsDiv.toggleClass("codeblock-customizer-plugin-compatibility-settingsDiv-hide", this.plugin.settings.settingsType !== "plugins");
-    pluginsDiv.createEl('h3', {text: '🧩 Plugin Compatibility Settings '});
+    pluginsDiv.createEl('h3', { text: '🧩 Plugin Compatibility Settings ' });
 
     // settings for admonitions plugin
     const admonitionDetailsDetails = this.createDetailsGroup(pluginsDiv, 'Admonition Settings', 'admonitionDetailsOpen');
@@ -1579,7 +1597,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
     detailSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.plugins.admonitions.enabled);
-      
+
     const timerSetting = new Setting(admonitionDetailsDetails)
       .setName('Admonition processing delay (ms)')
       .setDesc('The delay in milliseconds to wait before processing.')
@@ -1633,53 +1651,53 @@ export class SettingsTab extends PluginSettingTab {
   restorePromptColor(promptId: string) {
     const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
     const baseTheme = this.plugin.settings.Themes[baseThemeName];
-  
+
     if (!baseTheme) {
       console.warn(`Base theme "${baseThemeName}" not found.`);
       return;
     }
-  
+
     const modes: ('light' | 'dark')[] = ['light', 'dark'];
-  
+
     for (const mode of modes) {
       delete this.plugin.settings.SelectedTheme.colors[mode].prompts.editedPromptColors?.[promptId];
       delete this.plugin.settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors?.[promptId];
     }
-  
+
     delete this.plugin.settings.pluginSettings.prompts.editedDefaults?.[promptId];
-  
+
     this.display();
   }// restorePromptColor
-  
-  createPromptSettings (promptEditorContainer: HTMLElement, selectedPromptId: string) {
+
+  createPromptSettings(promptEditorContainer: HTMLElement, selectedPromptId: string) {
     promptEditorContainer.empty();
-  
+
     const { def: currentPromptData } = getPromptDefinition(selectedPromptId, this.plugin.settings);
 
     // prompt preview
     const previewWrapper = promptEditorContainer.createDiv({ cls: 'codeblock-customizer-prompt-preview-wrapper' });
-    previewWrapper.createDiv({text: 'Prompt preview'});
+    previewWrapper.createDiv({ text: 'Prompt preview' });
     const previewEl = previewWrapper.createDiv({ cls: 'codeblock-customizer-prompt-preview' });
-  
+
     const promptSettingsDetails = this.createDetailsGroup(promptEditorContainer, 'Prompt Settings', 'promptSettingsDetailsOpen', 'codeblock-customizer-prompt-settings-group');
 
     const updatePreview = () => {
       const { def: promptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
       this.updatePromptPreview(previewEl, selectedPromptId, promptData, isCustom);
     };
-    
+
     updatePreview();
-  
+
     // read only
     new Setting(promptSettingsDetails)
-    .setName("Prompt Name (for codeblock language)")
-    .setClass("codeblock-customizer-prompt-name")
-    .setDesc(`This is the identifier to use in your code block fence, e.g., prompt:${selectedPromptId}`)
-    .addText(text => {
-      text.setValue(selectedPromptId);
-      text.setDisabled(true);
-    });
-  
+      .setName("Prompt Name (for codeblock language)")
+      .setClass("codeblock-customizer-prompt-name")
+      .setDesc(`This is the identifier to use in your code block fence, e.g., prompt:${selectedPromptId}`)
+      .addText(text => {
+        text.setValue(selectedPromptId);
+        text.setDisabled(true);
+      });
+
     // editable
     new Setting(promptSettingsDetails)
       .setName("Base Prompt")
@@ -1692,7 +1710,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
           updatePreview();
         }));
-  
+
     new Setting(promptSettingsDetails)
       .setName("Default User")
       .addText(text => text
@@ -1704,7 +1722,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
           updatePreview();
         }));
-  
+
     new Setting(promptSettingsDetails)
       .setName("Default Host")
       .addText(text => text
@@ -1716,7 +1734,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
           updatePreview();
         }));
-  
+
     new Setting(promptSettingsDetails)
       .setName("Default Directory")
       .addText(text => text
@@ -1728,7 +1746,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
           updatePreview();
         }));
-  
+
     new Setting(promptSettingsDetails)
       .setName("Default Database")
       .addText(text => text
@@ -1740,7 +1758,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
           updatePreview();
         }));
-    
+
     new Setting(promptSettingsDetails)
       .setName("Default Branch")
       .addText(text => text
@@ -1752,7 +1770,7 @@ export class SettingsTab extends PluginSettingTab {
           await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
           updatePreview();
         }));
-  
+
     new Setting(promptSettingsDetails)
       .setName("Default Module")
       .addText(text => text
@@ -1785,7 +1803,7 @@ export class SettingsTab extends PluginSettingTab {
           }
         });
       });
-  
+
     new Setting(promptSettingsDetails)
       .setName("Parse Prompt Regex")
       .setDesc("Regex string for parsing the prompt.")
@@ -1803,7 +1821,7 @@ export class SettingsTab extends PluginSettingTab {
             new Notice("⚠️ Invalid regex, not saved");
           }
         }).inputEl.classList.add("codeblock-customizer-regex-input"));
-  
+
     let windowsShellToggle: ToggleComponent;
     let rootStylingToggle: ToggleComponent;
 
@@ -1847,7 +1865,7 @@ export class SettingsTab extends PluginSettingTab {
 
     let languagesTextComponent: TextComponent;
     let autoUseToggle: ToggleComponent;
-    
+
     new Setting(promptSettingsDetails)
       .setName("Auto-use Prompt")
       .setDesc("If enabled, this prompt will be used automatically for the specified languages.")
@@ -1870,7 +1888,7 @@ export class SettingsTab extends PluginSettingTab {
             }
           });
       });
-    
+
     const autoUseLanguagesSetting = new Setting(promptSettingsDetails)
       .setName("Languages for Auto-use")
       .setDesc("Comma-separated list of code block languages for which the prompt should be used\n(e.g., bash, python etc.).")
@@ -1879,7 +1897,7 @@ export class SettingsTab extends PluginSettingTab {
         text.setValue((currentPromptData.autoUseLanguages ?? []).join(', '));
         text.inputEl.onblur = async () => {
           const isEnabled = autoUseToggle.getValue();
-          if (!isEnabled) 
+          if (!isEnabled)
             return;
 
           const newLangs = languagesTextComponent.getValue().split(',').map(s => s.trim()).filter(Boolean);
@@ -1901,7 +1919,7 @@ export class SettingsTab extends PluginSettingTab {
           const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
           for (const lang of newLangs) {
             for (const promptId in allPrompts) {
-              if (promptId === selectedPromptId) 
+              if (promptId === selectedPromptId)
                 continue;
               const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
               if (pDef.autoUsePrompt && pDef.autoUseLanguages?.includes(lang)) {
@@ -1910,11 +1928,11 @@ export class SettingsTab extends PluginSettingTab {
                 const { def: currentDef } = getPromptDefinition(selectedPromptId, this.plugin.settings);
                 languagesTextComponent.setValue((currentDef.autoUseLanguages ?? []).join(', '));
                 autoUseToggle.setValue(false);
-                return; 
+                return;
               }
             }
           }
-          
+
           //const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
           updatedPromptData.autoUsePrompt = true;
           updatedPromptData.autoUseLanguages = newLangs;
@@ -1928,7 +1946,7 @@ export class SettingsTab extends PluginSettingTab {
 
     let parseLanguagesTextComponent: TextComponent;
     let autoParseToggle: ToggleComponent;
-    
+
     new Setting(promptSettingsDetails)
       .setName("Auto-parse Prompt")
       .setDesc("If enabled, this prompt's regex will be used to automatically find and style prompts in code blocks of the specified languages.")
@@ -1950,7 +1968,7 @@ export class SettingsTab extends PluginSettingTab {
             }
           });
       });
-    
+
     const autoParseLanguagesSetting = new Setting(promptSettingsDetails)
       .setName("Languages for Auto-parse")
       .setDesc("Comma-separated list of code block languages for which this prompt's parser should be used\n(e.g., bash, shell).\nWARNING: This could affect performance if you have a lot of code blocks with the specified languages.")
@@ -1958,7 +1976,7 @@ export class SettingsTab extends PluginSettingTab {
         parseLanguagesTextComponent = text;
         text.setValue((currentPromptData.autoParseLanguages ?? []).join(', '));
         text.inputEl.onblur = async () => {
-          if (!autoParseToggle.getValue()) 
+          if (!autoParseToggle.getValue())
             return;
 
           const newLangs = parseLanguagesTextComponent.getValue().split(',').map(s => s.trim()).filter(Boolean);
@@ -1981,9 +1999,9 @@ export class SettingsTab extends PluginSettingTab {
           const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
           for (const lang of newLangs) {
             if (updatedPromptData.autoUsePrompt && updatedPromptData.autoUseLanguages?.includes(lang)) {
-                new Notice(`⚠️ Can't save. Language '${lang}' is already set for 'Auto-use' by this same prompt.`);
-                parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
-                return;
+              new Notice(`⚠️ Can't save. Language '${lang}' is already set for 'Auto-use' by this same prompt.`);
+              parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
+              return;
             }
             for (const promptId in allPrompts) {
               if (promptId === selectedPromptId) continue;
@@ -1991,11 +2009,11 @@ export class SettingsTab extends PluginSettingTab {
               if ((pDef.autoUsePrompt && pDef.autoUseLanguages?.includes(lang)) || (pDef.autoParsePrompt && pDef.autoParseLanguages?.includes(lang))) {
                 new Notice(`⚠️ Can't save. Language '${lang}' is already in use by prompt '${pDef.name}'.`);
                 parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
-                return; 
+                return;
               }
             }
           }
-          
+
           updatedPromptData.autoParsePrompt = true;
           updatedPromptData.autoParseLanguages = newLangs;
           await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
@@ -2009,7 +2027,7 @@ export class SettingsTab extends PluginSettingTab {
     const colorsSettingsDetails = this.createDetailsGroup(promptEditorContainer, 'Prompt Colors', 'promptColorsDetailsOpen', 'codeblock-customizer-prompt-colors-settings-group');
 
     const promptColorSettingsContainer = colorsSettingsDetails.createDiv();
-    
+
     this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl);
   }// createPromptSettings
 
@@ -2021,8 +2039,8 @@ export class SettingsTab extends PluginSettingTab {
 
     const allGroups = Array.from(collectAllPromptClasses(this.plugin.settings));
     const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-    let editingRootColors = showRootColor ?? false; 
-    
+    let editingRootColors = showRootColor ?? false;
+
     if (currentPromptData.supportsRootStyling) {
       new Setting(promptColorSettingsContainer)
         .setName("Configure Root Colors")
@@ -2038,10 +2056,10 @@ export class SettingsTab extends PluginSettingTab {
               const newColor = newColors[partClass] ?? fallbackColors[partClass] ?? DEFAULT_PROMPT_COLOR;
               pickr.setColor(newColor);
             }
-            
+
             this.updatePromptPreview(previewEl, selectedPromptId, currentPromptData, isCustom, editingRootColors);
           })
-      );
+        );
     }
 
     for (const part of allGroups) {
@@ -2050,17 +2068,17 @@ export class SettingsTab extends PluginSettingTab {
       let label: string;
 
       const suffixTargets = [
-        "prompt-user", 
-        "prompt-host", 
-        "prompt-path", 
-        "prompt-db", 
+        "prompt-user",
+        "prompt-host",
+        "prompt-path",
+        "prompt-db",
         "prompt-branch",
         "prompt-msf",
         "prompt-keyword",
         "prompt-module",
         "prompt-beacon"
       ];
-      
+
       if (displayName) {
         if (suffixTargets.includes(partClass)) {
           label = `${displayName} (returned by RegEx)`;
@@ -2073,7 +2091,7 @@ export class SettingsTab extends PluginSettingTab {
       const resolvedColors = this.getResolvedPromptColors(selectedPromptId, editingRootColors); // normal/root colors
       const fallbackColors = this.getResolvedPromptColors(selectedPromptId, false); // normal colors
       const currentColor = resolvedColors[partClass] ?? fallbackColors[partClass] ?? DEFAULT_PROMPT_COLOR;
-      const isDefaultPrompt = selectedPromptId in defaultPrompts;  
+      const isDefaultPrompt = selectedPromptId in defaultPrompts;
 
       const setting = new Setting(promptColorSettingsContainer)
         .setName(label)
@@ -2099,25 +2117,25 @@ export class SettingsTab extends PluginSettingTab {
     const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
     const defaultTheme = this.plugin.settings.Themes[baseThemeName];
     const mode = getCurrentMode();
-  
+
     if (!defaultTheme) {
       return DEFAULT_PROMPT_COLOR;
     }
-  
+
     if (editingRootColors) {
       const specificRootColor = defaultTheme.colors[mode].prompts.rootPromptColors?.[promptId]?.[partClass];
       if (specificRootColor) {
         return specificRootColor;
       }
-  
+
       const fallbackNormalColor = defaultTheme.colors[mode].prompts.promptColors?.[promptId]?.[partClass];
       if (fallbackNormalColor) {
         return fallbackNormalColor;
       }
-  
+
       return DEFAULT_PROMPT_COLOR;
     }
-  
+
     const normalColor = defaultTheme.colors[mode].prompts.promptColors?.[promptId]?.[partClass];
     if (normalColor) {
       return normalColor;
@@ -2125,10 +2143,10 @@ export class SettingsTab extends PluginSettingTab {
 
     return DEFAULT_PROMPT_COLOR;
   }// getDefaultPromptColor
-  
+
   updatePromptPreview(previewEl: HTMLElement, selectedPromptId: string, promptData: PromptDefinition, isCustom: boolean, editingRootColors = false) {
     previewEl.empty();
-    
+
     const promptEnv: PromptEnvironment = {
       user: promptData.defaultUser ?? "user",
       host: promptData.defaultHost ?? "host",
@@ -2141,14 +2159,14 @@ export class SettingsTab extends PluginSettingTab {
       msfKeyword: promptData.defaultModule ? 'exploit' : undefined,
       msfModule: promptData.defaultModule,
     };
-  
+
     const promptKind = getPromptType(isCustom ? promptData.basePrompt : selectedPromptId);
     const promptText = isCustom ? promptData.basePrompt : selectedPromptId;
     const promptParts = replacePromptTemplate(promptKind, promptText, promptData, promptEnv);
     const { def } = getPromptDefinition(selectedPromptId, this.plugin.settings);
 
-    const normalPreview  = addClassesToPrompt(promptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings);
-    normalPreview .classList.add("normal-preview");
+    const normalPreview = addClassesToPrompt(promptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings);
+    normalPreview.classList.add("normal-preview");
 
     const container = createDiv({ cls: "prompt-preview-container" });
     container.appendChild(normalPreview);
@@ -2167,7 +2185,7 @@ export class SettingsTab extends PluginSettingTab {
     previewEl.appendChild(container);
     previewEl.classList.toggle("only-normal", !editingRootColors);
   }// updatePromptPreview
-  
+
   async savePromptData(isCustom: boolean, selectedPromptId: string, promptData: PromptDefinition) {
     if (isCustom) {
       const clone = structuredClone(promptData);
@@ -2176,30 +2194,30 @@ export class SettingsTab extends PluginSettingTab {
     } else {
       const basePromptDef = defaultPrompts[selectedPromptId];
       const diff: Partial<PromptDefinition> = {};
-  
-      if (promptData.basePrompt !== basePromptDef.basePrompt) 
+
+      if (promptData.basePrompt !== basePromptDef.basePrompt)
         diff.basePrompt = promptData.basePrompt;
-      if (promptData.defaultUser !== basePromptDef.defaultUser) 
+      if (promptData.defaultUser !== basePromptDef.defaultUser)
         diff.defaultUser = promptData.defaultUser;
-      if (promptData.defaultHost !== basePromptDef.defaultHost) 
+      if (promptData.defaultHost !== basePromptDef.defaultHost)
         diff.defaultHost = promptData.defaultHost;
-      if (promptData.defaultDir !== basePromptDef.defaultDir) 
+      if (promptData.defaultDir !== basePromptDef.defaultDir)
         diff.defaultDir = promptData.defaultDir;
-      if (promptData.defaultDb !== basePromptDef.defaultDb) 
+      if (promptData.defaultDb !== basePromptDef.defaultDb)
         diff.defaultDb = promptData.defaultDb;
-      if (promptData.defaultBranch !== basePromptDef.defaultBranch) 
+      if (promptData.defaultBranch !== basePromptDef.defaultBranch)
         diff.defaultBranch = promptData.defaultBranch;
-      if (promptData.defaultModule !== basePromptDef.defaultModule) 
+      if (promptData.defaultModule !== basePromptDef.defaultModule)
         diff.defaultModule = promptData.defaultModule;
-      if (JSON.stringify(promptData.highlightGroups ?? {}) !== JSON.stringify(basePromptDef.highlightGroups ?? {})) 
+      if (JSON.stringify(promptData.highlightGroups ?? {}) !== JSON.stringify(basePromptDef.highlightGroups ?? {}))
         diff.highlightGroups = promptData.highlightGroups;
       //if (promptData.parsePromptRegex?.source !== basePromptDef.parsePromptRegex?.source) 
       // diff.parsePromptRegex = promptData.parsePromptRegex;
-      if (promptData.parsePromptRegexString !== basePromptDef.parsePromptRegexString) 
+      if (promptData.parsePromptRegexString !== basePromptDef.parsePromptRegexString)
         diff.parsePromptRegexString = promptData.parsePromptRegexString;
-      if (promptData.isWindowsShell !== basePromptDef.isWindowsShell) 
+      if (promptData.isWindowsShell !== basePromptDef.isWindowsShell)
         diff.isWindowsShell = promptData.isWindowsShell;
-      if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling) 
+      if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling)
         diff.supportsRootStyling = promptData.supportsRootStyling;
       if (promptData.autoUsePrompt !== basePromptDef.autoUsePrompt)
         diff.autoUsePrompt = promptData.autoUsePrompt;
@@ -2209,7 +2227,7 @@ export class SettingsTab extends PluginSettingTab {
         diff.autoParsePrompt = promptData.autoParsePrompt;
       if (JSON.stringify(promptData.autoParseLanguages ?? []) !== JSON.stringify(basePromptDef.autoParseLanguages ?? []))
         diff.autoParseLanguages = promptData.autoParseLanguages;
-  
+
       this.plugin.settings.pluginSettings.prompts.editedDefaults[selectedPromptId] = diff;
     }
     await this.plugin.saveSettings();
@@ -2230,23 +2248,23 @@ export class SettingsTab extends PluginSettingTab {
 
   setPromptColorDiff(promptId: string, className: string, color: string, editingRoot: boolean) {
     const defaultColor = this.getDefaultPromptColor(promptId, className, editingRoot);
-  
+
     const diff = editingRoot ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors;
-  
+
     if (color.toLowerCase() === defaultColor.toLowerCase()) {
       delete diff?.[promptId]?.[className];
       if (Object.keys(diff?.[promptId] ?? {}).length === 0) {
         delete diff?.[promptId];
       }
     } else {
-      if (!diff[promptId]) 
+      if (!diff[promptId])
         diff[promptId] = {};
       diff[promptId][className] = color;
     }
   }// setPromptColorDiff
-  
+
   restoreThemes(themeName: string, cloneAll: boolean) {
-    if (cloneAll){
+    if (cloneAll) {
       Object.entries(DEFAULT_THEMES).forEach(([name, theme]: [string, ColorTheme]) => {
         this.plugin.settings.Themes[name] = structuredClone(theme)
       });
@@ -2269,7 +2287,7 @@ export class SettingsTab extends PluginSettingTab {
       dropdown.addOption(name, name);
     })
     dropdown.setValue(settings.ThemeName);
-	}// refreshDropdown
+  }// refreshDropdown
 
   refreshPromptDropdown(promptDropdown: DropdownComponent, selectedPromptId: string) {
     //promptDropdown.selectEl.innerHTML = "";
@@ -2292,7 +2310,7 @@ export class SettingsTab extends PluginSettingTab {
     for (const prompt of allPrompts) {
       promptDropdown.addOption(prompt.key, `[${prompt.type}] ${prompt.name}`);
     }
-    
+
     promptDropdown.setValue(selectedPromptId);
   }// refreshPromptDropdown
 
@@ -2304,7 +2322,7 @@ export class SettingsTab extends PluginSettingTab {
     }
     return color;
   }// getRandomColor
-     
+
   applyTheme() {
     updateSettingStyles(this.plugin.settings, this.app);
     this.plugin.saveSettings();
@@ -2334,24 +2352,24 @@ export class SettingsTab extends PluginSettingTab {
       },
       i18n: options.i18n ?? {},
     })
-    .on('show', (color: Pickr.HSVaColor, instance: Pickr) => {
-      if (options.shouldShow && !options.shouldShow()) {
+      .on('show', (color: Pickr.HSVaColor, instance: Pickr) => {
+        if (options.shouldShow && !options.shouldShow()) {
+          instance.hide();
+          return;
+        }
+        const { result } = (instance.getRoot() as any).interaction;
+        requestAnimationFrame(() => requestAnimationFrame(() => result.select()));
+      })
+      .on('save', (color: Pickr.HSVaColor, instance: Pickr) => {
+        if (!color) return;
         instance.hide();
-        return;
-      }
-      const { result } = (instance.getRoot() as any).interaction;
-      requestAnimationFrame(() => requestAnimationFrame(() => result.select()));
-    })
-    .on('save', (color: Pickr.HSVaColor, instance: Pickr) => {
-      if (!color) return;
-      instance.hide();
-      const savedColor = color.toHEXA().toString();
-      instance.addSwatch(savedColor);
-      options.onSave(savedColor);
-    })
-    .on('cancel', (instance: Pickr) => {
-      instance.hide();
-    });
+        const savedColor = color.toHEXA().toString();
+        instance.addSwatch(savedColor);
+        options.onSave(savedColor);
+      })
+      .on('cancel', (instance: Pickr) => {
+        instance.hide();
+      });
 
     this.pickerInstances.push(pickr);
 
@@ -2363,7 +2381,7 @@ export class SettingsTab extends PluginSettingTab {
           .onClick(() => {
             const defaultColor = onResetCallback();
             pickr?.setColor(defaultColor);
-            options.onSave(defaultColor); 
+            options.onSave(defaultColor);
           });
       });
     }
@@ -2402,10 +2420,10 @@ export class SettingsTab extends PluginSettingTab {
       shouldShow: () => {
         const settings = this.plugin.settings.pluginSettings;
         if ((!settings.codeblock.enableActiveLineHighlight && pickrClass === 'codeblock.activeLineColor') ||
-            (!settings.enableEditorActiveLineHighlight && pickrClass === 'editorActiveLineColor') ||
-            (!settings.header.displayCodeBlockLanguage && (pickrClass === 'header.codeBlockLangTextColor' || pickrClass === 'header.codeBlockLangBackgroundColor')) ||
-            (!settings.gutter.highlightActiveLineNr && pickrClass === 'gutter.activeLineNrColor') ||
-            (!settings.inlineCode.enableInlineCodeStyling && (pickrClass === 'inlineCode.backgroundColor' || pickrClass === 'inlineCode.textColor'))) {
+          (!settings.enableEditorActiveLineHighlight && pickrClass === 'editorActiveLineColor') ||
+          (!settings.header.displayCodeBlockLanguage && (pickrClass === 'header.codeBlockLangTextColor' || pickrClass === 'header.codeBlockLangBackgroundColor')) ||
+          (!settings.gutter.highlightActiveLineNr && pickrClass === 'gutter.activeLineNrColor') ||
+          (!settings.inlineCode.enableInlineCodeStyling && (pickrClass === 'inlineCode.backgroundColor' || pickrClass === 'inlineCode.textColor'))) {
           return false;
         }
         return true;
@@ -2452,7 +2470,7 @@ export class SettingsTab extends PluginSettingTab {
 
     return setting;
   }// createAlternatePickr
-  
+
   getColorFromPickrClass(selectedTheme: ColorTheme, currentMode: 'dark' | 'light', pickrClass: string, resolveCSSVar: boolean): Colors | string {
     const properties = pickrClass.split('.');
     let colorValue: Colors | string = selectedTheme.colors[currentMode];
@@ -2492,7 +2510,7 @@ export class SettingsTab extends PluginSettingTab {
 
     this.plugin.saveSettings();
   }// setAndSavePickrSetting
-  
+
   setNestedValue(obj: Record<string, any>, path: string, value: any): void {
     const keys = path.split('.');
     let current = obj;
@@ -2520,16 +2538,16 @@ export class SettingsTab extends PluginSettingTab {
 
   updateLanguageSpecificColorContainer(colorContainer: HTMLElement, language = "") {
     colorContainer.empty();
-    
+
     const languageColors = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
     const filteredLanguages = language ? { [language]: languageColors[language] } : languageColors;
-  
+
     Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
       const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });
       languageSettingsDiv.createEl('h4', { text: `${languageName} specific color settings` });
-      
+
       this.createDropdown(languageSettingsDiv, languageName);
-      
+
       Object.entries(colorObject).forEach(([colorProp, color]) => {
         const propDisplayText = SettingsTab.COLOR_OPTIONS[colorProp];
         // this.createAlternatePickr(colorContainer, colorContainer, propDisplayText, color, "langSpecific", colorProp, languageName);
@@ -2537,7 +2555,7 @@ export class SettingsTab extends PluginSettingTab {
       });
     });
   }// updateLanguageSpecificColorContainer
-  
+
   createDropdown(languageSettingsDiv: HTMLElement, languageName: string) {
     const dropdownOptions = Object.entries(SettingsTab.COLOR_OPTIONS).reduce((options, [key, value]) => {
       options[key] = value;
@@ -2610,18 +2628,18 @@ export class SettingsTab extends PluginSettingTab {
 
     const spanElement = createSpan();
     spanElement.style.whiteSpace = "pre"; // Preserve whitespace
-    
+
     const textNode = document.createTextNode("For more information, please read the ");
     spanElement.appendChild(textNode);
-    
+
     divElement.appendChild(spanElement);
-    
+
     const linkElement = container.createEl("a");
     linkElement.href = "https://github.com/mugiwara85/CodeblockCustomizer";
 
     const linkTextNode = document.createTextNode("README");
     linkElement.appendChild(linkTextNode);
-    
+
     divElement.appendChild(linkElement);
     container.appendChild(divElement);
   }// createReadMeLink

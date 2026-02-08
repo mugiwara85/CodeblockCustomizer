@@ -1,0 +1,34 @@
+@mixin Typography($type) {
+  // Add typography styles here based on $type if needed
+}
+
+@mixin RippleSurface {
+  // Ripple surface styles
+}
+
+@mixin RippleRadiusBounded {
+  // Ripple radius styles
+}
+
+@mixin ButtonBase($height) {
+  position: relative;
+  display: inline-flex;
+  height: $height;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  vertical-align: middle;
+
+  @media (hover: hover) {
+    &:hover {
+      cursor: var(--cursor);
+    }
+  }
+
+  &:disabled {
+    color: var(--text-muted);
+    cursor: default;
+    pointer-events: none;
+  }
+}

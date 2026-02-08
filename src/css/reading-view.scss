@@ -1,0 +1,45 @@
+/* Reading mode text styling */
+
+/* fix for missing padding on embedded code blocks */
+pre.codeblock-customizer-pre .cbc-line-num {
+  position: sticky;
+}
+
+.markdown-rendered {
+  .codeblock-customizer-line-wrapper {
+    display: flex;
+    flex-wrap: nowrap;
+
+    /* position: relative; */
+  }
+
+  .codeblock-customizer-line-text {
+    flex-basis: 100%;
+    padding-left: var(--line-number-gutter-padding);
+
+    /* originalVal:0px, add padding between the line numbers and the text */
+  }
+
+  // don't apply padding to line text, when prompt is present
+  .has-prompt .codeblock-customizer-line-text {
+    padding-left: 0;
+  }
+}
+
+/* for code blocks without defined language */
+.markdown-reading-view pre:not([class^="language-"]) {
+  overflow: hidden;
+  padding: unset !important;
+  overflow-x: auto !important;
+  overscroll-behavior: contain;
+
+  /* vertical scroll bar appears on header */
+}
+
+/* collapsed embedded code */
+.markdown-embed .markdown-preview-view .markdown-preview-section {
+  &:has(.codeblock-customizer-pre-parent):has(.codeblock-customizer-codeblock-collapsed),
+  &:has(.codeblock-customizer-pre-parent):has(.codeblock-customizer-lines-below-collapsed) {
+    min-height: unset !important;
+  }
+}

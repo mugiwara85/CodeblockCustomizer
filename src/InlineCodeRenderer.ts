@@ -46,7 +46,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
         this.containerEl.addEventListener('click', this.clickHandler);
       }
     }
-    
+
     this.containerEl.dataset.cbcProcessed = 'true';
   }// onload
 
@@ -65,14 +65,14 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     if (!match || !match[1] || !match[2]) {
       return;
     }
-    
+
     const language = match[1].toLowerCase();
     const code = match[2];
     const settings = this.plugin.settings.pluginSettings.inlineCode;
     const displayLanguage = getDisplayLanguageName(language);
-    
+
     this.containerEl.innerHTML = '';
-    
+
     if (settings.enableCopyOnClick) {
       this.clickHandler = this.createInlineCodeClickHandler(() => code);
       this.containerEl.addEventListener('click', this.clickHandler, true);
@@ -96,7 +96,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
 
       event.preventDefault();
       event.stopImmediatePropagation();
-      
+
       addTextToClipboard(getTextToCopy());
     };
   }// createInlineCodeClickHandler

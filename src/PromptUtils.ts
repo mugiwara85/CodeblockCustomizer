@@ -36,9 +36,9 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
         const selector = promptId === "global" ? `.${cls}` : `.codeblock-customizer-prompt-${promptId} .${cls}`;
         const varName = selectorToVariable(selector);
         const css = `--${varName}: ${color};`;
-        if (isLight) 
+        if (isLight)
           lightVars.push(css);
-        else 
+        else
           darkVars.push(css);
         permanentClassRules.add(`${selector} { color: var(--${varName}); }`);
       }
@@ -49,9 +49,9 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
         const selector = promptId === "global" ? `.root .${cls}` : `.codeblock-customizer-prompt-${promptId}.is-root .${cls}`;
         const varName = selectorToVariable(selector);
         const css = `--${varName}: ${color};`;
-        if (isLight) 
+        if (isLight)
           lightVars.push(css);
-        else 
+        else
           darkVars.push(css);
         permanentClassRules.add(`${selector} { color: var(--${varName}); }`);
       }
@@ -93,7 +93,7 @@ export function getCachedHighlightMap(def: PromptDefinition): Record<string, str
 export function addClassesToPrompt(promptData: string | { text: string; class?: string }[], promptType: string, promptDef: PromptDefinition | undefined, settings: CodeblockCustomizerSettings, isRoot = false): HTMLElement {
   const meta = getPromptDetails(promptType, settings);
   const { kind, baseClass } = meta;
-  const promptWrapper = createSpan({ cls: baseClass });
+  const promptWrapper = createSpan({ cls: `codeblock-customizer-prompt ${baseClass}` });
   const fragment = document.createDocumentFragment();
 
   const endsWithSpace = Array.isArray(promptData) ? promptData.length > 0 && promptData[promptData.length - 1].text?.endsWith(" ") : (promptData as string).endsWith(" ");
@@ -169,7 +169,7 @@ export function addClassesToPrompt(promptData: string | { text: string; class?: 
   }
 
   if (kind === PromptKind.Plain) {
-    fragment.append( ...batchSpans(promptStr, (char) => resolvePromptClass(char, { type: "symbol" })));
+    fragment.append(...batchSpans(promptStr, (char) => resolvePromptClass(char, { type: "symbol" })));
     if (!endsWithSpace) {
       fragment.appendChild(createSpan({ cls: "prompt-part prompt-space", text: " " }));
     }
@@ -183,8 +183,8 @@ export function addClassesToPrompt(promptData: string | { text: string; class?: 
 
 function batchSpans(text: string, getClass: (char: string) => string): HTMLElement[] {
   const spans: HTMLElement[] = [];
-  
-  if (!text) 
+
+  if (!text)
     return spans;
 
   let buffer = "";
@@ -226,10 +226,10 @@ function mergeAdjacentParts(parts: { text: string; class?: string }[]): { text: 
 export function getPromptType(promptText: string): PromptKind {
   const promptDef = defaultPrompts[promptText.toLowerCase()];
 
-  if (promptDef) 
+  if (promptDef)
     return PromptKind.Predefined;
 
-  if (/\{.*?\}/.test(promptText)) 
+  if (/\{.*?\}/.test(promptText))
     return PromptKind.Template;
 
   return PromptKind.Plain;
@@ -244,19 +244,19 @@ function getPromptDetails(promptType: string, settings: CodeblockCustomizerSetti
   if (isDefinedPrompt) {
     // predefined or saved custom
     const keyForClass = isCustom ? def.name : promptType.toLowerCase();
-    return {kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${keyForClass}`, isCustom: isCustom};
+    return { kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${keyForClass}`, isCustom: isCustom };
   }
 
   if (isCustomTemplate) {
     // on the fly, custom with template
-    return {kind: PromptKind.Template, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true};
+    return { kind: PromptKind.Template, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true };
   } else {
     // on the fly, custom plain (without template)
-    return {kind: PromptKind.Plain, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true};
+    return { kind: PromptKind.Plain, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true };
   }
 }// getPromptDetails
 
-function resolvePromptClass(token: string, context: {type: 'symbol' | 'template' | 'regex'; groupName?: string;}): string {
+function resolvePromptClass(token: string, context: { type: 'symbol' | 'template' | 'regex'; groupName?: string; }): string {
   if (context.type === 'symbol') {
     const baseCls = symbolClassMap[token] ?? 'prompt-symbol';
     return `prompt-part ${baseCls}`;
@@ -275,11 +275,11 @@ export function getMatchRanges(promptText: string, match: RegExpExecArray, group
 
   for (const key of Object.keys(groupMap)) {
     const value = match.groups?.[key];
-    if (!value) 
+    if (!value)
       continue;
 
     const idx = promptText.indexOf(value, lastIndex);
-    if (idx === -1) 
+    if (idx === -1)
       continue;
 
     ranges.push({
@@ -295,9 +295,9 @@ export function getMatchRanges(promptText: string, match: RegExpExecArray, group
 }// getMatchRanges
 
 function shouldSimplifyHomePath(promptDef: PromptDefinition | undefined): boolean {
-  if (!promptDef) 
+  if (!promptDef)
     return true; // assume Linux
-  
+
   // if promptDef is Windows don't simplify
   return !(promptDef.isWindowsShell);
 }// shouldSimplifyHomePath
@@ -347,7 +347,7 @@ export function replacePromptTemplate(promptKind: PromptKind, promptType: string
     for (const token of parsePromptTemplate(promptType)) {
       if (token.isPlaceholder) {
         const value = placeholderMap[token.text] ?? `{${token.text}}`;
-        parts.push({text: value, class: resolvePromptClass(value, { type: "template", groupName: token.text })});
+        parts.push({ text: value, class: resolvePromptClass(value, { type: "template", groupName: token.text }) });
       } else {
         for (let i = 0; i < token.text.length; i++) {
           const char = token.text[i];
@@ -424,11 +424,11 @@ export function getPromptDefinition(promptId: string, settings: CodeblockCustomi
 
   // rebuild the RegExp if it is stored as a string
   if (def.parsePromptRegexString) {
-    try { 
-      def.parsePromptRegex = new RegExp(def.parsePromptRegexString); 
+    try {
+      def.parsePromptRegex = new RegExp(def.parsePromptRegexString);
     }
-    catch { 
-      def.parsePromptRegex = undefined; 
+    catch {
+      def.parsePromptRegex = undefined;
     }
   }
 
@@ -451,7 +451,7 @@ export function collectAllPromptClasses(settings: CodeblockCustomizerSettings): 
   const classSet = new Set<string>();
 
   // highlightGroups
-  const allPromptDefs = {...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts};
+  const allPromptDefs = { ...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts };
   for (const def of Object.values(allPromptDefs)) {
     for (const cls of Object.values(def.highlightGroups ?? {})) {
       classSet.add(`prompt-${cls}`);
@@ -499,16 +499,16 @@ function getResolvedPromptColorsForMode(settings: CodeblockCustomizerSettings, b
 }// getResolvedPromptColorsForMode
 
 function simplifyHomePath(path: string, homeDir: string | undefined): string {
-  if (!homeDir) 
+  if (!homeDir)
     return path;
 
   // handle / or \ correctly
   const sep = homeDir.includes("\\") ? "\\" : "/";
 
-  if (path === homeDir) 
+  if (path === homeDir)
     return "~";
 
-  if (path.startsWith(homeDir + sep)) 
+  if (path.startsWith(homeDir + sep))
     return "~" + path.slice(homeDir.length);
 
   return path; // do not simplify if not inside new home

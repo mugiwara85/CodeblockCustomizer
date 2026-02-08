@@ -6,7 +6,7 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences, getDisplayLanguageName} from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences, getDisplayLanguageName } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
@@ -20,6 +20,11 @@ import { CBCParameters, getAllParameters, HighlightedWord } from "./Parsing";
 let settingsUpdated = false;
 export function updateValue(newValue: boolean) {
   settingsUpdated = newValue;
+}
+
+let resetFoldDecorations = false;
+export function resetFoldDecos(newValue: boolean) {
+  resetFoldDecorations = newValue;
 }
 
 export interface ReplaceFadeOutRanges {
@@ -67,7 +72,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   const setFoldCommandState = StateEffect.define<FoldCommand>();
   const setFoldState = Annotation.define<{ docPath: string; startPos: number; state: FoldingState | null }>();
   const setGroupTab = Annotation.define<{ group: string; startPos: number }>();
-  const CollapsedDecoration = Decoration.replace({block: true, attributes: { "code-folded": "true" }});  
+  const CollapsedDecoration = Decoration.replace({ block: true, attributes: { "code-folded": "true" } });
   const Collapse = StateEffect.define<Range<Decoration>>();
   const UnCollapse = StateEffect.define<{ filter: (from: number, to: number) => boolean; filterFrom: number; filterTo: number }>();
   const semiCollapse = StateEffect.define<Range<Decoration>>();
@@ -147,11 +152,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const mappedTail = filtered
           .filter(block => block.codeBlockStartPos >= from)
           .map(oldBlock => ({
-              ...oldBlock,
-              codeBlockStartPos: changes.mapPos(oldBlock.codeBlockStartPos),
-              codeBlockEndPos: changes.mapPos(oldBlock.codeBlockEndPos)
+            ...oldBlock,
+            codeBlockStartPos: changes.mapPos(oldBlock.codeBlockStartPos),
+            codeBlockEndPos: changes.mapPos(oldBlock.codeBlockEndPos)
           }));
-        
+
         // re-scan from the changed pos forward
         const updatedBlocks = findCodeBlockPositions(state, changes.mapPos(from), state.doc.length);
 
@@ -159,8 +164,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const mergedTail = new Map<number, CodeBlockPositions>();
         mappedTail.forEach(block => mergedTail.set(block.codeBlockStartPos, block));
         updatedBlocks.forEach(block => mergedTail.set(block.codeBlockStartPos, block));
-        
-        const newTail = Array.from(mergedTail.values()).sort((a,b) => a.codeBlockStartPos - b.codeBlockStartPos);
+
+        const newTail = Array.from(mergedTail.values()).sort((a, b) => a.codeBlockStartPos - b.codeBlockStartPos);
 
         return preservedHead.concat(newTail);
       }
@@ -243,8 +248,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const globalFoldCmd = tr.state.field(foldCommandField, false) ?? [];
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
 
-      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState|| settingsUpdated || tr.reconfigured) {
-        if (settingsUpdated || globalFoldCmdChanged) {
+      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || tr.reconfigured) {
+        if (resetFoldDecorations || globalFoldCmdChanged) {
           value = Decoration.none;  // remove fold e.g. when inversefold is disabled
         }
         const decorationsToAdd: Range<Decoration>[] = [];
@@ -271,7 +276,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
           let foldNow = false;
           let useSemiFold = false;
-          
+
           // if unfolded by user action, never fold.
           if (unfoldedBlocks.has(pos.codeBlockStartPos)) {
             foldNow = false;
@@ -335,7 +340,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       const initialGrouped = state.field(groupedCodeBlocksField, false) ?? {};
-      const initialTabs: {[groupName: string]: number} = {};
+      const initialTabs: { [groupName: string]: number } = {};
       const docPath = state.field(editorInfoField)?.file?.path;
 
       let savedStatesForFile: Map<string, number> | undefined;
@@ -352,7 +357,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const groupMembers = initialGrouped[groupName];
         if (groupMembers.length > 0) {
           let activePos = groupMembers[0].codeBlockStartPos; // default to first tab
-          
+
           if (savedStatesForFile) {
             const savedPos = savedStatesForFile.get(groupName);
             if (savedPos !== undefined) {
@@ -365,7 +370,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           initialTabs[groupName] = activePos;
         }
       }
-      
+
       return initialTabs;
     },
     update(value, transaction) {
@@ -376,13 +381,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       // on every document change immediately update the persistent storage
       if (transaction.docChanged && docPath) {
-        plugin.remapTabs(docPath, transaction.changes); 
+        plugin.remapTabs(docPath, transaction.changes);
         const docStateMap = plugin.activeEditorTabs.get(docPath);
         if (docStateMap && docStateMap.size > 0) {
           const newDocStateMap = new Map<string, number>();
           for (const [groupName, savedPos] of docStateMap.entries()) {
             //fix for #144
-            if (savedPos > transaction.changes.length) 
+            if (savedPos > transaction.changes.length)
               continue;
 
             const newPos = transaction.changes.mapPos(savedPos);
@@ -446,7 +451,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         for (const groupName in newGroupedCodeBlocks) {
           const groupMembers = newGroupedCodeBlocks[groupName];
-          if (groupMembers.length === 0) 
+          if (groupMembers.length === 0)
             continue;
 
           let activePos: number | undefined;
@@ -460,7 +465,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               }
             }
           }
-          
+
           // if no saved state was found, default to the first tab
           newState[groupName] = activePos ?? groupMembers[0].codeBlockStartPos;
         }
@@ -506,7 +511,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         return {};
 
       const docPath = state.field(editorInfoField)?.file?.path;
-      if (!docPath) 
+      if (!docPath)
         return {};
 
       let savedStatesForFile: Map<number, FoldingState> | undefined;
@@ -569,7 +574,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     create(state: EditorState): Set<number> {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return new Set();
-      
+
       const initiallyUnfolded = new Set<number>();
       const rememberedFolds = state.field(rememberedFoldField, false) ?? {};
 
@@ -580,7 +585,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           initiallyUnfolded.add(startPos);
         }
       }
-      
+
       return initiallyUnfolded;
     },
     update(value: Set<number>, transaction: Transaction): Set<number> {
@@ -593,7 +598,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const newUnfolded = new Set<number>();
         for (const pos of newValue) {
           //fix for #144
-          if (pos > transaction.changes.length) 
+          if (pos > transaction.changes.length)
             continue;
 
           const mappedPos = transaction.changes.mapPos(pos);
@@ -611,7 +616,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           newValue.delete(effect.value.from);
         } else if (effect.is(UnCollapse)) {
           newValue.add(effect.value.filterFrom);
-        } else if (effect.is(semiCollapse)) { 
+        } else if (effect.is(semiCollapse)) {
           newValue.delete(effect.value.from);
         } else if (effect.is(semiUnCollapse)) {
           newValue.add(effect.value.filterFrom);
@@ -635,37 +640,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     },
   });// foldCommandField
 
-  const jumpSeparatorField = StateField.define<DecorationSet>({
-    create(state) {
-      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state)){
-        return Decoration.none;
-      }
-
-      const positions = state.field(codeBlockPositionsField, false) ?? [];
-      return getLineNumberJumps(state, positions);
-    },
-    update(value, transaction) {
-      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state)) {
-        return Decoration.none;
-      }
-
-      const prevPositions = transaction.startState.field(codeBlockPositionsField, false) ?? [];
-      const positions = transaction.state.field(codeBlockPositionsField, false) ?? [];
-      if (!transaction.docChanged && prevPositions === positions) {
-        return value;
-      }
-
-      return getLineNumberJumps(transaction.state, positions);
-    },
-    provide: (field) => EditorView.decorations.from(field),
-  });// jumpSeparatorField
-
   /* Extensions */
 
   const customBracketMatching = bracketMatching({
     renderMatch: (match, state) => {
       const decorations: Range<Decoration>[] = [];
-      
+
       if (!match.matched) {
         if (settings.pluginSettings.codeblock.highlightNonMatchingBrackets) {
           decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-nomatch" }).range(match.start.from, match.start.to));
@@ -675,7 +655,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
         return decorations;
       }
-      
+
       if (match.end) {
         decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.start.from, match.start.to));
         decorations.push(Decoration.mark({ class: "codeblock-customizer-bracket-highlight-match" }).range(match.end.from, match.end.to));
@@ -703,7 +683,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!codeBlockPositions) {
         return;
       }
-      
+
       const linesToUpdate = new Map<number, string>();
 
       update.changes.iterChanges((fromA) => {
@@ -711,7 +691,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         for (const block of codeBlockPositions) {
           const firstLineNumber = update.startState.doc.lineAt(block.codeBlockStartPos).number;
-          
+
           if (changedLineNumber === firstLineNumber) {
             const zeroBasedLineNumber = firstLineNumber - 1;
             const newLineContent = update.state.doc.line(firstLineNumber).text;
@@ -735,19 +715,20 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   const viewPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
-  
+
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
     }
-  
+
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged || update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField) || settingsUpdated) {
         this.decorations = this.buildDecorations(update.view);
       }
     }
-  
+
     buildDecorations(view: EditorView): DecorationSet {
       updateValue(false);
+      resetFoldDecos(false);
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
@@ -762,16 +743,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
         const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
         const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
-  
+
         if (parameters.exclude)
           continue;
-        
+
         let lineNumber = parameters.lineNumberOffset;
         const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
         const gutterStyle = getGutterStyle(parameters, rawLineCount, defaultCharWidth);
         const prompt = new PromptManager(parameters, rawLineCount, settings);
-        const jumps = parameters.lineNumberJumps;
+        const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
         let jumpIdx = 0;
+        let previousLineEndPos: number | null = null;
+        let previousLineStartPos: number | null = null;
 
         for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
           const startLine = line === firstCodeBlockLine;
@@ -787,6 +770,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             if (jumps && jumpIdx < jumps.length && lineNumber === jumps[jumpIdx].lineNumber) {
               lineNumber = jumps[jumpIdx].newStartNumber;
               jumpIdx++;
+
+              if (previousLineEndPos !== null && previousLineStartPos !== null && line > firstCodeBlockLine + 1) {
+                decorations.push(Decoration.widget({ widget: new LineSeparatorWidget(), side: 1 }).range(previousLineEndPos));
+                decorations.push(Decoration.line({ attributes: { class: "codeblock-customizer-line-with-jump" } }).range(previousLineStartPos));
+              }
             }
           }
 
@@ -803,21 +791,24 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           if (promptRenderResult.isRoot) {
             lineClass += ` is-root`;
           }
-          decorations.push(Decoration.line({attributes: {class: lineClass, style: gutterStyle}}).range(lineStartPos));
-            
+          decorations.push(Decoration.line({ attributes: { class: lineClass, style: gutterStyle } }).range(lineStartPos));
+
+          previousLineEndPos = currentLine.to;
+          previousLineStartPos = lineStartPos;
+
           let spanClass = "";
           if (startLine) {
             spanClass = `codeblock-customizer-line-number-first`;
           }
-    
+
           if (endLine) {
             spanClass = `codeblock-customizer-line-number-last`;
           }
-          
+
           // line number
-          if (settings.pluginSettings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific"){
+          if (settings.pluginSettings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific") {
             const number = (startLine || endLine) ? " " : lineNumber.toString();
-            decorations.push(Decoration.widget({ widget: new LineNumberWidget(number, parameters, spanClass),}).range(lineStartPos));
+            decorations.push(Decoration.widget({ widget: new LineNumberWidget(number, parameters, spanClass), }).range(lineStartPos));
           }
 
           // prompt
@@ -850,9 +841,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           // indentation
           if (parameters.indentLevel > 0) {
             if (currentLine.text.length > parameters.indentCharacter) {
-              decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter)); 
+              decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter));
             }
-            decorations.push(Decoration.line({attributes: {"style": `--level:${parameters.indentLevel}`, class: `indented-line`}}).range(lineStartPos));
+            decorations.push(Decoration.line({ attributes: { "style": `--level:${parameters.indentLevel}`, class: `indented-line` } }).range(lineStartPos));
           }
           //lineNumber++;
         }
@@ -887,7 +878,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const selection = view.state.selection.main;
 
       for (const { from, to } of view.visibleRanges) {
-        syntaxTree(view.state).iterate({ from, to,
+        syntaxTree(view.state).iterate({
+          from, to,
           enter: (node) => {
             if (!node.type.name.startsWith('inline-code'))
               return;
@@ -900,7 +892,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             const inlineCodeText = view.state.sliceDoc(node.from, node.to);
             const match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
             // fix for #147
-            if (!match || match[1].trim().startsWith('{')) 
+            if (!match || match[1].trim().startsWith('{'))
               return;
 
             const fullMatchText = match[0];
@@ -913,7 +905,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             const codeStartPos = node.from + prefixLength;
             const isCursorNextToBacktick = selection.from === node.from - 1 || selection.to === node.to + 1;
             const isCursorInside = selection.from >= node.from && selection.to <= node.to;
-            if (isCursorInside || isCursorNextToBacktick) { 
+            if (isCursorInside || isCursorNextToBacktick) {
               decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-langauge" }).range(node.from, codeStartPos));
             } else {
               const displayLanguage = getDisplayLanguageName(langName);
@@ -944,9 +936,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }, {
     decorations: v => v.decorations,
-    eventHandlers : {
+    eventHandlers: {
       click: (event, view) => {
-        if (!settings.pluginSettings.inlineCode.enableCopyOnClick) 
+        if (!settings.pluginSettings.inlineCode.enableCopyOnClick)
           return;
 
         const requiredKey = plugin.settings.pluginSettings.inlineCode.copyModifierKey;
@@ -955,20 +947,21 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         const target = event.target as HTMLElement;
         const wrapper = target.closest('.codeblock-customizer-inline-code-wrapper');
-        if (!wrapper) 
+        if (!wrapper)
           return;
 
         event.preventDefault();
         event.stopImmediatePropagation();
 
         const pos = view.posAtDOM(target);
-        if (pos === null) 
+        if (pos === null)
           return;
 
         let found = false;
-        syntaxTree(view.state).iterate({ from: pos, to: pos,
+        syntaxTree(view.state).iterate({
+          from: pos, to: pos,
           enter: (node) => {
-            if (found) 
+            if (found)
               return false;
 
             if (node.type.name.startsWith('inline-code')) {
@@ -977,9 +970,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               // fix for #147
               const isValidMatch = match && match[1] && !match[1].trim().startsWith('{');
               const textToCopy = isValidMatch && match[2] ? match[2] : text;
-                addTextToClipboard(textToCopy);
-                found = true;
-              
+              addTextToClipboard(textToCopy);
+              found = true;
+
               return false;
             }
           }
@@ -1025,7 +1018,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         checkForLinks(view.state, codeBlockStartPos, codeBlockEndPos, decorations, sourcePath);
       }
-      
+
       return RangeSet.of(decorations, true);
     }
   }, {
@@ -1048,11 +1041,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const oldCursorLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
       const newCursorLine = update.state.doc.lineAt(update.state.selection.main.head).number;
       const settingChanged = this.prevConvertAllComments !== plugin.settings.pluginSettings.annotations.convertAllComments;
-        
+
       if (update.docChanged || update.viewportChanged || oldCursorLine !== newCursorLine || settingChanged) {
         this.decorations = this.buildDecorations(update.view);
         if (settingChanged) {
-         this.prevConvertAllComments = plugin.settings.pluginSettings.annotations.convertAllComments;
+          this.prevConvertAllComments = plugin.settings.pluginSettings.annotations.convertAllComments;
         }
       }
     }
@@ -1064,7 +1057,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const cursorLineNumber = view.state.doc.lineAt(cursorPos).number;
 
       for (const pos of codeBlockPositions) {
-        syntaxTree(view.state).iterate({ from: pos.codeBlockStartPos, to: pos.codeBlockEndPos,
+        syntaxTree(view.state).iterate({
+          from: pos.codeBlockStartPos, to: pos.codeBlockEndPos,
           enter: (node) => {
             if (!node.type.name.includes("comment"))
               return;
@@ -1121,6 +1115,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     buildDecorations(view: EditorView): DecorationSet {
       updateValue(false);
+      resetFoldDecos(false);
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state)) {
         return Decoration.none;
       }
@@ -1151,7 +1146,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         const hideFenceLines = hideFences && !isCursorInsideThisBlock && lineCount > 2;
 
-        if (hideFenceLines ) {
+        if (hideFenceLines) {
           const firstLine = view.state.doc.lineAt(codeBlockStartPos);
           decorations.push(collapsedFenceDecoration.range(firstLine.from));
 
@@ -1160,7 +1155,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             decorations.push(collapsedFenceDecoration.range(lastLine.from));
           }
         }
-        
+
         let buttonLineStartPos: number;
         const firstCodeBlockLineNum = view.state.doc.lineAt(codeBlockStartPos).number;
 
@@ -1173,7 +1168,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
 
         const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
-        decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, pos), side: -1 }).range(buttonLineStartPos));
+        const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
+        decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, pos, modifierKey), side: -1 }).range(buttonLineStartPos));
       }
       return RangeSet.of(decorations, true);
     }
@@ -1282,7 +1278,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (!admonitionEl.isConnected) {
           return;
         }
-        
+
         admonitionEl.setAttribute('data-cbc-lp-processed', 'true');
 
         const pos = view.posAtDOM(admonitionEl);
@@ -1298,7 +1294,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
         const admonitionSourceText = view.state.sliceDoc(admonitionBlockData.codeBlockStartPos, admonitionBlockData.codeBlockEndPos);
         const admonitionSourceLines = admonitionSourceText.split('\n');
-        
+
         const innerCodeBlocks = extractCodeBlocksFromAdmonition(admonitionSourceLines);
         if (innerCodeBlocks.length === 0) {
           return;
@@ -1316,7 +1312,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           if (!blockData) {
             continue;
           }
-          
+
           const renderer = new CodeBlockRenderer(preElement, plugin, { sourcePath: view.state.field(editorInfoField)?.file?.path ?? "" } as any);
           const absoluteLineStart = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.startLine;
           const absoluteLineEnd = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.endLine;
@@ -1345,9 +1341,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     sourcePath: string;
     disableFoldUnlessSpecified: boolean;
     showAddRemoveButtons: boolean;
+    modifierKey: ButtonModifierKeys;
     plugin: CodeBlockCustomizerPlugin;
-  
-    constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+
+    constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin, modifierKey: ButtonModifierKeys) {
       super();
       this.parameters = parameters;
       this.specificHeader = specificHeader;
@@ -1366,17 +1363,19 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.disableFoldUnlessSpecified = plugin.settings.pluginSettings.header.disableFoldUnlessSpecified;
       this.showAddRemoveButtons = plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons;
       this.plugin = plugin;
+      this.modifierKey = modifierKey;
     }
-  
+
     eq(other: HeaderWidget) {
-      return other.parameters.headerDisplayText === this.parameters.headerDisplayText && other.parameters.language === this.parameters.language && 
-      other.specificHeader === this.specificHeader && other.parameters.fold === this.parameters.fold && 
-      other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
-      other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
-      other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) &&
-      other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers) && other.showAddRemoveButtons === this.showAddRemoveButtons;
+      return other.parameters.headerDisplayText === this.parameters.headerDisplayText && other.parameters.language === this.parameters.language &&
+        other.specificHeader === this.specificHeader && other.parameters.fold === this.parameters.fold &&
+        other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
+        other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
+        other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) &&
+        other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers) && other.showAddRemoveButtons === this.showAddRemoveButtons &&
+        other.modifierKey === this.modifierKey;
     }
-  
+
     toDOM(view: EditorView): HTMLElement {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
       const container = createContainer(this.specificHeader, this.parameters.language, this.parameters.hasLangBorderColor, codeblockLanguageSpecificClass);
@@ -1387,6 +1386,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const Icon = getLanguageIcon(this.parameters.displayLanguage);
         if (Icon) {
           container.appendChild(createCodeblockIcon(this.parameters.displayLanguage));
+          container.classList.add('has-icon');
         } else if (isGrouped) {
           // set default icon for tab when language is not defined
           container.appendChild(createCodeblockIcon("NoIcon"));
@@ -1398,19 +1398,19 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       if (isGrouped)
         addTabs(view, container, this.parameters, this.groupMembers);
-  
+
       if (this.parameters.displayLanguage && !isGrouped) {
         container.appendChild(createCodeblockLang(this.parameters.language));
       }
-  
+
       container.appendChild(createFileName(this.parameters.headerDisplayText, this.enableLinks, this.sourcePath, this.plugin));
-      
+
       // header buttons
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
       container.appendChild(buttonContainer);
-      
+
       if ((this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold) ||
-          (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
+        (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
         container.classList.add(`noCollapseIcon`);
       } else {
         const collapse = createCodeblockCollapse(this.parameters.fold);
@@ -1426,7 +1426,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           setIcon(collapse, "chevrons-up-down"); // unfolded icon
         }
       }
-  
+
       if (this.parameters.indentLevel > 0) {
         container.setAttribute("style", `--level:${this.parameters.indentLevel}; `);
         container.classList.add(`indented-line`);
@@ -1434,14 +1434,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       container.onclick = (event) => {
         // don't collapse/uncollapse if a tab was clicked
-        if (!event.target || ((event.target as HTMLElement).closest('.codeblock-customizer-header-group-tab') || 
-          (event.target as HTMLElement).closest('.codeblock-customizer-button-container') || 
+        if (!event.target || ((event.target as HTMLElement).closest('.codeblock-customizer-header-group-tab') ||
+          (event.target as HTMLElement).closest('.codeblock-customizer-button-container') ||
           (event.target as HTMLElement).closest('.codeblock-customizer-uncollapse-button'))) {
           return;
         }
 
         if ((this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold) ||
-            (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
+          (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
           return;
         }
 
@@ -1451,14 +1451,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       };
       //EditorView.requestMeasure;
-  
+
       return container;
     }
-  
+
     updateDOM(dom: HTMLElement, view: EditorView) {
       view.requestMeasure();
       return false;
-    }  
+    }
   }// HeaderWidget
 
   class inlineCodeIconWidget extends WidgetType {
@@ -1482,11 +1482,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       super();
       this.pos = pos;
     }
-    
+
     eq(other: uncollapseCodeWidget) {
       return this.pos.codeBlockStartPos === other.pos.codeBlockStartPos && this.pos.codeBlockEndPos === other.pos.codeBlockEndPos;
     }
-  
+
     toDOM(view: EditorView): HTMLElement {
       const container = createUncollapseCodeButton();
 
@@ -1509,61 +1509,65 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     lineNumber: string;
     parameters: CBCParameters
     spanClass: string;
-  
+
     constructor(lineNumber: string, parameters: CBCParameters, spanClass: string) {
       super();
       this.lineNumber = lineNumber;
       this.parameters = parameters;
       this.spanClass = spanClass;
     }
-  
+
     eq(other: LineNumberWidget) {
-      return this.lineNumber === other.lineNumber && this.parameters.showNumbers === other.parameters.showNumbers && 
-             this.parameters.isSpecificNumber === other.parameters.isSpecificNumber && this.spanClass === other.spanClass;
+      return this.lineNumber === other.lineNumber && this.parameters.showNumbers === other.parameters.showNumbers &&
+        this.parameters.isSpecificNumber === other.parameters.isSpecificNumber && this.spanClass === other.spanClass;
     }
-  
+
     toDOM(view: EditorView): HTMLElement {
-      const container = createSpan();    
+      const container = createSpan();
+      container.classList.add("cbc-line-num");
       if (this.spanClass !== "")
         container.classList.add(this.spanClass);
-    
+
       if (this.parameters.showNumbers === "specific") {
         container.classList.add("codeblock-customizer-line-number-specific");
-        if (this.parameters.isSpecificNumber) 
+        if (this.parameters.isSpecificNumber)
           container.classList.add("codeblock-customizer-line-number-specific-number");
       } else if (this.parameters.showNumbers === "hide") {
         container.classList.add("codeblock-customizer-line-number-hide");
       } else {
         container.classList.add("codeblock-customizer-line-number");
       }
-    
-      const lineNumber = createSpan({ cls: `codeblock-customizer-line-number-element`, text: `${this.lineNumber}`});
+
+      const lineNumber = createSpan({ cls: `codeblock-customizer-line-number-element`, text: `${this.lineNumber}` });
       container.appendChild(lineNumber);
-  
+
       return container;
     }
-      
+
     updateDOM(dom: HTMLElement, view: EditorView) {
       view.requestMeasure();
       return false;
     }
-  
+
   }// LineNumberWidget
-  
+
   class buttonWidget extends WidgetType {
     buttonsConfig: Array<ButtonConfig>;
-    pos: CodeBlockPositions
+    pos: CodeBlockPositions;
+    modifierKey: ButtonModifierKeys;
 
-    constructor(buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions) {
+    constructor(buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions, modifierKey: ButtonModifierKeys) {
       super();
       this.buttonsConfig = buttonsConfig;
       this.pos = pos;
+      this.modifierKey = modifierKey;
     }
-  
+
     eq(other: buttonWidget): boolean {
-      return compareButtonConfigs(this.buttonsConfig, other.buttonsConfig) && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos;
+      return compareButtonConfigs(this.buttonsConfig, other.buttonsConfig) && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos &&
+        other.modifierKey === this.modifierKey;
     }
-    
+
     toDOM(view: EditorView): HTMLElement {
       return createButtonContainer(this.buttonsConfig, view);
     }
@@ -1574,18 +1578,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     constructor(private link: string, private sourcePath: string, private plugin: CodeBlockCustomizerPlugin) {
       super();
     }
-  
+
     eq(other: createLink) {
       return this.link === other.link && this.sourcePath === other.sourcePath && this.plugin === other.plugin;
     }
-    
+
     toDOM(view: EditorView): HTMLElement {
-      const span = createSpan({cls: "codeblock-customizer-link"});
+      const span = createSpan({ cls: "codeblock-customizer-link" });
       MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.plugin);
       return span;
     }
   }// createLink
-  
+
   class NodeWidget extends WidgetType {
     constructor(private readonly node: HTMLElement, private readonly key: string) {
       super();
@@ -1603,22 +1607,49 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   class LineWidget extends WidgetType {
     output: string;
     className: string;
-  
+
     constructor(output: string, className: string) {
       super();
       this.output = output;
       this.className = className;
     }
-  
+
     eq(other: LineWidget): boolean {
       return this.output === other.output && this.className === other.className;
     }
-  
+
     toDOM(view: EditorView): HTMLElement {
       const span = createSpan({ cls: `${this.className}`, text: `\n${this.output}` });
       return span
     }
   }// LineWidget
+
+  class LineSeparatorWidget extends WidgetType {
+    constructor() {
+      super();
+    }
+
+    eq(other: LineSeparatorWidget) {
+      return true;
+    }
+
+    toDOM(): HTMLElement {
+      const container = createSpan();
+      container.className = "codeblock-customizer-line-separator";
+
+      const gutter = createSpan();
+      gutter.className = "codeblock-customizer-line-separator-gutter";
+      gutter.textContent = "...";
+
+      const content = createSpan();
+      content.className = "codeblock-customizer-line-separator-content";
+
+      container.appendChild(gutter);
+      container.appendChild(content);
+
+      return container;
+    }
+  }// LineSeparatorWidget
 
   class AnnotationIconWidget extends WidgetType {
     constructor(readonly type: string, readonly content: string, readonly plugin: CodeBlockCustomizerPlugin, readonly title?: string) {
@@ -1630,7 +1661,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     toDOM(view: EditorView): HTMLElement {
-      const iconContainer = createSpan({cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${this.type}`});
+      const iconContainer = createSpan({ cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${this.type}` });
       //iconContainer.setAttribute("aria-label", `Annotation: ${this.type}`);
       iconContainer.innerHTML = rhombusSVG;
 
@@ -1642,94 +1673,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// AnnotationIconWidget
 
-  class LineNumberSeparatorWidget extends WidgetType {
-    constructor(private parameters: CBCParameters& { gutterStyle?: string }) {
-      super();
-    }
-
-    eq(other: LineNumberSeparatorWidget) {
-      return (this.parameters.gutterStyle === other.parameters.gutterStyle && this.parameters.lineNumberOffset === other.parameters.lineNumberOffset && this.parameters.isSpecificNumber === other.parameters.isSpecificNumber);
-    }
-
-    toDOM(view: EditorView): HTMLElement {
-      const container = createDiv({cls: `codeblock-customizer-line-separator HyperMD-codeblock cm-line`});
-      if (this.parameters.gutterStyle) {
-        container.setAttribute("style", this.parameters.gutterStyle);
-      }
-
-      const gutter = createSpan({cls: `codeblock-customizer-line-number-specific codeblock-customizer-line-number-specific-number`}); // this will be always specific, since the specified new line numbers are offsets
-      const gutterNum = createSpan({cls: `codeblock-customizer-line-number-element`});
-      gutterNum.textContent = "...";
-
-      gutter.appendChild(gutterNum);
-
-      const content = createSpan({cls: `codeblock-customizer-separator-content`});
-
-      container.appendChild(gutter);
-      container.appendChild(content);
-
-      return container;
-    }
-  }// LineNumberSeparatorWidget
-
   /* functions */
-
-  function getLineNumberJumps(state: EditorState, positions: CodeBlockPositions[]): DecorationSet {
-    if (positions.length === 0) {
-      return Decoration.none;
-    }
-
-    const decorations: Range<Decoration>[] = [];
-    const defaultCharWidth = state.field(editorEditorField).defaultCharacterWidth;
-
-    for (const { codeBlockStartPos, codeBlockEndPos, parameters } of positions) {
-      if (parameters.exclude || !parameters.lineNumberJumps || parameters.lineNumberJumps.length === 0) {
-        continue;
-      }
-
-      const firstCodeBlockLine = state.doc.lineAt(codeBlockStartPos).number;
-      const lastCodeBlockLine = state.doc.lineAt(codeBlockEndPos).number;
-      const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
-      const gutterStyle = getGutterStyle(parameters, rawLineCount, defaultCharWidth);
-
-      const jumps = parameters.lineNumberJumps;
-      if (!jumps || jumps.length === 0) {
-        continue;
-      }
-
-      let currentDisplayed = parameters.lineNumberOffset;
-      let currentDocLine = firstCodeBlockLine;
-      const maxContentLines = rawLineCount;
-
-      for (const jump of jumps) {
-        const delta = jump.lineNumber - currentDisplayed;
-        if (delta <= 0) {
-          continue;
-        }
-
-        const targetContentIndex = (currentDocLine - firstCodeBlockLine) + delta;
-        if (targetContentIndex < 1 || targetContentIndex > maxContentLines) {
-          continue;
-        }
-
-        const targetDocLine = firstCodeBlockLine + targetContentIndex;
-        const lineStartPos = state.doc.line(targetDocLine).from;
-
-        decorations.push(Decoration.widget({widget: new LineNumberSeparatorWidget({ ...parameters, gutterStyle }), block: true, side: -1}).range(lineStartPos));
-
-        currentDocLine = targetDocLine;
-        currentDisplayed = jump.newStartNumber;
-      }
-    }
-    return RangeSet.of(decorations, true);
-  }// getLineNumberJumps
 
   function getGutterStyle(parameters: CBCParameters, rawLineCount: number, defaultCharWidth: number) {
     const maxLineNumber = getMaxLineNumber(parameters, rawLineCount);
     const gutterWidth = maxLineNumber.toString().length * defaultCharWidth + 12; // padding-left + padding-right
     const gutterStyle = parameters.isSpecificNumber ? maxLineNumber.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
-    
-    return gutterStyle;    
+
+    return gutterStyle;
   }// getGutterStyle
 
   function getMaxLineNumber(parameters: CBCParameters, rawLineCount: number) {
@@ -1742,17 +1693,17 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (remainingLines <= 0) {
           break;
         }
-        
+
         const dist = jump.lineNumber - currentCalc;
         if (dist > 0) {
           if (remainingLines >= dist) {
             remainingLines -= dist;
-            
+
             const peakBeforeJump = jump.lineNumber - 1;
             if (peakBeforeJump > calculatedMax) {
               calculatedMax = peakBeforeJump;
             }
-            
+
             currentCalc = jump.newStartNumber;
             if (currentCalc > calculatedMax) {
               calculatedMax = currentCalc;
@@ -1767,7 +1718,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       }
     }
-    
+
     if (remainingLines > 0) {
       currentCalc += remainingLines;
       if (currentCalc > calculatedMax) {
@@ -1804,7 +1755,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
     const fullLanguage = `run-${baseLanguage}`;
     preElement.classList.add('codeblock-customizer-pre', `codeblock-customizer-language-${fullLanguage}`, `codeblock-customizer-language-${baseLanguage}`);
-    
+
     if (preElement.parentElement) {
       preElement.parentElement.classList.add('codeblock-customizer-pre-parent');
     }
@@ -1828,22 +1779,22 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     });
 
     codeElement.appendChild(fragment);
-    
+
     const borderColor = getBorderColorByLanguage(baseLanguage, getPropertyFromLanguageSpecificColors("codeblock.borderColor", plugin.settings));
     if (borderColor.length > 0) {
       preElement.classList.add('hasLangBorderColor');
     }
 
     parameters.language = baseLanguage;
-    const {container: buttons} = createButtons(parameters, rawCodeLines, plugin, preElement);
+    const { container: buttons } = createButtons(parameters, rawCodeLines, plugin, preElement);
     const editButton = createExecuteCodeEditButton();
     buttons.appendChild(editButton);
     preElement.appendChild(buttons);
 
-   // setTimeout(() => {
-      const parent = preElement.parentElement;
-      if (parent)
-        verifyAndRevealExecuteButtons(parent);
+    // setTimeout(() => {
+    const parent = preElement.parentElement;
+    if (parent)
+      verifyAndRevealExecuteButtons(parent);
     //}, 50); 
   }// styleExecuteCodeWidget
 
@@ -1877,7 +1828,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     if (!mode || mode.name === 'null') {
       return [{ text: code, style: null }];
     }
-    
+
     const state = mode.startState ? mode.startState() : null;
     const stream = new window.CodeMirror.StringStream(code);
     while (!stream.eol()) {
@@ -1890,68 +1841,68 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// getCM5Tokens
 
   function areParametersDeepEqual(params1: CBCParameters, params2: CBCParameters): boolean {
-    if (params1.isSpecificNumber !== params2.isSpecificNumber) 
+    if (params1.isSpecificNumber !== params2.isSpecificNumber)
       return false;
-    if (params1.lineNumberOffset !== params2.lineNumberOffset) 
+    if (params1.lineNumberOffset !== params2.lineNumberOffset)
       return false;
-    if (params1.showNumbers !== params2.showNumbers) 
+    if (params1.showNumbers !== params2.showNumbers)
       return false;
-    if (params1.headerDisplayText !== params2.headerDisplayText) 
+    if (params1.headerDisplayText !== params2.headerDisplayText)
       return false;
-    if (params1.fold !== params2.fold) 
+    if (params1.fold !== params2.fold)
       return false;
-    if (params1.unfold !== params2.unfold) 
+    if (params1.unfold !== params2.unfold)
       return false;
-    if (params1.language !== params2.language) 
+    if (params1.language !== params2.language)
       return false;
-    if (params1.displayLanguage !== params2.displayLanguage) 
+    if (params1.displayLanguage !== params2.displayLanguage)
       return false;
-    if (params1.hasLangBorderColor !== params2.hasLangBorderColor) 
+    if (params1.hasLangBorderColor !== params2.hasLangBorderColor)
       return false;
-    if (params1.exclude !== params2.exclude) 
+    if (params1.exclude !== params2.exclude)
       return false;
-    if (params1.fenceCount !== params2.fenceCount) 
+    if (params1.fenceCount !== params2.fenceCount)
       return false;
-    if (params1.fenceChar !== params2.fenceChar) 
+    if (params1.fenceChar !== params2.fenceChar)
       return false;
-    if (params1.indentLevel !== params2.indentLevel) 
+    if (params1.indentLevel !== params2.indentLevel)
       return false;
-    if (params1.indentCharacter !== params2.indentCharacter) 
+    if (params1.indentCharacter !== params2.indentCharacter)
       return false;
-    if (params1.lineSeparator !== params2.lineSeparator) 
+    if (params1.lineSeparator !== params2.lineSeparator)
       return false;
-    if (params1.textSeparator !== params2.textSeparator) 
+    if (params1.textSeparator !== params2.textSeparator)
       return false;
-    if (params1.group !== params2.group) 
+    if (params1.group !== params2.group)
       return false;
-    if (params1.tab !== params2.tab) 
+    if (params1.tab !== params2.tab)
       return false;
 
     return true;
   }// areParametersDeepEqual
 
   function areCodeBlockPositionsEqual(pos1: CodeBlockPositions, pos2: CodeBlockPositions): boolean {
-    if (pos1.codeBlockStartPos !== pos2.codeBlockStartPos) 
+    if (pos1.codeBlockStartPos !== pos2.codeBlockStartPos)
       return false;
-    if (pos1.codeBlockEndPos !== pos2.codeBlockEndPos) 
+    if (pos1.codeBlockEndPos !== pos2.codeBlockEndPos)
       return false;
-    if (!areParametersDeepEqual(pos1.parameters, pos2.parameters)) 
+    if (!areParametersDeepEqual(pos1.parameters, pos2.parameters))
       return false;
 
     return true;
   }// areCodeBlockPositionsEqual
 
   function areGroupMembersEqual(members1: CodeBlockPositions[], members2: CodeBlockPositions[]): boolean {
-    if (members1.length !== members2.length) 
+    if (members1.length !== members2.length)
       return false;
     for (let i = 0; i < members1.length; i++) {
-        if (!areCodeBlockPositionsEqual(members1[i], members2[i])) 
-          return false;
+      if (!areCodeBlockPositionsEqual(members1[i], members2[i]))
+        return false;
     }
     return true;
   }// areGroupMembersEqual
 
-  function addTabs(view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[] ) {
+  function addTabs(view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) {
     const tabsContainer = createDiv({ cls: "codeblock-customizer-header-group-tabs" });
     //const activeStartPos = view.state.field(activeGroupTabStateField)[parameters.group];
     const activeGroup = view.state.field(activeGroupTabField, false) ?? {};
@@ -2007,11 +1958,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const addButton = createDiv({ cls: "codeblock-customizer-tab-add" });
     setIcon(addButton, "plus");
     addButton.setAttribute("aria-label", "Add new code block to group");
-    
+
     addButton.onclick = (event) => {
       event.preventDefault();
       event.stopPropagation();
-      
+
       const groupName = parameters.group;
       if (!groupName || groupMembers.length === 0) {
         return;
@@ -2023,10 +1974,10 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const fenceCount = lastMember.parameters.fenceCount || 3;
       const fence = fenceChar.repeat(fenceCount);
       const newBlockText = `\n${fence} group:${groupName}\n\n${fence}`;
-      
-      view.dispatch({changes: { from: insertPos, to: insertPos, insert: newBlockText }});
+
+      view.dispatch({ changes: { from: insertPos, to: insertPos, insert: newBlockText } });
     };
-    
+
     tabsContainer.appendChild(addButton);
   }// addAddTabButton
 
@@ -2034,18 +1985,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const removeButton = createSpan({ cls: "codeblock-customizer-tab-remove" });
     setIcon(removeButton, "x");
     removeButton.setAttribute("aria-label", "Remove from group");
-    
+
     removeButton.onclick = (event) => {
       event.preventDefault();
       event.stopPropagation();
-      
+
       const line = view.state.doc.lineAt(member.codeBlockStartPos);
       const regex = new RegExp(`\\s*group([:=])(["']?${groupName}["']?)\\s*`);
       const newLineText = line.text.replace(regex, ' ').trim();
 
-      view.dispatch({changes: { from: line.from, to: line.to, insert: newLineText }});
+      view.dispatch({ changes: { from: line.from, to: line.to, insert: newLineText } });
     };
-    
+
     tab.appendChild(removeButton);
   }// addRemoveTabButton
 
@@ -2059,7 +2010,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const activeGroup = view.state.field(activeGroupTabField, false) ?? {};
     const activeStartPos = activeGroup?.[parameters.group];
     const isClickedTabActive = member.codeBlockStartPos === activeStartPos;
-    
+
     const annotations = [setGroupTab.of({ group: groupName, startPos: member.codeBlockStartPos })];
     const effects: CodeBlockFoldEffect[] = [];
 
@@ -2098,13 +2049,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       } else {
         // normal fold
         effects.push(Collapse.of(CollapsedDecoration.range(start.from, end.to)));
-        if (docPath) 
+        if (docPath)
           annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.FullyFolded }));
       }
     } else if (currentFoldState === FoldingState.FullyFolded) {
       // unfold
       effects.push(UnCollapse.of({ filter: (from: number, to: number) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to }));
-      if (docPath) 
+      if (docPath)
         annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
     } else if (currentFoldState === FoldingState.SemiFolded) {
       // semi unfold
@@ -2113,7 +2064,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         effects.push(clearFade);
       }
       effects.push(semiUnCollapse.of({ filterFrom: start.from, filterTo: end.to }));
-      if (docPath) 
+      if (docPath)
         annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
     }
 
@@ -2126,7 +2077,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     let codeBlockEndPos = -1;
     let parameters: CBCParameters = getDefaultParameters();
 
-    syntaxTree(state).iterate({ from, to, 
+    syntaxTree(state).iterate({
+      from, to,
       enter: (node) => {
         if (node.type.name.includes("HyperMD-codeblock-begin")) {
           const startLine = state.doc.lineAt(node.from);
@@ -2143,13 +2095,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       }
     });
-  
+
     if (codeBlockStartPos !== -1 && codeBlockEndPos === -1 && parameters.fenceChar) {
       const end = findCodeBlockEnd(codeBlockStartPos, state, parameters.fenceCount, parameters.fenceChar);
       if (end)
         positions.push({ codeBlockStartPos, codeBlockEndPos: end, parameters });
     }
-  
+
     return positions;
   }// findCodeBlockPositions
 
@@ -2162,15 +2114,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const match = line.text.trim().match(fenceRegex);
       const count = match ? match[0].length : 0;
       if (count === fenceCount && match && match[0][0] === fenceChar) {
-      //if (line.text.trim().startsWith('```')) {
+        //if (line.text.trim().startsWith('```')) {
         end = line;
         break;
       }
     }
-  
+
     return end?.to;
   }// findCodeBlockEnd
-  
+
   function calculateGroupedCodeBlocks(state: EditorState): GroupedCodeBlocks {
     const grouped: GroupedCodeBlocks = {};
     const positions: CodeBlockPositions[] = state.field(codeBlockPositionsField, false) ?? [];
@@ -2188,7 +2140,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         let currentPos = pos;
         let nextPosIndex = i + 1;
 
-        while(nextPosIndex < positions.length) {
+        while (nextPosIndex < positions.length) {
           const potentialNextPos = positions[nextPosIndex];
           if (potentialNextPos.parameters.group === group && potentialNextPos.codeBlockStartPos - currentPos.codeBlockEndPos <= 1) {
             currentConsecutiveSequence.push(potentialNextPos);
@@ -2216,7 +2168,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const positions = state.field(codeBlockPositionsField, false) ?? [];
     const decorations: Array<Range<Decoration>> = [];
     const grouped = state.field(groupedCodeBlocksField, false) ?? {};
-    
+
     for (const pos of positions) {
       const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
       const foldingState = getFoldingState(state, codeBlockStartPos, codeBlockEndPos);
@@ -2252,7 +2204,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (hideBlock) {
         const firstLineEnd = state.doc.lineAt(codeBlockStartPos).to;
         if (firstLineEnd < codeBlockEndPos) {
-          decorations.push(Decoration.replace({block: true}).range(codeBlockStartPos, codeBlockEndPos));
+          decorations.push(Decoration.replace({ block: true }).range(codeBlockStartPos, codeBlockEndPos));
         }
       }
 
@@ -2261,17 +2213,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         if (!isExecuteCodeBlock || !isPluginLoaded("execute-code", plugin)) {
           const specificHeader = isSpecificHeader(parameters, settings, isMemberOfTabbedGroup, state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1, "editor");
           const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, state, parameters);
-          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin), block: true }).range(codeBlockStartPos));
+          const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
+          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin, modifierKey), block: true }).range(codeBlockStartPos));
         }
       }
     }
     return RangeSet.of(decorations, true);
   }// insertHeader
-  
-  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters){
+
+  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters) {
     const cursorPos = state.selection.main.head;
     const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
-    
+
     let showButton = false;
     if ((!settings.pluginSettings.codeblock.buttons.alwaysShowButtons) && !isCursorInCodeBlock)
       showButton = true;
@@ -2322,7 +2275,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               const lastContentLineNum = state.doc.lineAt(to).number;
               const lineCount = lastContentLineNum - firstContentLineNum + 1;
               const promptManager = new PromptManager(parameters, lineCount, settings);
-              
+
               for (let i = firstContentLineNum; i <= lastContentLineNum; i++) {
                 const line = state.doc.line(i);
                 const relativeLineNumber = i - firstContentLineNum + 1;
@@ -2343,7 +2296,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               const content = settings.pluginSettings.annotations.excludeAnnotationsFromCopy ? getCodeWithoutAnnotation(view, from, to) : view.state.sliceDoc(from, to);
               initialLines = content.split('\n');
             }
-            
+
             const processedLines = normalizeIndentation(initialLines);
             blockContent = processedLines.join('\n');
           }
@@ -2426,7 +2379,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     try {
       const elementsToSnapshot: HTMLElement[] = [startingEl];
       let currentEl: Element | null = startingEl;
-      
+
       const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
       if (currentFoldState === FoldingState.SemiFolded) {
         while (currentEl && currentEl.nextElementSibling) {
@@ -2434,7 +2387,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           if (nextEl.classList.contains('codeblock-customizer-header-container-specific') || !nextEl.classList.contains('cm-line')) {
             break;
           }
-          
+
           elementsToSnapshot.push(nextEl as HTMLElement);
           currentEl = nextEl;
         }
@@ -2462,14 +2415,14 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         new Notice("Error: Could not get contentDOM.parentElement.");
         return;
       }
-      
+
       const snapshotOptions = {
         filter: (node: HTMLElement) => {
           if (node.classList?.contains('codeblock-customizer-button-container') ||          // first-line button container
-              node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
-              node.classList?.contains('codeblock-customizer-header-collapse') ||           // header collapse icon
-              node.classList?.contains('codeblock-customizer-tab-remove') ||                // grouped code block 'x' button
-              node.classList?.contains('codeblock-customizer-tab-add')) {                   // grouped code block '+' button
+            node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
+            node.classList?.contains('codeblock-customizer-header-collapse') ||           // header collapse icon
+            node.classList?.contains('codeblock-customizer-tab-remove') ||                // grouped code block 'x' button
+            node.classList?.contains('codeblock-customizer-tab-add')) {                   // grouped code block '+' button
             return false;
           }
           return !(node.tagName === 'IMG' && node.classList.contains('cm-widgetBuffer'));
@@ -2487,7 +2440,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// createSnapshot
 
   function compareButtonConfigs(configs1: Array<ButtonConfig>, configs2: Array<ButtonConfig>): boolean {
-    if (configs1.length !== configs2.length) 
+    if (configs1.length !== configs2.length)
       return false;
 
     return configs1.every((config, i) => {
@@ -2503,7 +2456,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// compareButtonConfigs
 
   function createButtonContainer(buttonsConfig: Array<ButtonConfig>, view: EditorView, buttonContainerClass?: string) {
-    const container = createDiv({cls: buttonContainerClass || `codeblock-customizer-button-container`});
+    const container = createDiv({ cls: buttonContainerClass || `codeblock-customizer-button-container` });
 
     buttonsConfig.forEach(config => {
       if (!config.enabled)
@@ -2536,7 +2489,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const rangesToRemove: { from: number, to: number }[] = [];
     const codeText = view.state.sliceDoc(from, to);
 
-    syntaxTree(view.state).iterate({from: from, to: to,
+    syntaxTree(view.state).iterate({
+      from: from, to: to,
       enter: (node) => {
         if (node.type.name.includes("comment")) {
           const commentText = view.state.sliceDoc(node.from, node.to);
@@ -2546,7 +2500,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       }
     });
-    
+
     if (rangesToRemove.length > 0) {
       let newContent = "";
       let lastIndex = 0;
@@ -2572,27 +2526,28 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     codeblockLanguageClass = "codeblock-customizer-language-" + language.toLowerCase();
     codeblockLanguageSpecificClass = getLanguageSpecificColorClass(language, languageSpecificColors);
     borderColor = getBorderColorByLanguage(parameters.language, languageBorderColors); // handles nolang
-  
+
     let lineClass = `codeblock-customizer-line`;
     lineClass = highlightLinesOrWords(lineNumber, startLine, endLine, parameters, line, decorations, lineClass);
     lineClass = lineClass + " " + codeblockLanguageClass + " " + codeblockLanguageSpecificClass;
 
     if (borderColor.length > 0)
       lineClass = lineClass + " hasLangBorderColor";
-  
+
     return lineClass;
   }// getLineClass
 
   function checkForLinks(state: EditorState, collapseFrom: number, collapseTo: number, decorations: Array<Range<Decoration>>, sourcePath: string) {
     const cursorPos = state.selection.main.head;
     const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
-    
-    syntaxTree(state).iterate({ from: collapseFrom, to: collapseTo,
+
+    syntaxTree(state).iterate({
+      from: collapseFrom, to: collapseTo,
       enter(node) {
         if (!node.type.name.includes("comment")) {
           return;
         }
-        
+
         const commentText = state.sliceDoc(node.from, node.to);
         const matches = commentText.matchAll(regex);
 
@@ -2602,7 +2557,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
           const from = node.from + startPosition;
           const to = from + fullMatch.length;
           const isCursorInside = cursorPos >= from && cursorPos <= to;
-    
+
           if (isCursorInside) {
             renderLink(fullMatch, match, node, startPosition, decorations);
           } else {
@@ -2616,35 +2571,35 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   function renderLink(fullMatch: string, match: RegExpMatchArray, node: SyntaxNodeRef, startPosition: number, decorations: Array<Range<Decoration>>) {
     const rangeFrom = node.from + startPosition;
     const rangeTo = rangeFrom + fullMatch.length;
-    
+
     // WikiLink -> [[link]] or [[Link|DisplayText]]
     if (match[1] !== undefined) {
-      decorations.push(Decoration.mark({class: "cm-formatting-link cm-formatting-link-start"}).range(rangeFrom, rangeFrom + 2));
-      decorations.push(Decoration.mark({class: "cm-hmd-internal-link"}).range(rangeFrom + 2, rangeTo - 2));
-      decorations.push(Decoration.mark({class: "cm-formatting-link cm-formatting-link-end"}).range(rangeTo - 2, rangeTo));
+      decorations.push(Decoration.mark({ class: "cm-formatting-link cm-formatting-link-start" }).range(rangeFrom, rangeFrom + 2));
+      decorations.push(Decoration.mark({ class: "cm-hmd-internal-link" }).range(rangeFrom + 2, rangeTo - 2));
+      decorations.push(Decoration.mark({ class: "cm-formatting-link cm-formatting-link-end" }).range(rangeTo - 2, rangeTo));
       return;
     }
-    
+
     // Markdown Link -> [DisplayText](Link)
     if (match[3] !== undefined) {
       const endOfText = rangeFrom + fullMatch.indexOf("](");
       const startOfLink = endOfText + 2;
 
       // [DisplayText] part
-      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link cm-link"}).range(rangeFrom, rangeFrom + 1));
-      decorations.push(Decoration.mark({class: "cm-link"}).range(rangeFrom + 1, endOfText));
-      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link cm-link"}).range(endOfText, endOfText + 1));
-      
+      decorations.push(Decoration.mark({ class: "cm-formatting cm-formatting-link cm-link" }).range(rangeFrom, rangeFrom + 1));
+      decorations.push(Decoration.mark({ class: "cm-link" }).range(rangeFrom + 1, endOfText));
+      decorations.push(Decoration.mark({ class: "cm-formatting cm-formatting-link cm-link" }).range(endOfText, endOfText + 1));
+
       // (Link) part
-      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link-string cm-string cm-url"}).range(endOfText + 1, startOfLink));
-      decorations.push(Decoration.mark({class: "cm-string cm-url"}).range(startOfLink, rangeTo - 1));
-      decorations.push(Decoration.mark({class: "cm-formatting cm-formatting-link-string cm-string cm-url"}).range(rangeTo - 1, rangeTo));
+      decorations.push(Decoration.mark({ class: "cm-formatting cm-formatting-link-string cm-string cm-url" }).range(endOfText + 1, startOfLink));
+      decorations.push(Decoration.mark({ class: "cm-string cm-url" }).range(startOfLink, rangeTo - 1));
+      decorations.push(Decoration.mark({ class: "cm-formatting cm-formatting-link-string cm-string cm-url" }).range(rangeTo - 1, rangeTo));
       return;
     }
-    
+
     // HTTP or HTTPS URL
     if (match[5] !== undefined) {
-      decorations.push(Decoration.mark({class: "cm-url"}).range(rangeFrom, rangeTo));
+      decorations.push(Decoration.mark({ class: "cm-url" }).range(rangeFrom, rangeTo));
       return;
     }
   }// renderLink
@@ -2657,22 +2612,22 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const className = `codeblock-customizer-line-highlighted${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
       return className;
     };
-  
+
     const highlighText = (words: HighlightedWord[], name = '') => {
       for (const highlightedWord of words) {
         const word = highlightedWord.text.toLowerCase();
         setClass(line, decorations, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase(), highlightedWord.occurrences);
       }
     };
-  
-    if (startLine || endLine) 
+
+    if (startLine || endLine)
       return lineClass;
-  
+
     // highlight line by line number hl:1,3-5
     if (parameters.defaultLinesToHighlight.lineNumbers.includes(lineNumber)) {
       lineClass = addHighlightClass();
     }
-  
+
     // highlight every line which contains a specific word hl:test
     const words = parameters.defaultLinesToHighlight.words;
     if (words.length > 0 && words.some(word => caseInsensitiveLineText.includes(word))) {
@@ -2703,7 +2658,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         highlighText(rule.words);
       });
     }
-    
+
     // highlight text with specific text between markers hlt:start:end
     const textBetween = parameters.defaultTextToHighlight.textBetween;
     for (const { from, to, occurrences } of textBetween) {
@@ -2713,7 +2668,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         highlighText([word]);
       }
     }
-  
+
     // highlight text within specific lines with text between markers hl:5|start:end, hlt:5-7|start:end
     const lineSpecificTextBetween = parameters.defaultTextToHighlight.lineSpecificTextBetween;
     const specificTextBetween = lineSpecificTextBetween.filter(item => item.lineNumber === lineNumber);
@@ -2726,12 +2681,12 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       });
     }
-  
+
     // highlight all words in specified line hlt:1,3-5
     if (parameters.defaultTextToHighlight.allWordsInLine.includes(lineNumber)) {
       setClass(line, decorations, caseInsensitiveLineText, '', textSeparator, '');
     }
-  
+
     // highlight line by line number imp:1,3-5
     const alternativeLinesToHighlight = parameters.alternativeLinesToHighlight.lines;
     const altHLMatch = alternativeLinesToHighlight.filter(hl => hl.lineNumbers.includes(lineNumber));
@@ -2760,7 +2715,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       });
     }
-  
+
     // highlight text in every line if linetext contains the specified word impt:test
     const altWords = parameters.alternativeTextToHighlight.words;
     if (!startLine && !endLine) {
@@ -2781,7 +2736,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         highlighText(words, colorName);
       });
     }
-  
+
     // highlight text with specific text between markers impt:start:end
     const altTextBetween = parameters.alternativeTextToHighlight.textBetween;
     for (const { from, to, colorName, occurrences } of altTextBetween) {
@@ -2791,7 +2746,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         highlighText([word], colorName);
       }
     }
-  
+
     // highlight text within specific lines with text between markers impt:5|start:end, imp:5-7|start:end
     const altLineSpecificTextBetween = parameters.alternativeTextToHighlight.lineSpecificTextBetween;
     const altSpecificTextBetween = altLineSpecificTextBetween.filter(item => item.lineNumber === lineNumber);
@@ -2804,17 +2759,17 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       });
     }
-  
+
     // highlight all words in specified line impt:1,3-5
     const altAllWordsInLine = parameters.alternativeTextToHighlight.allWordsInLine;
     const altAllWordsInLineMatch = altAllWordsInLine.find(item => item.allWordsInLine.includes(lineNumber));
     if (altAllWordsInLineMatch) {
       setClass(line, decorations, caseInsensitiveLineText, '', textSeparator, altAllWordsInLineMatch.colorName);
     }
-  
+
     return lineClass;
   }// highlightLinesOrWords
-  
+
   function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, textSeparator: string, customClass = '', occurrencesFilter?: number[]) {
     const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
 
@@ -2823,7 +2778,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const lineTextLength = caseInsensitiveLineText.length;
       const startLength = start.length;
       const endLength = end.length;
-      
+
       const firstNonWhiteSpaceIndex = caseInsensitiveLineText.match(/\S/)?.index || 0;
       const allMatches: { from: number, to: number }[] = [];
 
@@ -2879,7 +2834,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const commentMatch = lineText.match(/\s+(\/\/|\/\*|#|--)/);
       if (commentMatch && typeof commentMatch.index === 'number') {
         const commentText = lineText.substring(commentMatch.index);
-        
+
         if (settings.pluginSettings.annotations.convertAllComments || ANNOTATION_PATTERN.test(commentText)) {
           endBoundary = commentMatch.index;
         }
@@ -2901,7 +2856,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       });
     }
   }// setClass
-  
+
   function getFoldingState(state: EditorState, startPos: number, endPos: number): FoldingState {
     const currentFoldedStates = state.field(rememberedFoldField, false) ?? {};
     const storedState = currentFoldedStates[startPos];
@@ -2972,24 +2927,24 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     if (obj1 === null && obj2 === null) {
       return true;
     }
-  
+
     if ((obj1 === null || obj1 === undefined) || (obj2 === null || obj2 === undefined)) {
       return false;
     }
-  
+
     const keys1 = Object.keys(obj1);
     const keys2 = Object.keys(obj2);
-  
+
     if (keys1.length !== keys2.length) {
       return false;
     }
-  
+
     for (const key of keys1) {
       if (obj1[key] !== obj2[key]) {
         return false;
       }
     }
-  
+
     return true;
   }// areObjectsEqual
 
@@ -2997,11 +2952,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const firstLine = state.doc.lineAt(codeBlockStartPos);
     const fadeOutStart = state.doc.line(state.doc.lineAt(codeBlockStartPos).number + visibleLines + 1);
     const fadeOutEnd = state.doc.line(state.doc.lineAt(fadeOutStart.from).number + fadeOutLineCount - 1);
-  
+
     const replaceStart = state.doc.line(state.doc.lineAt(fadeOutEnd.from).number + 1);
     const replaceEnd = state.doc.line(state.doc.lineAt(codeBlockEndPos).number);
-  
-    return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, firstLine};
+
+    return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, firstLine };
   }// getRanges
 
   function foldAll(view: EditorView) {
@@ -3020,27 +2975,38 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// restoreDefaultFold
 
   function clearFadeEffect(CollapseStart: number, CollapseEnd: number): StateEffect<SemiUncollapseEffect> | undefined {
-    return semiUnFade.of({filterFrom: CollapseStart, filterTo: CollapseEnd});
+    return semiUnFade.of({ filterFrom: CollapseStart, filterTo: CollapseEnd });
   }// clearFadeEffect
 
   const extensions = [
-    codeBlockPositionsField, 
-    groupedCodeBlocksField, 
-    activeGroupTabField, 
-    rememberedFoldField, 
-    foldCommandField, 
-    defaultFoldUnfoldedField, 
+    codeBlockPositionsField,
+    groupedCodeBlocksField,
+    activeGroupTabField,
+    rememberedFoldField,
+    foldCommandField,
+    defaultFoldUnfoldedField,
     collapseField,
-    headerField, 
-    jumpSeparatorField,
-    viewPlugin, 
-    linkViewPlugin, 
-    inlineCodeViewPlugin, 
-    annotationViewPlugin, 
-    hideFencesPlugin, 
+    headerField,
+
+    viewPlugin,
+    linkViewPlugin,
+    inlineCodeViewPlugin,
+    annotationViewPlugin,
+    hideFencesPlugin,
     executeCodeViewPlugin,
     admonitionViewgPlugin,
-    liveUpdateExtension()
+    liveUpdateExtension(),
+    EditorView.domEventHandlers({
+      mousedown: (event, view) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('[class*="codeblock-customizer-fade-out-line"]')) {
+          event.preventDefault();
+          event.stopPropagation();
+          return true;
+        }
+        return false;
+      }
+    })
   ];
 
   const result = {

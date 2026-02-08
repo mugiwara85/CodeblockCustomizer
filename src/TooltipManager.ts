@@ -35,7 +35,7 @@ export class TooltipManager {
   private handleHover = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
     const link = target.closest('a.internal-link');
-    
+
     if (link) {
       this.plugin.app.workspace.trigger('hover-link', {
         event: e,
@@ -54,7 +54,7 @@ export class TooltipManager {
       this.hideTimer = null;
     }
 
-    if (this.tooltip){
+    if (this.tooltip) {
       return;
     }
 

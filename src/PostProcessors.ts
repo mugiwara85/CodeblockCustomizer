@@ -22,7 +22,7 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   if (!fileContentLines) {
     return;
   }
-  
+
   const foundCmView = await waitForCmView(context);
   if (!foundCmView) {
     return;
@@ -30,7 +30,7 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
 
   // @ts-ignore
   const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
-  if (!calloutText)  {
+  if (!calloutText) {
     return;
   }
 
@@ -49,9 +49,9 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     if (getAllParameters(blockData.firstLine, plugin.settings, true).exclude) {
       continue;
     }
-    
+
     const renderer = new CodeBlockRenderer(preElement, plugin, context);
-    const sectionInfo: MarkdownSectionInformation = {lineStart: blockData.startLine, lineEnd: blockData.endLine, text: blockData.contentLines.join('\n')};
+    const sectionInfo: MarkdownSectionInformation = { lineStart: blockData.startLine, lineEnd: blockData.endLine, text: blockData.contentLines.join('\n') };
     await renderer.renderExternal(blockData.firstLine, blockData.contentLines, sectionInfo, fileContentLines);
   }
 }// calloutPostProcessor
@@ -86,14 +86,14 @@ export async function admonitionPostProcessor(containerElement: HTMLElement, con
   if (!admonition) {
     return;
   }
-    
+
   containerElement.dataset.cbcAdmonitionProcessed = 'true';
 
   const sectionInfo = context.getSectionInfo(admonition as HTMLElement);
   if (!sectionInfo) {
     return;
   }
-  
+
   const { fileContentLines } = await getFileCacheAndContentLines(plugin, context.sourcePath);
   if (!fileContentLines) {
     return;
@@ -101,7 +101,7 @@ export async function admonitionPostProcessor(containerElement: HTMLElement, con
 
   const admonitionBlockLines = fileContentLines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1);
   const innerCodeBlocks = extractCodeBlocksFromAdmonition(admonitionBlockLines);
-    
+
   if (innerCodeBlocks.length === 0) {
     return;
   }
@@ -148,7 +148,7 @@ async function processAdmonitionCodeBlocks(renderedPreElements: HTMLElement[], i
       lineEnd: sectionInfo.lineStart + blockData.endLine,
       text: blockData.contentLines.join('\n')
     };
-      
+
     await renderer.renderExternal(blockData.firstLine, blockData.contentLines, absoluteSectionInfo, fileContentLines);
   }
 }// processAdmonitionCodeBlocks

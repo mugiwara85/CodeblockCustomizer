@@ -20,7 +20,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   observer: MutationObserver | null = null;
   allPreElements: HTMLElement[] | null = null;
   codeBlockSectionInfo: MarkdownSectionInformation | null = null;
-  
+
   constructor(containerEl: HTMLElement, plugin: CodeBlockCustomizerPlugin, context: MarkdownPostProcessorContext) {
     super(containerEl);
     this.plugin = plugin;
@@ -45,17 +45,17 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
     }
   }// onunload
-  
+
   public async renderExternal(firstLine: string, contentLines: string[], sectionInfo: MarkdownSectionInformation, allFileLines: string[]) {
     this.codeBlockSectionInfo = sectionInfo;
-    
-    const preElement = this.containerEl; 
+
+    const preElement = this.containerEl;
 
     if (!preElement || preElement.tagName.toLowerCase() !== 'pre') {
       console.error("CodeBlockRenderer.renderExternal called on an invalid element.", preElement);
       return;
     }
-    
+
     this.allPreElements = [preElement];
 
     const charPos = this.getCharPos(allFileLines);
@@ -72,7 +72,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const codeBlockElement = this.containerEl;
 
     // remove execute code output
-    const leftoverOutputs = codeBlockElement.querySelectorAll('code.language-output, .clear-button');
+    const leftoverOutputs = codeBlockElement.querySelectorAll('.has-run-code-button code.language-output, .clear-button');
     leftoverOutputs.forEach(el => el.remove());
 
     if (!codeBlockElement.querySelector("pre > code")) {
@@ -81,7 +81,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     const { codeBlockSectionInfo, source } = await this.getSectionInfo(codeBlockElement);
     const isPrinting = !!codeBlockElement.closest('.print');
-    
+
     if (!codeBlockSectionInfo) {
       if (isPrinting) {
         this.allPreElements = await this.getPreElements(codeBlockElement);
@@ -104,33 +104,33 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     await this.processCodeBlockSection();
   }// render
-  
+
   private async getSectionInfo(codeBlockElement: HTMLElement): Promise<{ codeBlockSectionInfo: MarkdownSectionInformation | null, source: DataSource | null }> {
     if (codeBlockElement.dataset.sectioninfo) {
-      try { 
+      try {
         return { codeBlockSectionInfo: JSON.parse(codeBlockElement.dataset.sectioninfo), source: DataSource.Dataset };
-      } catch (e) { 
-        /* ignore */ 
+      } catch (e) {
+        /* ignore */
       }
     }
-    
+
     const codeElm = codeBlockElement.querySelector('pre > code');
     if (!codeElm) {
       return { codeBlockSectionInfo: null, source: null };
     }
-    
+
     const sectionInfo = this.context.getSectionInfo(codeElm as HTMLElement);
     if (sectionInfo) {
       return { codeBlockSectionInfo: sectionInfo, source: DataSource.API };
     }
-    
+
     if (this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded("execute-code", this.plugin)) {
       const fallbackInfo = await this.waitForExecuteCodeToFinish(codeBlockElement);
       if (fallbackInfo) {
         return { codeBlockSectionInfo: fallbackInfo, source: DataSource.Fallback };
       }
     }
-    
+
     return { codeBlockSectionInfo: null, source: null };
   }// getSectionInfo
 
@@ -138,7 +138,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (!codeBlockElement || !this.context) {
       return null;
     }
-    
+
     for (let i = 0; i < maxRetries; i++) {
       const codeEl = codeBlockElement.querySelector('pre > code');
       if (codeEl) {
@@ -147,10 +147,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           return sectionInfo;
         }
       }
-      
+
       await sleep(delay);
     }
-    
+
     return null;
   }// waitForExecuteCodeToFinish
 
@@ -164,7 +164,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       console.error(`Failed to resolve source content for code block at line ${this.codeBlockSectionInfo.lineStart}.`);
       return;
     }
-    
+
     const sectionContent = fileContentLines.slice(this.codeBlockSectionInfo.lineStart, this.codeBlockSectionInfo.lineEnd + 1);
     const firstLine = sectionContent.find(line => line.trim() !== '');
     if (isPluginLoaded('obsidian-admonition', this.plugin) && firstLine && firstLine.trim().match(/^(?:`{3,}|~{3,})\s*ad-\w+/)) {
@@ -176,9 +176,9 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (allBlocks.length === 0) {
       return;
     }
-    
+
     const charPos = this.getCharPos(fileContentLines);
-    
+
     await this.processCodeBlockFirstLines(allBlocks, charPos);
   }// processCodeBlockSection
 
@@ -189,11 +189,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     const initialLines = this.codeBlockSectionInfo.text.split('\n');
     const allInitialLinesUndefined = initialLines.slice(this.codeBlockSectionInfo.lineStart, this.codeBlockSectionInfo.lineEnd + 1).every(line => line === undefined);
-      
+
     if (initialLines.length <= 1 || allInitialLinesUndefined) {
       console.warn("Line data is insufficient or invalid. Falling back to getFileCacheAndContentLines.");
       const { fileContentLines } = await getFileCacheAndContentLines(this.plugin, this.context.sourcePath);
-      
+
       return fileContentLines;
     } else {
       return initialLines;
@@ -214,10 +214,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
       charPos += fileContentLines[i].length + 1; // +1 for the newline character
     }
-    
+
     return charPos !== -1 ? charPos : undefined;
   }// getCharPos
-  
+
   private async processCodeBlockFirstLines(allBlocks: CodeBlockData[], charPos?: number) {
     if (!this.allPreElements) {
       return;
@@ -306,13 +306,13 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (!isPrinting && parameters.group && parameters.group.length > 0) {
       this.setGroupedCodeBlockAttributes(preElement, parameters, charPos);
     }
-    
+
     const isExecutable = this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', this.plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase());
     let codeElToProcess: HTMLElement;
 
     if (isExecutable) {
       preElement.querySelector('code.codeblock-customizer-displayed-code')?.remove();
-      originalCodeEl.classList.add('codeblock-customizer-hidden-code'); 
+      originalCodeEl.classList.add('codeblock-customizer-hidden-code');
 
       const displayedCodeEl = preElement.createEl('code', { cls: 'codeblock-customizer-displayed-code' });
       originalCodeEl.classList.forEach(cls => {
@@ -325,7 +325,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     } else {
       originalCodeEl.classList.remove('codeblock-customizer-hidden-code');
       preElement.querySelector('code.codeblock-customizer-displayed-code')?.remove();
-      
+
       codeElToProcess = originalCodeEl;
     }
 
@@ -351,7 +351,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         this.plugin.rerenderQueue.delete(lineStart);
       }
     }
-    
+
     return { firstLine, isRerender };
   }// handleRerenderOverride
 
@@ -394,12 +394,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     return html || "";
   }// addCustomSyntaxHighlight
-  
+
   private async addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], preCodeElm: HTMLElement, codeblockLanguageSpecificClass: string, htmlSourceEl: HTMLElement, charPos?: number, isIndentedBlock = false, isParameterRerender = false, isPrinting = false) {
     const frag = document.createDocumentFragment();
-    
+
     this.applyBaseStyling(preElement, parameters, codeblockLanguageSpecificClass, isPrinting);
-  
+
     if (preElement.parentElement) {
       preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
       const parentContainer = preElement.parentElement;
@@ -408,28 +408,28 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         this.plugin.executeCodeObservers.delete(parentContainer);
       }
     }
-  
+
     this.cleanupPreviousElements(preElement);
     const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, codeblockLines.length - 2, "reading");
     const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, specificHeader, charPos);
-    const {container: buttons, observer} = createButtons(parameters, codeblockLines, this.plugin, preElement);
+    const { container: buttons, observer } = createButtons(parameters, codeblockLines, this.plugin, preElement);
     this.observer = observer;
 
     if (specificHeader || !isPrinting) {
       frag.appendChild(header);
     }
     frag.appendChild(buttons);
-      
+
     preElement.insertBefore(frag, preElement.firstChild);
-      
-    await this.applyInitialFoldState(preElement, parameters, charPos, codeblockLines);    
+
+    await this.applyInitialFoldState(preElement, parameters, charPos, codeblockLines);
     await this.highlightLines(preCodeElm, parameters, codeblockLines, isIndentedBlock || false, isParameterRerender, isPrinting, htmlSourceEl);
   }// addClasses
 
   private applyBaseStyling(preElement: HTMLElement, parameters: CBCParameters, codeblockLanguageSpecificClass: string, isPrinting: boolean) {
-    preElement.classList.add(`codeblock-customizer-pre`);  
+    preElement.classList.add(`codeblock-customizer-pre`);
     preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
-  
+
     if (codeblockLanguageSpecificClass) {
       preElement.classList.add(codeblockLanguageSpecificClass);
     }
@@ -444,8 +444,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (borderColor.length > 0) {
       preElement.classList.add(`hasLangBorderColor`);
     }
+
+    if (parameters.output) {
+      preElement.classList.add('is-output');
+    }
   }// applyBaseStyling
-  
+
   private cleanupPreviousElements(preElement: HTMLElement) {
     // remove old header and buttons to prevent duplication during re-render
     preElement.querySelector(".codeblock-customizer-header-container")?.remove();
@@ -458,12 +462,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const keyToUse = charPos ?? this.codeBlockSectionInfo?.lineStart;
     const settings = this.plugin.settings.pluginSettings;
     let rememberedState: FoldingState | undefined;
-    
+
     if (settings.codeblock.folding.rememberFoldState && keyToUse !== undefined) {
       if (settings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
         const rememberedFolds = this.plugin.loadPermanentReadingViewFolds(this.context.sourcePath);
         rememberedState = rememberedFolds.get(keyToUse);
-      } else { 
+      } else {
         // session
         const rememberedFolds = this.plugin.activeReadingViewFolds.get(this.context.sourcePath);
         rememberedState = rememberedFolds ? rememberedFolds.get(keyToUse) : undefined;
@@ -473,7 +477,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     let foldByDefault = false;
     let useSemiFold = false;
     const globalCommand = this.plugin.foldCommandTrigger;
-  
+
     switch (globalCommand) {
       case FoldCommand.FoldAll:
         foldByDefault = true;
@@ -495,16 +499,22 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         }
         break;
     }
-    
+
     if (foldByDefault) {
       const canSemiFold = lineCount >= settings.semiFold.visibleLines + fadeOutLineCount;
-      if (useSemiFold && canSemiFold) {
+      const isSemiCollapsed = useSemiFold && canSemiFold;
+      if (isSemiCollapsed) {
         preElement.classList.add('codeblock-customizer-codeblock-semi-collapsed');
       } else {
         preElement.classList.add('codeblock-customizer-codeblock-collapsed');
       }
-      if (rememberedState === undefined && globalCommand === FoldCommand.Default) { 
+      if (rememberedState === undefined && globalCommand === FoldCommand.Default) {
         preElement.classList.add('codeblock-customizer-codeblock-default-collapse');
+      }
+
+      const header = preElement.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');
+      if (header) {
+        header.classList.add(isSemiCollapsed ? 'semi-collapsed' : 'collapsed');
       }
     }
   }// applyInitialFoldState
@@ -518,6 +528,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       const Icon = getLanguageIcon(parameters.displayLanguage)
       if (Icon) {
         frag.appendChild(createCodeblockIcon(parameters.displayLanguage));
+        container.classList.add('has-icon');
       }
       frag.appendChild(createCodeblockLang(parameters.language));
     }
@@ -525,7 +536,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     const collapseEl = createCodeblockCollapse(parameters.fold);
     if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
-        (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
+      (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
       container.classList.add(`noCollapseIcon`);
     } else {
       frag.appendChild(collapseEl);
@@ -558,9 +569,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       if (isCollapsed || isSemiCollapsed) {
         toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
         newState = FoldingState.Unfolded;
+        container.classList.remove('collapsed', 'semi-collapsed');
       } else {
         toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
         newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
+        container.classList.add(useSemiFold ? 'semi-collapsed' : 'collapsed');
       }
 
       if (this.codeBlockSectionInfo) {
@@ -614,9 +627,9 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     preCodeElm.innerHTML = '';
     const { htmlLines, textLines } = extractLinesFromHTML(tempCodeElm);
-    
-    const codeblockLen = isIndentedBlock ? htmlLines.length - 1: Math.max(1, rawCodeLines.length - 2); 
-    
+
+    const codeblockLen = isIndentedBlock ? htmlLines.length - 1 : Math.max(1, rawCodeLines.length - 2);
+
     const { fragment, annotations } = await renderCodeBlockLines({
       htmlLines,
       textLines,
@@ -636,7 +649,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     attachEventListeners(preCodeElm, this.plugin, this.context.sourcePath, annotations);
   }// highlightLines
-  
+
   private async handlePDFExport() {
     if (this.containerEl.closest('.codeblock-customizer-pre-parent')) {
       return;
@@ -676,11 +689,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (!codeEl) {
       return false;
     }
-    
+
     // admonitions and execute-code outputs must be excluded
     const isAdmonition = Array.from(codeEl.classList).some(cls => cls.startsWith('language-ad-'));
     const isOutput = codeEl.classList.contains('language-output');
-    
+
     return !isAdmonition && !isOutput;
   }// isValidPdfExportElement
 
@@ -714,7 +727,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
 
     const codeBlocksToFind = this.findCodeBlocksInEmbed(src, cache, fileContentLines);
-    
+
     await this.processBlocks(preElements, codeBlocksToFind, `embedded content from ${src}`);
   }// processEmbeddedPdfBlocks
 
@@ -736,7 +749,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         const startLine = targetHeading.position.start.line;
         const nextHeading = headings.find(h => h.position.start.line > startLine && h.level <= targetHeading.level);
         const endLine = nextHeading ? nextHeading.position.start.line - 1 : content.length - 1;
-        
+
         const sectionLines = content.slice(startLine, endLine + 1);
         const sections = cache.sections?.filter(s => s.position.start.line >= startLine && s.position.end.line <= endLine) ?? [];
         return this.extractCodeBlocksFromSections(sections, sectionLines);
@@ -751,10 +764,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
   private async processBlocks(preElements: HTMLElement[], codeBlocks: CodeBlockData[], contextMessage: string): Promise<void> {
     if (preElements.length !== codeBlocks.length) {
-      console.error(`[processBlocks] PDF Export Mismatch for ${contextMessage}!`, {parsedCount: codeBlocks.length, renderedCount: preElements.length });
+      console.error(`[processBlocks] PDF Export Mismatch for ${contextMessage}!`, { parsedCount: codeBlocks.length, renderedCount: preElements.length });
       return;
     }
-    
+
     const limit = Math.min(preElements.length, codeBlocks.length);
     for (let i = 0; i < limit; i++) {
       await this.processSingleCodeBlock(preElements[i], codeBlocks[i], { isPrinting: true });
@@ -805,14 +818,14 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (hashIndex !== -1) {
       header = src.substring(hashIndex + 1, caretIndex !== -1 ? caretIndex : undefined);
     }
-    
+
     let pathPart = src;
     if (hashIndex !== -1) {
       pathPart = src.substring(0, hashIndex);
     } else if (caretIndex !== -1) {
       pathPart = src.substring(0, caretIndex);
     }
-    
+
     if (pathPart.length > 0) {
       sourceFile = pathPart;
     }

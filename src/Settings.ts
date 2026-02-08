@@ -88,6 +88,12 @@ export enum LineNumberSeparatorStyle {
   DoubleLine = 'double-line',
 }
 
+export enum SemiFoldEffect {
+  Opacity = 'opacity',
+  Blur = 'blur',
+  Both = 'both',
+}
+
 export interface PluginSettings {
   codeblock: {
     enableLineNumbers: boolean;
@@ -130,6 +136,7 @@ export interface PluginSettings {
     showAdditionalUncollapseButon: boolean;
     autoFoldLongCodeblocks: boolean;
     longCodeBlockLines: number;
+    semifoldEffect: SemiFoldEffect;
   },
   header: {
     boldText: boolean;
@@ -249,11 +256,12 @@ const defaultThemeSettings: PluginSettings = {
     textSeparator: '',
   },
   semiFold: {
-    enableSemiFold: false,
+    enableSemiFold: true,
     visibleLines: 5,
-    showAdditionalUncollapseButon: false,
+    showAdditionalUncollapseButon: true,
     autoFoldLongCodeblocks: false,
     longCodeBlockLines: 30,
+    semifoldEffect: SemiFoldEffect.Opacity,
   },
   header: {
     boldText: false,
@@ -394,7 +402,7 @@ const DarkPromptColors: Record<string, Record<string, string>> = {
     "prompt-colon": DEFAULT_PROMPT_COLOR,
     "prompt-dollar": DEFAULT_PROMPT_COLOR,
     "prompt-hash": DEFAULT_PROMPT_COLOR,
-    "prompt-dash":DEFAULT_PROMPT_COLOR,
+    "prompt-dash": DEFAULT_PROMPT_COLOR,
     "prompt-bracket-open": DEFAULT_PROMPT_COLOR,
     "prompt-bracket-close": DEFAULT_PROMPT_COLOR,
     "prompt-square-open": DEFAULT_PROMPT_COLOR,
@@ -494,7 +502,7 @@ const ObsidianLightPromptPromptColors: Record<string, Record<string, string>> = 
     "prompt-colon": DEFAULT_PROMPT_COLOR,
     "prompt-dollar": DEFAULT_PROMPT_COLOR,
     "prompt-hash": DEFAULT_PROMPT_COLOR,
-    "prompt-dash":DEFAULT_PROMPT_COLOR,
+    "prompt-dash": DEFAULT_PROMPT_COLOR,
     "prompt-bracket-open": DEFAULT_PROMPT_COLOR,
     "prompt-bracket-close": DEFAULT_PROMPT_COLOR,
     "prompt-square-open": DEFAULT_PROMPT_COLOR,
@@ -537,7 +545,7 @@ export const RootPromptColors: Record<string, Record<string, string>> = {
     "prompt-path": "#ffb347",
     "prompt-kali-symbol": "#e63946",
     "prompt-hash": "#ff5555",
-    "prompt-dash":"#3370D7",
+    "prompt-dash": "#3370D7",
     "prompt-bracket-open": "#3370D7",
     "prompt-bracket-close": "#3370D7",
     "prompt-square-open": "#3370D7",
@@ -689,7 +697,7 @@ const SolarizedLightColors = {
     bracketHighlightColorMatch: '#ff01f7',
     bracketHighlightColorNoMatch: '#FF0000',
     bracketHighlightBackgroundColorMatch: '#EDE8D6',
-    bracketHighlightBackgroundColorNoMatch:'#EDE8D6',
+    bracketHighlightBackgroundColorNoMatch: '#EDE8D6',
     selectionMatchHighlightColor: SELECTION_MATCH_COLOR,
   },
   header: {
@@ -1125,7 +1133,7 @@ const DraculaLightColors = {
   },
   annotations: {
     colors: {
-      note: '#009688', 
+      note: '#009688',
       warn: '#d79921',
       error: '#cc241d',
       todo: '#d65d0e',

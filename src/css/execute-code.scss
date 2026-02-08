@@ -1,0 +1,125 @@
+/* -------------------- Execute code plugin compatibility -------------------- */
+.codeblock-customizer-support-execute-code {
+  .markdown-rendered pre.codeblock-customizer-pre {
+    .run-code-button,
+    .clear-button {
+      // hide original buttons
+      display: none;
+    }
+
+    @media (hover: hover) {
+      &:hover code.language-output {
+        // remove hover effect
+        margin-bottom: 0 !important;
+      }
+    }
+  }
+}
+
+.markdown-rendered {
+  // execute code button, clear code button and edit code button styling
+  .codeblock-customizer-execute-code-button,
+  .codeblock-customizer-execute-code-clear-button,
+  .codeblock-customizer-execute-code-edit-button {
+    padding: var(--size-4-1) var(--size-4-2);
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+    font-family: var(--font-interface);
+    font-size: var(--font-ui-smaller);
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: rgb(var(--mono-rgb-100), 0.075);
+      }
+    }
+  }
+}
+
+/* hide original code */
+.codeblock-customizer-pre-parent>.codeblock-customizer-pre>code.codeblock-customizer-hidden-code {
+  display: none;
+}
+
+/* code output styling */
+pre.codeblock-customizer-pre {
+  .codeblock-customizer-execute-code-output {
+    border-top: 2px solid var(--header-line-color, var(--codeblock-customizer-header-line-color));
+
+    hr {
+      // hide the hr element
+      display: none;
+    }
+
+    .codeblock-customizer-output .codeblock-customizer-line-text {
+      color: var(--text-muted) !important;
+    }
+
+    // interactive stdin
+    input.interactive-stdin {
+      border-width: 1px;
+      border-style: solid;
+      border-color: var(--code-comment);
+      border-radius: var(--border-radius);
+      background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+
+      /* padding: 2px 8px; */
+      color: var(--text-normal);
+    }
+  }
+
+  .codeblock-customizer-output .codeblock-customizer-line-text {
+    color: var(--text-muted) !important;
+  }
+}
+
+.codeblock-customizer-style-execute-code-output pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output .stderr,
+body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output {
+  display: inline-block;
+  padding-left: var(--line-number-gutter-padding) !important;
+  white-space: pre-wrap;
+}
+
+/* line number */
+.markdown-source-view .codeblock-customizer-execute-code-output .codeblock-customizer-output .codeblock-customizer-line-number {
+  height: unset;
+}
+
+.markdown-rendered .codeblock-customizer-pre .codeblock-customizer-execute-code-output .codeblock-customizer-output>div {
+  &:last-child>.codeblock-customizer-line-number {
+    box-shadow: 0 var(--code-padding) var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+  }
+
+  &:first-child>.codeblock-customizer-line-number {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+  }
+}
+
+/* hide original output */
+.codeblock-customizer-original-output-hidden {
+  display: none !important;
+}
+
+/* hide output when code block is folded */
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed,
+pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
+  .codeblock-customizer-execute-code-output,
+  .codeblock-customizer-execute-code-clear-button,
+  .codeblock-customizer-execute-code-button {
+    display: none !important;
+  }
+}
+
+.codeblock-customizer-header-group-container.collapsed,
+.codeblock-customizer-header-group-container.semi-collapsed {
+  .codeblock-customizer-execute-code-clear-button,
+  .codeblock-customizer-execute-code-button {
+    display: none;
+  }
+}
+
+.codeblock-customizer-execute-code-button-pending-verification,
+.codeblock-customizer-execute-code-clear-button-hidden {
+  display: none;
+}
