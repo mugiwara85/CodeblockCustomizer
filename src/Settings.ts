@@ -55,44 +55,51 @@ export interface ThemeColors {
   light: Colors;
 }
 
-export enum FoldingScope {
-  All = 'all',
-  NoFoldSpecified = 'nofoldspecified',
-}
+export const FoldingScope = {
+  All: 'all',
+  NoFoldSpecified: 'nofoldspecified',
+} as const;
+export type FoldingScope = (typeof FoldingScope)[keyof typeof FoldingScope];
 
-export enum FoldingPersistence {
-  Permanent = 'permanent',
-  Session = 'session',
-}
+export const FoldingPersistence = {
+  Permanent: 'permanent',
+  Session: 'session',
+} as const;
+export type FoldingPersistence = (typeof FoldingPersistence)[keyof typeof FoldingPersistence];
 
-export enum TabPersistence {
-  Permanent = 'permanent',
-  Session = 'session',
-}
+export const TabPersistence = {
+  Permanent: 'permanent',
+  Session: 'session',
+} as const;
+export type TabPersistence = (typeof TabPersistence)[keyof typeof TabPersistence];
 
-export enum InlineCodeModifierKeys {
-  CTRL = 'ctrl',
-  ALT = 'alt'
-}
+export const InlineCodeModifierKeys = {
+  CTRL: 'ctrl',
+  ALT: 'alt'
+} as const;
+export type InlineCodeModifierKeys = (typeof InlineCodeModifierKeys)[keyof typeof InlineCodeModifierKeys];
 
-export enum ButtonModifierKeys {
-  CTRL = 'ctrl',
-  ALT = 'alt',
-  SHIFT = 'shift',
-  NONE = 'none',
-}
+export const ButtonModifierKeys = {
+  CTRL: 'ctrl',
+  ALT: 'alt',
+  SHIFT: 'shift',
+  NONE: 'none',
+} as const;
+export type ButtonModifierKeys = (typeof ButtonModifierKeys)[keyof typeof ButtonModifierKeys];
 
-export enum LineNumberSeparatorStyle {
-  Zigzag = 'zigzag',
-  Dashed = 'dashed',
-  DoubleLine = 'double-line',
-}
+export const LineNumberSeparatorStyle = {
+  Zigzag: 'zigzag',
+  Dashed: 'dashed',
+  DoubleLine: 'double-line',
+} as const;
+export type LineNumberSeparatorStyle = (typeof LineNumberSeparatorStyle)[keyof typeof LineNumberSeparatorStyle];
 
-export enum SemiFoldEffect {
-  Opacity = 'opacity',
-  Blur = 'blur',
-  Both = 'both',
-}
+export const SemiFoldEffect = {
+  Opacity: 'opacity',
+  Blur: 'blur',
+  Both: 'both',
+} as const;
+export type SemiFoldEffect = (typeof SemiFoldEffect)[keyof typeof SemiFoldEffect];
 
 export interface PluginSettings {
   codeblock: {

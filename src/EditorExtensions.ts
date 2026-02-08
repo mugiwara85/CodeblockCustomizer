@@ -54,17 +54,19 @@ interface ButtonConfig {
   enabled: boolean;
 }
 
-export enum FoldingState {
-  Unfolded = 'unfolded',
-  FullyFolded = 'fully-folded',
-  SemiFolded = 'semi-folded',
-}
+export const FoldingState = {
+  Unfolded: 'unfolded',
+  FullyFolded: 'fully-folded',
+  SemiFolded: 'semi-folded',
+} as const;
+export type FoldingState = (typeof FoldingState)[keyof typeof FoldingState];
 
-export enum FoldCommand {
-  Default,
-  FoldAll,
-  UnfoldAll,
-}
+export const FoldCommand = {
+  Default: 0,
+  FoldAll: 1,
+  UnfoldAll: 2,
+} as const;
+export type FoldCommand = (typeof FoldCommand)[keyof typeof FoldCommand];
 
 export function extensions(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   /* annotations, effects */

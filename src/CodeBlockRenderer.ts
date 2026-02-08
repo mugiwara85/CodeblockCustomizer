@@ -8,11 +8,12 @@ import { FoldCommand, FoldingState } from "./EditorExtensions";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "./Parsing";
 
-enum DataSource {
-  Dataset = 'dataset',
-  API = 'api',
-  Fallback = 'fallback',
-}
+const DataSource = {
+  Dataset: 'dataset',
+  API: 'api',
+  Fallback: 'fallback',
+} as const;
+type DataSource = (typeof DataSource)[keyof typeof DataSource];
 
 export class CodeBlockRenderer extends MarkdownRenderChild {
   plugin: CodeBlockCustomizerPlugin;

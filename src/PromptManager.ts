@@ -39,11 +39,12 @@ export type PromptDefinition = {
   autoParseLanguages?: string[];
 };// PromptDefinition
 
-export enum PromptKind {
-  Predefined = "predefined",
-  Template = "template",
-  Plain = "plain",
-}// PromptKind
+export const PromptKind = {
+  Predefined: "predefined",
+  Template: "template",
+  Plain: "plain",
+} as const;
+export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
 
 export const symbolClassMap: Record<string, string> = {
   "(": "prompt-bracket-open",

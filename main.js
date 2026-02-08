@@ -13023,7 +13023,7 @@ function addClassesToPrompt(promptData, promptType, promptDef, settings, isRoot 
     return promptWrapper;
   }
   const promptStr = promptData;
-  if (kind === "predefined" /* Predefined */) {
+  if (kind === PromptKind.Predefined) {
     if (!promptDef)
       promptDef = defaultPrompts[promptType];
     const match = (_c = promptDef == null ? void 0 : promptDef.parsePromptRegex) == null ? void 0 : _c.exec(promptStr);
@@ -13067,7 +13067,7 @@ function addClassesToPrompt(promptData, promptType, promptDef, settings, isRoot 
     promptWrapper.appendChild(fragment);
     return promptWrapper;
   }
-  if (kind === "plain" /* Plain */) {
+  if (kind === PromptKind.Plain) {
     fragment.append(...batchSpans(promptStr, (char) => resolvePromptClass(char, { type: "symbol" })));
     if (!endsWithSpace) {
       fragment.appendChild(createSpan({ cls: "prompt-part prompt-space", text: " " }));
@@ -13115,10 +13115,10 @@ function mergeAdjacentParts(parts) {
 function getPromptType(promptText) {
   const promptDef = defaultPrompts[promptText.toLowerCase()];
   if (promptDef)
-    return "predefined" /* Predefined */;
+    return PromptKind.Predefined;
   if (/\{.*?\}/.test(promptText))
-    return "template" /* Template */;
-  return "plain" /* Plain */;
+    return PromptKind.Template;
+  return PromptKind.Plain;
 }
 function getPromptDetails(promptType, settings) {
   const { def, isCustom } = getPromptDefinition(promptType, settings);
@@ -13126,12 +13126,12 @@ function getPromptDetails(promptType, settings) {
   const isDefinedPrompt = promptType.toLowerCase() in defaultPrompts || isCustom;
   if (isDefinedPrompt) {
     const keyForClass = isCustom ? def.name : promptType.toLowerCase();
-    return { kind: "predefined" /* Predefined */, name: promptType, baseClass: `codeblock-customizer-prompt-${keyForClass}`, isCustom };
+    return { kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${keyForClass}`, isCustom };
   }
   if (isCustomTemplate) {
-    return { kind: "template" /* Template */, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true };
+    return { kind: PromptKind.Template, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true };
   } else {
-    return { kind: "plain" /* Plain */, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true };
+    return { kind: PromptKind.Plain, name: promptType, baseClass: `codeblock-customizer-prompt-custom`, isCustom: true };
   }
 }
 function resolvePromptClass(token, context) {
@@ -13181,7 +13181,7 @@ function replacePromptTemplate(promptKind, promptType, promptDef, env) {
     }
     return "msf6 >";
   }
-  if (promptKind === "predefined" /* Predefined */) {
+  if (promptKind === PromptKind.Predefined) {
     let promptText = (_b = promptDef == null ? void 0 : promptDef.basePrompt) != null ? _b : promptType;
     promptText = promptText.replace("{user}", env.user).replace("{host}", env.host).replace("{path}", finalPath).replace("{db}", env.db).replace("{branch}", env.branch);
     if (env.user === "root" && /[$%](?!\S)/.test(promptText)) {
@@ -13189,7 +13189,7 @@ function replacePromptTemplate(promptKind, promptType, promptDef, env) {
     }
     return promptText;
   }
-  if (promptKind === "template" /* Template */) {
+  if (promptKind === PromptKind.Template) {
     const parts = [];
     const placeholderMap = {
       user: env.user,
@@ -13328,6 +13328,11 @@ function simplifyHomePath(path, homeDir) {
 
 // src/PromptManager.ts
 var DEFAULT_PROMPT_COLOR = "#777777";
+var PromptKind = {
+  Predefined: "predefined",
+  Template: "template",
+  Plain: "plain"
+};
 var symbolClassMap = {
   "(": "prompt-bracket-open",
   ")": "prompt-bracket-close",
@@ -13944,6 +13949,38 @@ var PromptManager = class {
 };
 
 // src/Settings.ts
+var FoldingScope = {
+  All: "all",
+  NoFoldSpecified: "nofoldspecified"
+};
+var FoldingPersistence = {
+  Permanent: "permanent",
+  Session: "session"
+};
+var TabPersistence = {
+  Permanent: "permanent",
+  Session: "session"
+};
+var InlineCodeModifierKeys = {
+  CTRL: "ctrl",
+  ALT: "alt"
+};
+var ButtonModifierKeys = {
+  CTRL: "ctrl",
+  ALT: "alt",
+  SHIFT: "shift",
+  NONE: "none"
+};
+var LineNumberSeparatorStyle = {
+  Zigzag: "zigzag",
+  Dashed: "dashed",
+  DoubleLine: "double-line"
+};
+var SemiFoldEffect = {
+  Opacity: "opacity",
+  Blur: "blur",
+  Both: "both"
+};
 var defaultThemeSettings = {
   codeblock: {
     enableLineNumbers: true,
@@ -13957,7 +13994,7 @@ var defaultThemeSettings = {
     enableSelectionMatching: true,
     unwrapcode: false,
     hideFenceLines: false,
-    lineNumberSeparatorStyle: "dashed" /* Dashed */,
+    lineNumberSeparatorStyle: LineNumberSeparatorStyle.Dashed,
     buttons: {
       alwaysShowButtons: false,
       alwaysShowCopyCodeButton: false,
@@ -13965,13 +14002,13 @@ var defaultThemeSettings = {
       enableDeleteCodeButton: false,
       enableWrapCodeButton: false,
       enableSnapshotButton: false,
-      modifierKey: "ctrl" /* CTRL */
+      modifierKey: ButtonModifierKeys.CTRL
     },
     folding: {
       inverseFold: false,
       rememberFoldState: true,
-      scope: "nofoldspecified" /* NoFoldSpecified */,
-      persistence: "session" /* Session */,
+      scope: FoldingScope.NoFoldSpecified,
+      persistence: FoldingPersistence.Session,
       ignoreShortBlocksOnInverseFold: false
     }
   },
@@ -13985,7 +14022,7 @@ var defaultThemeSettings = {
     showAdditionalUncollapseButon: true,
     autoFoldLongCodeblocks: false,
     longCodeBlockLines: 30,
-    semifoldEffect: "opacity" /* Opacity */
+    semifoldEffect: SemiFoldEffect.Opacity
   },
   header: {
     boldText: false,
@@ -14009,7 +14046,7 @@ var defaultThemeSettings = {
     enableSyntaxHighlight: true,
     showIcons: false,
     enableCopyOnClick: true,
-    copyModifierKey: "ctrl" /* CTRL */
+    copyModifierKey: InlineCodeModifierKeys.CTRL
   },
   printing: {
     enablePrintToPDFStyling: true,
@@ -14028,7 +14065,7 @@ var defaultThemeSettings = {
   },
   groupedCodeBlocks: {
     rememberTabState: true,
-    persistence: "session" /* Session */,
+    persistence: TabPersistence.Session,
     showAddRemoveButtons: true
   },
   annotations: {
@@ -17373,9 +17410,9 @@ function updateSettingClasses(settings) {
   }
   document.body.classList.remove("codeblock-customizer-semifold-effect-opacity");
   document.body.classList.remove("codeblock-customizer-semifold-effect-blur");
-  if (settings.semiFold.semifoldEffect === "opacity" /* Opacity */) {
+  if (settings.semiFold.semifoldEffect === SemiFoldEffect.Opacity) {
     document.body.classList.add("codeblock-customizer-semifold-effect-opacity");
-  } else if (settings.semiFold.semifoldEffect === "blur" /* Blur */) {
+  } else if (settings.semiFold.semifoldEffect === SemiFoldEffect.Blur) {
     document.body.classList.add("codeblock-customizer-semifold-effect-blur");
   } else {
     document.body.classList.add("codeblock-customizer-semifold-effect-opacity");
@@ -17431,15 +17468,15 @@ function updateSettingClasses(settings) {
   } else {
     document.body.classList.remove("codeblock-customizer-support-execute-code");
   }
-  if (settings.codeblock.lineNumberSeparatorStyle === "zigzag" /* Zigzag */) {
+  if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Zigzag) {
     document.body.classList.remove("codeblock-customizer-linenumberseparator-dashed");
     document.body.classList.remove("codeblock-customizer-linenumberseparator-doubleline");
     document.body.classList.add("codeblock-customizer-linenumberseparator-zigzag");
-  } else if (settings.codeblock.lineNumberSeparatorStyle === "double-line" /* DoubleLine */) {
+  } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.DoubleLine) {
     document.body.classList.remove("codeblock-customizer-linenumberseparator-dashed");
     document.body.classList.remove("codeblock-customizer-linenumberseparator-zigzag");
     document.body.classList.add("codeblock-customizer-linenumberseparator-doubleline");
-  } else if (settings.codeblock.lineNumberSeparatorStyle === "dashed" /* Dashed */) {
+  } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Dashed) {
     document.body.classList.remove("codeblock-customizer-linenumberseparator-zigzag");
     document.body.classList.remove("codeblock-customizer-linenumberseparator-doubleline");
     document.body.classList.add("codeblock-customizer-linenumberseparator-dashed");
@@ -18316,7 +18353,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
       })
     );
     new import_obsidian3.Setting(codeBlockDetails).setName("Line number jump separator style").setDesc("Select the style of the separator line shown when code is folded/skipped.").addDropdown(
-      (dropdown) => dropdown.addOption("zigzag" /* Zigzag */, "Zigzag").addOption("dashed" /* Dashed */, "Dashed").addOption("double-line" /* DoubleLine */, "Double Line").setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle).onChange(async (value) => {
+      (dropdown) => dropdown.addOption(LineNumberSeparatorStyle.Zigzag, "Zigzag").addOption(LineNumberSeparatorStyle.Dashed, "Dashed").addOption(LineNumberSeparatorStyle.DoubleLine, "Double Line").setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle).onChange(async (value) => {
         this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
         await this.plugin.saveSettings();
         updateSettingStyles(this.plugin.settings, this.app);
@@ -18524,7 +18561,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     );
     if (this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick) {
       new import_obsidian3.Setting(inlineCodeDetails).setName("Modifier key for copy").setDesc("Select the key to hold while clicking to copy.").addDropdown(
-        (dropdown) => dropdown.addOption("ctrl" /* CTRL */, "Ctrl").addOption("alt" /* ALT */, "Alt").setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey).onChange(async (value) => {
+        (dropdown) => dropdown.addOption(InlineCodeModifierKeys.CTRL, "Ctrl").addOption(InlineCodeModifierKeys.ALT, "Alt").setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey).onChange(async (value) => {
           this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;
           await this.plugin.saveSettings();
         })
@@ -18722,7 +18759,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     );
     if (this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState) {
       new import_obsidian3.Setting(groupedCodeBlocksDetails).setName("Tab state persistence").setDesc("Choose how long the active tab state is remembered.").addDropdown((dropdown) => {
-        dropdown.addOption("session" /* Session */, "Session Only").addOption("permanent" /* Permanent */, "Permanent").setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence).onChange(async (value) => {
+        dropdown.addOption(TabPersistence.Session, "Session Only").addOption(TabPersistence.Permanent, "Permanent").setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence).onChange(async (value) => {
           const oldValue = this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence;
           if (oldValue !== value) {
             await this.plugin.clearAllTabData();
@@ -18732,7 +18769,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
           this.display();
         });
       });
-      if (this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === "permanent" /* Permanent */) {
+      if (this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent) {
         new import_obsidian3.Setting(groupedCodeBlocksDetails).setName("Clear stored tab positions").setDesc("Clear all stored active tab states from disk and the current session.").addButton((button) => {
           button.setButtonText("Clear cache");
           button.onClick(async () => {
@@ -18813,7 +18850,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
       })
     );
     new import_obsidian3.Setting(foldDetails).setName("Semi-fold effect").setDesc("Select the visual effect for semi-folded code blocks.").addDropdown(
-      (dropdown) => dropdown.addOption("opacity" /* Opacity */, "Opacity only").addOption("blur" /* Blur */, "Blur only").addOption("both" /* Both */, "Both").setValue(this.plugin.settings.pluginSettings.semiFold.semifoldEffect).onChange(async (value) => {
+      (dropdown) => dropdown.addOption(SemiFoldEffect.Opacity, "Opacity only").addOption(SemiFoldEffect.Blur, "Blur only").addOption(SemiFoldEffect.Both, "Both").setValue(this.plugin.settings.pluginSettings.semiFold.semifoldEffect).onChange(async (value) => {
         this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value;
         await this.plugin.saveSettings();
         updateSettingStyles(this.plugin.settings, this.app);
@@ -18850,20 +18887,20 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     );
     if (this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState) {
       new import_obsidian3.Setting(foldDetails).setName("Scope").setDesc("Choose which code blocks are affected. 'Respect' only saves the state for blocks where `fold` wasn't explicitly set. 'All' saves the state for all blocks.").addDropdown((dropdown) => {
-        dropdown.addOption("nofoldspecified" /* NoFoldSpecified */, 'Respect "fold"').addOption("all" /* All */, "All code blocks").setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope).onChange(async (value) => {
+        dropdown.addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"').addOption(FoldingScope.All, "All code blocks").setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope).onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.folding.scope = value;
           await this.plugin.saveSettings();
         });
       });
       new import_obsidian3.Setting(foldDetails).setName("Persistence").setDesc("Choose how long the folding state is remembered. 'Permanent' saves the state even after you restart Obsidian. 'Session' remembers the state only until you close the app.").addDropdown((dropdown) => {
-        dropdown.addOption("session" /* Session */, "Session Only").addOption("permanent" /* Permanent */, "Permanent").setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence).onChange(async (value) => {
+        dropdown.addOption(FoldingPersistence.Session, "Session Only").addOption(FoldingPersistence.Permanent, "Permanent").setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence).onChange(async (value) => {
           const oldValue = this.plugin.settings.pluginSettings.codeblock.folding.persistence;
           if (oldValue !== value) {
-            if (oldValue === "permanent" /* Permanent */) {
+            if (oldValue === FoldingPersistence.Permanent) {
               await this.plugin.clearAllFoldData();
               new import_obsidian3.Notice("Cleared permanent fold data.");
             }
-            if (oldValue === "session" /* Session */) {
+            if (oldValue === FoldingPersistence.Session) {
               this.plugin.activeEditorFolds.clear();
               this.app.workspace.updateOptions();
               new import_obsidian3.Notice("Cleared session fold data.");
@@ -18874,7 +18911,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
           this.display();
         });
       });
-      if (this.plugin.settings.pluginSettings.codeblock.folding.persistence === "permanent" /* Permanent */) {
+      if (this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
         new import_obsidian3.Setting(foldDetails).setName("Clear stored folded positions").setDesc("Clear all stored folded code block state from disk and the current session.").addButton((button) => {
           button.setButtonText("Clear cache");
           button.onClick(async () => {
@@ -18890,7 +18927,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     }
     const buttonsDetails = this.createDetailsGroup(behaviorDiv, "Extra Button Settings", "buttonsDetailsOpen");
     new import_obsidian3.Setting(buttonsDetails).setName("Modifier key for fence actions").setDesc("Hold this key while clicking copy, select, or delete to include the fence lines in the action.").addDropdown(
-      (dropdown) => dropdown.addOption("none" /* NONE */, "None").addOption("ctrl" /* CTRL */, "Ctrl").addOption("alt" /* ALT */, "Alt").addOption("shift" /* SHIFT */, "Shift").setValue(this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey).onChange(async (value) => {
+      (dropdown) => dropdown.addOption(ButtonModifierKeys.NONE, "None").addOption(ButtonModifierKeys.CTRL, "Ctrl").addOption(ButtonModifierKeys.ALT, "Alt").addOption(ButtonModifierKeys.SHIFT, "Shift").setValue(this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey).onChange(async (value) => {
         this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey = value;
         await this.plugin.saveSettings();
       })
@@ -22030,6 +22067,11 @@ function getPromptLines(parsedParameters, parameter, textSeparator, lineSeparato
 }
 
 // src/CodeBlockRenderer.ts
+var DataSource = {
+  Dataset: "dataset",
+  API: "api",
+  Fallback: "fallback"
+};
 var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
   constructor(containerEl, plugin, context) {
     super(containerEl);
@@ -22095,7 +22137,7 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
       return;
     }
     this.codeBlockSectionInfo = codeBlockSectionInfo;
-    if (source === "fallback" /* Fallback */) {
+    if (source === DataSource.Fallback) {
       codeBlockElement.dataset.sectioninfo = JSON.stringify(this.codeBlockSectionInfo);
     }
     this.allPreElements = await this.getPreElements(codeBlockElement);
@@ -22108,7 +22150,7 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
   async getSectionInfo(codeBlockElement) {
     if (codeBlockElement.dataset.sectioninfo) {
       try {
-        return { codeBlockSectionInfo: JSON.parse(codeBlockElement.dataset.sectioninfo), source: "dataset" /* Dataset */ };
+        return { codeBlockSectionInfo: JSON.parse(codeBlockElement.dataset.sectioninfo), source: DataSource.Dataset };
       } catch (e) {
       }
     }
@@ -22118,12 +22160,12 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
     }
     const sectionInfo = this.context.getSectionInfo(codeElm);
     if (sectionInfo) {
-      return { codeBlockSectionInfo: sectionInfo, source: "api" /* API */ };
+      return { codeBlockSectionInfo: sectionInfo, source: DataSource.API };
     }
     if (this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded("execute-code", this.plugin)) {
       const fallbackInfo = await this.waitForExecuteCodeToFinish(codeBlockElement);
       if (fallbackInfo) {
-        return { codeBlockSectionInfo: fallbackInfo, source: "fallback" /* Fallback */ };
+        return { codeBlockSectionInfo: fallbackInfo, source: DataSource.Fallback };
       }
     }
     return { codeBlockSectionInfo: null, source: null };
@@ -22409,7 +22451,7 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
     const settings = this.plugin.settings.pluginSettings;
     let rememberedState;
     if (settings.codeblock.folding.rememberFoldState && keyToUse !== void 0) {
-      if (settings.codeblock.folding.persistence === "permanent" /* Permanent */) {
+      if (settings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
         const rememberedFolds = this.plugin.loadPermanentReadingViewFolds(this.context.sourcePath);
         rememberedState = rememberedFolds.get(keyToUse);
       } else {
@@ -22421,18 +22463,18 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
     let useSemiFold = false;
     const globalCommand = this.plugin.foldCommandTrigger;
     switch (globalCommand) {
-      case 1 /* FoldAll */:
+      case FoldCommand.FoldAll:
         foldByDefault = true;
         useSemiFold = settings.semiFold.enableSemiFold;
         break;
-      case 2 /* UnfoldAll */:
+      case FoldCommand.UnfoldAll:
         foldByDefault = false;
         break;
-      case 0 /* Default */:
+      case FoldCommand.Default:
       default:
         if (rememberedState !== void 0) {
-          foldByDefault = rememberedState === "fully-folded" /* FullyFolded */ || rememberedState === "semi-folded" /* SemiFolded */;
-          useSemiFold = rememberedState === "semi-folded" /* SemiFolded */;
+          foldByDefault = rememberedState === FoldingState.FullyFolded || rememberedState === FoldingState.SemiFolded;
+          useSemiFold = rememberedState === FoldingState.SemiFolded;
         } else {
           const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, lineCount, "reading");
           const foldState = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
@@ -22449,7 +22491,7 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
       } else {
         preElement.classList.add("codeblock-customizer-codeblock-collapsed");
       }
-      if (rememberedState === void 0 && globalCommand === 0 /* Default */) {
+      if (rememberedState === void 0 && globalCommand === FoldCommand.Default) {
         preElement.classList.add("codeblock-customizer-codeblock-default-collapse");
       }
       const header = preElement.querySelector(".codeblock-customizer-header-container, .codeblock-customizer-header-container-specific");
@@ -22498,16 +22540,16 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
       let newState;
       if (isCollapsed || isSemiCollapsed) {
         toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
-        newState = "unfolded" /* Unfolded */;
+        newState = FoldingState.Unfolded;
         container.classList.remove("collapsed", "semi-collapsed");
       } else {
         toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
-        newState = useSemiFold ? "semi-folded" /* SemiFolded */ : "fully-folded" /* FullyFolded */;
+        newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
         container.classList.add(useSemiFold ? "semi-collapsed" : "collapsed");
       }
       if (this.codeBlockSectionInfo) {
         const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
-        const shouldRemember = foldSettings.scope === "all" /* All */ || foldSettings.scope === "nofoldspecified" /* NoFoldSpecified */ && !parameters.fold && !parameters.unfold;
+        const shouldRemember = foldSettings.scope === FoldingScope.All || foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold;
         if (shouldRemember) {
           const keyToUse = charPos != null ? charPos : this.codeBlockSectionInfo.lineStart;
           this.plugin.setFoldState(this.context.sourcePath, keyToUse, newState, "reading", parameters, lines.length);
@@ -22740,6 +22782,16 @@ var resetFoldDecorations = false;
 function resetFoldDecos(newValue) {
   resetFoldDecorations = newValue;
 }
+var FoldingState = {
+  Unfolded: "unfolded",
+  FullyFolded: "fully-folded",
+  SemiFolded: "semi-folded"
+};
+var FoldCommand = {
+  Default: 0,
+  FoldAll: 1,
+  UnfoldAll: 2
+};
 function extensions(plugin, settings) {
   const setFoldCommandState = import_state.StateEffect.define();
   const setFoldState = import_state.Annotation.define();
@@ -22904,23 +22956,23 @@ function extensions(plugin, settings) {
             foldNow = false;
           } else {
             switch (globalFoldCmd) {
-              case 1 /* FoldAll */:
+              case FoldCommand.FoldAll:
                 foldNow = true;
                 useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
                 break;
-              case 2 /* UnfoldAll */:
+              case FoldCommand.UnfoldAll:
                 foldNow = false;
                 break;
-              case 0 /* Default */:
+              case FoldCommand.Default:
               default: {
                 const rememberedState = rememberedFolds[pos.codeBlockStartPos];
-                if (rememberedState === "fully-folded" /* FullyFolded */) {
+                if (rememberedState === FoldingState.FullyFolded) {
                   foldNow = true;
                   useSemiFold = false;
-                } else if (rememberedState === "semi-folded" /* SemiFolded */) {
+                } else if (rememberedState === FoldingState.SemiFolded) {
                   foldNow = true;
                   useSemiFold = true;
-                } else if (rememberedState === "unfolded" /* Unfolded */) {
+                } else if (rememberedState === FoldingState.Unfolded) {
                   foldNow = false;
                 } else if (rememberedState === void 0 && foldByDefault) {
                   foldNow = true;
@@ -22962,7 +23014,7 @@ function extensions(plugin, settings) {
       const docPath = (_c = (_b = state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _b.file) == null ? void 0 : _c.path;
       let savedStatesForFile;
       if (docPath) {
-        if (tabSettings.persistence === "permanent" /* Permanent */) {
+        if (tabSettings.persistence === TabPersistence.Permanent) {
           savedStatesForFile = plugin.loadPermanentEditorTabs(docPath);
         } else {
           savedStatesForFile = plugin.activeEditorTabs.get(docPath);
@@ -23014,7 +23066,7 @@ function extensions(plugin, settings) {
           const newStartPos2 = transaction.changes.mapPos(groupUpdate.startPos);
           if (newStartPos2 !== -1) {
             const groupName = groupUpdate.group;
-            if (tabSettings.persistence === "permanent" /* Permanent */) {
+            if (tabSettings.persistence === TabPersistence.Permanent) {
               if (!plugin.permanentEditorTabs[docPath]) {
                 plugin.permanentEditorTabs[docPath] = {};
               }
@@ -23044,7 +23096,7 @@ function extensions(plugin, settings) {
         const tabSettings = settings.pluginSettings.groupedCodeBlocks;
         let savedStatesForFile;
         if (docPath && tabSettings.rememberTabState) {
-          if (tabSettings.persistence === "permanent" /* Permanent */) {
+          if (tabSettings.persistence === TabPersistence.Permanent) {
             savedStatesForFile = plugin.loadPermanentEditorTabs(docPath);
           } else {
             savedStatesForFile = plugin.activeEditorTabs.get(docPath);
@@ -23101,7 +23153,7 @@ function extensions(plugin, settings) {
       if (!docPath)
         return {};
       let savedStatesForFile;
-      if (foldSettings.persistence === "permanent" /* Permanent */) {
+      if (foldSettings.persistence === FoldingPersistence.Permanent) {
         savedStatesForFile = plugin.loadPermanentEditorFolds(docPath);
       } else {
         savedStatesForFile = plugin.activeEditorFolds.get(docPath);
@@ -23129,13 +23181,13 @@ function extensions(plugin, settings) {
           const currentBlock = allBlocks == null ? void 0 : allBlocks.find((b) => b.codeBlockStartPos === startPos);
           if (currentBlock) {
             const currentBlockParameters = currentBlock.parameters;
-            const shouldRemember = foldSettings.scope === "all" /* All */ || foldSettings.scope === "nofoldspecified" /* NoFoldSpecified */ && !currentBlockParameters.fold && !currentBlockParameters.unfold;
+            const shouldRemember = foldSettings.scope === FoldingScope.All || foldSettings.scope === FoldingScope.NoFoldSpecified && !currentBlockParameters.fold && !currentBlockParameters.unfold;
             if (shouldRemember) {
               const startLine = transaction.state.doc.lineAt(currentBlock.codeBlockStartPos).number;
               const endLine = transaction.state.doc.lineAt(currentBlock.codeBlockEndPos).number;
               const lineCount = endLine - startLine + 1;
               plugin.setFoldState(updatedDocPath, startPos, state, "editor", currentBlockParameters, lineCount);
-              if (state === "unfolded" /* Unfolded */) {
+              if (state === FoldingState.Unfolded) {
                 delete newFoldedState[startPos];
               } else {
                 newFoldedState[startPos] = state;
@@ -23197,7 +23249,7 @@ function extensions(plugin, settings) {
   });
   const foldCommandField = import_state.StateField.define({
     create() {
-      return 0 /* Default */;
+      return FoldCommand.Default;
     },
     update(value, tr) {
       for (const effect of tr.effects) {
@@ -23451,7 +23503,7 @@ function extensions(plugin, settings) {
         if (!settings.pluginSettings.inlineCode.enableCopyOnClick)
           return;
         const requiredKey = plugin.settings.pluginSettings.inlineCode.copyModifierKey;
-        if (requiredKey === "ctrl" /* CTRL */ && !event.ctrlKey || requiredKey === "alt" /* ALT */ && !event.altKey)
+        if (requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey || requiredKey === InlineCodeModifierKeys.ALT && !event.altKey)
           return;
         const target = event.target;
         const wrapper = target.closest(".codeblock-customizer-inline-code-wrapper");
@@ -23814,10 +23866,10 @@ function extensions(plugin, settings) {
       } else {
         const collapse = createCodeblockCollapse(this.parameters.fold);
         container.appendChild(collapse);
-        if (this.foldingState === "fully-folded" /* FullyFolded */) {
+        if (this.foldingState === FoldingState.FullyFolded) {
           (0, import_obsidian7.setIcon)(collapse, "chevrons-down-up");
           container.classList.add("collapsed");
-        } else if (this.foldingState === "semi-folded" /* SemiFolded */) {
+        } else if (this.foldingState === FoldingState.SemiFolded) {
           (0, import_obsidian7.setIcon)(collapse, "chevrons-down-up");
           container.classList.add("semi-collapsed");
         } else {
@@ -24310,30 +24362,30 @@ ${fence}`;
     const lineCount = end.number - start.number + 1;
     const canSemiFold = lineCount >= visibleLines + fadeOutLineCount + 2;
     const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
-    if (currentFoldState === "unfolded" /* Unfolded */) {
+    if (currentFoldState === FoldingState.Unfolded) {
       if (enableSemiFold && canSemiFold) {
         const ranges = getRanges(view.state, pos.codeBlockStartPos, pos.codeBlockEndPos, visibleLines);
         const semiFoldEffects = generateSemiFoldEffects(view.state, pos, ranges);
         effects.push(...semiFoldEffects);
         if (docPath)
-          annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: "semi-folded" /* SemiFolded */ }));
+          annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.SemiFolded }));
       } else {
         effects.push(Collapse.of(CollapsedDecoration.range(start.from, end.to)));
         if (docPath)
-          annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: "fully-folded" /* FullyFolded */ }));
+          annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.FullyFolded }));
       }
-    } else if (currentFoldState === "fully-folded" /* FullyFolded */) {
+    } else if (currentFoldState === FoldingState.FullyFolded) {
       effects.push(UnCollapse.of({ filter: (from, to) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to }));
       if (docPath)
-        annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: "unfolded" /* Unfolded */ }));
-    } else if (currentFoldState === "semi-folded" /* SemiFolded */) {
+        annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
+    } else if (currentFoldState === FoldingState.SemiFolded) {
       const clearFade = clearFadeEffect(start.from, end.to);
       if (clearFade) {
         effects.push(clearFade);
       }
       effects.push(semiUnCollapse.of({ filterFrom: start.from, filterTo: end.to }));
       if (docPath)
-        annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: "unfolded" /* Unfolded */ }));
+        annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
     }
     return { effects, annotations };
   }
@@ -24476,15 +24528,15 @@ ${fence}`;
       showButton = true;
     const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
     const getModifierState = (event) => {
-      if (!event || modifierKey === "none" /* NONE */) {
+      if (!event || modifierKey === ButtonModifierKeys.NONE) {
         return false;
       }
       switch (modifierKey) {
-        case "ctrl" /* CTRL */:
+        case ButtonModifierKeys.CTRL:
           return event.ctrlKey;
-        case "alt" /* ALT */:
+        case ButtonModifierKeys.ALT:
           return event.altKey;
-        case "shift" /* SHIFT */:
+        case ButtonModifierKeys.SHIFT:
           return event.shiftKey;
         default:
           return false;
@@ -24606,7 +24658,7 @@ ${fence}`;
       const elementsToSnapshot = [startingEl];
       let currentEl = startingEl;
       const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
-      if (currentFoldState === "semi-folded" /* SemiFolded */) {
+      if (currentFoldState === FoldingState.SemiFolded) {
         while (currentEl && currentEl.nextElementSibling) {
           const nextEl = currentEl.nextElementSibling;
           if (nextEl.classList.contains("codeblock-customizer-header-container-specific") || !nextEl.classList.contains("cm-line")) {
@@ -25001,7 +25053,7 @@ ${fence}`;
     }
     const decorations = state.field(collapseField, false);
     if (!decorations || decorations.size === 0) {
-      return "unfolded" /* Unfolded */;
+      return FoldingState.Unfolded;
     }
     let isFullyFolded = false;
     let isSemiFolded = false;
@@ -25018,11 +25070,11 @@ ${fence}`;
       return void 0;
     });
     if (isFullyFolded) {
-      return "fully-folded" /* FullyFolded */;
+      return FoldingState.FullyFolded;
     } else if (isSemiFolded) {
-      return "semi-folded" /* SemiFolded */;
+      return FoldingState.SemiFolded;
     } else {
-      return "unfolded" /* Unfolded */;
+      return FoldingState.Unfolded;
     }
   }
   function generateSemiFoldEffects(state, pos, ranges) {
@@ -25072,15 +25124,15 @@ ${fence}`;
     return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, firstLine };
   }
   function foldAll(view) {
-    view.dispatch({ effects: setFoldCommandState.of(1 /* FoldAll */) });
+    view.dispatch({ effects: setFoldCommandState.of(FoldCommand.FoldAll) });
     view.requestMeasure();
   }
   function unfoldAll(view) {
-    view.dispatch({ effects: setFoldCommandState.of(2 /* UnfoldAll */) });
+    view.dispatch({ effects: setFoldCommandState.of(FoldCommand.UnfoldAll) });
     view.requestMeasure();
   }
   function restoreDefaultFold(view) {
-    view.dispatch({ effects: setFoldCommandState.of(0 /* Default */) });
+    view.dispatch({ effects: setFoldCommandState.of(FoldCommand.Default) });
     view.requestMeasure();
   }
   function clearFadeEffect(CollapseStart, CollapseEnd) {
@@ -25541,7 +25593,7 @@ var GroupedCodeBlockRenderChild = class extends import_obsidian8.MarkdownRenderC
       return 0;
     }
     let documentState;
-    if (tabSettings.persistence === "permanent" /* Permanent */) {
+    if (tabSettings.persistence === TabPersistence.Permanent) {
       documentState = this.plugin.loadPermanentReadingViewTabs(documentPath);
     } else {
       documentState = this.plugin.activeReadingViewTabs.get(documentPath);
@@ -25560,7 +25612,7 @@ var GroupedCodeBlockRenderChild = class extends import_obsidian8.MarkdownRenderC
     if (!tabSettings.rememberTabState) {
       return;
     }
-    if (tabSettings.persistence === "permanent" /* Permanent */) {
+    if (tabSettings.persistence === TabPersistence.Permanent) {
       if (!this.plugin.permanentReadingViewTabs[documentPath]) {
         this.plugin.permanentReadingViewTabs[documentPath] = {};
       }
@@ -25641,9 +25693,9 @@ var GroupedCodeBlockRenderChild = class extends import_obsidian8.MarkdownRenderC
     const canSemiFold = semiFoldSettings.enableSemiFold && codeblockLineCount >= semiFoldSettings.visibleLines + fadeOutLineCount;
     let newState;
     if (isCollapsed || isSemiCollapsed) {
-      newState = "unfolded" /* Unfolded */;
+      newState = FoldingState.Unfolded;
     } else {
-      newState = canSemiFold ? "semi-folded" /* SemiFolded */ : "fully-folded" /* FullyFolded */;
+      newState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
     }
     if (canSemiFold) {
       toggleFold(activeBlock, currentCollapseIcon, "codeblock-customizer-codeblock-semi-collapsed");
@@ -25659,7 +25711,7 @@ var GroupedCodeBlockRenderChild = class extends import_obsidian8.MarkdownRenderC
     const sourcePath = activeBlock.getAttribute("sourcepath");
     const charPosStr = activeBlock.dataset.charPos;
     const parameters = this.getParametersFromElement(activeBlock);
-    const remember = foldSettings.scope === "all" /* All */ || foldSettings.scope === "nofoldspecified" /* NoFoldSpecified */ && !parameters.fold && !parameters.unfold;
+    const remember = foldSettings.scope === FoldingScope.All || foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold;
     if (remember && sourcePath && charPosStr) {
       const charPos = parseInt(charPosStr, 10);
       if (!isNaN(charPos)) {
@@ -25783,7 +25835,7 @@ var InlineCodeRenderer = class extends import_obsidian9.MarkdownRenderChild {
   createInlineCodeClickHandler(getTextToCopy) {
     return (event) => {
       const requiredKey = this.plugin.settings.pluginSettings.inlineCode.copyModifierKey;
-      if (requiredKey === "ctrl" /* CTRL */ && !event.ctrlKey || requiredKey === "alt" /* ALT */ && !event.altKey) {
+      if (requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey || requiredKey === InlineCodeModifierKeys.ALT && !event.altKey) {
         return;
       }
       event.preventDefault();
@@ -25948,7 +26000,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
     this.activeReadingViewFolds = /* @__PURE__ */ new Map();
     this.permanentReadingViewFolds = {};
     this.debounceTimer = null;
-    this.foldCommandTrigger = 0 /* Default */;
+    this.foldCommandTrigger = FoldCommand.Default;
     this.rerenderQueue = /* @__PURE__ */ new Map();
     this.rerenderDebounceTimers = /* @__PURE__ */ new Map();
     this.modifiedBlocks = /* @__PURE__ */ new Map();
@@ -25998,7 +26050,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
   setFoldState(filePath, key, newState, viewType, parameters, lineCount) {
     const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
     if (markdownView) {
-      const isGlobalCommandActive = markdownView.getMode() === "source" && markdownView.containerEl.classList.contains("codeblock-customizer-header-collapse-command") || markdownView.getMode() === "preview" && this.foldCommandTrigger !== 0 /* Default */;
+      const isGlobalCommandActive = markdownView.getMode() === "source" && markdownView.containerEl.classList.contains("codeblock-customizer-header-collapse-command") || markdownView.getMode() === "preview" && this.foldCommandTrigger !== FoldCommand.Default;
       if (isGlobalCommandActive) {
         return;
       }
@@ -26007,14 +26059,14 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
     const semiFoldSettings = this.settings.pluginSettings.semiFold;
     if (!foldSettings.rememberFoldState)
       return;
-    let defaultState = "unfolded" /* Unfolded */;
+    let defaultState = FoldingState.Unfolded;
     const foldByDefault = parameters.fold || foldSettings.inverseFold && !parameters.unfold;
     if (foldByDefault) {
       const canSemiFold = semiFoldSettings.enableSemiFold && lineCount >= semiFoldSettings.visibleLines + fadeOutLineCount;
-      defaultState = canSemiFold ? "semi-folded" /* SemiFolded */ : "fully-folded" /* FullyFolded */;
+      defaultState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
     }
     const shouldDelete = newState === defaultState;
-    const isPermanent = foldSettings.persistence === "permanent" /* Permanent */;
+    const isPermanent = foldSettings.persistence === FoldingPersistence.Permanent;
     const store = isPermanent ? viewType === "editor" ? this.permanentEditorFolds : this.permanentReadingViewFolds : viewType === "editor" ? this.activeEditorFolds : this.activeReadingViewFolds;
     if (isPermanent) {
       const permanentStore = store;
@@ -26090,7 +26142,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
         this.activeReadingViewFolds.set(filePath, remapMap(readingFolds));
       }
     }
-    if (foldSettings.persistence === "permanent" /* Permanent */) {
+    if (foldSettings.persistence === FoldingPersistence.Permanent) {
       if (this.permanentEditorFolds[filePath])
         this.permanentEditorFolds[filePath] = remapRecord(this.permanentEditorFolds[filePath]);
       if (this.permanentReadingViewFolds[filePath]) {
@@ -26440,7 +26492,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
     }
     this.app.workspace.updateOptions();
     updateSettingStyles(this.settings, this.app);
-    if (this.settings.pluginSettings.codeblock.folding.persistence === "permanent" /* Permanent */) {
+    if (this.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
       this.requestSavePermanentData();
     }
   }
@@ -26473,7 +26525,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
           if (mode === "source") {
             this.editorExtensions.foldAll(markdownView.editor.cm);
           } else if (mode === "preview") {
-            this.foldCommandTrigger = 1 /* FoldAll */;
+            this.foldCommandTrigger = FoldCommand.FoldAll;
             this.renderReadingViews();
           }
         }
@@ -26490,7 +26542,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
           if (mode === "source") {
             this.editorExtensions.unfoldAll(markdownView.editor.cm);
           } else if (mode === "preview") {
-            this.foldCommandTrigger = 2 /* UnfoldAll */;
+            this.foldCommandTrigger = FoldCommand.UnfoldAll;
             this.renderReadingViews();
           }
         }
@@ -26507,7 +26559,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
           if (mode === "source") {
             this.editorExtensions.restoreDefaultFold(markdownView.editor.cm);
           } else if (mode === "preview") {
-            this.foldCommandTrigger = 0 /* Default */;
+            this.foldCommandTrigger = FoldCommand.Default;
             this.renderReadingViews();
           }
         }
@@ -26598,8 +26650,8 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
         return;
       }
       view.containerEl.classList.remove("codeblock-customizer-header-collapse-command");
-      if (this.foldCommandTrigger !== 0 /* Default */) {
-        this.foldCommandTrigger = 0 /* Default */;
+      if (this.foldCommandTrigger !== FoldCommand.Default) {
+        this.foldCommandTrigger = FoldCommand.Default;
       }
     }));
   }
