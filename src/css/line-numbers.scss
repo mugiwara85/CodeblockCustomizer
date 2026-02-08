@@ -38,9 +38,10 @@
   z-index: 1;
   left: 0;
   min-width: var(--line-number-gutter-width);
+  box-sizing: border-box;
   padding-top: 2px;
   padding-right: 8px;
-  padding-left: 4px;
+  padding-left: 8px;
   background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
   color: var(--gutter-text-color, var(--codeblock-customizer-gutter-text-color));
   font-family: var(--font-monospace);
@@ -78,7 +79,7 @@
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific-number) {
   --gutter-width: var(--line-number-gutter-width);
 
-  padding-left: calc(var(--gutter-width) + var(--line-number-gutter-padding)) !important;
+  padding-left: calc(var(--gutter-padding, var(--gutter-width)) + var(--line-number-gutter-padding)) !important;
 }
 
 .markdown-rendered .codeblock-customizer-line-number,
@@ -164,7 +165,7 @@
     justify-content: flex-end;
     padding-top: 2px;
     padding-right: 8px;
-    padding-left: 4px;
+    padding-left: 8px;
     background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
     color: var(--gutter-text-color, var(--codeblock-customizer-gutter-text-color));
     font-family: var(--font-monospace);

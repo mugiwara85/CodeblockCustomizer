@@ -1679,8 +1679,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
   function getGutterStyle(parameters: CBCParameters, rawLineCount: number, defaultCharWidth: number) {
     const maxLineNumber = getMaxLineNumber(parameters, rawLineCount);
-    const gutterWidth = maxLineNumber.toString().length * defaultCharWidth + 12; // padding-left + padding-right
-    const gutterStyle = parameters.isSpecificNumber ? maxLineNumber.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
+    const digits = maxLineNumber.toString().length;
+    const gutterPadding = Math.round(digits * defaultCharWidth) + 16; // padding-left + padding-right
+    const gutterStyle = parameters.isSpecificNumber ? digits > 3 ? `--gutter-width:calc(${digits}ch + 16px); --gutter-padding:${gutterPadding}px` : `` : ``; // number must be at least 3 digits, otherwise the padding is too little and causes a shift to left in text
 
     return gutterStyle;
   }// getGutterStyle

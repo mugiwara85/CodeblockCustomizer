@@ -24065,8 +24065,9 @@ ${this.output}` });
   }
   function getGutterStyle(parameters, rawLineCount, defaultCharWidth) {
     const maxLineNumber = getMaxLineNumber(parameters, rawLineCount);
-    const gutterWidth = maxLineNumber.toString().length * defaultCharWidth + 12;
-    const gutterStyle = parameters.isSpecificNumber ? maxLineNumber.toString().length > 2 ? `--gutter-width:${gutterWidth}px` : `` : ``;
+    const digits = maxLineNumber.toString().length;
+    const gutterPadding = Math.round(digits * defaultCharWidth) + 16;
+    const gutterStyle = parameters.isSpecificNumber ? digits > 3 ? `--gutter-width:calc(${digits}ch + 16px); --gutter-padding:${gutterPadding}px` : `` : ``;
     return gutterStyle;
   }
   function getMaxLineNumber(parameters, rawLineCount) {

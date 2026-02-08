@@ -47,12 +47,14 @@
   }
 }
 
+/* normal */
 .codeblock-customizer.codeblock-customizer-show-line-numbers .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number) .codeblock-customizer-annotation-icon {
   left: calc(var(--gutter-width, 0px) + var(--line-number-gutter-width) + 2px);
 }
 
+/* ln */
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) .codeblock-customizer-annotation-icon {
-  left: calc(var(--gutter-width, 0px) + 2px);
+  left: calc(var(--gutter-padding, var(--gutter-width, 0px)) + 2px);
 }
 
 /* popup tooltip */
