@@ -250,7 +250,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const globalFoldCmd = tr.state.field(foldCommandField, false) ?? [];
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
 
-      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || tr.reconfigured) {
+      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
         if (resetFoldDecorations || globalFoldCmdChanged) {
           value = Decoration.none;  // remove fold e.g. when inversefold is disabled
         }

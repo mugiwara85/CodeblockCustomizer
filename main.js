@@ -22929,7 +22929,7 @@ function extensions(plugin, settings) {
       const newFoldState = (_d = tr.state.field(rememberedFoldField, false)) != null ? _d : [];
       const globalFoldCmd = (_e = tr.state.field(foldCommandField, false)) != null ? _e : [];
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
-      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || tr.reconfigured) {
+      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
         if (resetFoldDecorations || globalFoldCmdChanged) {
           value = import_view.Decoration.none;
         }
