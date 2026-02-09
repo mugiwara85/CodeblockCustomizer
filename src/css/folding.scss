@@ -76,10 +76,10 @@
   }
 
   &.codeblock-customizer-semifold-effect-blur {
-    --codeblock-customizer-semifold-blur-l0: 0.5px;
-    --codeblock-customizer-semifold-blur-l1: 1px;
-    --codeblock-customizer-semifold-blur-l2: 1.5px;
-    --codeblock-customizer-semifold-blur-l3: 2px;
+    --codeblock-customizer-semifold-blur-l0: 0.7px;
+    --codeblock-customizer-semifold-blur-l1: 1.2px;
+    --codeblock-customizer-semifold-blur-l2: 1.7px;
+    --codeblock-customizer-semifold-blur-l3: 2.2px;
   }
 
   // reading view
@@ -92,7 +92,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l0));
         opacity: var(--codeblock-customizer-semifold-opacity-l0);
       }
@@ -118,7 +119,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l1));
         opacity: var(--codeblock-customizer-semifold-opacity-l1);
       }
@@ -144,7 +146,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l2));
         opacity: var(--codeblock-customizer-semifold-opacity-l2);
       }
@@ -170,7 +173,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l3));
         opacity: var(--codeblock-customizer-semifold-opacity-l3);
       }
@@ -229,7 +233,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l0));
         opacity: var(--codeblock-customizer-semifold-opacity-l0);
       }
@@ -245,6 +250,11 @@
       .codeblock-customizer-line-separator-gutter {
         background: transparent;
       }
+
+      &:not(.cm-hmd-codeblock)>.codeblock-customizer-link {
+        filter: blur(var(--codeblock-customizer-semifold-blur-l0));
+        opacity: var(--codeblock-customizer-semifold-opacity-l0);
+      }
     }
 
     &.codeblock-customizer-fade-out-line1 {
@@ -255,7 +265,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l1));
         opacity: var(--codeblock-customizer-semifold-opacity-l1);
       }
@@ -271,6 +282,11 @@
       .codeblock-customizer-line-separator-gutter {
         background: transparent;
       }
+
+      &:not(.cm-hmd-codeblock)>.codeblock-customizer-link {
+        filter: blur(var(--codeblock-customizer-semifold-blur-l1));
+        opacity: var(--codeblock-customizer-semifold-opacity-l1);
+      }
     }
 
     &.codeblock-customizer-fade-out-line2 {
@@ -281,7 +297,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l2));
         opacity: var(--codeblock-customizer-semifold-opacity-l2);
       }
@@ -297,6 +314,11 @@
       .codeblock-customizer-line-separator-gutter {
         background: transparent;
       }
+
+      &:not(.cm-hmd-codeblock)>.codeblock-customizer-link {
+        filter: blur(var(--codeblock-customizer-semifold-blur-l2));
+        opacity: var(--codeblock-customizer-semifold-opacity-l2);
+      }
     }
 
     &.codeblock-customizer-fade-out-line3 {
@@ -307,7 +329,8 @@
       .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
-      .codeblock-customizer-line-separator {
+      .codeblock-customizer-line-separator,
+      .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l3));
         opacity: var(--codeblock-customizer-semifold-opacity-l3);
       }
@@ -323,25 +346,8 @@
       .codeblock-customizer-line-separator-gutter {
         background: transparent;
       }
-    }
 
-    &:not(.cm-hmd-codeblock)>.codeblock-customizer-link {
-      &.codeblock-customizer-fade-out-line0 {
-        filter: blur(var(--codeblock-customizer-semifold-blur-l0));
-        opacity: var(--codeblock-customizer-semifold-opacity-l0);
-      }
-
-      &.codeblock-customizer-fade-out-line1 {
-        filter: blur(var(--codeblock-customizer-semifold-blur-l1));
-        opacity: var(--codeblock-customizer-semifold-opacity-l1);
-      }
-
-      &.codeblock-customizer-fade-out-line2 {
-        filter: blur(var(--codeblock-customizer-semifold-blur-l2));
-        opacity: var(--codeblock-customizer-semifold-opacity-l2);
-      }
-
-      &.codeblock-customizer-fade-out-line3 {
+      &:not(.cm-hmd-codeblock)>.codeblock-customizer-link {
         filter: blur(var(--codeblock-customizer-semifold-blur-l3));
         opacity: var(--codeblock-customizer-semifold-opacity-l3);
       }

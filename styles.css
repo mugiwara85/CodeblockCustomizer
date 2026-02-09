@@ -64,7 +64,7 @@
 /* Header styling */
 body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langicons) .codeblock-customizer-header-container-specific .codeblock-customizer-icon-container,
 body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langicons) .codeblock-customizer-header-group-container .codeblock-customizer-icon-container {
-  display: none;
+  display: none !important;
 }
 body:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container .codeblock-customizer-icon-container {
   display: none;
@@ -399,10 +399,10 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   --codeblock-customizer-semifold-opacity-l3: 0.05;
 }
 .codeblock-customizer-use-semifold.codeblock-customizer-semifold-effect-blur {
-  --codeblock-customizer-semifold-blur-l0: 0.5px;
-  --codeblock-customizer-semifold-blur-l1: 1px;
-  --codeblock-customizer-semifold-blur-l2: 1.5px;
-  --codeblock-customizer-semifold-blur-l3: 2px;
+  --codeblock-customizer-semifold-blur-l0: 0.7px;
+  --codeblock-customizer-semifold-blur-l1: 1.2px;
+  --codeblock-customizer-semifold-blur-l2: 1.7px;
+  --codeblock-customizer-semifold-blur-l3: 2.2px;
 }
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .cm-hmd-codeblock,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 > .prompt-part,
@@ -411,7 +411,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line0 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l0));
   opacity: var(--codeblock-customizer-semifold-opacity-l0);
 }
@@ -433,7 +434,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line1 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l1));
   opacity: var(--codeblock-customizer-semifold-opacity-l1);
 }
@@ -455,7 +457,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line2 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l2));
   opacity: var(--codeblock-customizer-semifold-opacity-l2);
 }
@@ -477,7 +480,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-rendered .codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-fade-out-line3 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l3));
   opacity: var(--codeblock-customizer-semifold-opacity-l3);
 }
@@ -524,7 +528,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l0));
   opacity: var(--codeblock-customizer-semifold-opacity-l0);
 }
@@ -539,6 +544,10 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator-gutter {
   background: transparent;
 }
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0:not(.cm-hmd-codeblock) > .codeblock-customizer-link {
+  filter: blur(var(--codeblock-customizer-semifold-blur-l0));
+  opacity: var(--codeblock-customizer-semifold-opacity-l0);
+}
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .cm-hmd-codeblock,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 > .prompt-part,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-prompt,
@@ -546,7 +555,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l1));
   opacity: var(--codeblock-customizer-semifold-opacity-l1);
 }
@@ -561,6 +571,10 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator-gutter {
   background: transparent;
 }
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1:not(.cm-hmd-codeblock) > .codeblock-customizer-link {
+  filter: blur(var(--codeblock-customizer-semifold-blur-l1));
+  opacity: var(--codeblock-customizer-semifold-opacity-l1);
+}
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .cm-hmd-codeblock,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 > .prompt-part,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-prompt,
@@ -568,7 +582,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l2));
   opacity: var(--codeblock-customizer-semifold-opacity-l2);
 }
@@ -583,6 +598,10 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator-gutter {
   background: transparent;
 }
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2:not(.cm-hmd-codeblock) > .codeblock-customizer-link {
+  filter: blur(var(--codeblock-customizer-semifold-blur-l2));
+  opacity: var(--codeblock-customizer-semifold-opacity-l2);
+}
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .cm-hmd-codeblock,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 > .prompt-part,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-prompt,
@@ -590,7 +609,8 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-text,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-annotation-icon {
   filter: blur(var(--codeblock-customizer-semifold-blur-l3));
   opacity: var(--codeblock-customizer-semifold-opacity-l3);
 }
@@ -605,19 +625,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator-gutter {
   background: transparent;
 }
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg:not(.cm-hmd-codeblock) > .codeblock-customizer-link.codeblock-customizer-fade-out-line0 {
-  filter: blur(var(--codeblock-customizer-semifold-blur-l0));
-  opacity: var(--codeblock-customizer-semifold-opacity-l0);
-}
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg:not(.cm-hmd-codeblock) > .codeblock-customizer-link.codeblock-customizer-fade-out-line1 {
-  filter: blur(var(--codeblock-customizer-semifold-blur-l1));
-  opacity: var(--codeblock-customizer-semifold-opacity-l1);
-}
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg:not(.cm-hmd-codeblock) > .codeblock-customizer-link.codeblock-customizer-fade-out-line2 {
-  filter: blur(var(--codeblock-customizer-semifold-blur-l2));
-  opacity: var(--codeblock-customizer-semifold-opacity-l2);
-}
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg:not(.cm-hmd-codeblock) > .codeblock-customizer-link.codeblock-customizer-fade-out-line3 {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3:not(.cm-hmd-codeblock) > .codeblock-customizer-link {
   filter: blur(var(--codeblock-customizer-semifold-blur-l3));
   opacity: var(--codeblock-customizer-semifold-opacity-l3);
 }
@@ -1761,7 +1769,7 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
   display: none !important;
 }
 
-.codeblock-customizer-settingspage .setting-item .is-disabled {
+.codeblock-customizer-settingspage .setting-item.is-disabled {
   color: #666;
   cursor: not-allowed;
   opacity: 0.6;
@@ -1905,6 +1913,19 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
   color: #666;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.codeblock-customizer-no-results {
+  display: none;
+  margin-top: 32px;
+  margin-bottom: 32px;
+  color: cadetblue;
+  font-size: 25px;
+  font-weight: bold;
+  text-align: center;
+}
+.codeblock-customizer-no-results.show {
+  display: block;
 }
 
 /* Settings */

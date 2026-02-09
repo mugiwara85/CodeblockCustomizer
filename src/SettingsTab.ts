@@ -24,13 +24,59 @@ interface PickerOptions {
   i18n?: Record<string, any>;
 }
 
+const SettingsPage = {
+  General: "general",
+  Appearance: "appearance",
+  Highlighting: "highlighting",
+  Behavior: "behavior",
+  Prompts: "prompts",
+  Plugins: "plugins",
+} as const;
+type SettingsPage = (typeof SettingsPage)[keyof typeof SettingsPage];
+
+interface SettingsPageInfo {
+  displayName: string;
+  class: string;
+  hideClass: string;
+}
+
+const SettingsPageData: Record<SettingsPage, SettingsPageInfo> = {
+  [SettingsPage.General]: {
+    displayName: "⚙️ General",
+    class: "codeblock-customizer-general-settingsDiv",
+    hideClass: "codeblock-customizer-general-settingsDiv-hide"
+  },
+  [SettingsPage.Appearance]: {
+    displayName: "🎨 Appearance & Styling",
+    class: "codeblock-customizer-appearance-settingsDiv",
+    hideClass: "codeblock-customizer-appearance-settingsDiv-hide"
+  },
+  [SettingsPage.Highlighting]: {
+    displayName: "🖌️ Highlighting",
+    class: "codeblock-customizer-highlighting-settingsDiv",
+    hideClass: "codeblock-customizer-highlighting-settingsDiv-hide"
+  },
+  [SettingsPage.Behavior]: {
+    displayName: "👆 Behavior & Interaction",
+    class: "codeblock-customizer-behavior-settingsDiv",
+    hideClass: "codeblock-customizer-behavior-settingsDiv-hide"
+  },
+  [SettingsPage.Prompts]: {
+    displayName: "⌨️ Prompts",
+    class: "codeblock-customizer-prompts-settingsDiv",
+    hideClass: "codeblock-customizer-prompts-settingsDiv-hide"
+  },
+  [SettingsPage.Plugins]: {
+    displayName: "🧩 Plugin Compatibility",
+    class: "codeblock-customizer-plugin-compatibility-settingsDiv",
+    hideClass: "codeblock-customizer-plugin-compatibility-settingsDiv-hide"
+  },
+};
+
 export class SettingsTab extends PluginSettingTab {
   plugin: CodeBlockCustomizerPlugin;
   debounceTimer: NodeJS.Timeout | null = null;
   pickerInstances: Pickr[];
-  headerLangToggles: Setting[];
-  headerLangIconToggles: Setting[];
-  linkUpdateToggle: Setting[];
   promptPickers: Map<string, Pickr> = new Map();
   annotationDetailsOpen = false;
   altColorsDetailsOpen = false;
@@ -48,6 +94,7 @@ export class SettingsTab extends PluginSettingTab {
   promptColorsDetailsOpen = false;
   admonitionDetailsOpen = false;
   executeCodeDetailsOpen = false;
+  searchQuery: string = "";
 
   static COLOR_OPTIONS: ColorOptions = {
     "codeblock.activeLineColor": "Code block active line color",
@@ -73,9 +120,6 @@ export class SettingsTab extends PluginSettingTab {
     super(app, plugin);
     this.plugin = plugin;
     this.pickerInstances = [];
-    this.headerLangToggles = [];
-    this.headerLangIconToggles = [];
-    this.linkUpdateToggle = [];
   }
 
   display(): void {
@@ -83,6 +127,19 @@ export class SettingsTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.classList.add(`codeblock-customizer-settingspage`);
     containerEl.createEl('h3', { text: 'Codeblock Customizer Settings' });
+
+    new Setting(containerEl)
+      .setName("Search settings")
+      .setClass("codeblock-customizer-search-input")
+      .setDesc("Search for a setting. Hidden settings (which depend on another setting) will be displayed as disabled.")
+      .addText(text => text
+        .setPlaceholder("Search...")
+        .setValue(this.searchQuery)
+        .onChange((query) => {
+          this.searchQuery = query;
+          this.searchSettings(query);
+        })
+      );
 
     let dropdown: DropdownComponent;
     let restoreButton: ExtraButtonComponent;
@@ -184,23 +241,26 @@ export class SettingsTab extends PluginSettingTab {
       .setName('Select settings page')
       .setDesc('Select which settings group you want to modify.')
       .addDropdown((dropdown) => dropdown
-        .addOptions({
-          "general": "⚙️ General",
-          "appearance": "🎨 Appearance & Styling",
-          "highlighting": "🖌️ Highlighting",
-          "behavior": "👆 Behavior & Interaction",
-          "prompts": "⌨️ Prompts",
-          "plugins": "🧩 Plugin Compatibility"
-        })
+        .addOptions(Object.values(SettingsPage).reduce((acc, section) => {
+          acc[section] = SettingsPageData[section].displayName;
+          return acc;
+        }, {} as Record<string, string>))
         .setValue(this.plugin.settings.settingsType)
         .onChange((value) => {
           this.plugin.settings.settingsType = value;
-          generalDiv.toggleClass("codeblock-customizer-general-settingsDiv-hide", this.plugin.settings.settingsType !== "general");
-          appearanceDiv.toggleClass("codeblock-customizer-appearance-settingsDiv-hide", this.plugin.settings.settingsType !== "appearance");
-          highlightingDiv.toggleClass("codeblock-customizer-highlighting-settingsDiv-hide", this.plugin.settings.settingsType !== "highlighting");
-          behaviorDiv.toggleClass("codeblock-customizer-behavior-settingsDiv-hide", this.plugin.settings.settingsType !== "behavior");
-          promptsDiv.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
-          pluginsDiv.toggleClass("codeblock-customizer-plugin-compatibility-settingsDiv-hide", this.plugin.settings.settingsType !== "plugins");
+          this.searchQuery = "";
+          this.searchSettings("");
+          const searchInput = containerEl.querySelector('.codeblock-customizer-search-input input') as HTMLInputElement;
+          if (searchInput) {
+            searchInput.value = "";
+          }
+
+          generalDiv.toggleClass(SettingsPageData[SettingsPage.General].hideClass, this.plugin.settings.settingsType !== SettingsPage.General);
+          appearanceDiv.toggleClass(SettingsPageData[SettingsPage.Appearance].hideClass, this.plugin.settings.settingsType !== SettingsPage.Appearance);
+          highlightingDiv.toggleClass(SettingsPageData[SettingsPage.Highlighting].hideClass, this.plugin.settings.settingsType !== SettingsPage.Highlighting);
+          behaviorDiv.toggleClass(SettingsPageData[SettingsPage.Behavior].hideClass, this.plugin.settings.settingsType !== SettingsPage.Behavior);
+          promptsDiv.toggleClass(SettingsPageData[SettingsPage.Prompts].hideClass, this.plugin.settings.settingsType !== SettingsPage.Prompts);
+          pluginsDiv.toggleClass(SettingsPageData[SettingsPage.Plugins].hideClass, this.plugin.settings.settingsType !== SettingsPage.Plugins);
           (async () => { await this.plugin.saveSettings() })();
         })
       );
@@ -209,6 +269,7 @@ export class SettingsTab extends PluginSettingTab {
 
     containerEl.createEl("hr");
 
+    containerEl.createDiv({ cls: "codeblock-customizer-no-results", text: "No matching settings found." });
     const generalDiv = this.createGeneralSettings(containerEl);
     const appearanceDiv = this.createAppearanceSettings(containerEl);
     const highlightingDiv = this.createHighlightingSettings(containerEl);
@@ -235,21 +296,185 @@ export class SettingsTab extends PluginSettingTab {
     const details = container.createEl('details');
 
     details.addClasses(['settings-group', ...extraClasses]);
+    details.dataset.settingsKey = key as string;
 
     if (this[key]) {
       details.open = true;
     }
     details.createEl('summary', { text: title });
     details.addEventListener('toggle', () => {
+      if (this.searchQuery) {
+        return;
+      }
       (this[key] as boolean) = details.open;
     });
     return details;
   }// createDetailsGroup
 
+  searchSettings(query: string) {
+    const searchText = query.toLowerCase();
+    const settingsCategories = this.containerEl.querySelectorAll(".cb-settings-section");
+
+    if (!searchText) {
+      this.display();
+      return;
+    }
+
+    let anyCategoryVisible = false;
+    settingsCategories.forEach(div => {
+      Object.values(SettingsPage).forEach(section => {
+        (div as HTMLElement).classList.remove(SettingsPageData[section].hideClass);
+      });
+      (div as HTMLElement).style.display = "";
+
+      // make header clickable
+      const header = div.querySelector("h3");
+      if (header) {
+        header.style.cursor = "pointer";
+        header.title = "Click to open this settings page";
+        header.onclick = () => {
+          let targetType: SettingsPage = SettingsPage.General;
+          for (const section of Object.values(SettingsPage)) {
+            if (div.classList.contains(SettingsPageData[section].class)) {
+              targetType = section;
+              break;
+            }
+          }
+
+          this.plugin.settings.settingsType = targetType;
+          this.searchQuery = "";
+          this.searchSettings("");
+
+          const dropdown = this.containerEl.querySelector('.dropdown') as HTMLSelectElement;
+          if (dropdown) {
+            dropdown.value = targetType;
+          }
+
+          const searchInput = this.containerEl.querySelector('.codeblock-customizer-search-input input') as HTMLInputElement;
+          if (searchInput) {
+            searchInput.value = "";
+          }
+
+          (async () => { await this.plugin.saveSettings() })();
+          this.display();
+        };
+      }
+
+      let hasVisibleItems = false;
+
+      const changeVisibility = (setting: Element, matches: boolean) => {
+        const settingEl = setting as HTMLElement;
+        const isHidden = settingEl.classList.contains('codeblock-customizer-setting-hidden');
+        const isRevealed = settingEl.classList.contains('codeblock-customizer-setting-revealed');
+        const isElementHidden = isHidden || isRevealed;
+
+        if (matches) {
+          settingEl.style.display = "";
+          // if the setting was hidden, show it as disabled
+          if (isElementHidden) {
+            if (isHidden) {
+              settingEl.classList.remove('codeblock-customizer-setting-hidden');
+              settingEl.classList.add('codeblock-customizer-setting-revealed');
+            }
+
+            settingEl.classList.add('is-disabled');
+            // disable all interactive settings elements
+            settingEl.querySelectorAll('input, select, button, textarea').forEach(input => {
+              input.setAttribute('disabled', 'true');
+            });
+          } else {
+            // ensure setting elements are not disabled if they weren't originally hidden
+            settingEl.classList.remove('is-disabled');
+            settingEl.querySelectorAll('input, select, button, textarea').forEach(input => {
+              input.removeAttribute('disabled');
+            });
+          }
+        } else {
+          settingEl.style.display = "none";
+        }
+      };// changeVisibility
+
+      // top level search (not in details)
+      const directSettings = Array.from(div.children).filter(child => child.classList.contains("setting-item"));
+      directSettings.forEach(setting => {
+        const name = setting.querySelector(".setting-item-name")?.textContent?.toLowerCase() || "";
+        const desc = setting.querySelector(".setting-item-description")?.textContent?.toLowerCase() || "";
+
+        // check dropdown options
+        let optionsMatch = false;
+        const dropdown = setting.querySelector("select");
+        if (dropdown) {
+          const options = Array.from(dropdown.options).map(opt => opt.text.toLowerCase());
+          optionsMatch = options.some(optText => optText.includes(searchText));
+        }
+
+        const matches = name.includes(searchText) || desc.includes(searchText) || optionsMatch;
+        changeVisibility(setting, matches);
+        if (matches) {
+          hasVisibleItems = true;
+        }
+      });
+
+      // search details
+      const detailsSections = div.querySelectorAll("details");
+      detailsSections.forEach(details => {
+        let detailsHasMatch = false;
+
+        const summaryText = details.querySelector("summary")?.textContent?.toLowerCase() || "";
+        const summaryMatches = summaryText.includes(searchText);
+
+        const items = details.querySelectorAll(".setting-item");
+        items.forEach(setting => {
+          const name = setting.querySelector(".setting-item-name")?.textContent?.toLowerCase() || "";
+          const desc = setting.querySelector(".setting-item-description")?.textContent?.toLowerCase() || "";
+
+          // check dropdown options
+          let optionsMatch = false;
+          const dropdown = setting.querySelector("select");
+          if (dropdown) {
+            const options = Array.from(dropdown.options).map(opt => opt.text.toLowerCase());
+            optionsMatch = options.some(optText => optText.includes(searchText));
+          }
+
+          const matches = name.includes(searchText) || desc.includes(searchText) || optionsMatch || summaryMatches;
+          changeVisibility(setting, matches);
+          if (matches) {
+            detailsHasMatch = true;
+          }
+        });
+
+        if (detailsHasMatch) {
+          (details as HTMLElement).style.display = "";
+          (details as HTMLDetailsElement).open = true;
+          hasVisibleItems = true;
+        } else {
+          (details as HTMLElement).style.display = "none";
+        }
+      });
+
+      // hide category if nothing visible
+      if (!hasVisibleItems) {
+        (div as HTMLElement).style.display = "none";
+      } else {
+        anyCategoryVisible = true;
+      }
+    });
+
+    const noResultsDiv = this.containerEl.querySelector(".codeblock-customizer-no-results");
+    if (noResultsDiv) {
+      if (!anyCategoryVisible) {
+        (noResultsDiv as HTMLElement).classList.add("show");
+      } else {
+        (noResultsDiv as HTMLElement).classList.remove("show");
+      }
+    }
+  }// searchSettings
+
   createGeneralSettings(containerEl: HTMLElement) {
-    const generalDiv = containerEl.createDiv({ cls: "codeblock-customizer-general-settingsDiv-hide" });
-    generalDiv.toggleClass("codeblock-customizer-general-settingsDiv-hide", this.plugin.settings.settingsType !== "general");
-    generalDiv.createEl('h3', { text: '⚙️ General Settings' });
+    const sectionData = SettingsPageData[SettingsPage.General];
+    const generalDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    generalDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.General);
+    generalDiv.createEl('h3', { text: sectionData.displayName });
 
     new Setting(generalDiv)
       .setName('Enable plugin in source mode')
@@ -304,44 +529,47 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling = value;
           await this.plugin.saveSettings();
-          this.display();
+          forceCurrentColorUse.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          avoidPageBreaks.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          uncollapseDuringPrint.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling) {
-      new Setting(printToPDFDetails)
-        .setName('Force current color mode use')
-        .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.printing.forceCurrentColorUse)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.printing.forceCurrentColorUse = value;
-            await this.plugin.saveSettings();
-          })
-        );
+    const forceCurrentColorUse = new Setting(printToPDFDetails)
+      .setName('Force current color mode use')
+      .setDesc('If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.printing.forceCurrentColorUse)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.printing.forceCurrentColorUse = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    forceCurrentColorUse.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
 
-      new Setting(printToPDFDetails)
-        .setName('Avoid page breaks in code blocks')
-        .setDesc('If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.printing.avoidPageBreaks)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.printing.avoidPageBreaks = value;
-            await this.plugin.saveSettings();
-          })
-        );
+    const avoidPageBreaks = new Setting(printToPDFDetails)
+      .setName('Avoid page breaks in code blocks')
+      .setDesc('If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.printing.avoidPageBreaks)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.printing.avoidPageBreaks = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    avoidPageBreaks.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
 
-      new Setting(printToPDFDetails)
-        .setName('Expand all code blocks during printing')
-        .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint = value;
-            await this.plugin.saveSettings();
-          })
-        );
-    }
+    const uncollapseDuringPrint = new Setting(printToPDFDetails)
+      .setName('Expand all code blocks during printing')
+      .setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    uncollapseDuringPrint.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
 
     new Setting(printToPDFDetails)
       .setName('Print annotations as raw comments')
@@ -358,9 +586,10 @@ export class SettingsTab extends PluginSettingTab {
   }// createGeneralSettings
 
   createAppearanceSettings(containerEl: HTMLElement) {
-    const appearanceDiv = containerEl.createDiv({ cls: "codeblock-customizer-appearance-settingsDiv-hide" });
-    appearanceDiv.toggleClass("codeblock-customizer-appearance-settingsDiv-hide", this.plugin.settings.settingsType !== "appearance");
-    appearanceDiv.createEl('h3', { text: '🎨 Appearance & Styling' });
+    const sectionData = SettingsPageData[SettingsPage.Appearance];
+    const appearanceDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    appearanceDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Appearance);
+    appearanceDiv.createEl('h3', { text: sectionData.displayName });
 
     new Setting(appearanceDiv)
       .setName('Enable editor active line highlight')
@@ -371,12 +600,12 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
-          editorActiveLineSetting.settingEl.style.display = value ? '' : 'none';
+          editorActiveLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
     const editorActiveLineSetting = this.createPickrSetting(appearanceDiv, 'Editor active line color', '', "editorActiveLineColor");
-    editorActiveLineSetting.settingEl.style.display = this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight ? '' : 'none';
+    editorActiveLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight);
 
     // code block styling
     const codeBlockDetails = this.createDetailsGroup(appearanceDiv, 'Code Block Styling', 'codeBlockDetailsOpen');
@@ -458,12 +687,12 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr = value;
           (async () => { await this.plugin.saveSettings() })();
           updateSettingStyles(this.plugin.settings, this.app);
-          highlightActiveLineNrSetting.settingEl.style.display = value ? '' : 'none';
+          highlightActiveLineNrSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
     const highlightActiveLineNrSetting = this.createPickrSetting(codeBlockDetails, 'Active line number color', '', "gutter.activeLineNrColor");
-    highlightActiveLineNrSetting.settingEl.style.display = this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr ? '' : 'none';
+    highlightActiveLineNrSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr);
 
     // header settings
     const headerDetails = this.createDetailsGroup(appearanceDiv, 'Header Settings', 'headerDetailsOpen');
@@ -548,61 +777,58 @@ export class SettingsTab extends PluginSettingTab {
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage)
         .onChange(async (value) => {
-          this.headerLangToggles.forEach(item => {
-            item.setDisabled(!value);
-          });
           this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage = value;
           await this.plugin.saveSettings();
-          this.display();
+
+          codeBlockLangTextColor.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          codeBlockLangBackgroundColor.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          boldToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          italicToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          alwaysDisplayToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage) {
-      this.createPickrSetting(headerDetails, 'Codeblock language text color', '', "header.codeBlockLangTextColor");
-      this.createPickrSetting(headerDetails, 'Codeblock language background color', '', "header.codeBlockLangBackgroundColor");
+    const codeBlockLangTextColor = this.createPickrSetting(headerDetails, 'Codeblock language text color', '', "header.codeBlockLangTextColor");
+    codeBlockLangTextColor.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
 
-      const boldToggle = new Setting(headerDetails)
-        .setName('Bold text')
-        .setDesc('If enabled, the codeblock language text will be set to bold.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.header.codeblockLangBoldText)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.header.codeblockLangBoldText = value;
-            await this.plugin.saveSettings();
-          })
-        );
-      this.headerLangToggles.push(boldToggle);
+    const codeBlockLangBackgroundColor = this.createPickrSetting(headerDetails, 'Codeblock language background color', '', "header.codeBlockLangBackgroundColor");
+    codeBlockLangBackgroundColor.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
 
-      const italicToggle = new Setting(headerDetails)
-        .setName('Italic text')
-        .setDesc('If enabled, the codeblock language text will be set to italic.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.header.codeblockLangItalicText)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.header.codeblockLangItalicText = value;
-            await this.plugin.saveSettings();
-          })
-        );
-      this.headerLangToggles.push(italicToggle);
+    const boldToggle = new Setting(headerDetails)
+      .setName('Bold text')
+      .setDesc('If enabled, the codeblock language text will be set to bold.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.header.codeblockLangBoldText)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.header.codeblockLangBoldText = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    boldToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
 
-      const alwaysDisplayToggle = new Setting(headerDetails)
-        .setName('Always display codeblock language')
-        .setDesc('If enabled, the codeblock language will always be displayed (if a language is defined), even if the `file` parameter is not specified.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang = value;
-            await this.plugin.saveSettings();
-          })
-        );
-      this.headerLangToggles.push(alwaysDisplayToggle);
+    const italicToggle = new Setting(headerDetails)
+      .setName('Italic text')
+      .setDesc('If enabled, the codeblock language text will be set to italic.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.header.codeblockLangItalicText)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.header.codeblockLangItalicText = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    italicToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
 
-      if (!this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage) {
-        this.headerLangToggles.forEach(item => {
-          item.setDisabled(true);
-        });
-      }
-    }
+    const alwaysDisplayToggle = new Setting(headerDetails)
+      .setName('Always display codeblock language')
+      .setDesc('If enabled, the codeblock language will always be displayed (if a language is defined), even if the `file` parameter is not specified.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    alwaysDisplayToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
 
     new Setting(headerDetails)
       .setName('Display codeblock language icon (if available)')
@@ -610,34 +836,23 @@ export class SettingsTab extends PluginSettingTab {
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.header.displayCodeBlockIcon)
         .onChange(async (value) => {
-          this.headerLangIconToggles.forEach(item => {
-            item.setDisabled(!value);
-          });
           this.plugin.settings.pluginSettings.header.displayCodeBlockIcon = value;
           await this.plugin.saveSettings();
-          this.display();
+          alwaysDisplayIconToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.header.displayCodeBlockIcon) {
-      const alwaysDisplayIconToggle = new Setting(headerDetails)
-        .setName('Always display codeblock language icon (if available)')
-        .setDesc('If enabled, the codeblock language icon will always be displayed (if a language is defined and it has an icon), even if the `file` parameter is not specified.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon = value;
-            await this.plugin.saveSettings();
-          })
-        );
-      this.headerLangIconToggles.push(alwaysDisplayIconToggle);
-
-      if (!this.plugin.settings.pluginSettings.header.displayCodeBlockIcon) {
-        this.headerLangIconToggles.forEach(item => {
-          item.setDisabled(true);
-        });
-      }
-    }
+    const alwaysDisplayIconToggle = new Setting(headerDetails)
+      .setName('Always display codeblock language icon (if available)')
+      .setDesc('If enabled, the codeblock language icon will always be displayed (if a language is defined and it has an icon), even if the `file` parameter is not specified.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    alwaysDisplayIconToggle.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.header.displayCodeBlockIcon);
 
     // annotation settings
     const annotationDetails = this.createDetailsGroup(appearanceDiv, 'Annotation Settings', 'annotationDetailsOpen');
@@ -735,25 +950,24 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick = value;
           await this.plugin.saveSettings();
-          this.display();
           this.plugin.renderReadingViews();
+          copyModifierSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick) {
-      new Setting(inlineCodeDetails)
-        .setName('Modifier key for copy')
-        .setDesc('Select the key to hold while clicking to copy.')
-        .addDropdown(dropdown => dropdown
-          .addOption(InlineCodeModifierKeys.CTRL, 'Ctrl')
-          .addOption(InlineCodeModifierKeys.ALT, 'Alt')
-          .setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey)
-          .onChange(async (value: InlineCodeModifierKeys) => {
-            this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;
-            await this.plugin.saveSettings();
-          })
-        );
-    }
+    const copyModifierSetting = new Setting(inlineCodeDetails)
+      .setName('Modifier key for copy')
+      .setDesc('Select the key to hold while clicking to copy.')
+      .addDropdown(dropdown => dropdown
+        .addOption(InlineCodeModifierKeys.CTRL, 'Ctrl')
+        .addOption(InlineCodeModifierKeys.ALT, 'Alt')
+        .setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey)
+        .onChange(async (value: InlineCodeModifierKeys) => {
+          this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    copyModifierSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick);
 
     new Setting(inlineCodeDetails)
       .setName('Enable inline code syntax highlighting')
@@ -764,22 +978,21 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight = value;
           await this.plugin.saveSettings();
           this.plugin.renderReadingViews();
-          this.display();
+          showIconsSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight) {
-      new Setting(inlineCodeDetails)
-        .setName('Show icons for syntax highlighted inline code (if available)')
-        .setDesc('If enabled, icons will be shown for syntax highlighted inline code.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.inlineCode.showIcons)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.inlineCode.showIcons = value;
-            await this.plugin.saveSettings();
-          })
-        );
-    }
+    const showIconsSetting = new Setting(inlineCodeDetails)
+      .setName('Show icons for syntax highlighted inline code (if available)')
+      .setDesc('If enabled, icons will be shown for syntax highlighted inline code.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.inlineCode.showIcons)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.inlineCode.showIcons = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    showIconsSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight);
 
     new Setting(inlineCodeDetails)
       .setName('Enable inline code styling')
@@ -789,23 +1002,25 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling = value;
           await this.plugin.saveSettings();
-          inlineCodeBackgroundSetting.settingEl.style.display = value ? '' : 'none';
-          inlineCodeTextColorSetting.settingEl.style.display = value ? '' : 'none';
+          inlineCodeBackgroundSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          inlineCodeTextColorSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
     const inlineCodeBackgroundSetting = this.createPickrSetting(inlineCodeDetails, 'Inline code background color', '', "inlineCode.backgroundColor");
-    inlineCodeBackgroundSetting.settingEl.style.display = this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling ? '' : 'none';
+    inlineCodeBackgroundSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
+
     const inlineCodeTextColorSetting = this.createPickrSetting(inlineCodeDetails, 'Inline code text color', '', "inlineCode.textColor");
-    inlineCodeTextColorSetting.settingEl.style.display = this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling ? '' : 'none';
+    inlineCodeTextColorSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
 
     return appearanceDiv;
   }// createAppearanceSettings
 
   createHighlightingSettings(containerEl: HTMLElement) {
-    const highlightingDiv = containerEl.createDiv({ cls: "codeblock-customizer-highlighting-settingsDiv-hide" });
-    highlightingDiv.toggleClass("codeblock-customizer-highlighting-settingsDiv-hide", this.plugin.settings.settingsType !== "highlighting");
-    highlightingDiv.createEl('h3', { text: '🖌️ Highlighting Settings' });
+    const sectionData = SettingsPageData[SettingsPage.Highlighting];
+    const highlightingDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    highlightingDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Highlighting);
+    highlightingDiv.createEl('h3', { text: sectionData.displayName });
 
     new Setting(highlightingDiv)
       .setName('Enable codeblock active line highlight')
@@ -816,12 +1031,12 @@ export class SettingsTab extends PluginSettingTab {
           this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight = value;
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
-          activeLineSetting.settingEl.style.display = value ? '' : 'none';
+          activeLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
     const activeLineSetting = this.createPickrSetting(highlightingDiv, 'Codeblock active line color', '', "codeblock.activeLineColor");
-    activeLineSetting.settingEl.style.display = this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight ? '' : 'none';
+    activeLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight);
 
     this.createPickrSetting(highlightingDiv, 'Highlight color (used by the "hl" parameter)', 'Sets the default color for highlighting lines using the `hl` parameter (e.g., `hl:5`).', "codeblock.highlightColor");
 
@@ -843,33 +1058,44 @@ export class SettingsTab extends PluginSettingTab {
           }
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
-          this.display();
+
+          bracketHighlightColorMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          bracketHighlightBackgroundColorMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          highlightNonMatchingBrackets.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+
+          const subValue = this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets;
+          bracketHighlightColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value || !subValue);
+          bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value || !subValue);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight) {
-      this.createPickrSetting(bracketDetails, 'Bracket highlight color for matching brackets', '', "codeblock.bracketHighlightColorMatch");
-      this.createPickrSetting(bracketDetails, 'Background color for matching brackets', '', "codeblock.bracketHighlightBackgroundColorMatch");
+    const bracketHighlightColorMatch = this.createPickrSetting(bracketDetails, 'Bracket highlight color for matching brackets', '', "codeblock.bracketHighlightColorMatch");
+    bracketHighlightColorMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
 
-      new Setting(bracketDetails)
-        .setName('Enable bracket highlight for non matching brackets')
-        .setDesc('If you click next to a bracket, and it doesn\'t have a corresponding pair, or the pair does not match the opening/closing bracket (e.g: `print("hello"]` ), they will be highlighted.')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets = value;
-            await this.plugin.saveSettings();
-            updateSettingStyles(this.plugin.settings, this.app);
-            bracketHighlightMatchSetting.settingEl.style.display = value ? '' : 'none';
-            bracketBackgroundNonMatchSetting.settingEl.style.display = value ? '' : 'none';
-          })
-        );
+    const bracketHighlightBackgroundColorMatch = this.createPickrSetting(bracketDetails, 'Background color for matching brackets', '', "codeblock.bracketHighlightBackgroundColorMatch");
+    bracketHighlightBackgroundColorMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
 
-      const bracketHighlightMatchSetting = this.createPickrSetting(bracketDetails, 'Bracket highlight color for non matching brackets', '', "codeblock.bracketHighlightColorNoMatch");
-      bracketHighlightMatchSetting.settingEl.style.display = this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets ? '' : 'none';
-      const bracketBackgroundNonMatchSetting = this.createPickrSetting(bracketDetails, 'Background color for non matching brackets', '', "codeblock.bracketHighlightBackgroundColorNoMatch");
-      bracketBackgroundNonMatchSetting.settingEl.style.display = this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets ? '' : 'none';
-    }
+    const highlightNonMatchingBrackets = new Setting(bracketDetails)
+      .setName('Enable bracket highlight for non matching brackets')
+      .setDesc('If you click next to a bracket, and it doesn\'t have a corresponding pair, or the pair does not match the opening/closing bracket (e.g: `print("hello"]` ), they will be highlighted.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets = value;
+          await this.plugin.saveSettings();
+          updateSettingStyles(this.plugin.settings, this.app);
+
+          bracketHighlightColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+        })
+      );
+    highlightNonMatchingBrackets.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
+
+    const bracketHighlightColorNoMatch = this.createPickrSetting(bracketDetails, 'Bracket highlight color for non matching brackets', '', "codeblock.bracketHighlightColorNoMatch");
+    bracketHighlightColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight || !this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets);
+
+    const bracketHighlightBackgroundColorNoMatch = this.createPickrSetting(bracketDetails, 'Background color for non matching brackets', '', "codeblock.bracketHighlightBackgroundColorNoMatch");
+    bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight || !this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets);
 
     // selection matching
     new Setting(bracketDetails)
@@ -886,12 +1112,12 @@ export class SettingsTab extends PluginSettingTab {
             this.plugin.extensions.remove(this.plugin.editorExtensions.selectionMatching);
           }
           await this.plugin.saveSettings();
-          selectionMatchHighlightSetting.settingEl.style.display = value ? '' : 'none';
+          selectionMatchHighlightSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
     const selectionMatchHighlightSetting = this.createPickrSetting(bracketDetails, 'Selection match highlight color', '', "codeblock.selectionMatchHighlightColor");
-    selectionMatchHighlightSetting.settingEl.style.display = this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching ? '' : 'none';
+    selectionMatchHighlightSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching);
 
     // text highlight
     const textHighlightDetails = this.createDetailsGroup(highlightingDiv, 'Text Highlight', 'textHighlightDetailsOpen');
@@ -974,9 +1200,10 @@ export class SettingsTab extends PluginSettingTab {
   }// createHighlightingSettings
 
   createBehaviorSettings(containerEl: HTMLElement) {
-    const behaviorDiv = containerEl.createDiv({ cls: "codeblock-customizer-behavior-settingsDiv-hide" });
-    behaviorDiv.toggleClass("codeblock-customizer-behavior-settingsDiv-hide", this.plugin.settings.settingsType !== "behavior");
-    behaviorDiv.createEl('h3', { text: '👆 Behavior & Interaction' });
+    const sectionData = SettingsPageData[SettingsPage.Behavior];
+    const behaviorDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    behaviorDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Behavior);
+    behaviorDiv.createEl('h3', { text: sectionData.displayName });
 
     new Setting(behaviorDiv)
       .setName('Enable links usage')
@@ -984,35 +1211,24 @@ export class SettingsTab extends PluginSettingTab {
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.codeblock.enableLinks)
         .onChange(async (value) => {
-          this.linkUpdateToggle.forEach(item => {
-            item.setDisabled(!value);
-          });
           this.plugin.settings.pluginSettings.codeblock.enableLinks = value;
           await this.plugin.saveSettings();
-          this.display();
           this.plugin.renderReadingViews();
+          enableLinkUpdate.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
 
-    if (this.plugin.settings.pluginSettings.codeblock.enableLinks) {
-      const enableLinkUpdate = new Setting(behaviorDiv)
-        .setName('Enable automatically updating links on file rename')
-        .setDesc('To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!')
-        .addToggle(toggle => toggle
-          .setValue(this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate)
-          .onChange(async (value) => {
-            this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate = value;
-            await this.plugin.saveSettings();
-          })
-        );
-      this.linkUpdateToggle.push(enableLinkUpdate);
-    }
-
-    if (!this.plugin.settings.pluginSettings.codeblock.enableLinks) {
-      this.linkUpdateToggle.forEach(item => {
-        item.setDisabled(true);
-      });
-    }
+    const enableLinkUpdate = new Setting(behaviorDiv)
+      .setName('Enable automatically updating links on file rename')
+      .setDesc('To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    enableLinkUpdate.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableLinks);
 
     new Setting(behaviorDiv)
       .setName('Hide fence lines')
@@ -1036,46 +1252,50 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState = value;
           await this.plugin.saveSettings();
-          this.display();
+          tabStatePersistence.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          if (value && this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent) {
+            clearTabCache.settingEl.removeClass('codeblock-customizer-setting-hidden');
+          } else {
+            clearTabCache.settingEl.addClass('codeblock-customizer-setting-hidden');
+          }
         })
       );
 
-    if (this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState) {
-      new Setting(groupedCodeBlocksDetails)
-        .setName('Tab state persistence')
-        .setDesc('Choose how long the active tab state is remembered.')
-        .addDropdown(dropdown => {
-          dropdown
-            .addOption(TabPersistence.Session, 'Session Only')
-            .addOption(TabPersistence.Permanent, 'Permanent')
-            .setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence)
-            .onChange(async (value: TabPersistence) => {
-              const oldValue = this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence;
-              if (oldValue !== value) {
-                await this.plugin.clearAllTabData();
-              }
-              this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value;
-              await this.plugin.saveSettings();
-              this.display();
-            });
-        });
-
-      if (this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent) {
-        new Setting(groupedCodeBlocksDetails)
-          .setName('Clear stored tab positions')
-          .setDesc('Clear all stored active tab states from disk and the current session.')
-          .addButton((button) => {
-            button.setButtonText("Clear cache");
-            button.onClick(async () => {
-              button.setDisabled(true);
-              button.setButtonText("Clearing...");
+    const tabStatePersistence = new Setting(groupedCodeBlocksDetails)
+      .setName('Tab state persistence')
+      .setDesc('Choose how long the active tab state is remembered.')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption(TabPersistence.Session, 'Session Only')
+          .addOption(TabPersistence.Permanent, 'Permanent')
+          .setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence)
+          .onChange(async (value: TabPersistence) => {
+            const oldValue = this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence;
+            if (oldValue !== value) {
               await this.plugin.clearAllTabData();
-              button.setDisabled(false);
-              button.setButtonText("Clear cache");
-            });
+            }
+            this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value;
+            await this.plugin.saveSettings();
+
+            clearTabCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', value !== TabPersistence.Permanent);
           });
-      }
-    }
+      });
+    tabStatePersistence.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState);
+
+    const clearTabCache = new Setting(groupedCodeBlocksDetails)
+      .setName('Clear stored tab positions')
+      .setDesc('Clear all stored active tab states from disk and the current session.')
+      .addButton((button) => {
+        button.setButtonText("Clear cache");
+        button.onClick(async () => {
+          button.setDisabled(true);
+          button.setButtonText("Clearing...");
+          await this.plugin.clearAllTabData();
+          button.setDisabled(false);
+          button.setButtonText("Clear cache");
+        });
+      });
+    clearTabCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', !(this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState && this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent));
 
     new Setting(groupedCodeBlocksDetails)
       .setName('Show tab "Add" and "Remove" buttons (only editing view)')
@@ -1101,16 +1321,16 @@ export class SettingsTab extends PluginSettingTab {
       const semiFoldEnabled = this.plugin.settings.pluginSettings.semiFold.enableSemiFold;
       const inverseFoldEnabled = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
 
-      if (semiFoldLinesDropDown)
-        semiFoldLinesDropDown.setDisabled(!semiFoldEnabled);
+      if (semiFoldLines)
+        semiFoldLines.setDisabled(!semiFoldEnabled);
       if (semiFoldShowButton)
         semiFoldShowButton.setDisabled(!semiFoldEnabled);
-      if (autoFoldSetting)
-        autoFoldSetting.settingEl.style.display = semiFoldEnabled ? '' : 'none';
+      if (autoFold)
+        autoFold.settingEl.toggleClass('codeblock-customizer-setting-hidden', !semiFoldEnabled);
 
-      if (ignoreShortBlocksSetting) {
+      if (ignoreShortBlocks) {
         const showIgnoreShortBlocks = semiFoldEnabled && inverseFoldEnabled;
-        ignoreShortBlocksSetting.settingEl.style.display = showIgnoreShortBlocks ? '' : 'none';
+        ignoreShortBlocks.settingEl.toggleClass('codeblock-customizer-setting-hidden', !showIgnoreShortBlocks);
       }
     };
 
@@ -1127,7 +1347,7 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
-    const ignoreShortBlocksSetting = new Setting(foldDetails)
+    const ignoreShortBlocks = new Setting(foldDetails)
       .setName('Only apply inverse fold to semi-foldable blocks')
       .setDesc('When `Inverse fold` and `Enable semi-fold` are both enabled, this prevents short code blocks (that cannot be semi-folded) from being fully folded by default.')
       .addToggle(toggle => toggle
@@ -1139,7 +1359,7 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
-    let semiFoldLinesDropDown: DropdownComponent;
+    let semiFoldLines: DropdownComponent;
     let semiFoldShowButton: ToggleComponent;
 
     new Setting(foldDetails)
@@ -1152,10 +1372,11 @@ export class SettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings(true);
           updateSettingStyles(this.plugin.settings, this.app);
           updateFoldingSettingsVisibility();
+          semiFoldEffect.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       )
       .addDropdown((dropdown) => {
-        semiFoldLinesDropDown = dropdown
+        semiFoldLines = dropdown
         dropdown.selectEl.empty();
         dropdown.addOptions(Object.fromEntries([...Array(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
         dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString())
@@ -1175,7 +1396,7 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
-    new Setting(foldDetails)
+    const semiFoldEffect = new Setting(foldDetails)
       .setName('Semi-fold effect')
       .setDesc('Select the visual effect for semi-folded code blocks.')
       .addDropdown(dropdown => dropdown
@@ -1189,9 +1410,10 @@ export class SettingsTab extends PluginSettingTab {
           updateSettingStyles(this.plugin.settings, this.app);
         })
       );
+    semiFoldEffect.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.semiFold.enableSemiFold);
 
     let longCodeblockLinesInput: TextComponent;
-    const autoFoldSetting = new Setting(foldDetails)
+    const autoFold = new Setting(foldDetails)
       .setName('Auto semi-fold long code blocks')
       .setDesc('If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.')
       .addToggle(toggle => toggle
@@ -1230,70 +1452,74 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState = value;
           await this.plugin.saveSettings();
-          this.display();
+          scope.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          persistence.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          if (value && this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
+            clearFoldCache.settingEl.removeClass('codeblock-customizer-setting-hidden');
+          } else {
+            clearFoldCache.settingEl.addClass('codeblock-customizer-setting-hidden');
+          }
         })
       );
 
-    if (this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState) {
-      new Setting(foldDetails)
-        .setName('Scope')
-        .setDesc('Choose which code blocks are affected. \'Respect\' only saves the state for blocks where `fold` wasn\'t explicitly set. \'All\' saves the state for all blocks.')
-        .addDropdown(dropdown => {
-          dropdown
-            .addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"')
-            .addOption(FoldingScope.All, 'All code blocks')
-            .setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope)
-            .onChange(async (value: FoldingScope) => {
-              this.plugin.settings.pluginSettings.codeblock.folding.scope = value;
-              await this.plugin.saveSettings();
-            });
-        });
-
-      new Setting(foldDetails)
-        .setName('Persistence')
-        .setDesc('Choose how long the folding state is remembered. \'Permanent\' saves the state even after you restart Obsidian. \'Session\' remembers the state only until you close the app.')
-        .addDropdown(dropdown => {
-          dropdown
-            .addOption(FoldingPersistence.Session, 'Session Only')
-            .addOption(FoldingPersistence.Permanent, 'Permanent')
-            .setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence)
-            .onChange(async (value: FoldingPersistence) => {
-              const oldValue = this.plugin.settings.pluginSettings.codeblock.folding.persistence;
-              if (oldValue !== value) {
-                if (oldValue === FoldingPersistence.Permanent) {
-                  await this.plugin.clearAllFoldData();
-                  new Notice("Cleared permanent fold data.");
-                }
-                if (oldValue === FoldingPersistence.Session) {
-                  this.plugin.activeEditorFolds.clear();
-                  this.app.workspace.updateOptions();
-                  new Notice("Cleared session fold data.");
-                }
-              }
-
-              this.plugin.settings.pluginSettings.codeblock.folding.persistence = value;
-              await this.plugin.saveSettings();
-              this.display();
-            });
-        });
-
-      if (this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
-        new Setting(foldDetails)
-          .setName('Clear stored folded positions')
-          .setDesc('Clear all stored folded code block state from disk and the current session.')
-          .addButton((button) => {
-            button.setButtonText("Clear cache");
-            button.onClick(async () => {
-              button.setDisabled(true);
-              button.setButtonText("Clearing...");
-              await this.plugin.clearAllFoldData();
-              new Notice("Fold cache successfully cleared!");
-              button.setDisabled(false);
-              button.setButtonText("Clear cache");
-            });
+    const scope = new Setting(foldDetails)
+      .setName('Scope')
+      .setDesc('Choose which code blocks are affected. \'Respect\' only saves the state for blocks where `fold` wasn\'t explicitly set. \'All\' saves the state for all blocks.')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"')
+          .addOption(FoldingScope.All, 'All code blocks')
+          .setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope)
+          .onChange(async (value: FoldingScope) => {
+            this.plugin.settings.pluginSettings.codeblock.folding.scope = value;
+            await this.plugin.saveSettings();
           });
-      }
-    }
+      });
+    scope.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState);
+
+    const persistence = new Setting(foldDetails)
+      .setName('Persistence')
+      .setDesc('Choose how long the folding state is remembered. \'Permanent\' saves the state even after you restart Obsidian. \'Session\' remembers the state only until you close the app.')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption(FoldingPersistence.Session, 'Session Only')
+          .addOption(FoldingPersistence.Permanent, 'Permanent')
+          .setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence)
+          .onChange(async (value: FoldingPersistence) => {
+            const oldValue = this.plugin.settings.pluginSettings.codeblock.folding.persistence;
+            if (oldValue !== value) {
+              if (oldValue === FoldingPersistence.Permanent) {
+                await this.plugin.clearAllFoldData();
+                new Notice("Cleared permanent fold data.");
+              }
+              if (oldValue === FoldingPersistence.Session) {
+                this.plugin.activeEditorFolds.clear();
+                this.app.workspace.updateOptions();
+                new Notice("Cleared session fold data.");
+              }
+            }
+            this.plugin.settings.pluginSettings.codeblock.folding.persistence = value;
+            await this.plugin.saveSettings();
+            clearFoldCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', value !== FoldingPersistence.Permanent);
+          });
+      });
+    persistence.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState);
+
+    const clearFoldCache = new Setting(foldDetails)
+      .setName('Clear stored folded positions')
+      .setDesc('Clear all stored folded code block state from disk and the current session.')
+      .addButton((button) => {
+        button.setButtonText("Clear cache");
+        button.onClick(async () => {
+          button.setDisabled(true);
+          button.setButtonText("Clearing...");
+          await this.plugin.clearAllFoldData();
+          new Notice("Fold cache successfully cleared!");
+          button.setDisabled(false);
+          button.setButtonText("Clear cache");
+        });
+      });
+    clearFoldCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', !(this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState && this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent));
 
     // extra buttons
     const buttonsDetails = this.createDetailsGroup(behaviorDiv, 'Extra Button Settings', 'buttonsDetailsOpen');
@@ -1356,7 +1582,7 @@ export class SettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton = value;
-          snapshotWidthSetting.settingEl.style.display = value ? '' : 'none';
+          snapshotWidthSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
           await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.app);
         })
@@ -1375,9 +1601,7 @@ export class SettingsTab extends PluginSettingTab {
         })
       );
 
-    if (!this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton) {
-      snapshotWidthSetting.settingEl.style.display = 'none';
-    }
+    snapshotWidthSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton);
 
     new Setting(buttonsDetails)
       .setName('Always show buttons (only editing view)')
@@ -1407,9 +1631,10 @@ export class SettingsTab extends PluginSettingTab {
   }// createBehaviorSettings
 
   createPromptSettingsPage(containerEl: HTMLElement) {
-    const promptsDiv = containerEl.createDiv({ cls: "codeblock-customizer-prompts-settingsDiv-hide" });
-    promptsDiv.toggleClass("codeblock-customizer-prompts-settingsDiv-hide", this.plugin.settings.settingsType !== "prompts");
-    promptsDiv.createEl('h3', { text: '⌨️ Prompts Settings ' });
+    const sectionData = SettingsPageData[SettingsPage.Prompts];
+    const promptsDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    promptsDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Prompts);
+    promptsDiv.createEl('h3', { text: sectionData.displayName });
 
     new Setting(promptsDiv)
       .setName('Include prompts when copying')
@@ -1561,9 +1786,10 @@ export class SettingsTab extends PluginSettingTab {
   }// createPromptSettingsPage
 
   createPluginCompatibilitySettingsPage(containerEl: HTMLElement) {
-    const pluginsDiv = containerEl.createDiv({ cls: "codeblock-customizer-plugin-compatibility-settingsDiv-hide" });
-    pluginsDiv.toggleClass("codeblock-customizer-plugin-compatibility-settingsDiv-hide", this.plugin.settings.settingsType !== "plugins");
-    pluginsDiv.createEl('h3', { text: '🧩 Plugin Compatibility Settings ' });
+    const sectionData = SettingsPageData[SettingsPage.Plugins];
+    const pluginsDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    pluginsDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Plugins);
+    pluginsDiv.createEl('h3', { text: sectionData.displayName });
 
     // settings for admonitions plugin
     const admonitionDetailsDetails = this.createDetailsGroup(pluginsDiv, 'Admonition Settings', 'admonitionDetailsOpen');
@@ -1874,7 +2100,7 @@ export class SettingsTab extends PluginSettingTab {
         toggle
           .setValue(currentPromptData.autoUsePrompt ?? false)
           .onChange(async (isEnabling) => {
-            autoUseLanguagesSetting.settingEl.style.display = isEnabling ? '' : 'none';
+            autoUseLanguagesSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !isEnabling);
             const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
             updatedPromptData.autoUsePrompt = isEnabling;
             await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
@@ -1942,7 +2168,7 @@ export class SettingsTab extends PluginSettingTab {
         };
       });
 
-    autoUseLanguagesSetting.settingEl.style.display = (currentPromptData.autoUsePrompt ?? false) ? '' : 'none';
+    autoUseLanguagesSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !(currentPromptData.autoUsePrompt ?? false));
 
     let parseLanguagesTextComponent: TextComponent;
     let autoParseToggle: ToggleComponent;
@@ -1955,7 +2181,7 @@ export class SettingsTab extends PluginSettingTab {
         toggle
           .setValue(currentPromptData.autoParsePrompt ?? false)
           .onChange(async (isEnabling) => {
-            autoParseLanguagesSetting.settingEl.style.display = isEnabling ? '' : 'none';
+            autoParseLanguagesSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !isEnabling);
             const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
             updatedPromptData.autoParsePrompt = isEnabling;
             await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
@@ -1989,7 +2215,7 @@ export class SettingsTab extends PluginSettingTab {
             updatedPromptData.autoParseLanguages = [];
             await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
             autoParseToggle.setValue(false);
-            autoParseLanguagesSetting.settingEl.style.display = 'none';
+            autoParseLanguagesSetting.settingEl.addClass('codeblock-customizer-setting-hidden');
             if (hadLanguages) {
               this.plugin.renderReadingViews();
             }
@@ -2022,7 +2248,7 @@ export class SettingsTab extends PluginSettingTab {
         };
       });
 
-    autoParseLanguagesSetting.settingEl.style.display = (currentPromptData.autoParsePrompt ?? false) ? '' : 'none';
+    autoParseLanguagesSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !(currentPromptData.autoParsePrompt ?? false));
 
     const colorsSettingsDetails = this.createDetailsGroup(promptEditorContainer, 'Prompt Colors', 'promptColorsDetailsOpen', 'codeblock-customizer-prompt-colors-settings-group');
 
@@ -2493,6 +2719,7 @@ export class SettingsTab extends PluginSettingTab {
   }// getColorFromPickrClass
 
   hide(): void {
+    this.searchQuery = "";
     this.pickerInstances.forEach(p => {
       if (p) {
         p.destroy();
@@ -2500,7 +2727,8 @@ export class SettingsTab extends PluginSettingTab {
     });
 
     this.pickerInstances = [];
-  }//hide
+    super.hide();
+  }// hide
 
   setAndSavePickrSetting(className: string, savedColor: string): void {
     const currentMode = getCurrentMode();

@@ -6,7 +6,7 @@ body {
     .codeblock-customizer-header-container-specific,
     .codeblock-customizer-header-group-container {
       .codeblock-customizer-icon-container {
-        display: none;
+        display: none !important;
       }
     }
   }
