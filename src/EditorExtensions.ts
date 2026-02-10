@@ -188,7 +188,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
-      return Decoration.none;
+      const codeBlockPositions = state.field(codeBlockPositionsField, false) ?? [];
+      const rememberedFolds = state.field(rememberedFoldField, false) ?? {};
+      const unfoldedBlocks = state.field(defaultFoldUnfoldedField, false) ?? new Set<number>();
+      const grouped = state.field(groupedCodeBlocksField, false) ?? {};
+      const globalFoldCmd = state.field(foldCommandField, false) ?? FoldCommand.Default;
+
+      return calculateFoldDecorations(state, Decoration.none, codeBlockPositions, rememberedFolds, unfoldedBlocks, grouped, globalFoldCmd);
     },
     update(value, tr) {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(tr.state))
@@ -247,83 +253,19 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const oldFoldState = tr.startState.field(rememberedFoldField, false) ?? [];
       const newFoldState = tr.state.field(rememberedFoldField, false) ?? [];
 
-      const globalFoldCmd = tr.state.field(foldCommandField, false) ?? [];
+      const globalFoldCmd = tr.state.field(foldCommandField, false) ?? FoldCommand.Default;
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
 
       if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
         if (resetFoldDecorations || globalFoldCmdChanged) {
           value = Decoration.none;  // remove fold e.g. when inversefold is disabled
         }
-        const decorationsToAdd: Range<Decoration>[] = [];
-        const state = tr.state;
+
         const rememberedFolds = newFoldState ?? {};
-        const unfoldedBlocks = state.field(defaultFoldUnfoldedField, false) ?? new Set<number>();
+        const unfoldedBlocks = tr.state.field(defaultFoldUnfoldedField, false) ?? new Set<number>();
         const grouped = tr.state.field(groupedCodeBlocksField, false) ?? {};
 
-        for (const pos of newCodeBlockPositions) {
-          // don't process fold commands for `run-` code blocks
-          if (settings.pluginSettings.plugins.executeCode.enabled && pos.parameters.language.toLowerCase().startsWith('run-') && isPluginLoaded("execute-code", plugin)) {
-            continue;
-          }
-
-          // check if a fold decoration already exists for this block
-          if (isBlockCurrentlyFoldedInSet(value, pos.codeBlockStartPos, pos.codeBlockEndPos)) {
-            continue;
-          }
-
-          const group = pos.parameters.group;
-          const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === pos.codeBlockStartPos));
-          const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-          const specificHeader = isSpecificHeader(pos.parameters, settings, isMemberOfTabbedGroup, lineCount, "editor");
-          const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
-          let foldNow = false;
-          let useSemiFold = false;
-
-          // if unfolded by user action, never fold.
-          if (unfoldedBlocks.has(pos.codeBlockStartPos)) {
-            foldNow = false;
-          } else {
-            // apply commands
-            switch (globalFoldCmd) {
-              case FoldCommand.FoldAll:
-                foldNow = true;
-                useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
-                break;
-              case FoldCommand.UnfoldAll:
-                foldNow = false;
-                break;
-              case FoldCommand.Default:
-              default: {
-                // apply remembered state or default parameters
-                const rememberedState = rememberedFolds[pos.codeBlockStartPos];
-                if (rememberedState === FoldingState.FullyFolded) {
-                  foldNow = true; useSemiFold = false;
-                } else if (rememberedState === FoldingState.SemiFolded) {
-                  foldNow = true; useSemiFold = true;
-                } else if (rememberedState === FoldingState.Unfolded) {
-                  foldNow = false;
-                } else if (rememberedState === undefined && foldByDefault) {
-                  foldNow = true;
-                  useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
-                }
-                break;
-              }
-            }
-          }
-          if (foldNow) {
-            const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-            if (useSemiFold && lineCount >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount + 2) {
-              const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines);
-              decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map(e => e.value));
-            } else {
-              decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
-            }
-          }
-        }
-
-        if (decorationsToAdd.length > 0) {
-          value = value.update({ add: decorationsToAdd, sort: true });
-        }
+        value = calculateFoldDecorations(tr.state, value, newCodeBlockPositions, rememberedFolds, unfoldedBlocks, grouped, globalFoldCmd);
       }
 
       return value;
@@ -1676,6 +1618,77 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// AnnotationIconWidget
 
   /* functions */
+
+  function calculateFoldDecorations(state: EditorState, decorations: RangeSet<Decoration>, codeBlockPositions: CodeBlockPositions[], rememberedFolds: Record<number, FoldingState>, unfoldedBlocks: Set<number>, grouped: GroupedCodeBlocks, globalFoldCmd: FoldCommand): RangeSet<Decoration> {
+    const decorationsToAdd: Range<Decoration>[] = [];
+
+    for (const pos of codeBlockPositions) {
+      // don't process fold commands for `run-` code blocks
+      if (settings.pluginSettings.plugins.executeCode.enabled && pos.parameters.language.toLowerCase().startsWith('run-') && isPluginLoaded("execute-code", plugin)) {
+        continue;
+      }
+
+      // check if a fold decoration already exists for this block
+      if (isBlockCurrentlyFoldedInSet(decorations, pos.codeBlockStartPos, pos.codeBlockEndPos)) {
+        continue;
+      }
+
+      const group = pos.parameters.group;
+      const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === pos.codeBlockStartPos));
+      const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
+      const specificHeader = isSpecificHeader(pos.parameters, settings, isMemberOfTabbedGroup, lineCount, "editor");
+      const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
+      let foldNow = false;
+      let useSemiFold = false;
+
+      // if unfolded by user action, never fold.
+      if (unfoldedBlocks.has(pos.codeBlockStartPos)) {
+        foldNow = false;
+      } else {
+        // apply commands
+        switch (globalFoldCmd) {
+          case FoldCommand.FoldAll:
+            foldNow = true;
+            useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
+            break;
+          case FoldCommand.UnfoldAll:
+            foldNow = false;
+            break;
+          case FoldCommand.Default:
+          default: {
+            // apply remembered state or default parameters
+            const rememberedState = rememberedFolds[pos.codeBlockStartPos];
+            if (rememberedState === FoldingState.FullyFolded) {
+              foldNow = true; useSemiFold = false;
+            } else if (rememberedState === FoldingState.SemiFolded) {
+              foldNow = true; useSemiFold = true;
+            } else if (rememberedState === FoldingState.Unfolded) {
+              foldNow = false;
+            } else if (rememberedState === undefined && foldByDefault) {
+              foldNow = true;
+              useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
+            }
+            break;
+          }
+        }
+      }
+      if (foldNow) {
+        const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
+        if (useSemiFold && lineCount >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount + 2) {
+          const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines);
+          decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map(e => e.value));
+        } else {
+          decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
+        }
+      }
+    }
+
+    if (decorationsToAdd.length > 0) {
+      return decorations.update({ add: decorationsToAdd, sort: true });
+    }
+
+    return decorations;
+  }// calculateFoldDecorations
 
   function getGutterStyle(parameters: CBCParameters, rawLineCount: number, defaultCharWidth: number) {
     const maxLineNumber = getMaxLineNumber(parameters, rawLineCount);

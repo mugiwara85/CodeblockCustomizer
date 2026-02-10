@@ -23049,9 +23049,15 @@ function extensions(plugin, settings) {
   });
   const collapseField = import_state.StateField.define({
     create(state) {
+      var _a, _b, _c, _d, _e;
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return import_view.Decoration.none;
-      return import_view.Decoration.none;
+      const codeBlockPositions = (_a = state.field(codeBlockPositionsField, false)) != null ? _a : [];
+      const rememberedFolds = (_b = state.field(rememberedFoldField, false)) != null ? _b : {};
+      const unfoldedBlocks = (_c = state.field(defaultFoldUnfoldedField, false)) != null ? _c : /* @__PURE__ */ new Set();
+      const grouped = (_d = state.field(groupedCodeBlocksField, false)) != null ? _d : {};
+      const globalFoldCmd = (_e = state.field(foldCommandField, false)) != null ? _e : FoldCommand.Default;
+      return calculateFoldDecorations(state, import_view.Decoration.none, codeBlockPositions, rememberedFolds, unfoldedBlocks, grouped, globalFoldCmd);
     },
     update(value, tr) {
       var _a, _b, _c, _d, _e, _f, _g;
@@ -23110,74 +23116,16 @@ function extensions(plugin, settings) {
       const newCodeBlockPositions = (_b = tr.state.field(codeBlockPositionsField, false)) != null ? _b : [];
       const oldFoldState = (_c = tr.startState.field(rememberedFoldField, false)) != null ? _c : [];
       const newFoldState = (_d = tr.state.field(rememberedFoldField, false)) != null ? _d : [];
-      const globalFoldCmd = (_e = tr.state.field(foldCommandField, false)) != null ? _e : [];
+      const globalFoldCmd = (_e = tr.state.field(foldCommandField, false)) != null ? _e : FoldCommand.Default;
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
       if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
         if (resetFoldDecorations || globalFoldCmdChanged) {
           value = import_view.Decoration.none;
         }
-        const decorationsToAdd = [];
-        const state = tr.state;
         const rememberedFolds = newFoldState != null ? newFoldState : {};
-        const unfoldedBlocks = (_f = state.field(defaultFoldUnfoldedField, false)) != null ? _f : /* @__PURE__ */ new Set();
+        const unfoldedBlocks = (_f = tr.state.field(defaultFoldUnfoldedField, false)) != null ? _f : /* @__PURE__ */ new Set();
         const grouped = (_g = tr.state.field(groupedCodeBlocksField, false)) != null ? _g : {};
-        for (const pos of newCodeBlockPositions) {
-          if (settings.pluginSettings.plugins.executeCode.enabled && pos.parameters.language.toLowerCase().startsWith("run-") && isPluginLoaded("execute-code", plugin)) {
-            continue;
-          }
-          if (isBlockCurrentlyFoldedInSet(value, pos.codeBlockStartPos, pos.codeBlockEndPos)) {
-            continue;
-          }
-          const group = pos.parameters.group;
-          const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some((member) => member.codeBlockStartPos === pos.codeBlockStartPos));
-          const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-          const specificHeader = isSpecificHeader(pos.parameters, settings, isMemberOfTabbedGroup, lineCount, "editor");
-          const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
-          let foldNow = false;
-          let useSemiFold = false;
-          if (unfoldedBlocks.has(pos.codeBlockStartPos)) {
-            foldNow = false;
-          } else {
-            switch (globalFoldCmd) {
-              case FoldCommand.FoldAll:
-                foldNow = true;
-                useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
-                break;
-              case FoldCommand.UnfoldAll:
-                foldNow = false;
-                break;
-              case FoldCommand.Default:
-              default: {
-                const rememberedState = rememberedFolds[pos.codeBlockStartPos];
-                if (rememberedState === FoldingState.FullyFolded) {
-                  foldNow = true;
-                  useSemiFold = false;
-                } else if (rememberedState === FoldingState.SemiFolded) {
-                  foldNow = true;
-                  useSemiFold = true;
-                } else if (rememberedState === FoldingState.Unfolded) {
-                  foldNow = false;
-                } else if (rememberedState === void 0 && foldByDefault) {
-                  foldNow = true;
-                  useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
-                }
-                break;
-              }
-            }
-          }
-          if (foldNow) {
-            const lineCount2 = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-            if (useSemiFold && lineCount2 >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount + 2) {
-              const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines);
-              decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map((e) => e.value));
-            } else {
-              decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
-            }
-          }
-        }
-        if (decorationsToAdd.length > 0) {
-          value = value.update({ add: decorationsToAdd, sort: true });
-        }
+        value = calculateFoldDecorations(tr.state, value, newCodeBlockPositions, rememberedFolds, unfoldedBlocks, grouped, globalFoldCmd);
       }
       return value;
     },
@@ -24245,6 +24193,67 @@ ${this.output}` });
       new TooltipManager(iconContainer, this.content, this.type, this.plugin, sourcePath, this.title);
       return iconContainer;
     }
+  }
+  function calculateFoldDecorations(state, decorations, codeBlockPositions, rememberedFolds, unfoldedBlocks, grouped, globalFoldCmd) {
+    const decorationsToAdd = [];
+    for (const pos of codeBlockPositions) {
+      if (settings.pluginSettings.plugins.executeCode.enabled && pos.parameters.language.toLowerCase().startsWith("run-") && isPluginLoaded("execute-code", plugin)) {
+        continue;
+      }
+      if (isBlockCurrentlyFoldedInSet(decorations, pos.codeBlockStartPos, pos.codeBlockEndPos)) {
+        continue;
+      }
+      const group = pos.parameters.group;
+      const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some((member) => member.codeBlockStartPos === pos.codeBlockStartPos));
+      const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
+      const specificHeader = isSpecificHeader(pos.parameters, settings, isMemberOfTabbedGroup, lineCount, "editor");
+      const { foldByDefault } = determineDefaultFoldState(pos.parameters, settings, lineCount, specificHeader, "editor");
+      let foldNow = false;
+      let useSemiFold = false;
+      if (unfoldedBlocks.has(pos.codeBlockStartPos)) {
+        foldNow = false;
+      } else {
+        switch (globalFoldCmd) {
+          case FoldCommand.FoldAll:
+            foldNow = true;
+            useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
+            break;
+          case FoldCommand.UnfoldAll:
+            foldNow = false;
+            break;
+          case FoldCommand.Default:
+          default: {
+            const rememberedState = rememberedFolds[pos.codeBlockStartPos];
+            if (rememberedState === FoldingState.FullyFolded) {
+              foldNow = true;
+              useSemiFold = false;
+            } else if (rememberedState === FoldingState.SemiFolded) {
+              foldNow = true;
+              useSemiFold = true;
+            } else if (rememberedState === FoldingState.Unfolded) {
+              foldNow = false;
+            } else if (rememberedState === void 0 && foldByDefault) {
+              foldNow = true;
+              useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
+            }
+            break;
+          }
+        }
+      }
+      if (foldNow) {
+        const lineCount2 = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
+        if (useSemiFold && lineCount2 >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount + 2) {
+          const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines);
+          decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map((e) => e.value));
+        } else {
+          decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
+        }
+      }
+    }
+    if (decorationsToAdd.length > 0) {
+      return decorations.update({ add: decorationsToAdd, sort: true });
+    }
+    return decorations;
   }
   function getGutterStyle(parameters, rawLineCount, defaultCharWidth) {
     const maxLineNumber = getMaxLineNumber(parameters, rawLineCount);
