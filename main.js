@@ -12930,7 +12930,7 @@ __export(main_exports, {
   default: () => CodeBlockCustomizerPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/PromptUtils.ts
 var highlightMapCache = /* @__PURE__ */ new WeakMap();
@@ -15194,8 +15194,8 @@ var DEFAULT_SETTINGS = {
   languageSpecificLanguageName: ""
 };
 
-// src/SettingsTab.ts
-var import_obsidian3 = require("obsidian");
+// src/SettingsTab/SettingsTab.ts
+var import_obsidian11 = require("obsidian");
 
 // src/Utils.ts
 var import_obsidian = require("obsidian");
@@ -17930,8 +17930,438 @@ function getDisplayLanguageName(code) {
   return "";
 }
 
-// src/TooltipManager.ts
+// src/SettingsTab/General.ts
+var import_obsidian4 = require("obsidian");
+
+// src/SettingsTab/Common.ts
+var import_obsidian3 = require("obsidian");
+
+// src/SettingsTab/ColorUtils.ts
 var import_obsidian2 = require("obsidian");
+var import_pickr = __toESM(require_pickr_min());
+function getColorFromPickrClass(selectedTheme, currentMode, pickrClass, resolveCSSVar) {
+  const properties = pickrClass.split(".");
+  let colorValue = selectedTheme.colors[currentMode];
+  for (const prop of properties) {
+    colorValue = colorValue == null ? void 0 : colorValue[prop];
+    if (colorValue === void 0) {
+      return "#000000";
+    }
+    if (resolveCSSVar && colorValue.toString().startsWith("--")) {
+      colorValue = getColorOfCssVariable(colorValue.toString());
+    }
+    if (!colorValue) {
+      break;
+    }
+  }
+  return colorValue || "";
+}
+function setNestedValue(obj, path, value) {
+  const keys = path.split(".");
+  let current = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    current = current[key];
+    if (current === void 0) {
+      console.error("Invalid path provided to setNestedValue:", path);
+      return;
+    }
+  }
+  const finalKey = keys[keys.length - 1];
+  current[finalKey] = value;
+}
+function setAndSavePickrSetting(className, savedColor, plugin) {
+  const currentMode = getCurrentMode();
+  const colors = plugin.settings.SelectedTheme.colors[currentMode];
+  setNestedValue(colors, className, savedColor);
+  plugin.saveSettings();
+}
+function addPickerControlsToSetting(setting, options, pickerInstances, plugin) {
+  var _a;
+  const pickr = import_pickr.default.create({
+    el: setting.controlEl.createDiv({ cls: "picker" }),
+    container: options.containerEl.parentNode,
+    theme: "nano",
+    position: "left-middle",
+    lockOpacity: false,
+    default: options.initialColor,
+    swatches: [],
+    components: {
+      preview: true,
+      hue: true,
+      opacity: true,
+      interaction: {
+        hex: true,
+        rgba: true,
+        hsla: false,
+        input: true,
+        cancel: true,
+        save: true
+      }
+    },
+    i18n: (_a = options.i18n) != null ? _a : {}
+  }).on("show", (color, instance) => {
+    if (options.shouldShow && !options.shouldShow()) {
+      instance.hide();
+      return;
+    }
+    const { result } = instance.getRoot().interaction;
+    requestAnimationFrame(() => requestAnimationFrame(() => result.select()));
+  }).on("save", (color, instance) => {
+    if (!color)
+      return;
+    instance.hide();
+    const savedColor = color.toHEXA().toString();
+    instance.addSwatch(savedColor);
+    options.onSave(savedColor);
+  }).on("cancel", (instance) => {
+    instance.hide();
+  });
+  pickerInstances.push(pickr);
+  const onResetCallback = options.onReset;
+  if (onResetCallback) {
+    setting.addExtraButton((btn) => {
+      btn.setIcon("reset").setTooltip("restore default color").onClick(() => {
+        const defaultColor = onResetCallback();
+        pickr == null ? void 0 : pickr.setColor(defaultColor);
+        options.onSave(defaultColor);
+      });
+    });
+  }
+  const onDeleteCallback = options.onDelete;
+  if (onDeleteCallback) {
+    setting.addExtraButton((btn) => {
+      btn.setIcon("trash").setTooltip("Delete color").onClick(() => {
+        onDeleteCallback();
+      });
+    });
+  }
+  return pickr;
+}
+function createPickrSetting(containerEl, name, description, pickrClass, pickerInstances, plugin) {
+  const setting = new import_obsidian2.Setting(containerEl).setName(name).setDesc(description);
+  addPickerControlsToSetting(setting, {
+    containerEl,
+    initialColor: getColorFromPickrClass(plugin.settings.SelectedTheme, getCurrentMode(), pickrClass, true).toString(),
+    onSave: (savedColor) => {
+      setAndSavePickrSetting(pickrClass, savedColor, plugin);
+      if (["editorActiveLineColor", "codeblock.activeLineColor"].includes(pickrClass)) {
+        updateSettingStyles(plugin.settings, plugin.app);
+      }
+    },
+    onReset: () => {
+      return getColorFromPickrClass(plugin.settings.Themes[plugin.settings.ThemeName], getCurrentMode(), pickrClass, true).toString();
+    },
+    shouldShow: () => {
+      const settings = plugin.settings.pluginSettings;
+      if (!settings.codeblock.enableActiveLineHighlight && pickrClass === "codeblock.activeLineColor" || !settings.enableEditorActiveLineHighlight && pickrClass === "editorActiveLineColor" || !settings.header.displayCodeBlockLanguage && (pickrClass === "header.codeBlockLangTextColor" || pickrClass === "header.codeBlockLangBackgroundColor") || !settings.gutter.highlightActiveLineNr && pickrClass === "gutter.activeLineNrColor" || !settings.inlineCode.enableInlineCodeStyling && (pickrClass === "inlineCode.backgroundColor" || pickrClass === "inlineCode.textColor")) {
+        return false;
+      }
+      return true;
+    }
+  }, pickerInstances, plugin);
+  return setting;
+}
+function createAlternatePickr(containerEl, colorContainer, name, Color, type, pickerInstances, plugin, colorKey = "", languageName = "") {
+  const desc = type === "normal" ? `To highlight lines with this color use the "${name}" parameter. e.g: ${name}:2,4-6` : "";
+  const setting = new import_obsidian2.Setting(containerEl).setName(name).setDesc(desc);
+  addPickerControlsToSetting(setting, {
+    containerEl,
+    initialColor: Color,
+    onSave: (savedColor) => {
+      if (type === "normal") {
+        plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors[name] = savedColor;
+      } else if (type === "langSpecific") {
+        plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
+      }
+      plugin.saveSettings();
+    },
+    onDelete: () => {
+      if (type === "normal") {
+        delete plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[name];
+        delete plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[name];
+        updateColorContainer(colorContainer, pickerInstances, plugin);
+      } else if (type === "langSpecific") {
+        delete plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][colorKey];
+        delete plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][colorKey];
+        updateLanguageSpecificColorContainer(colorContainer, pickerInstances, plugin, languageName);
+      }
+      plugin.saveSettings();
+      new import_obsidian2.Notice(`Removed color "${name}".`);
+    },
+    i18n: {
+      "btn:toggle": "select color for light theme"
+    }
+  }, pickerInstances, plugin);
+  return setting;
+}
+
+// src/SettingsTab/Common.ts
+var SettingsPage = {
+  General: "general",
+  Appearance: "appearance",
+  Highlighting: "highlighting",
+  Behavior: "behavior",
+  Prompts: "prompts",
+  Plugins: "plugins"
+};
+var SettingsPageData = {
+  [SettingsPage.General]: {
+    displayName: "\u2699\uFE0F General",
+    class: "codeblock-customizer-general-settingsDiv",
+    hideClass: "codeblock-customizer-general-settingsDiv-hide"
+  },
+  [SettingsPage.Appearance]: {
+    displayName: "\u{1F3A8} Appearance & Styling",
+    class: "codeblock-customizer-appearance-settingsDiv",
+    hideClass: "codeblock-customizer-appearance-settingsDiv-hide"
+  },
+  [SettingsPage.Highlighting]: {
+    displayName: "\u{1F58C}\uFE0F Highlighting",
+    class: "codeblock-customizer-highlighting-settingsDiv",
+    hideClass: "codeblock-customizer-highlighting-settingsDiv-hide"
+  },
+  [SettingsPage.Behavior]: {
+    displayName: "\u{1F446} Behavior & Interaction",
+    class: "codeblock-customizer-behavior-settingsDiv",
+    hideClass: "codeblock-customizer-behavior-settingsDiv-hide"
+  },
+  [SettingsPage.Prompts]: {
+    displayName: "\u2328\uFE0F Prompts",
+    class: "codeblock-customizer-prompts-settingsDiv",
+    hideClass: "codeblock-customizer-prompts-settingsDiv-hide"
+  },
+  [SettingsPage.Plugins]: {
+    displayName: "\u{1F9E9} Plugin Compatibility",
+    class: "codeblock-customizer-plugin-compatibility-settingsDiv",
+    hideClass: "codeblock-customizer-plugin-compatibility-settingsDiv-hide"
+  }
+};
+var COLOR_OPTIONS = {
+  "codeblock.activeLineColor": "Code block active line color",
+  "codeblock.backgroundColor": "Code block background color",
+  "codeblock.borderColor": "Code block border color",
+  "codeblock.textColor": "Code block text color",
+  "codeblock.bracketHighlightColorMatch": "Matching bracket color",
+  "codeblock.bracketHighlightColorNoMatch": "Non-matching bracket color",
+  "codeblock.bracketHighlightBackgroundColorMatch": "Matching bracket background color",
+  "codeblock.bracketHighlightBackgroundColorNoMatch": "Non-matching bracket background color",
+  "codeblock.selectionMatchHighlightColor": "Selection match highlight color",
+  "header.backgroundColor": "Header background color",
+  "header.textColor": "Header text color",
+  "header.lineColor": "Header line color",
+  "header.codeBlockLangTextColor": "Header language text color",
+  "header.codeBlockLangBackgroundColor": "Header language background color",
+  "gutter.textColor": "Gutter text color",
+  "gutter.backgroundColor": "Gutter background color",
+  "gutter.activeLineNrColor": "Gutter active line number color"
+};
+function createDetailsGroup(container, title, key, settings, getCurrentSearch, ...extraClasses) {
+  const details = container.createEl("details");
+  details.addClasses(["settings-group", ...extraClasses]);
+  details.dataset.settingsKey = key;
+  if (settings[key]) {
+    details.open = true;
+  }
+  details.createEl("summary", { text: title });
+  details.addEventListener("toggle", () => {
+    if (getCurrentSearch()) {
+      return;
+    }
+    settings[key] = details.open;
+  });
+  return details;
+}
+function getRandomColor() {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+function updateColorContainer(colorContainer, pickerInstances, plugin) {
+  colorContainer.empty();
+  Object.entries(plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors).forEach(([colorName, hexValue]) => {
+    createAlternatePickr(colorContainer, colorContainer, colorName, hexValue, "normal", pickerInstances, plugin);
+  });
+}
+function updateLanguageSpecificColorContainer(colorContainer, pickerInstances, plugin, language = "") {
+  colorContainer.empty();
+  const languageColors = plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
+  const filteredLanguages = language ? { [language]: languageColors[language] } : languageColors;
+  Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
+    const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });
+    languageSettingsDiv.createEl("h4", { text: `${languageName} specific color settings` });
+    createDropdown(languageSettingsDiv, languageName, pickerInstances, plugin, () => {
+      updateLanguageSpecificColorContainer(colorContainer, pickerInstances, plugin, language);
+    });
+    Object.entries(colorObject).forEach(([colorProp, color]) => {
+      const propDisplayText = COLOR_OPTIONS[colorProp];
+      createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, color, "langSpecific", pickerInstances, plugin, colorProp, languageName);
+    });
+  });
+}
+function createDropdown(languageSettingsDiv, languageName, pickerInstances, plugin, refreshView) {
+  const dropdownOptions = Object.entries(COLOR_OPTIONS).reduce((options, [key, value]) => {
+    options[key] = value;
+    return options;
+  }, {});
+  new import_obsidian3.Setting(languageSettingsDiv).setName("Select color to set").setDesc(`Select which color you would like to set for ${plugin.settings.languageSpecificLanguageName} specifically.`).addDropdown(
+    (dropdown) => dropdown.addOptions(dropdownOptions).setValue(plugin.settings.langSpecificSettingsType).onChange((value) => {
+      plugin.settings.langSpecificSettingsType = value;
+      (async () => {
+        await plugin.saveSettings();
+      })();
+    })
+  ).addExtraButton(async (button) => {
+    button.setIcon("plus");
+    button.setTooltip(`Add the selected property to customize it for code block language ${languageName} specifically`);
+    button.onClick(async () => {
+      const propDisplayText = COLOR_OPTIONS[plugin.settings.langSpecificSettingsType];
+      if (propDisplayText) {
+        if (plugin.settings.langSpecificSettingsType in plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]) {
+          new import_obsidian3.Notice(`${propDisplayText} is already defined for code block language "${languageName}"`);
+        } else {
+          if (plugin.settings.langSpecificSettingsType === "codeblock.borderColor") {
+            const newColor = getRandomColor();
+            plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]["codeblock.borderColor"] = newColor;
+            plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName]["codeblock.borderColor"] = newColor;
+            createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, newColor, "langSpecific", pickerInstances, plugin, plugin.settings.langSpecificSettingsType, languageName);
+          } else {
+            const defaultDarkColor = getColorFromPickrClass(plugin.settings.SelectedTheme, "dark", plugin.settings.langSpecificSettingsType, true);
+            const defaultLightColor = getColorFromPickrClass(plugin.settings.SelectedTheme, "light", plugin.settings.langSpecificSettingsType, true);
+            createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, getCurrentMode() === "dark" ? defaultDarkColor : defaultLightColor, "langSpecific", pickerInstances, plugin, plugin.settings.langSpecificSettingsType, languageName);
+            plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][plugin.settings.langSpecificSettingsType] = defaultLightColor;
+            plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][plugin.settings.langSpecificSettingsType] = defaultDarkColor;
+          }
+          (async () => {
+            await plugin.saveSettings();
+          })();
+          plugin.renderReadingViews();
+        }
+      } else {
+        console.error("Selected color not found.");
+      }
+    });
+  }).addExtraButton(async (button) => {
+    button.setIcon("trash");
+    button.setTooltip(`Delete all language specific colors for code block language ${languageName}`);
+    button.onClick(async () => {
+      delete plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName];
+      delete plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName];
+      refreshView();
+      (async () => {
+        await plugin.saveSettings();
+      })();
+    });
+  });
+}
+
+// src/SettingsTab/General.ts
+var GeneralSettings = class {
+  constructor(plugin, containerEl, getSearchQuery, refreshSettings) {
+    this.plugin = plugin;
+    this.containerEl = containerEl;
+    this.getSearchQuery = getSearchQuery;
+    this.refreshSettings = refreshSettings;
+    this.printToPDFDetailsOpen = false;
+    this.debounceTimer = null;
+  }
+  display() {
+    const sectionData = SettingsPageData[SettingsPage.General];
+    const generalDiv = this.containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    generalDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.General);
+    generalDiv.createEl("h3", { text: sectionData.displayName });
+    new import_obsidian4.Setting(generalDiv).setName("Enable plugin in source mode").setDesc("By default the plugin is disabled in source mode. You can enable it in source mode as well using this toggle.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.common.enableInSourceMode).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.common.enableInSourceMode = value;
+        await this.plugin.saveSettings(true);
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian4.Setting(generalDiv).setName("Exclude languages").setDesc("Define languages, separated by a comma, to which the plugin should not apply. You can use a wildcard (*) either at the beginning, or at the end. For example: ad-* will exclude codeblocks where the language starts with ad- e.g.: ad-info, ad-error etc.").addText(
+      (text) => text.setPlaceholder("e.g. dataview, python etc.").setValue(this.plugin.settings.ExcludeLangs).onChange(async (value) => {
+        this.plugin.settings.ExcludeLangs = value;
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(async () => {
+          await this.plugin.saveSettings(true);
+          this.plugin.renderReadingViews();
+        }, 750);
+      })
+    );
+    new import_obsidian4.Setting(generalDiv).setName("Restore default themes").setDesc("Restore all default themes to their original settings.").addButton(async (button) => {
+      button.setButtonText("Restore");
+      button.onClick(async () => {
+        this.restoreThemes(this.plugin.settings.ThemeName, true);
+        await this.plugin.saveSettings();
+        this.refreshSettings();
+        new import_obsidian4.Notice("Default themes restored to their original state!");
+      });
+    });
+    const printToPDFDetails = createDetailsGroup(generalDiv, "Print to PDF Settings", "printToPDFDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian4.Setting(printToPDFDetails).setName("Enable print to PDF").setDesc("If enabled, the styling is applied to documents when printed to PDF. By default PDF printing uses light theme colors.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling = value;
+        await this.plugin.saveSettings();
+        forceCurrentColorUse.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        avoidPageBreaks.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        uncollapseDuringPrint.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const forceCurrentColorUse = new import_obsidian4.Setting(printToPDFDetails).setName("Force current color mode use").setDesc("If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.forceCurrentColorUse).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.printing.forceCurrentColorUse = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    forceCurrentColorUse.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
+    const avoidPageBreaks = new import_obsidian4.Setting(printToPDFDetails).setName("Avoid page breaks in code blocks").setDesc("If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.avoidPageBreaks).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.printing.avoidPageBreaks = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    avoidPageBreaks.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
+    const uncollapseDuringPrint = new import_obsidian4.Setting(printToPDFDetails).setName("Expand all code blocks during printing").setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.').addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    uncollapseDuringPrint.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
+    new import_obsidian4.Setting(printToPDFDetails).setName("Print annotations as raw comments").setDesc("If enabled, annotations will be printed as visible code comments instead of rendered icons.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.printAnnotationsAsComments).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.printing.printAnnotationsAsComments = value;
+        await this.plugin.saveSettings();
+      })
+    );
+  }
+  // display
+  restoreThemes(themeName, cloneAll) {
+    if (cloneAll) {
+      Object.entries(DEFAULT_THEMES).forEach(([name, theme]) => {
+        this.plugin.settings.Themes[name] = structuredClone(theme);
+      });
+    } else {
+      Object.entries(DEFAULT_THEMES).forEach(([name, theme]) => {
+        if (name === themeName)
+          this.plugin.settings.Themes[name] = structuredClone(theme);
+      });
+    }
+    if (themeName in DEFAULT_THEMES)
+      this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[themeName]);
+  }
+  // restoreThemes
+};
+
+// src/SettingsTab/Appearance.ts
+var import_obsidian6 = require("obsidian");
+
+// src/TooltipManager.ts
+var import_obsidian5 = require("obsidian");
 var ANNOTATION_TYPE_ICONS = {
   note: "info",
   warn: "alert-triangle",
@@ -17986,11 +18416,11 @@ var TooltipManager = class {
       this.tooltip = createDiv({ cls: `codeblock-customizer-annotation-tooltip codeblock-customizer-tooltip-${this.type}` });
       const headerContainer = this.tooltip.createDiv({ cls: "codeblock-customizer-popup-header" });
       const popupIconEl = headerContainer.createSpan({ cls: `codeblock-customizer-popup-icon codeblock-customizer-annotation-icon-${this.type}` });
-      (0, import_obsidian2.setIcon)(popupIconEl, ANNOTATION_TYPE_ICONS[this.type] || "info");
+      (0, import_obsidian5.setIcon)(popupIconEl, ANNOTATION_TYPE_ICONS[this.type] || "info");
       const headerText = this.title || ANNOTATION_TYPE_DISPLAY_TEXT[this.type] || this.type.charAt(0).toUpperCase() + this.type.slice(1);
       headerContainer.createSpan({ cls: `codeblock-customizer-popup-type-text codeblock-customizer-annotation-title-${this.type}`, text: headerText });
       const textContentEl = this.tooltip.createDiv({ cls: "codeblock-customizer-popup-content" });
-      import_obsidian2.MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);
+      import_obsidian5.MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);
       document.body.appendChild(this.tooltip);
       const iconRect = this.iconEl.getBoundingClientRect();
       this.tooltip.style.position = "fixed";
@@ -18046,110 +18476,1454 @@ var TooltipManager = class {
   // handleLinkClick
 };
 
-// src/SettingsTab.ts
-var import_pickr = __toESM(require_pickr_min());
-var SettingsPage = {
-  General: "general",
-  Appearance: "appearance",
-  Highlighting: "highlighting",
-  Behavior: "behavior",
-  Prompts: "prompts",
-  Plugins: "plugins"
-};
-var SettingsPageData = {
-  [SettingsPage.General]: {
-    displayName: "\u2699\uFE0F General",
-    class: "codeblock-customizer-general-settingsDiv",
-    hideClass: "codeblock-customizer-general-settingsDiv-hide"
-  },
-  [SettingsPage.Appearance]: {
-    displayName: "\u{1F3A8} Appearance & Styling",
-    class: "codeblock-customizer-appearance-settingsDiv",
-    hideClass: "codeblock-customizer-appearance-settingsDiv-hide"
-  },
-  [SettingsPage.Highlighting]: {
-    displayName: "\u{1F58C}\uFE0F Highlighting",
-    class: "codeblock-customizer-highlighting-settingsDiv",
-    hideClass: "codeblock-customizer-highlighting-settingsDiv-hide"
-  },
-  [SettingsPage.Behavior]: {
-    displayName: "\u{1F446} Behavior & Interaction",
-    class: "codeblock-customizer-behavior-settingsDiv",
-    hideClass: "codeblock-customizer-behavior-settingsDiv-hide"
-  },
-  [SettingsPage.Prompts]: {
-    displayName: "\u2328\uFE0F Prompts",
-    class: "codeblock-customizer-prompts-settingsDiv",
-    hideClass: "codeblock-customizer-prompts-settingsDiv-hide"
-  },
-  [SettingsPage.Plugins]: {
-    displayName: "\u{1F9E9} Plugin Compatibility",
-    class: "codeblock-customizer-plugin-compatibility-settingsDiv",
-    hideClass: "codeblock-customizer-plugin-compatibility-settingsDiv-hide"
-  }
-};
-var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
+// src/SettingsTab/Appearance.ts
+var AppearanceSettings = class {
+  constructor(plugin, containerEl, pickerInstances, getSearchQuery) {
+    this.plugin = plugin;
+    this.containerEl = containerEl;
+    this.pickerInstances = pickerInstances;
+    this.getSearchQuery = getSearchQuery;
     this.debounceTimer = null;
-    this.promptPickers = /* @__PURE__ */ new Map();
-    this.annotationDetailsOpen = false;
-    this.altColorsDetailsOpen = false;
-    this.codeBlockDetailsOpen = false;
-    this.langSpecificDetailsOpen = false;
-    this.bracketDetailsOpen = false;
-    this.textHighlightDetailsOpen = false;
-    this.headerDetailsOpen = false;
-    this.inlineCodeDetailsOpen = false;
-    this.groupedCodeBlocksDetailsOpen = false;
-    this.foldDetailsOpen = false;
-    this.buttonsDetailsOpen = false;
-    this.printToPDFDetailsOpen = false;
+  }
+  display() {
+    const sectionData = SettingsPageData[SettingsPage.Appearance];
+    const appearanceDiv = this.containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    appearanceDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Appearance);
+    appearanceDiv.createEl("h3", { text: sectionData.displayName });
+    new import_obsidian6.Setting(appearanceDiv).setName("Enable editor active line highlight").setDesc("If enabled, you can set the color for the active line (including codeblocks).").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        editorActiveLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const editorActiveLineSetting = createPickrSetting(appearanceDiv, "Editor active line color", "", "editorActiveLineColor", this.pickerInstances, this.plugin);
+    editorActiveLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight);
+    const codeBlockDetails = createDetailsGroup(appearanceDiv, "Code Block Styling", "codeBlockDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian6.Setting(codeBlockDetails).setName("Enable line numbers").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableLineNumbers).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.enableLineNumbers = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    createPickrSetting(codeBlockDetails, "Code block background color", "", "codeblock.backgroundColor", this.pickerInstances, this.plugin);
+    new import_obsidian6.Setting(codeBlockDetails).setName("Show indentation lines in reading view").setDesc("If enabled, indentation lines will be shown in reading view.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.showIndentationLines).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.showIndentationLines = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian6.Setting(codeBlockDetails).setName("Unwrap code").setDesc("If enabled, the code will be unwrapped in reading view.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.unwrapcode).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.unwrapcode = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian6.Setting(codeBlockDetails).setName("Line number jump separator style").setDesc("Select the style of the separator line shown when code is folded/skipped.").addDropdown(
+      (dropdown) => dropdown.addOption(LineNumberSeparatorStyle.Zigzag, "Zigzag").addOption(LineNumberSeparatorStyle.Dashed, "Dashed").addOption(LineNumberSeparatorStyle.DoubleLine, "Double Line").setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    codeBlockDetails.createEl("h4", { text: "Gutter Settings" });
+    new import_obsidian6.Setting(codeBlockDetails).setName("Highlight gutter").setDesc("If enabled, highlighted lines will also highlight the gutter (line number), not just the line.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.gutter.enableHighlight).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.gutter.enableHighlight = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    createPickrSetting(codeBlockDetails, "Gutter text color", "", "gutter.textColor", this.pickerInstances, this.plugin);
+    createPickrSetting(codeBlockDetails, "Gutter background color", "", "gutter.backgroundColor", this.pickerInstances, this.plugin);
+    new import_obsidian6.Setting(codeBlockDetails).setName("Highlight active line number").setDesc("If enabled, the active line number will be highlighted with a separate color.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr).onChange((value) => {
+        this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr = value;
+        (async () => {
+          await this.plugin.saveSettings();
+        })();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        highlightActiveLineNrSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const highlightActiveLineNrSetting = createPickrSetting(codeBlockDetails, "Active line number color", "", "gutter.activeLineNrColor", this.pickerInstances, this.plugin);
+    highlightActiveLineNrSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr);
+    const headerDetails = createDetailsGroup(appearanceDiv, "Header Settings", "headerDetailsOpen", this, this.getSearchQuery);
+    createPickrSetting(headerDetails, "Header color", "Sets the background color of the code block header.", "header.backgroundColor", this.pickerInstances, this.plugin);
+    createPickrSetting(headerDetails, "Header text color", "", "header.textColor", this.pickerInstances, this.plugin);
+    new import_obsidian6.Setting(headerDetails).setName("Header bold text").setDesc("If enabled, the header text will be set to bold.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.boldText).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.boldText = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian6.Setting(headerDetails).setName("Header italic text").setDesc("If enabled, the header text will be set to italic.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.italicText).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.italicText = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    createPickrSetting(headerDetails, "Header line color", "Sets the color of the separator line at the bottom of the header.", "header.lineColor", this.pickerInstances, this.plugin);
+    new import_obsidian6.Setting(headerDetails).setName("Disable folding for code blocks without `fold` or `unfold` specified").setDesc("If enabled, code blocks without `fold` or `unfold` specified will not collapse when clicking the header.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        this.plugin.renderReadingViews();
+      })
+    );
+    new import_obsidian6.Setting(headerDetails).setName("Collapse icon position").setDesc("If enabled a collapse icon will be displayed in the header. Select the position of the collapse icon.").addDropdown(
+      (dropdown) => dropdown.addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" }).setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition).onChange((value) => {
+        this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
+        (async () => {
+          await this.plugin.saveSettings();
+        })();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian6.Setting(headerDetails).setName("Collapsed code text").setDesc('Overwrite the default "Collapsed Code" text in the header, when the file parameter is not defined.').addText(
+      (text) => text.setPlaceholder(DEFAULT_COLLAPSE_TEXT).setValue(this.plugin.settings.pluginSettings.header.collapsedCodeText).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.collapsedCodeText = value;
+        await this.plugin.saveSettings();
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(async () => {
+          await this.plugin.saveSettings();
+          this.plugin.renderReadingViews();
+        }, 750);
+      })
+    );
+    headerDetails.createEl("h4", { text: "Header Language Tag & Header Icon Settings" });
+    new import_obsidian6.Setting(headerDetails).setName("Display codeblock language (if language is defined)").setDesc("If enabled, the codeblock language will be displayed in the header.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage = value;
+        await this.plugin.saveSettings();
+        codeBlockLangTextColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        codeBlockLangBackgroundColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        boldToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        italicToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        alwaysDisplayToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const codeBlockLangTextColor = createPickrSetting(headerDetails, "Codeblock language text color", "", "header.codeBlockLangTextColor", this.pickerInstances, this.plugin);
+    codeBlockLangTextColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
+    const codeBlockLangBackgroundColor = createPickrSetting(headerDetails, "Codeblock language background color", "", "header.codeBlockLangBackgroundColor", this.pickerInstances, this.plugin);
+    codeBlockLangBackgroundColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
+    const boldToggle = new import_obsidian6.Setting(headerDetails).setName("Bold text").setDesc("If enabled, the codeblock language text will be set to bold.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.codeblockLangBoldText).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.codeblockLangBoldText = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    boldToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
+    const italicToggle = new import_obsidian6.Setting(headerDetails).setName("Italic text").setDesc("If enabled, the codeblock language text will be set to italic.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.codeblockLangItalicText).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.codeblockLangItalicText = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    italicToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
+    const alwaysDisplayToggle = new import_obsidian6.Setting(headerDetails).setName("Always display codeblock language").setDesc("If enabled, the codeblock language will always be displayed (if a language is defined), even if the `file` parameter is not specified.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    alwaysDisplayToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
+    new import_obsidian6.Setting(headerDetails).setName("Display codeblock language icon (if available)").setDesc("If enabled, the codeblock language icon will be displayed in the header.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.displayCodeBlockIcon).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.displayCodeBlockIcon = value;
+        await this.plugin.saveSettings();
+        alwaysDisplayIconToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const alwaysDisplayIconToggle = new import_obsidian6.Setting(headerDetails).setName("Always display codeblock language icon (if available)").setDesc("If enabled, the codeblock language icon will always be displayed (if a language is defined and it has an icon), even if the `file` parameter is not specified.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    alwaysDisplayIconToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockIcon);
+    const annotationDetails = createDetailsGroup(appearanceDiv, "Annotation Settings", "annotationDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian6.Setting(annotationDetails).setName("Convert all comments to annotations").setDesc("If enabled, every comment in a code block will be styled as a `note` annotation, even without the `[!note]` syntax. ").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.annotations.convertAllComments).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.annotations.convertAllComments = value;
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+      })
+    );
+    new import_obsidian6.Setting(annotationDetails).setName("Exclude annotations from copying").setDesc("Enable to exclude annotation comments (e.g., // [!note] ...) when using the copy code button. Regular comments will always be copied.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.annotations.excludeAnnotationsFromCopy).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.annotations.excludeAnnotationsFromCopy = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    for (const type of Object.keys(ANNOTATION_TYPE_ICONS)) {
+      createPickrSetting(annotationDetails, `'${type}' icon color`, "", `annotations.colors.${type}`, this.pickerInstances, this.plugin);
+    }
+    const langSpecificDetails = createDetailsGroup(appearanceDiv, "Language Specific Color Overrides", "langSpecificDetailsOpen", this, this.getSearchQuery);
+    let languageSpecificColorDisplayText;
+    new import_obsidian6.Setting(langSpecificDetails).setName("Add languages to set colors").setDesc('Add a language, to set the colors for this specific language. If you want to set colors for code blocks without a language, add "nolang" as a language.').addText((value) => {
+      languageSpecificColorDisplayText = value;
+      languageSpecificColorDisplayText.setPlaceholder("e.g. cpp, csharp");
+      languageSpecificColorDisplayText.onChange(async (languageSpecific) => {
+        this.plugin.settings.languageSpecificLanguageName = languageSpecific;
+      });
+    }).addButton(async (button) => {
+      button.setButtonText("Add");
+      button.onClick(async () => {
+        const colorNameRegex = /^[^\d][\w\d]*$/;
+        if (this.plugin.settings.languageSpecificLanguageName.trim() === "") {
+          new import_obsidian6.Notice("Please enter a language name.");
+        } else if (!colorNameRegex.test(this.plugin.settings.languageSpecificLanguageName)) {
+          new import_obsidian6.Notice(`"${this.plugin.settings.languageSpecificLanguageName}" is not a valid language name.`);
+        } else {
+          if (this.plugin.settings.languageSpecificLanguageName.toLowerCase() in this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors) {
+            new import_obsidian6.Notice(`A language with the name "${this.plugin.settings.languageSpecificLanguageName}" already exists.`);
+          } else {
+            this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[this.plugin.settings.languageSpecificLanguageName] = {};
+            this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[this.plugin.settings.languageSpecificLanguageName] = {};
+            new import_obsidian6.Notice(`Added language "${this.plugin.settings.languageSpecificLanguageName}".`);
+            languageSpecificColorDisplayText.setValue("");
+            this.plugin.settings.languageSpecificLanguageName = "";
+            await this.plugin.saveSettings();
+            updateLanguageSpecificColorContainer(languageSpecificContainer, this.pickerInstances, this.plugin);
+          }
+        }
+      });
+    });
+    new import_obsidian6.Setting(langSpecificDetails).setName("Code block border styling position").setDesc("Select on which side the border should be displayed.").addDropdown(
+      (dropdown) => dropdown.addOptions({ "disable": "Disable", "left": "Left", "right": "Right" }).setValue(this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition).onChange((value) => {
+        this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition = value;
+        (async () => {
+          await this.plugin.saveSettings();
+        })();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    const languageSpecificContainer = langSpecificDetails.createDiv({ cls: "codeblock-customizer-languageSpecificColorContainer" });
+    updateLanguageSpecificColorContainer(languageSpecificContainer, this.pickerInstances, this.plugin);
+    const inlineCodeDetails = createDetailsGroup(appearanceDiv, "Inline Code Settings", "inlineCodeDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian6.Setting(inlineCodeDetails).setName("Enable click-to-copy for inline code").setDesc("Allows you to copy inline code by clicking on it while holding a modifier key.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick = value;
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+        copyModifierSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const copyModifierSetting = new import_obsidian6.Setting(inlineCodeDetails).setName("Modifier key for copy").setDesc("Select the key to hold while clicking to copy.").addDropdown(
+      (dropdown) => dropdown.addOption(InlineCodeModifierKeys.CTRL, "Ctrl").addOption(InlineCodeModifierKeys.ALT, "Alt").setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    copyModifierSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick);
+    new import_obsidian6.Setting(inlineCodeDetails).setName("Enable inline code syntax highlighting").setDesc("If enabled, syntax highlighting will be added to inline code (if specified).").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight = value;
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+        showIconsSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const showIconsSetting = new import_obsidian6.Setting(inlineCodeDetails).setName("Show icons for syntax highlighted inline code (if available)").setDesc("If enabled, icons will be shown for syntax highlighted inline code.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.showIcons).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.inlineCode.showIcons = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    showIconsSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight);
+    new import_obsidian6.Setting(inlineCodeDetails).setName("Enable inline code styling").setDesc("If enabled, the background color, and the text color of inline code can be styled.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling = value;
+        await this.plugin.saveSettings();
+        inlineCodeBackgroundSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        inlineCodeTextColorSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const inlineCodeBackgroundSetting = createPickrSetting(inlineCodeDetails, "Inline code background color", "", "inlineCode.backgroundColor", this.pickerInstances, this.plugin);
+    inlineCodeBackgroundSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
+    const inlineCodeTextColorSetting = createPickrSetting(inlineCodeDetails, "Inline code text color", "", "inlineCode.textColor", this.pickerInstances, this.plugin);
+    inlineCodeTextColorSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
+  }
+  // display
+};
+
+// src/SettingsTab/Highlighting.ts
+var import_obsidian7 = require("obsidian");
+var HighlightingSettings = class {
+  constructor(plugin, containerEl, pickerInstances, getSearchQuery) {
+    this.plugin = plugin;
+    this.containerEl = containerEl;
+    this.pickerInstances = pickerInstances;
+    this.getSearchQuery = getSearchQuery;
+    this.alternateHighlightDetailsOpen = false;
+  }
+  display() {
+    const sectionData = SettingsPageData[SettingsPage.Highlighting];
+    const highlightingDiv = this.containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    highlightingDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Highlighting);
+    highlightingDiv.createEl("h3", { text: sectionData.displayName });
+    new import_obsidian7.Setting(highlightingDiv).setName("Enable codeblock active line highlight").setDesc("If enabled, you can set the color for the active line inside codeblocks only.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        activeLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const activeLineSetting = createPickrSetting(highlightingDiv, "Codeblock active line color", "", "codeblock.activeLineColor", this.pickerInstances, this.plugin);
+    activeLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight);
+    createPickrSetting(highlightingDiv, 'Highlight color (used by the "hl" parameter)', "Sets the default color for highlighting lines using the `hl` parameter (e.g., `hl:5`).", "codeblock.highlightColor", this.pickerInstances, this.plugin);
+    const bracketDetails = createDetailsGroup(highlightingDiv, "Bracket Highlight & Selection Matching", "bracketDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian7.Setting(bracketDetails).setName("Enable bracket highlight for matching brackets").setDesc("Highlights a bracket and its matching pair when you click next to one.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight = value;
+        if (value) {
+          this.plugin.extensions.push(this.plugin.editorExtensions.customBracketMatching);
+        } else {
+          this.plugin.extensions.remove(this.plugin.editorExtensions.customBracketMatching);
+        }
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        bracketHighlightColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        bracketHighlightBackgroundColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        highlightNonMatchingBrackets.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        const subValue = this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets;
+        bracketHighlightColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value || !subValue);
+        bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value || !subValue);
+      })
+    );
+    const bracketHighlightColorMatch = createPickrSetting(bracketDetails, "Bracket highlight color for matching brackets", "", "codeblock.bracketHighlightColorMatch", this.pickerInstances, this.plugin);
+    bracketHighlightColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
+    const bracketHighlightBackgroundColorMatch = createPickrSetting(bracketDetails, "Background color for matching brackets", "", "codeblock.bracketHighlightBackgroundColorMatch", this.pickerInstances, this.plugin);
+    bracketHighlightBackgroundColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
+    const highlightNonMatchingBrackets = new import_obsidian7.Setting(bracketDetails).setName("Enable bracket highlight for non matching brackets").setDesc('If you click next to a bracket, and it doesn\'t have a corresponding pair, or the pair does not match the opening/closing bracket (e.g: `print("hello"]` ), they will be highlighted.').addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        bracketHighlightColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    highlightNonMatchingBrackets.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
+    const bracketHighlightColorNoMatch = createPickrSetting(bracketDetails, "Bracket highlight color for non matching brackets", "", "codeblock.bracketHighlightColorNoMatch", this.pickerInstances, this.plugin);
+    bracketHighlightColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight || !this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets);
+    const bracketHighlightBackgroundColorNoMatch = createPickrSetting(bracketDetails, "Background color for non matching brackets", "", "codeblock.bracketHighlightBackgroundColorNoMatch", this.pickerInstances, this.plugin);
+    bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight || !this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets);
+    new import_obsidian7.Setting(bracketDetails).setName("Enable selection matching").setDesc("If enabled, all occurrences of the selected text will be highlighted for easy identification.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching = value;
+        if (value) {
+          this.plugin.extensions.push(this.plugin.editorExtensions.selectionMatching);
+        } else {
+          this.plugin.extensions.remove(this.plugin.editorExtensions.selectionMatching);
+        }
+        await this.plugin.saveSettings();
+        selectionMatchHighlightSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const selectionMatchHighlightSetting = createPickrSetting(bracketDetails, "Selection match highlight color", "", "codeblock.selectionMatchHighlightColor", this.pickerInstances, this.plugin);
+    selectionMatchHighlightSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching);
+    const textHighlightDetails = createDetailsGroup(highlightingDiv, "Text Highlight", "textHighlightDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian7.Setting(textHighlightDetails).setName("Line separator").setDesc("Override the default line separator `|` globally for text highlighting. You can also specify it for specific code blocks using the `lsep` parameter. The separator can only be one character long!").addText(
+      (text) => text.setPlaceholder(DEFAULT_LINE_SEPARATOR).setValue(this.plugin.settings.pluginSettings.textHighlight.lineSeparator).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.textHighlight.lineSeparator = value.charAt(0);
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian7.Setting(textHighlightDetails).setName("Text separator").setDesc("Override the default text separator `:` globally for text highlighting. You can also specify it for specific code blocks using the `tsep` parameter. The separator can only be one character long!").addText(
+      (text) => text.setPlaceholder(DEFAULT_TEXT_SEPARATOR).setValue(this.plugin.settings.pluginSettings.textHighlight.textSeparator).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.textHighlight.textSeparator = value.charAt(0);
+        await this.plugin.saveSettings();
+      })
+    );
+    const altColorsDetails = createDetailsGroup(highlightingDiv, "Alternative Highlight Colors", "alternateHighlightDetailsOpen", this, this.getSearchQuery);
+    let alternateColorDisplayText;
+    new import_obsidian7.Setting(altColorsDetails).setName("Add alternative highlight color").setDesc("Define a name, by which you will reference the color. You can set the color itself after adding it to the list.").addText((value) => {
+      alternateColorDisplayText = value;
+      alternateColorDisplayText = value;
+      alternateColorDisplayText.setPlaceholder("e.g. error, warn");
+      alternateColorDisplayText.onChange(async (alternateHLColorName) => {
+        this.plugin.settings.alternateHighlightColorName = alternateHLColorName;
+      });
+    }).addButton(async (button) => {
+      button.setButtonText("Add");
+      button.onClick(async () => {
+        const colorNameRegex = /^[^\d][\w\d]*$/;
+        if (this.plugin.settings.alternateHighlightColorName.trim() === "") {
+          new import_obsidian7.Notice("Please enter a color name.");
+        } else if (!colorNameRegex.test(this.plugin.settings.alternateHighlightColorName)) {
+          new import_obsidian7.Notice(`"${this.plugin.settings.alternateHighlightColorName}" is not a valid color name.`);
+        } else if (this.plugin.settings.alternateHighlightColorName.trim().toLowerCase() === "hl") {
+          new import_obsidian7.Notice("You cannot override the default hl parameter.");
+        } else if (this.plugin.settings.alternateHighlightColorName.trim().toLowerCase() === "fold") {
+          new import_obsidian7.Notice("You cannot override the fold parameter.");
+        } else {
+          if (this.plugin.settings.alternateHighlightColorName.toLowerCase() in this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors) {
+            new import_obsidian7.Notice(`A color with the name "${this.plugin.settings.alternateHighlightColorName}" already exists.`);
+          } else {
+            const newColor = getRandomColor();
+            this.plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = newColor;
+            this.plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = newColor;
+            await this.plugin.saveSettings();
+            new import_obsidian7.Notice(`Added color "${this.plugin.settings.alternateHighlightColorName}".`);
+            alternateColorDisplayText.setValue("");
+            this.plugin.settings.alternateHighlightColorName = "";
+            updateColorContainer(colorContainer, this.pickerInstances, this.plugin);
+            this.plugin.renderReadingViews();
+          }
+        }
+      });
+    });
+    const colorContainer = altColorsDetails.createDiv({ cls: "codeblock-customizer-alternateHLcolorContainer" });
+    updateColorContainer(colorContainer, this.pickerInstances, this.plugin);
+  }
+  // display
+};
+
+// src/SettingsTab/Behavior.ts
+var import_obsidian8 = require("obsidian");
+var BehaviorSettings = class {
+  constructor(plugin, containerEl, pickerInstances, getSearchQuery) {
+    this.plugin = plugin;
+    this.containerEl = containerEl;
+    this.pickerInstances = pickerInstances;
+    this.getSearchQuery = getSearchQuery;
+    this.groupedCodeBlockDetailsOpen = false;
+    this.foldingDetailsOpen = false;
+    this.buttonDetailsOpen = false;
+    this.promptDetailsOpen = false;
+  }
+  display() {
+    const sectionData = SettingsPageData[SettingsPage.Behavior];
+    const behaviorDiv = this.containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    behaviorDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Behavior);
+    behaviorDiv.createEl("h3", { text: sectionData.displayName });
+    new import_obsidian8.Setting(behaviorDiv).setName("Enable links usage").setDesc("If enabled, you can use links in the header, and code blocks as well. For links to work inside code blocks, they must be part of a comment. Examples: [[Document1]], [[Document1|DisplayText]], [[Document1#Paragraph|DisplayText]], [[Document1#^<BlockId>|DisplayText]], [DisplayText](Link), http://example.com etc.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableLinks).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.enableLinks = value;
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+        enableLinkUpdate.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    );
+    const enableLinkUpdate = new import_obsidian8.Setting(behaviorDiv).setName("Enable automatically updating links on file rename").setDesc("To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    enableLinkUpdate.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableLinks);
+    new import_obsidian8.Setting(behaviorDiv).setName("Hide fence lines").setDesc("If enabled, the opening and closing ``` or ~~~ lines will be hidden, when the cursor is outside the code block. They will reappear, when you click inside, allowing for easy editing.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.hideFenceLines).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.hideFenceLines = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    const groupedCodeBlocksDetails = createDetailsGroup(behaviorDiv, "Grouped Code Block Settings", "groupedCodeBlocksDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian8.Setting(groupedCodeBlocksDetails).setName("Save active tab state").setDesc("If enabled, the active tab for each group will be remembered based on the options below.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState = value;
+        await this.plugin.saveSettings();
+        tabStatePersistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        if (value && this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent) {
+          clearTabCache.settingEl.removeClass("codeblock-customizer-setting-hidden");
+        } else {
+          clearTabCache.settingEl.addClass("codeblock-customizer-setting-hidden");
+        }
+      })
+    );
+    const tabStatePersistence = new import_obsidian8.Setting(groupedCodeBlocksDetails).setName("Tab state persistence").setDesc("Choose how long the active tab state is remembered.").addDropdown((dropdown) => {
+      dropdown.addOption(TabPersistence.Session, "Session Only").addOption(TabPersistence.Permanent, "Permanent").setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence).onChange(async (value) => {
+        const oldValue = this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence;
+        if (oldValue !== value) {
+          await this.plugin.clearAllTabData();
+        }
+        this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value;
+        await this.plugin.saveSettings();
+        clearTabCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", value !== TabPersistence.Permanent);
+      });
+    });
+    tabStatePersistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState);
+    const clearTabCache = new import_obsidian8.Setting(groupedCodeBlocksDetails).setName("Clear stored tab positions").setDesc("Clear all stored active tab states from disk and the current session.").addButton((button) => {
+      button.setButtonText("Clear cache");
+      button.onClick(async () => {
+        button.setDisabled(true);
+        button.setButtonText("Clearing...");
+        await this.plugin.clearAllTabData();
+        button.setDisabled(false);
+        button.setButtonText("Clear cache");
+      });
+    });
+    clearTabCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", !(this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState && this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent));
+    new import_obsidian8.Setting(groupedCodeBlocksDetails).setName('Show tab "Add" and "Remove" buttons (only editing view)').setDesc('If enabled, a "+" button will appear after the last tab to add a new block, and an "x" button will appear on each tab to remove it from the group.').addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    createPickrSetting(groupedCodeBlocksDetails, "Active tab background color", "Background color of the currently active tab.", "groupedCodeBlocks.activeTabBackgroundColor", this.pickerInstances, this.plugin);
+    createPickrSetting(groupedCodeBlocksDetails, "Active tab text color", "Text color of the currently active tab.", "groupedCodeBlocks.activeTabTextColor", this.pickerInstances, this.plugin);
+    createPickrSetting(groupedCodeBlocksDetails, "Header line color", "Sets the color of the separator line at the bottom of the header for grouped code blocks.", "groupedCodeBlocks.headerLineColor", this.pickerInstances, this.plugin);
+    createPickrSetting(groupedCodeBlocksDetails, "Tab hover background color", "Background color when the mouse hovers over a tab.", "groupedCodeBlocks.hoverTabBackgroundColor", this.pickerInstances, this.plugin);
+    createPickrSetting(groupedCodeBlocksDetails, "Tab hover text color", "Text color when the mouse hovers over a tab.", "groupedCodeBlocks.hoverTabTextColor", this.pickerInstances, this.plugin);
+    const foldDetails = createDetailsGroup(behaviorDiv, "Folding Settings", "foldDetailsOpen", this, this.getSearchQuery);
+    const updateFoldingSettingsVisibility = () => {
+      const semiFoldEnabled = this.plugin.settings.pluginSettings.semiFold.enableSemiFold;
+      const inverseFoldEnabled = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
+      if (semiFoldLines)
+        semiFoldLines.setDisabled(!semiFoldEnabled);
+      if (semiFoldShowButton)
+        semiFoldShowButton.setDisabled(!semiFoldEnabled);
+      if (autoFold)
+        autoFold.settingEl.toggleClass("codeblock-customizer-setting-hidden", !semiFoldEnabled);
+      if (ignoreShortBlocks) {
+        const showIgnoreShortBlocks = semiFoldEnabled && inverseFoldEnabled;
+        ignoreShortBlocks.settingEl.toggleClass("codeblock-customizer-setting-hidden", !showIgnoreShortBlocks);
+      }
+    };
+    new import_obsidian8.Setting(foldDetails).setName("Inverse fold behavior").setDesc('If enabled, all code blocks are folded by default when opening a document. To disable this behavior for a specific code block, use the "unfold" parameter.').addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.folding.inverseFold).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.folding.inverseFold = value;
+        await this.plugin.saveSettings(true);
+        updateFoldingSettingsVisibility();
+        this.plugin.renderReadingViews();
+      })
+    );
+    const ignoreShortBlocks = new import_obsidian8.Setting(foldDetails).setName("Only apply inverse fold to semi-foldable blocks").setDesc("When `Inverse fold` and `Enable semi-fold` are both enabled, this prevents short code blocks (that cannot be semi-folded) from being fully folded by default.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold = value;
+        await this.plugin.saveSettings(true);
+        this.plugin.renderReadingViews();
+      })
+    );
+    let semiFoldLines;
+    let semiFoldShowButton;
+    new import_obsidian8.Setting(foldDetails).setName("Enable semi-fold").setDesc("If enabled folding will use semi-fold method. This means, that the first X lines will be visible only. Select the number of visisble lines. You can also enable an additional uncollapse button. Please refer to the README for more information.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.semiFold.enableSemiFold).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.semiFold.enableSemiFold = value;
+        await this.plugin.saveSettings(true);
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+        updateFoldingSettingsVisibility();
+        semiFoldEffect.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+      })
+    ).addDropdown((dropdown) => {
+      semiFoldLines = dropdown;
+      dropdown.selectEl.empty();
+      dropdown.addOptions(Object.fromEntries([...Array(50)].map((_2, index) => [`${index + 1}`, `${index + 1}`])));
+      dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString());
+      dropdown.onChange(async (value) => {
+        const number = parseInt(value);
+        this.plugin.settings.pluginSettings.semiFold.visibleLines = number;
+        await this.plugin.saveSettings(true);
+      });
+    }).addToggle(
+      (toggle) => semiFoldShowButton = toggle.setValue(this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon).setTooltip("Show additional uncollapse button").onChange(async (value) => {
+        this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    const semiFoldEffect = new import_obsidian8.Setting(foldDetails).setName("Semi-fold effect").setDesc("Select the visual effect for semi-folded code blocks.").addDropdown(
+      (dropdown) => dropdown.addOption(SemiFoldEffect.Opacity, "Opacity only").addOption(SemiFoldEffect.Blur, "Blur only").addOption(SemiFoldEffect.Both, "Both").setValue(this.plugin.settings.pluginSettings.semiFold.semifoldEffect).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    semiFoldEffect.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.semiFold.enableSemiFold);
+    let longCodeblockLinesInput;
+    const autoFold = new import_obsidian8.Setting(foldDetails).setName("Auto semi-fold long code blocks").setDesc("If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks = value;
+        longCodeblockLinesInput.setDisabled(!value);
+        longCodeblockLinesInput.inputEl.classList.toggle("is-disabled", !value);
+        await this.plugin.saveSettings(true);
+      })
+    ).addText((text) => {
+      longCodeblockLinesInput = text;
+      const isDisabled = !this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks;
+      text.setPlaceholder("30").setValue(this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines.toString()).setDisabled(isDisabled);
+      text.inputEl.classList.toggle("is-disabled", isDisabled);
+      text.onChange(async (value) => {
+        const lines = parseInt(value);
+        if (!isNaN(lines)) {
+          this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
+          await this.plugin.saveSettings();
+        }
+      });
+    });
+    updateFoldingSettingsVisibility();
+    new import_obsidian8.Setting(foldDetails).setName("Save code blocks folded state").setDesc("Toggles the entire feature on or off. When enabled, the folded or unfolded state of code blocks will be saved based on the options below.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState = value;
+        await this.plugin.saveSettings();
+        scope.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        persistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        if (value && this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
+          clearFoldCache.settingEl.removeClass("codeblock-customizer-setting-hidden");
+        } else {
+          clearFoldCache.settingEl.addClass("codeblock-customizer-setting-hidden");
+        }
+      })
+    );
+    const scope = new import_obsidian8.Setting(foldDetails).setName("Scope").setDesc("Choose which code blocks are affected. 'Respect' only saves the state for blocks where `fold` wasn't explicitly set. 'All' saves the state for all blocks.").addDropdown((dropdown) => {
+      dropdown.addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"').addOption(FoldingScope.All, "All code blocks").setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.folding.scope = value;
+        await this.plugin.saveSettings();
+      });
+    });
+    scope.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState);
+    const persistence = new import_obsidian8.Setting(foldDetails).setName("Persistence").setDesc("Choose how long the folding state is remembered. 'Permanent' saves the state even after you restart Obsidian. 'Session' remembers the state only until you close the app.").addDropdown((dropdown) => {
+      dropdown.addOption(FoldingPersistence.Session, "Session Only").addOption(FoldingPersistence.Permanent, "Permanent").setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence).onChange(async (value) => {
+        const oldValue = this.plugin.settings.pluginSettings.codeblock.folding.persistence;
+        if (oldValue !== value) {
+          if (oldValue === FoldingPersistence.Permanent) {
+            await this.plugin.clearAllFoldData();
+            new import_obsidian8.Notice("Cleared permanent fold data.");
+          }
+          if (oldValue === FoldingPersistence.Session) {
+            this.plugin.activeEditorFolds.clear();
+            this.plugin.app.workspace.updateOptions();
+            new import_obsidian8.Notice("Cleared session fold data.");
+          }
+        }
+        this.plugin.settings.pluginSettings.codeblock.folding.persistence = value;
+        await this.plugin.saveSettings();
+        clearFoldCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", value !== FoldingPersistence.Permanent);
+      });
+    });
+    persistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState);
+    const clearFoldCache = new import_obsidian8.Setting(foldDetails).setName("Clear stored folded positions").setDesc("Clear all stored folded code block state from disk and the current session.").addButton((button) => {
+      button.setButtonText("Clear cache");
+      button.onClick(async () => {
+        button.setDisabled(true);
+        button.setButtonText("Clearing...");
+        await this.plugin.clearAllFoldData();
+        new import_obsidian8.Notice("Fold cache successfully cleared!");
+        button.setDisabled(false);
+        button.setButtonText("Clear cache");
+      });
+    });
+    clearFoldCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", !(this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState && this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent));
+    const buttonsDetails = createDetailsGroup(behaviorDiv, "Extra Button Settings", "buttonsDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian8.Setting(buttonsDetails).setName("Modifier key for fence actions").setDesc("Hold this key while clicking copy, select, or delete to include the fence lines in the action.").addDropdown(
+      (dropdown) => dropdown.addOption(ButtonModifierKeys.NONE, "None").addOption(ButtonModifierKeys.CTRL, "Ctrl").addOption(ButtonModifierKeys.ALT, "Alt").addOption(ButtonModifierKeys.SHIFT, "Shift").setValue(this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian8.Setting(buttonsDetails).setName("Show 'Delete Code' button (only editing view)").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is deleted. Be careful!").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableDeleteCodeButton).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.enableDeleteCodeButton = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian8.Setting(buttonsDetails).setName("Show 'Select Code' button (only editing view)").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is selected (including the first and last lines of the code blocks which begin with three backticks).").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableSelectCodeButton).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.enableSelectCodeButton = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian8.Setting(buttonsDetails).setName("Show 'Wrap Code' button (only reading view)").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is wrapped/unwrapped.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableWrapCodeButton).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.enableWrapCodeButton = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian8.Setting(buttonsDetails).setName("Show 'Copy as image' button").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, a snapshot is created from the code block and inserted on the clipboard.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton = value;
+        snapshotWidthSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    const snapshotWidthSetting = new import_obsidian8.Setting(buttonsDetails).setName("Image max width (pixels)").setDesc("Set a maximum width for the generated image. Leave blank to capture the code block at its current displayed width.").addText(
+      (text) => {
+        var _a, _b;
+        return text.setPlaceholder("800").setValue((_b = (_a = this.plugin.settings.pluginSettings.codeblock.buttons.snapshotMaxWidth) == null ? void 0 : _a.toString()) != null ? _b : "").onChange(async (value) => {
+          const width = parseInt(value);
+          this.plugin.settings.pluginSettings.codeblock.buttons.snapshotMaxWidth = isNaN(width) ? void 0 : width;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    snapshotWidthSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton);
+    new import_obsidian8.Setting(buttonsDetails).setName("Always show buttons (only editing view)").setDesc("If enabled, all enabled buttons will always be displayed, even when you click inside the code block. Otherwise, they will only be shown when the cursor is outside the code block.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowButtons).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowButtons = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+    new import_obsidian8.Setting(buttonsDetails).setName("Always show 'Copy Code' button for collapsed code blocks").setDesc("If enabled, in editing mode the 'Copy Code' button will always be visible on collapsed code blocks in the header. In reading mode the 'Copy Code' button will always be visible on collapsed and uncollapsed code blocks as well. Otherwise, it will only appear when hovering over the header (in editing mode) or the code block (in reading mode).").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowCopyCodeButton).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowCopyCodeButton = value;
+        await this.plugin.saveSettings();
+        updateSettingStyles(this.plugin.settings, this.plugin.app);
+      })
+    );
+  }
+  // display
+};
+
+// src/SettingsTab/Prompt.ts
+var import_obsidian9 = require("obsidian");
+var PromptSettings = class {
+  constructor(plugin, containerEl, pickerInstances, getSearchQuery) {
+    this.plugin = plugin;
+    this.containerEl = containerEl;
+    this.pickerInstances = pickerInstances;
+    this.getSearchQuery = getSearchQuery;
+    this.promptDetailsOpen = {};
     this.promptSettingsDetailsOpen = false;
     this.promptColorsDetailsOpen = false;
+    this.promptPickers = /* @__PURE__ */ new Map();
+  }
+  display() {
+    const sectionData = SettingsPageData[SettingsPage.Prompts];
+    const promptsDiv = this.containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    promptsDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Prompts);
+    promptsDiv.createEl("h3", { text: sectionData.displayName });
+    new import_obsidian9.Setting(promptsDiv).setName("Include prompts when copying").setDesc('If enabled, the prompt text (e.g., "$") will be included with the command when copying.').addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.prompts.includePromptsInCopy).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.prompts.includePromptsInCopy = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    let selectedPromptId = Object.keys(defaultPrompts)[0];
+    let promptDropdown;
+    let promptRestoreButton;
+    let promptDeleteButton;
+    new import_obsidian9.Setting(promptsDiv).setName("Select Prompt").setDesc("Choose a prompt to edit or preview.").addDropdown((dropdown) => {
+      this.refreshPromptDropdown(dropdown, selectedPromptId);
+      dropdown.onChange(async (value) => {
+        selectedPromptId = value;
+        this.createPromptSettings(promptEditorContainer, selectedPromptId, this.pickerInstances);
+        promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
+        promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
+        await this.plugin.saveSettings();
+      });
+      promptDropdown = dropdown;
+    }).addExtraButton((button) => {
+      promptRestoreButton = button;
+      button.setTooltip("Restore default prompt to its original state");
+      button.setIcon("reset");
+      button.onClick(async () => {
+        this.restorePromptColor(selectedPromptId);
+        await this.plugin.saveSettings();
+        new import_obsidian9.Notice(`All settings and colors of prompt "${selectedPromptId}" restored to its original state!`);
+      });
+      button.setDisabled(!(selectedPromptId in defaultPrompts));
+    }).addExtraButton((button) => {
+      promptDeleteButton = button;
+      button.setTooltip("Delete prompt");
+      button.setIcon("trash");
+      button.onClick(async () => {
+        var _a, _b, _c, _d, _e, _f;
+        if (!selectedPromptId) {
+          new import_obsidian9.Notice("Select a prompt first to delete.");
+          return;
+        }
+        if (selectedPromptId in defaultPrompts) {
+          new import_obsidian9.Notice("You cannot delete default prompts.");
+          return;
+        }
+        if (!(selectedPromptId in this.plugin.settings.pluginSettings.prompts.customPrompts)) {
+          new import_obsidian9.Notice("Prompt not found.");
+          return;
+        }
+        delete this.plugin.settings.pluginSettings.prompts.customPrompts[selectedPromptId];
+        (_a = this.plugin.settings.SelectedTheme.colors.light.prompts.promptColors) == null ? true : delete _a[selectedPromptId];
+        (_b = this.plugin.settings.SelectedTheme.colors.dark.prompts.promptColors) == null ? true : delete _b[selectedPromptId];
+        (_c = this.plugin.settings.SelectedTheme.colors.light.prompts.editedPromptColors) == null ? true : delete _c[selectedPromptId];
+        (_d = this.plugin.settings.SelectedTheme.colors.dark.prompts.editedPromptColors) == null ? true : delete _d[selectedPromptId];
+        (_e = this.plugin.settings.SelectedTheme.colors.light.prompts.editedRootPromptColors) == null ? true : delete _e[selectedPromptId];
+        (_f = this.plugin.settings.SelectedTheme.colors.dark.prompts.editedRootPromptColors) == null ? true : delete _f[selectedPromptId];
+        new import_obsidian9.Notice(`Prompt "${selectedPromptId}" deleted successfully!`);
+        selectedPromptId = Object.keys(defaultPrompts)[0];
+        promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
+        promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
+        this.refreshPromptDropdown(promptDropdown, selectedPromptId);
+        this.createPromptSettings(promptEditorContainer, selectedPromptId, this.pickerInstances);
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+      });
+      button.setDisabled(selectedPromptId in defaultPrompts);
+    });
+    let promptName;
+    this.plugin.settings.newPromptName = "";
+    new import_obsidian9.Setting(promptsDiv).setName("Create your custom prompt").setDesc('Give your prompt a name and click the button to save it. You can use your prompt using this name e.g. "prompt:myPromptName".').addText((input) => {
+      promptName = input;
+      promptName.setPlaceholder("Name for your prompt").setValue(this.plugin.settings.newPromptName).onChange(async (value) => {
+        this.plugin.settings.newPromptName = value;
+      });
+    }).addExtraButton((button) => {
+      button.setTooltip("Save prompt");
+      button.setIcon("plus");
+      button.onClick(async () => {
+        const newPromptId = this.plugin.settings.newPromptName.trim();
+        if (newPromptId.length === 0) {
+          new import_obsidian9.Notice("Set a name for your prompt!");
+          return;
+        }
+        if (newPromptId in defaultPrompts) {
+          new import_obsidian9.Notice("You can't overwrite default prompts!");
+          return;
+        }
+        const exists = newPromptId in this.plugin.settings.pluginSettings.prompts.customPrompts;
+        this.plugin.settings.pluginSettings.prompts.customPrompts[this.plugin.settings.newPromptName] = {
+          name: this.plugin.settings.newPromptName,
+          basePrompt: "{user}@{host}:{path}$",
+          defaultUser: "user",
+          defaultHost: "localhost",
+          defaultDir: "~",
+          parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)$/,
+          highlightGroups: {
+            user: "user",
+            host: "host",
+            path: "path"
+          },
+          supportsRootStyling: false,
+          isWindowsShell: false
+        };
+        selectedPromptId = newPromptId;
+        if (!exists) {
+          promptDropdown.addOption(newPromptId, `[Custom] ${newPromptId}`);
+        }
+        promptDropdown.setValue(selectedPromptId);
+        promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
+        promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
+        if (exists)
+          new import_obsidian9.Notice(`Prompt "${this.plugin.settings.newPromptName}" updated successfully!`);
+        else
+          new import_obsidian9.Notice(`Prompt "${this.plugin.settings.newPromptName}" saved successfully!`);
+        this.plugin.settings.newPromptName = "";
+        promptName.setValue("");
+        await this.plugin.saveSettings();
+        this.createPromptSettings(promptEditorContainer, selectedPromptId, this.pickerInstances);
+        this.plugin.renderReadingViews();
+      });
+    });
+    const promptEditorContainer = promptsDiv.createDiv({ cls: "codeblock-customizer-prompt-editor-container" });
+    this.createPromptSettings(promptEditorContainer, selectedPromptId, this.pickerInstances);
+  }
+  // display
+  refreshPromptDropdown(promptDropdown, selectedPromptId) {
+    promptDropdown.selectEl.empty();
+    const allPrompts = [];
+    for (const [key, prompt] of Object.entries(defaultPrompts)) {
+      allPrompts.push({ key, name: prompt.name, type: "Default" });
+    }
+    for (const [key, prompt] of Object.entries(this.plugin.settings.pluginSettings.prompts.customPrompts)) {
+      allPrompts.push({ key, name: prompt.name, type: "Custom" });
+    }
+    allPrompts.sort((a, b) => a.name.localeCompare(b.name));
+    for (const prompt of allPrompts) {
+      promptDropdown.addOption(prompt.key, `[${prompt.type}] ${prompt.name}`);
+    }
+    promptDropdown.setValue(selectedPromptId);
+  }
+  // refreshPromptDropdown
+  createPromptSettings(promptEditorContainer, selectedPromptId, pickerInstances) {
+    var _a, _b;
+    promptEditorContainer.empty();
+    const { def: currentPromptData } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+    const previewWrapper = promptEditorContainer.createDiv({ cls: "codeblock-customizer-prompt-preview-wrapper" });
+    previewWrapper.createDiv({ text: "Prompt preview" });
+    const previewEl = previewWrapper.createDiv({ cls: "codeblock-customizer-prompt-preview" });
+    const promptSettingsDetails = createDetailsGroup(promptEditorContainer, "Prompt Settings", "promptSettingsDetailsOpen", this, this.getSearchQuery, "codeblock-customizer-prompt-settings-group");
+    const updatePreview = () => {
+      const { def: promptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+      this.updatePromptPreview(previewEl, selectedPromptId, promptData, isCustom);
+    };
+    updatePreview();
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Prompt Name (for codeblock language)").setClass("codeblock-customizer-prompt-name").setDesc(`This is the identifier to use in your code block fence, e.g., prompt:${selectedPromptId}`).addText((text) => {
+      text.setValue(selectedPromptId);
+      text.setDisabled(true);
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Base Prompt").setDesc("Template for the prompt.").addText((text) => text.setValue(currentPromptData.basePrompt).onChange(async (value) => {
+      const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+      currentPromptData2.basePrompt = value;
+      await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+      updatePreview();
+    }));
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Default User").addText((text) => {
+      var _a2;
+      return text.setPlaceholder("e.g. root, admin etc.").setValue((_a2 = currentPromptData.defaultUser) != null ? _a2 : "").onChange(async (value) => {
+        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        currentPromptData2.defaultUser = value;
+        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+        updatePreview();
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Default Host").addText((text) => {
+      var _a2;
+      return text.setPlaceholder("e.g. localhost").setValue((_a2 = currentPromptData.defaultHost) != null ? _a2 : "").onChange(async (value) => {
+        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        currentPromptData2.defaultHost = value;
+        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+        updatePreview();
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Default Directory").addText((text) => {
+      var _a2;
+      return text.setPlaceholder("e.g. /var/www/html").setValue((_a2 = currentPromptData.defaultDir) != null ? _a2 : "").onChange(async (value) => {
+        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        currentPromptData2.defaultDir = value;
+        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+        updatePreview();
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Default Database").addText((text) => {
+      var _a2;
+      return text.setPlaceholder("e.g. postgres").setValue((_a2 = currentPromptData.defaultDb) != null ? _a2 : "").onChange(async (value) => {
+        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        currentPromptData2.defaultDb = value;
+        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+        updatePreview();
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Default Branch").addText((text) => {
+      var _a2;
+      return text.setPlaceholder("e.g. main, dev etc.").setValue((_a2 = currentPromptData.defaultBranch) != null ? _a2 : "").onChange(async (value) => {
+        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        currentPromptData2.defaultBranch = value;
+        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+        updatePreview();
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Default Module").addText((text) => {
+      var _a2;
+      return text.setPlaceholder("e.g. exploit/multi/handler").setValue((_a2 = currentPromptData.defaultModule) != null ? _a2 : "").onChange(async (value) => {
+        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        currentPromptData2.defaultModule = value;
+        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+        updatePreview();
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Highlight Groups").setDesc('Define the named capture groups from your regex that should be styled. For example,\nif your regex includes `(?<user>...)`, you would add a "user": "user" entry here to apply\nthe `user` style.').setClass("codeblock-customizer-highlightgroups-setting").addTextArea((textarea) => {
+      var _a2;
+      textarea.inputEl.rows = 6;
+      textarea.inputEl.classList.add("codeblock-customizer-highlightgroups-textarea");
+      textarea.setValue(JSON.stringify((_a2 = currentPromptData.highlightGroups) != null ? _a2 : {}, null, 2));
+      textarea.onChange(async (value) => {
+        try {
+          const parsed = JSON.parse(value);
+          const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData2.highlightGroups = parsed;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+          updatePreview();
+        } catch (e) {
+          new import_obsidian9.Notice("\u26A0\uFE0F Invalid JSON, not saved");
+        }
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Parse Prompt Regex").setDesc("Regex string for parsing the prompt.").addText((text) => {
+      var _a2, _b2;
+      return text.setValue((_b2 = (_a2 = currentPromptData.parsePromptRegex) == null ? void 0 : _a2.source) != null ? _b2 : "").onChange(async (value) => {
+        try {
+          const compiled = new RegExp(value);
+          const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+          currentPromptData2.parsePromptRegexString = value;
+          currentPromptData2.parsePromptRegex = compiled;
+          await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
+          new import_obsidian9.Notice(`Regex saved for prompt "${selectedPromptId}"`);
+        } catch (e) {
+          new import_obsidian9.Notice("\u26A0\uFE0F Invalid regex, not saved");
+        }
+      }).inputEl.classList.add("codeblock-customizer-regex-input");
+    });
+    let windowsShellToggle;
+    let rootStylingToggle;
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Is Windows Shell").setDesc("Only enable for Windows prompts, otherwise this should remain false.").addToggle((toggle) => {
+      windowsShellToggle = toggle;
+      toggle.setValue(currentPromptData.isWindowsShell).onChange(async (value) => {
+        const { def: data, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        data.isWindowsShell = value;
+        if (value && rootStylingToggle) {
+          data.supportsRootStyling = false;
+          rootStylingToggle.setValue(false);
+        }
+        await this.savePromptData(isCustom, selectedPromptId, data);
+        this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl, pickerInstances);
+      });
+    });
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Supports root styling").setDesc("Only enable for prompts, when you want to set different colors for the root prompt (linux prompts only).").addToggle((toggle) => {
+      var _a2;
+      rootStylingToggle = toggle;
+      toggle.setValue((_a2 = currentPromptData.supportsRootStyling) != null ? _a2 : false).onChange(async (value) => {
+        const { def: data, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        data.supportsRootStyling = value;
+        if (value && windowsShellToggle) {
+          data.isWindowsShell = false;
+          windowsShellToggle.setValue(false);
+        }
+        await this.savePromptData(isCustom, selectedPromptId, data);
+        this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl, pickerInstances);
+      });
+    });
+    let languagesTextComponent;
+    let autoUseToggle;
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Auto-use Prompt").setDesc("If enabled, this prompt will be used automatically for the specified languages.").addToggle((toggle) => {
+      var _a2;
+      autoUseToggle = toggle;
+      toggle.setValue((_a2 = currentPromptData.autoUsePrompt) != null ? _a2 : false).onChange(async (isEnabling) => {
+        autoUseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !isEnabling);
+        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        updatedPromptData.autoUsePrompt = isEnabling;
+        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+        const definedLanguages = languagesTextComponent.getValue();
+        if (definedLanguages && definedLanguages.trim() !== "") {
+          this.plugin.renderReadingViews();
+        }
+        if (isEnabling) {
+          languagesTextComponent.inputEl.focus();
+        }
+      });
+    });
+    const autoUseLanguagesSetting = new import_obsidian9.Setting(promptSettingsDetails).setName("Languages for Auto-use").setDesc("Comma-separated list of code block languages for which the prompt should be used\n(e.g., bash, python etc.).").addText((text) => {
+      var _a2;
+      languagesTextComponent = text;
+      text.setValue(((_a2 = currentPromptData.autoUseLanguages) != null ? _a2 : []).join(", "));
+      text.inputEl.onblur = async () => {
+        var _a3, _b2, _c;
+        const isEnabled = autoUseToggle.getValue();
+        if (!isEnabled)
+          return;
+        const newLangs = languagesTextComponent.getValue().split(",").map((s) => s.trim()).filter(Boolean);
+        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        if (newLangs.length === 0) {
+          const hadLanguages = ((_a3 = updatedPromptData.autoUseLanguages) != null ? _a3 : []).length > 0;
+          new import_obsidian9.Notice("\u26A0\uFE0F Auto-use is enabled, but no languages are specified. Disabling feature.");
+          updatedPromptData.autoUsePrompt = false;
+          updatedPromptData.autoUseLanguages = [];
+          await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+          autoUseToggle.setValue(false);
+          if (hadLanguages) {
+            this.plugin.renderReadingViews();
+          }
+          return;
+        }
+        const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
+        for (const lang of newLangs) {
+          for (const promptId in allPrompts) {
+            if (promptId === selectedPromptId)
+              continue;
+            const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
+            if (pDef.autoUsePrompt && ((_b2 = pDef.autoUseLanguages) == null ? void 0 : _b2.includes(lang))) {
+              new import_obsidian9.Notice(`\u26A0\uFE0F Can't save. Language '${lang}' is already set for auto-use by prompt '${pDef.name}'.`);
+              const { def: currentDef } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+              languagesTextComponent.setValue(((_c = currentDef.autoUseLanguages) != null ? _c : []).join(", "));
+              autoUseToggle.setValue(false);
+              return;
+            }
+          }
+        }
+        updatedPromptData.autoUsePrompt = true;
+        updatedPromptData.autoUseLanguages = newLangs;
+        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+        this.plugin.renderReadingViews();
+        new import_obsidian9.Notice("Auto-use settings saved.");
+      };
+    });
+    autoUseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !((_a = currentPromptData.autoUsePrompt) != null ? _a : false));
+    let parseLanguagesTextComponent;
+    let autoParseToggle;
+    new import_obsidian9.Setting(promptSettingsDetails).setName("Auto-parse Prompt").setDesc("If enabled, this prompt's regex will be used to automatically find and style prompts in code blocks of the specified languages.").addToggle((toggle) => {
+      var _a2;
+      autoParseToggle = toggle;
+      toggle.setValue((_a2 = currentPromptData.autoParsePrompt) != null ? _a2 : false).onChange(async (isEnabling) => {
+        autoParseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !isEnabling);
+        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        updatedPromptData.autoParsePrompt = isEnabling;
+        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+        const definedLanguages = parseLanguagesTextComponent.getValue();
+        if (definedLanguages && definedLanguages.trim() !== "") {
+          this.plugin.renderReadingViews();
+        }
+        if (isEnabling) {
+          parseLanguagesTextComponent.inputEl.focus();
+        }
+      });
+    });
+    const autoParseLanguagesSetting = new import_obsidian9.Setting(promptSettingsDetails).setName("Languages for Auto-parse").setDesc("Comma-separated list of code block languages for which this prompt's parser should be used\n(e.g., bash, shell).\nWARNING: This could affect performance if you have a lot of code blocks with the specified languages.").addText((text) => {
+      var _a2;
+      parseLanguagesTextComponent = text;
+      text.setValue(((_a2 = currentPromptData.autoParseLanguages) != null ? _a2 : []).join(", "));
+      text.inputEl.onblur = async () => {
+        var _a3, _b2, _c, _d, _e, _f;
+        if (!autoParseToggle.getValue())
+          return;
+        const newLangs = parseLanguagesTextComponent.getValue().split(",").map((s) => s.trim()).filter(Boolean);
+        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+        if (newLangs.length === 0) {
+          const hadLanguages = ((_a3 = updatedPromptData.autoParseLanguages) != null ? _a3 : []).length > 0;
+          new import_obsidian9.Notice("\u26A0\uFE0F Auto-parse is enabled, but no languages are specified. Disabling feature.");
+          updatedPromptData.autoParsePrompt = false;
+          updatedPromptData.autoParseLanguages = [];
+          await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+          autoParseToggle.setValue(false);
+          autoParseLanguagesSetting.settingEl.addClass("codeblock-customizer-setting-hidden");
+          if (hadLanguages) {
+            this.plugin.renderReadingViews();
+          }
+          return;
+        }
+        const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
+        for (const lang of newLangs) {
+          if (updatedPromptData.autoUsePrompt && ((_b2 = updatedPromptData.autoUseLanguages) == null ? void 0 : _b2.includes(lang))) {
+            new import_obsidian9.Notice(`\u26A0\uFE0F Can't save. Language '${lang}' is already set for 'Auto-use' by this same prompt.`);
+            parseLanguagesTextComponent.setValue(((_c = updatedPromptData.autoParseLanguages) != null ? _c : []).join(", "));
+            return;
+          }
+          for (const promptId in allPrompts) {
+            if (promptId === selectedPromptId)
+              continue;
+            const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
+            if (pDef.autoUsePrompt && ((_d = pDef.autoUseLanguages) == null ? void 0 : _d.includes(lang)) || pDef.autoParsePrompt && ((_e = pDef.autoParseLanguages) == null ? void 0 : _e.includes(lang))) {
+              new import_obsidian9.Notice(`\u26A0\uFE0F Can't save. Language '${lang}' is already in use by prompt '${pDef.name}'.`);
+              parseLanguagesTextComponent.setValue(((_f = updatedPromptData.autoParseLanguages) != null ? _f : []).join(", "));
+              return;
+            }
+          }
+        }
+        updatedPromptData.autoParsePrompt = true;
+        updatedPromptData.autoParseLanguages = newLangs;
+        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
+        this.plugin.renderReadingViews();
+        new import_obsidian9.Notice("Auto-parse settings saved.");
+      };
+    });
+    autoParseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !((_b = currentPromptData.autoParsePrompt) != null ? _b : false));
+    const colorsSettingsDetails = createDetailsGroup(promptEditorContainer, "Prompt Colors", "promptColorsDetailsOpen", this, this.getSearchQuery, "codeblock-customizer-prompt-colors-settings-group");
+    const promptColorSettingsContainer = colorsSettingsDetails.createDiv();
+    this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl, this.pickerInstances);
+  }
+  // createPromptSettings
+  updatePromptPreview(previewEl, selectedPromptId, promptData, isCustom, editingRootColors = false) {
+    var _a, _b, _c, _d, _e, _f;
+    previewEl.empty();
+    const promptEnv = {
+      user: (_a = promptData.defaultUser) != null ? _a : "user",
+      host: (_b = promptData.defaultHost) != null ? _b : "host",
+      dir: (_c = promptData.defaultDir) != null ? _c : "~",
+      previousDir: (_d = promptData.defaultDir) != null ? _d : "~",
+      db: (_e = promptData.defaultDb) != null ? _e : "postgres",
+      branch: (_f = promptData.defaultBranch) != null ? _f : "main",
+      homeDir: "~",
+      originalHomeDir: "~",
+      msfKeyword: promptData.defaultModule ? "exploit" : void 0,
+      msfModule: promptData.defaultModule
+    };
+    const promptKind = getPromptType(isCustom ? promptData.basePrompt : selectedPromptId);
+    const promptText = isCustom ? promptData.basePrompt : selectedPromptId;
+    const promptParts = replacePromptTemplate(promptKind, promptText, promptData, promptEnv);
+    const { def } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+    const normalPreview = addClassesToPrompt(promptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings);
+    normalPreview.classList.add("normal-preview");
+    const container = createDiv({ cls: "prompt-preview-container" });
+    container.appendChild(normalPreview);
+    const rootEnv = { ...promptEnv, user: "root" };
+    const rootPromptParts = replacePromptTemplate(promptKind, promptText, promptData, rootEnv);
+    const rootPreview = addClassesToPrompt(rootPromptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings, true);
+    rootPreview.classList.add("root-preview");
+    if (editingRootColors && promptData.supportsRootStyling) {
+      rootPreview.classList.add("is-visible");
+    }
+    container.appendChild(rootPreview);
+    previewEl.appendChild(container);
+    previewEl.classList.toggle("only-normal", !editingRootColors);
+  }
+  // updatePromptPreview
+  async savePromptData(isCustom, selectedPromptId, promptData) {
+    var _a, _b, _c, _d, _e, _f;
+    if (isCustom) {
+      const clone = structuredClone(promptData);
+      delete clone.parsePromptRegex;
+      this.plugin.settings.pluginSettings.prompts.customPrompts[selectedPromptId] = clone;
+    } else {
+      const basePromptDef = defaultPrompts[selectedPromptId];
+      const diff = {};
+      if (promptData.basePrompt !== basePromptDef.basePrompt)
+        diff.basePrompt = promptData.basePrompt;
+      if (promptData.defaultUser !== basePromptDef.defaultUser)
+        diff.defaultUser = promptData.defaultUser;
+      if (promptData.defaultHost !== basePromptDef.defaultHost)
+        diff.defaultHost = promptData.defaultHost;
+      if (promptData.defaultDir !== basePromptDef.defaultDir)
+        diff.defaultDir = promptData.defaultDir;
+      if (promptData.defaultDb !== basePromptDef.defaultDb)
+        diff.defaultDb = promptData.defaultDb;
+      if (promptData.defaultBranch !== basePromptDef.defaultBranch)
+        diff.defaultBranch = promptData.defaultBranch;
+      if (promptData.defaultModule !== basePromptDef.defaultModule)
+        diff.defaultModule = promptData.defaultModule;
+      if (JSON.stringify((_a = promptData.highlightGroups) != null ? _a : {}) !== JSON.stringify((_b = basePromptDef.highlightGroups) != null ? _b : {}))
+        diff.highlightGroups = promptData.highlightGroups;
+      if (promptData.parsePromptRegexString !== basePromptDef.parsePromptRegexString)
+        diff.parsePromptRegexString = promptData.parsePromptRegexString;
+      if (promptData.isWindowsShell !== basePromptDef.isWindowsShell)
+        diff.isWindowsShell = promptData.isWindowsShell;
+      if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling)
+        diff.supportsRootStyling = promptData.supportsRootStyling;
+      if (promptData.autoUsePrompt !== basePromptDef.autoUsePrompt)
+        diff.autoUsePrompt = promptData.autoUsePrompt;
+      if (JSON.stringify((_c = promptData.autoUseLanguages) != null ? _c : []) !== JSON.stringify((_d = basePromptDef.autoUseLanguages) != null ? _d : []))
+        diff.autoUseLanguages = promptData.autoUseLanguages;
+      if (promptData.autoParsePrompt !== basePromptDef.autoParsePrompt)
+        diff.autoParsePrompt = promptData.autoParsePrompt;
+      if (JSON.stringify((_e = promptData.autoParseLanguages) != null ? _e : []) !== JSON.stringify((_f = basePromptDef.autoParseLanguages) != null ? _f : []))
+        diff.autoParseLanguages = promptData.autoParseLanguages;
+      this.plugin.settings.pluginSettings.prompts.editedDefaults[selectedPromptId] = diff;
+    }
+    await this.plugin.saveSettings();
+  }
+  // savePromptData
+  createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl, pickerInstances, showRootColor = false) {
+    var _a, _b;
+    promptColorSettingsContainer.empty();
+    promptColorSettingsContainer.appendChild(document.createElement("br"));
+    this.promptPickers.clear();
+    const allGroups = Array.from(collectAllPromptClasses(this.plugin.settings));
+    const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+    let editingRootColors = showRootColor != null ? showRootColor : false;
+    if (currentPromptData.supportsRootStyling) {
+      new import_obsidian9.Setting(promptColorSettingsContainer).setName("Configure Root Colors").setDesc("Enable to edit root-specific colors for this prompt.").addToggle(
+        (toggle) => toggle.setValue(editingRootColors).onChange((value) => {
+          var _a2, _b2;
+          editingRootColors = value;
+          const newColors = this.getResolvedPromptColors(selectedPromptId, editingRootColors);
+          const fallbackColors = this.getResolvedPromptColors(selectedPromptId, false);
+          for (const [partClass, pickr] of this.promptPickers.entries()) {
+            const newColor = (_b2 = (_a2 = newColors[partClass]) != null ? _a2 : fallbackColors[partClass]) != null ? _b2 : DEFAULT_PROMPT_COLOR;
+            pickr.setColor(newColor);
+          }
+          this.updatePromptPreview(previewEl, selectedPromptId, currentPromptData, isCustom, editingRootColors);
+        })
+      );
+    }
+    for (const part of allGroups) {
+      const partClass = part.startsWith("prompt-") ? part : `prompt-${part}`;
+      const displayName = promptClassDisplayNames[partClass];
+      let label;
+      const suffixTargets = [
+        "prompt-user",
+        "prompt-host",
+        "prompt-path",
+        "prompt-db",
+        "prompt-branch",
+        "prompt-msf",
+        "prompt-keyword",
+        "prompt-module",
+        "prompt-beacon"
+      ];
+      if (displayName) {
+        if (suffixTargets.includes(partClass)) {
+          label = `${displayName} (returned by RegEx)`;
+        } else {
+          label = displayName;
+        }
+      } else {
+        label = `${partClass} (returned by RegEx)`;
+      }
+      const resolvedColors = this.getResolvedPromptColors(selectedPromptId, editingRootColors);
+      const fallbackColors = this.getResolvedPromptColors(selectedPromptId, false);
+      const currentColor = (_b = (_a = resolvedColors[partClass]) != null ? _a : fallbackColors[partClass]) != null ? _b : DEFAULT_PROMPT_COLOR;
+      const isDefaultPrompt = selectedPromptId in defaultPrompts;
+      const setting = new import_obsidian9.Setting(promptColorSettingsContainer).setName(label).setClass(`detailpage`);
+      const pickr = addPickerControlsToSetting(setting, {
+        containerEl: promptColorSettingsContainer,
+        initialColor: currentColor,
+        onSave: (savedColor) => {
+          this.setPromptColorDiff(selectedPromptId, partClass, savedColor, editingRootColors);
+          this.plugin.saveSettings();
+        },
+        onReset: isDefaultPrompt ? () => {
+          return this.getDefaultPromptColor(selectedPromptId, partClass, editingRootColors);
+        } : void 0
+      }, pickerInstances, this.plugin);
+      this.promptPickers.set(partClass, pickr);
+    }
+  }
+  // createPromptColorSettings
+  getResolvedPromptColors(promptId, editingRoot) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    const mode = getCurrentMode();
+    const baseThemeName = (_a = this.plugin.settings.SelectedTheme.baseTheme) != null ? _a : "Obsidian";
+    const base = (_b = this.plugin.settings.Themes[baseThemeName]) == null ? void 0 : _b.colors[mode].prompts;
+    const edited = editingRoot ? (_d = (_c = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors) == null ? void 0 : _c[promptId]) != null ? _d : {} : (_f = (_e = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors) == null ? void 0 : _e[promptId]) != null ? _f : {};
+    const defaults = editingRoot ? (_h = (_g = base == null ? void 0 : base.rootPromptColors) == null ? void 0 : _g[promptId]) != null ? _h : {} : (_j = (_i = base == null ? void 0 : base.promptColors) == null ? void 0 : _i[promptId]) != null ? _j : {};
+    return { ...defaults, ...edited };
+  }
+  // getResolvedPromptColors
+  restorePromptColor(promptId) {
+    var _a, _b, _c, _d;
+    const baseThemeName = (_a = this.plugin.settings.SelectedTheme.baseTheme) != null ? _a : "Obsidian";
+    const baseTheme = this.plugin.settings.Themes[baseThemeName];
+    if (!baseTheme) {
+      console.warn(`Base theme "${baseThemeName}" not found.`);
+      return;
+    }
+    const modes = ["light", "dark"];
+    for (const mode of modes) {
+      (_b = this.plugin.settings.SelectedTheme.colors[mode].prompts.editedPromptColors) == null ? true : delete _b[promptId];
+      (_c = this.plugin.settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors) == null ? true : delete _c[promptId];
+    }
+    (_d = this.plugin.settings.pluginSettings.prompts.editedDefaults) == null ? true : delete _d[promptId];
+    this.display();
+  }
+  // restorePromptColor
+  setPromptColorDiff(promptId, className, color, editingRoot) {
+    var _a, _b;
+    const defaultColor = this.getDefaultPromptColor(promptId, className, editingRoot);
+    const diff = editingRoot ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors;
+    if (color.toLowerCase() === defaultColor.toLowerCase()) {
+      (_a = diff == null ? void 0 : diff[promptId]) == null ? true : delete _a[className];
+      if (Object.keys((_b = diff == null ? void 0 : diff[promptId]) != null ? _b : {}).length === 0) {
+        diff == null ? true : delete diff[promptId];
+      }
+    } else {
+      if (!diff[promptId])
+        diff[promptId] = {};
+      diff[promptId][className] = color;
+    }
+  }
+  // setPromptColorDiff
+  getDefaultPromptColor(promptId, partClass, editingRootColors) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    const baseThemeName = (_a = this.plugin.settings.SelectedTheme.baseTheme) != null ? _a : "Obsidian";
+    const defaultTheme = this.plugin.settings.Themes[baseThemeName];
+    const mode = getCurrentMode();
+    if (!defaultTheme) {
+      return DEFAULT_PROMPT_COLOR;
+    }
+    if (editingRootColors) {
+      const specificRootColor = (_c = (_b = defaultTheme.colors[mode].prompts.rootPromptColors) == null ? void 0 : _b[promptId]) == null ? void 0 : _c[partClass];
+      if (specificRootColor) {
+        return specificRootColor;
+      }
+      const fallbackNormalColor = (_e = (_d = defaultTheme.colors[mode].prompts.promptColors) == null ? void 0 : _d[promptId]) == null ? void 0 : _e[partClass];
+      if (fallbackNormalColor) {
+        return fallbackNormalColor;
+      }
+      return DEFAULT_PROMPT_COLOR;
+    }
+    const normalColor = (_g = (_f = defaultTheme.colors[mode].prompts.promptColors) == null ? void 0 : _f[promptId]) == null ? void 0 : _g[partClass];
+    if (normalColor) {
+      return normalColor;
+    }
+    return DEFAULT_PROMPT_COLOR;
+  }
+  // getDefaultPromptColor
+};
+
+// src/SettingsTab/PluginCompatibility.ts
+var import_obsidian10 = require("obsidian");
+var PluginCompatibilitySettings = class {
+  constructor(plugin, containerEl, getSearchQuery) {
+    this.plugin = plugin;
+    this.containerEl = containerEl;
+    this.getSearchQuery = getSearchQuery;
     this.admonitionDetailsOpen = false;
     this.executeCodeDetailsOpen = false;
+  }
+  display() {
+    const sectionData = SettingsPageData[SettingsPage.Plugins];
+    const pluginsDiv = this.containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
+    pluginsDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Plugins);
+    pluginsDiv.createEl("h3", { text: sectionData.displayName });
+    const admonitionDetailsDetails = createDetailsGroup(pluginsDiv, "Admonition Settings", "admonitionDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian10.Setting(admonitionDetailsDetails).setName("Enable Admonition support").setDesc("Enable styling for code blocks inside Admonition blocks.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.plugins.admonitions.enabled).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.plugins.admonitions.enabled = value;
+        detailSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !value);
+        const isTimerVisible = value && this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut;
+        timerSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !isTimerVisible);
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+      })
+    );
+    const detailSetting = new import_obsidian10.Setting(admonitionDetailsDetails).setName("Use timer for admonition processing").setDesc("Adds a small, configurable delay before styling code blocks inside admonitions. This can resolve rendering issues in complex notes.").addToggle((toggle) => {
+      toggle.setValue(this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut = value;
+        timerSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !value);
+        await this.plugin.saveSettings();
+      });
+    });
+    detailSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.plugins.admonitions.enabled);
+    const timerSetting = new import_obsidian10.Setting(admonitionDetailsDetails).setName("Admonition processing delay (ms)").setDesc("The delay in milliseconds to wait before processing.").addText(
+      (text) => text.setValue(this.plugin.settings.pluginSettings.plugins.admonitions.timeOut.toString()).onChange(async (value) => {
+        const numberValue = parseInt(value);
+        if (!isNaN(numberValue)) {
+          this.plugin.settings.pluginSettings.plugins.admonitions.timeOut = numberValue;
+          await this.plugin.saveSettings();
+        }
+      })
+    );
+    timerSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut);
+    const executeCodeDetails = createDetailsGroup(pluginsDiv, "Execute Code Settings", "executeCodeDetailsOpen", this, this.getSearchQuery);
+    new import_obsidian10.Setting(executeCodeDetails).setName("Enable Execute Code plugin support").setDesc("When disabled, this plugin completely ignores the Execute Code plugin, and does not apply any styling at all to run-* code blocks. Switch documents after changing this option, to refresh the view.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.plugins.executeCode.enabled).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.plugins.executeCode.enabled = value;
+        styleOutputSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !value);
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+      })
+    );
+    const styleOutputSetting = new import_obsidian10.Setting(executeCodeDetails).setName("Style Execute Code output").setDesc("When enabled, the plugin will add line numbers, highlighting, and other styles to the code output. Disable this to see the raw, default output.").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.plugins.executeCode.styleOutput).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.plugins.executeCode.styleOutput = value;
+        await this.plugin.saveSettings();
+        updateSettingClasses(this.plugin.settings.pluginSettings);
+        this.plugin.renderReadingViews();
+      })
+    );
+    styleOutputSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);
+  }
+  // public
+};
+
+// src/SettingsTab/SettingsTab.ts
+var SettingsTab = class extends import_obsidian11.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
     this.searchQuery = "";
-    // createDropdown
+    // hide
     this.createDonateButton = (link) => {
       const a = createEl("a");
       a.setAttribute("href", link);
       a.addClass("buymeacoffee-ThePirateKing-img");
-      a.innerHTML = `<img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=\u{1F964}&slug=ThePirateKing&button_colour=5F7FFF&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00" height="42px" />`;
+      a.innerHTML = `<img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=\u{1F964}&slug=ThePirateKing&button_colour=5F7FFF&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00" height="40px" />`;
       return a;
-    };
-    // createDonateButton
-    this.createReadMeLink = (container) => {
-      const divElement = container.createDiv({ cls: "codeblock-customizer-readMe" });
-      const spanElement = createSpan();
-      spanElement.style.whiteSpace = "pre";
-      const textNode = document.createTextNode("For more information, please read the ");
-      spanElement.appendChild(textNode);
-      divElement.appendChild(spanElement);
-      const linkElement = container.createEl("a");
-      linkElement.href = "https://github.com/mugiwara85/CodeblockCustomizer";
-      const linkTextNode = document.createTextNode("README");
-      linkElement.appendChild(linkTextNode);
-      divElement.appendChild(linkElement);
-      container.appendChild(divElement);
     };
     this.plugin = plugin;
     this.pickerInstances = [];
+    this.generalSettings = new GeneralSettings(this.plugin, this.containerEl, () => this.searchQuery, () => this.display());
+    this.appearanceSettings = new AppearanceSettings(this.plugin, this.containerEl, this.pickerInstances, () => this.searchQuery);
+    this.highlightingSettings = new HighlightingSettings(this.plugin, this.containerEl, this.pickerInstances, () => this.searchQuery);
+    this.behaviorSettings = new BehaviorSettings(this.plugin, this.containerEl, this.pickerInstances, () => this.searchQuery);
+    this.promptSettings = new PromptSettings(this.plugin, this.containerEl, this.pickerInstances, () => this.searchQuery);
+    this.compatibilitySettings = new PluginCompatibilitySettings(this.plugin, this.containerEl, () => this.searchQuery);
   }
   display() {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.classList.add(`codeblock-customizer-settingspage`);
     containerEl.createEl("h3", { text: "Codeblock Customizer Settings" });
-    new import_obsidian3.Setting(containerEl).setName("Search settings").setClass("codeblock-customizer-search-input").setDesc("Search for a setting. Hidden settings (which depend on another setting) will be displayed as disabled.").addText(
-      (text2) => text2.setPlaceholder("Search...").setValue(this.searchQuery).onChange((query) => {
-        this.searchQuery = query;
-        this.searchSettings(query);
-      })
-    );
+    this.createFirstRowElements(containerEl);
     let dropdown;
     let restoreButton;
-    new import_obsidian3.Setting(containerEl).setName("Theme").setDesc("Select which theme to use").addDropdown((dropdownObj) => {
+    new import_obsidian11.Setting(containerEl).setName("Theme").setDesc("Select which theme to use").addDropdown((dropdownObj) => {
       this.refreshDropdown(dropdownObj, this.plugin.settings);
       dropdownObj.onChange((value) => {
         this.plugin.settings.ThemeName = value;
@@ -18165,7 +19939,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
       button.setIcon("save");
       button.onClick(() => {
         this.plugin.settings.Themes[this.plugin.settings.ThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-        new import_obsidian3.Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
+        new import_obsidian11.Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
         (async () => {
           await this.plugin.saveSettings();
         })();
@@ -18174,11 +19948,12 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
       button.setTooltip("Restore default theme to its original state");
       button.setIcon("reset");
       button.onClick(() => {
-        this.restoreThemes(this.plugin.settings.ThemeName, false);
+        this.generalSettings.restoreThemes(this.plugin.settings.ThemeName, false);
+        this.display();
         (async () => {
           await this.plugin.saveSettings();
         })();
-        new import_obsidian3.Notice(`Theme "${this.plugin.settings.ThemeName}" restored to its original state!`);
+        new import_obsidian11.Notice(`Theme "${this.plugin.settings.ThemeName}" restored to its original state!`);
       });
       button.setDisabled(!(this.plugin.settings.ThemeName in DEFAULT_THEMES));
       restoreButton = button;
@@ -18187,12 +19962,12 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
       button.setIcon("trash");
       button.onClick(() => {
         if (this.plugin.settings.ThemeName.trim().length === 0) {
-          new import_obsidian3.Notice("Select a theme first to delete");
+          new import_obsidian11.Notice("Select a theme first to delete");
         } else if (this.plugin.settings.ThemeName in DEFAULT_SETTINGS.Themes) {
-          new import_obsidian3.Notice("You cannot delete the default themes");
+          new import_obsidian11.Notice("You cannot delete the default themes");
         } else {
           delete this.plugin.settings.Themes[this.plugin.settings.ThemeName];
-          new import_obsidian3.Notice(`Theme "${this.plugin.settings.ThemeName}" deleted successfully!`);
+          new import_obsidian11.Notice(`Theme "${this.plugin.settings.ThemeName}" deleted successfully!`);
           this.plugin.settings.ThemeName = "Obsidian";
           this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[this.plugin.settings.ThemeName]);
           this.refreshDropdown(dropdown, this.plugin.settings);
@@ -18206,7 +19981,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     });
     let text;
     this.plugin.settings.newThemeName = "";
-    new import_obsidian3.Setting(containerEl).setName("Create your theme").setDesc("Create your theme with the current colors and settings").addText((input) => {
+    new import_obsidian11.Setting(containerEl).setName("Create your theme").setDesc("Create your theme with the current colors and settings").addText((input) => {
       text = input;
       text.setPlaceholder("Name for your theme").setValue(this.plugin.settings.newThemeName).onChange(async (value) => {
         this.plugin.settings.newThemeName = value;
@@ -18216,16 +19991,16 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
       button.setIcon("plus");
       button.onClick(() => {
         if (this.plugin.settings.newThemeName.trim().length === 0)
-          new import_obsidian3.Notice("Set a name for your theme!");
+          new import_obsidian11.Notice("Set a name for your theme!");
         else if (this.plugin.settings.newThemeName in DEFAULT_SETTINGS.Themes) {
-          new import_obsidian3.Notice("You can't overwrite default themes");
+          new import_obsidian11.Notice("You can't overwrite default themes");
         } else {
           if (this.plugin.settings.newThemeName in this.plugin.settings.Themes) {
             this.plugin.settings.Themes[this.plugin.settings.newThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-            new import_obsidian3.Notice(`Theme "${this.plugin.settings.newThemeName}" updated successfully!`);
+            new import_obsidian11.Notice(`Theme "${this.plugin.settings.newThemeName}" updated successfully!`);
           } else {
             this.plugin.settings.Themes[this.plugin.settings.newThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
-            new import_obsidian3.Notice(`Theme "${this.plugin.settings.newThemeName}" saved successfully!`);
+            new import_obsidian11.Notice(`Theme "${this.plugin.settings.newThemeName}" saved successfully!`);
           }
           this.plugin.settings.ThemeName = this.plugin.settings.newThemeName;
           this.refreshDropdown(dropdown, this.plugin.settings);
@@ -18239,7 +20014,7 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
         }
       });
     });
-    new import_obsidian3.Setting(containerEl).setName("Select settings page").setDesc("Select which settings group you want to modify.").addDropdown(
+    new import_obsidian11.Setting(containerEl).setName("Select settings page").setDesc("Select which settings group you want to modify.").addDropdown(
       (dropdown2) => dropdown2.addOptions(Object.values(SettingsPage).reduce((acc, section) => {
         acc[section] = SettingsPageData[section].displayName;
         return acc;
@@ -18247,59 +20022,45 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
         this.plugin.settings.settingsType = value;
         this.searchQuery = "";
         this.searchSettings("");
-        const searchInput = containerEl.querySelector(".codeblock-customizer-search-input input");
-        if (searchInput) {
-          searchInput.value = "";
-        }
-        generalDiv.toggleClass(SettingsPageData[SettingsPage.General].hideClass, this.plugin.settings.settingsType !== SettingsPage.General);
-        appearanceDiv.toggleClass(SettingsPageData[SettingsPage.Appearance].hideClass, this.plugin.settings.settingsType !== SettingsPage.Appearance);
-        highlightingDiv.toggleClass(SettingsPageData[SettingsPage.Highlighting].hideClass, this.plugin.settings.settingsType !== SettingsPage.Highlighting);
-        behaviorDiv.toggleClass(SettingsPageData[SettingsPage.Behavior].hideClass, this.plugin.settings.settingsType !== SettingsPage.Behavior);
-        promptsDiv.toggleClass(SettingsPageData[SettingsPage.Prompts].hideClass, this.plugin.settings.settingsType !== SettingsPage.Prompts);
-        pluginsDiv.toggleClass(SettingsPageData[SettingsPage.Plugins].hideClass, this.plugin.settings.settingsType !== SettingsPage.Plugins);
         (async () => {
           await this.plugin.saveSettings();
         })();
       })
     );
-    this.createReadMeLink(containerEl);
     containerEl.createEl("hr");
     containerEl.createDiv({ cls: "codeblock-customizer-no-results", text: "No matching settings found." });
-    const generalDiv = this.createGeneralSettings(containerEl);
-    const appearanceDiv = this.createAppearanceSettings(containerEl);
-    const highlightingDiv = this.createHighlightingSettings(containerEl);
-    const behaviorDiv = this.createBehaviorSettings(containerEl);
-    const promptsDiv = this.createPromptSettingsPage(containerEl);
-    const pluginsDiv = this.createPluginCompatibilitySettingsPage(containerEl);
-    const cDonationDiv = containerEl.createDiv({ cls: "codeblock-customizer-Donation" });
-    const credit = createEl("p");
-    const donateText = createEl("p");
-    donateText.appendText("If you like this plugin, and would like to help support continued development, use the button below!");
-    credit.setAttribute("style", "color: var(--text-muted)");
-    cDonationDiv.appendChild(donateText);
-    cDonationDiv.appendChild(credit);
-    cDonationDiv.appendChild(
-      this.createDonateButton("https://www.buymeacoffee.com/ThePirateKing")
-    );
+    this.generalSettings.display();
+    this.appearanceSettings.display();
+    this.highlightingSettings.display();
+    this.behaviorSettings.display();
+    this.promptSettings.display();
+    this.compatibilitySettings.display();
   }
   // display
-  createDetailsGroup(container, title, key, ...extraClasses) {
-    const details = container.createEl("details");
-    details.addClasses(["settings-group", ...extraClasses]);
-    details.dataset.settingsKey = key;
-    if (this[key]) {
-      details.open = true;
-    }
-    details.createEl("summary", { text: title });
-    details.addEventListener("toggle", () => {
-      if (this.searchQuery) {
-        return;
-      }
-      this[key] = details.open;
+  createFirstRowElements(containerEl) {
+    const firstRow = containerEl.createDiv({ cls: "cbc-settings-firstrow-container" });
+    const searchDiv = firstRow.createDiv({ cls: "cbc-settings-firstrow-search" });
+    const buttonsDiv = firstRow.createDiv({ cls: "cbc-settings-firstrow-buttons" });
+    new import_obsidian11.Setting(searchDiv).addSearch((search) => {
+      search.setPlaceholder("Search settings...");
+      search.setValue(this.searchQuery);
+      search.onChange((value) => {
+        this.searchQuery = value;
+        this.searchSettings(value);
+      });
     });
-    return details;
+    const readmeLink = buttonsDiv.createEl("a", {
+      text: "README",
+      href: "https://github.com/mugiwara85/CodeblockCustomizer",
+      cls: "codeblock-customizer-readme-link"
+    });
+    readmeLink.title = "For more information, please read the README!";
+    buttonsDiv.appendChild(
+      this.createDonateButton("https://www.buymeacoffee.com/ThePirateKing")
+    );
+    buttonsDiv.title = "If you like this plugin, and would like to help support continued development, use this button!";
   }
-  // createDetailsGroup
+  // createAttributesHeader
   searchSettings(query) {
     const searchText = query.toLowerCase();
     const settingsCategories = this.containerEl.querySelectorAll(".cb-settings-section");
@@ -18331,10 +20092,6 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
           const dropdown = this.containerEl.querySelector(".dropdown");
           if (dropdown) {
             dropdown.value = targetType;
-          }
-          const searchInput = this.containerEl.querySelector(".codeblock-customizer-search-input input");
-          if (searchInput) {
-            searchInput.value = "";
           }
           (async () => {
             await this.plugin.saveSettings();
@@ -18433,1435 +20190,6 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     }
   }
   // searchSettings
-  createGeneralSettings(containerEl) {
-    const sectionData = SettingsPageData[SettingsPage.General];
-    const generalDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
-    generalDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.General);
-    generalDiv.createEl("h3", { text: sectionData.displayName });
-    new import_obsidian3.Setting(generalDiv).setName("Enable plugin in source mode").setDesc("By default the plugin is disabled in source mode. You can enable it in source mode as well using this toggle.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.common.enableInSourceMode).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.common.enableInSourceMode = value;
-        await this.plugin.saveSettings(true);
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(generalDiv).setName("Exclude languages").setDesc("Define languages, separated by a comma, to which the plugin should not apply. You can use a wildcard (*) either at the beginning, or at the end. For example: ad-* will exclude codeblocks where the language starts with ad- e.g.: ad-info, ad-error etc.").addText(
-      (text) => text.setPlaceholder("e.g. dataview, python etc.").setValue(this.plugin.settings.ExcludeLangs).onChange(async (value) => {
-        this.plugin.settings.ExcludeLangs = value;
-        if (this.debounceTimer) {
-          clearTimeout(this.debounceTimer);
-        }
-        this.debounceTimer = setTimeout(async () => {
-          await this.plugin.saveSettings(true);
-          this.plugin.renderReadingViews();
-        }, 750);
-      })
-    );
-    new import_obsidian3.Setting(generalDiv).setName("Restore default themes").setDesc("Restore all default themes to their original settings.").addButton(async (button) => {
-      button.setButtonText("Restore");
-      button.onClick(async () => {
-        this.restoreThemes(this.plugin.settings.ThemeName, true);
-        await this.plugin.saveSettings();
-        new import_obsidian3.Notice("Default themes restored to their original state!");
-      });
-    });
-    const printToPDFDetails = this.createDetailsGroup(generalDiv, "Print to PDF Settings", "printToPDFDetailsOpen");
-    new import_obsidian3.Setting(printToPDFDetails).setName("Enable print to PDF").setDesc("If enabled, the styling is applied to documents when printed to PDF. By default PDF printing uses light theme colors.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling = value;
-        await this.plugin.saveSettings();
-        forceCurrentColorUse.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        avoidPageBreaks.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        uncollapseDuringPrint.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const forceCurrentColorUse = new import_obsidian3.Setting(printToPDFDetails).setName("Force current color mode use").setDesc("If enabled, PDF printing will use the dark theme colors when a dark theme is selected, and light theme colors when a light theme is selected.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.forceCurrentColorUse).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.printing.forceCurrentColorUse = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    forceCurrentColorUse.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
-    const avoidPageBreaks = new import_obsidian3.Setting(printToPDFDetails).setName("Avoid page breaks in code blocks").setDesc("If enabled, the plugin will try to prevent code blocks from being split across multiple pages when printing.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.avoidPageBreaks).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.printing.avoidPageBreaks = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    avoidPageBreaks.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
-    const uncollapseDuringPrint = new import_obsidian3.Setting(printToPDFDetails).setName("Expand all code blocks during printing").setDesc('If enabled, all collapsed code blocks specified by the "fold" parameter will be expanded when printing. This results in the printed document containing expanded code blocks where "fold" was used.').addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.printing.uncollapseDuringPrint = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    uncollapseDuringPrint.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling);
-    new import_obsidian3.Setting(printToPDFDetails).setName("Print annotations as raw comments").setDesc("If enabled, annotations will be printed as visible code comments instead of rendered icons.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.printing.printAnnotationsAsComments).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.printing.printAnnotationsAsComments = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    return generalDiv;
-  }
-  // createGeneralSettings
-  createAppearanceSettings(containerEl) {
-    const sectionData = SettingsPageData[SettingsPage.Appearance];
-    const appearanceDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
-    appearanceDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Appearance);
-    appearanceDiv.createEl("h3", { text: sectionData.displayName });
-    new import_obsidian3.Setting(appearanceDiv).setName("Enable editor active line highlight").setDesc("If enabled, you can set the color for the active line (including codeblocks).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-        editorActiveLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const editorActiveLineSetting = this.createPickrSetting(appearanceDiv, "Editor active line color", "", "editorActiveLineColor");
-    editorActiveLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight);
-    const codeBlockDetails = this.createDetailsGroup(appearanceDiv, "Code Block Styling", "codeBlockDetailsOpen");
-    new import_obsidian3.Setting(codeBlockDetails).setName("Enable line numbers").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableLineNumbers).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.enableLineNumbers = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    this.createPickrSetting(codeBlockDetails, "Code block background color", "", "codeblock.backgroundColor");
-    new import_obsidian3.Setting(codeBlockDetails).setName("Show indentation lines in reading view").setDesc("If enabled, indentation lines will be shown in reading view.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.showIndentationLines).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.showIndentationLines = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(codeBlockDetails).setName("Unwrap code").setDesc("If enabled, the code will be unwrapped in reading view.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.unwrapcode).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.unwrapcode = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian3.Setting(codeBlockDetails).setName("Line number jump separator style").setDesc("Select the style of the separator line shown when code is folded/skipped.").addDropdown(
-      (dropdown) => dropdown.addOption(LineNumberSeparatorStyle.Zigzag, "Zigzag").addOption(LineNumberSeparatorStyle.Dashed, "Dashed").addOption(LineNumberSeparatorStyle.DoubleLine, "Double Line").setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    codeBlockDetails.createEl("h4", { text: "Gutter Settings" });
-    new import_obsidian3.Setting(codeBlockDetails).setName("Highlight gutter").setDesc("If enabled, highlighted lines will also highlight the gutter (line number), not just the line.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.gutter.enableHighlight).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.gutter.enableHighlight = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    this.createPickrSetting(codeBlockDetails, "Gutter text color", "", "gutter.textColor");
-    this.createPickrSetting(codeBlockDetails, "Gutter background color", "", "gutter.backgroundColor");
-    new import_obsidian3.Setting(codeBlockDetails).setName("Highlight active line number").setDesc("If enabled, the active line number will be highlighted with a separate color.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr).onChange((value) => {
-        this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr = value;
-        (async () => {
-          await this.plugin.saveSettings();
-        })();
-        updateSettingStyles(this.plugin.settings, this.app);
-        highlightActiveLineNrSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const highlightActiveLineNrSetting = this.createPickrSetting(codeBlockDetails, "Active line number color", "", "gutter.activeLineNrColor");
-    highlightActiveLineNrSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr);
-    const headerDetails = this.createDetailsGroup(appearanceDiv, "Header Settings", "headerDetailsOpen");
-    this.createPickrSetting(headerDetails, "Header color", "Sets the background color of the code block header.", "header.backgroundColor");
-    this.createPickrSetting(headerDetails, "Header text color", "", "header.textColor");
-    new import_obsidian3.Setting(headerDetails).setName("Header bold text").setDesc("If enabled, the header text will be set to bold.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.boldText).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.boldText = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian3.Setting(headerDetails).setName("Header italic text").setDesc("If enabled, the header text will be set to italic.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.italicText).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.italicText = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    this.createPickrSetting(headerDetails, "Header line color", "Sets the color of the separator line at the bottom of the header.", "header.lineColor");
-    new import_obsidian3.Setting(headerDetails).setName("Disable folding for code blocks without `fold` or `unfold` specified").setDesc("If enabled, code blocks without `fold` or `unfold` specified will not collapse when clicking the header.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-        this.plugin.renderReadingViews();
-      })
-    );
-    new import_obsidian3.Setting(headerDetails).setName("Collapse icon position").setDesc("If enabled a collapse icon will be displayed in the header. Select the position of the collapse icon.").addDropdown(
-      (dropdown) => dropdown.addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" }).setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition).onChange((value) => {
-        this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
-        (async () => {
-          await this.plugin.saveSettings();
-        })();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(headerDetails).setName("Collapsed code text").setDesc('Overwrite the default "Collapsed Code" text in the header, when the file parameter is not defined.').addText(
-      (text) => text.setPlaceholder(DEFAULT_COLLAPSE_TEXT).setValue(this.plugin.settings.pluginSettings.header.collapsedCodeText).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.collapsedCodeText = value;
-        await this.plugin.saveSettings();
-        if (this.debounceTimer) {
-          clearTimeout(this.debounceTimer);
-        }
-        this.debounceTimer = setTimeout(async () => {
-          await this.plugin.saveSettings();
-          this.plugin.renderReadingViews();
-        }, 750);
-      })
-    );
-    headerDetails.createEl("h4", { text: "Header Language Tag & Header Icon Settings" });
-    new import_obsidian3.Setting(headerDetails).setName("Display codeblock language (if language is defined)").setDesc("If enabled, the codeblock language will be displayed in the header.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage = value;
-        await this.plugin.saveSettings();
-        codeBlockLangTextColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        codeBlockLangBackgroundColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        boldToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        italicToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        alwaysDisplayToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const codeBlockLangTextColor = this.createPickrSetting(headerDetails, "Codeblock language text color", "", "header.codeBlockLangTextColor");
-    codeBlockLangTextColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
-    const codeBlockLangBackgroundColor = this.createPickrSetting(headerDetails, "Codeblock language background color", "", "header.codeBlockLangBackgroundColor");
-    codeBlockLangBackgroundColor.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
-    const boldToggle = new import_obsidian3.Setting(headerDetails).setName("Bold text").setDesc("If enabled, the codeblock language text will be set to bold.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.codeblockLangBoldText).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.codeblockLangBoldText = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    boldToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
-    const italicToggle = new import_obsidian3.Setting(headerDetails).setName("Italic text").setDesc("If enabled, the codeblock language text will be set to italic.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.codeblockLangItalicText).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.codeblockLangItalicText = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    italicToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
-    const alwaysDisplayToggle = new import_obsidian3.Setting(headerDetails).setName("Always display codeblock language").setDesc("If enabled, the codeblock language will always be displayed (if a language is defined), even if the `file` parameter is not specified.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockLang = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    alwaysDisplayToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockLanguage);
-    new import_obsidian3.Setting(headerDetails).setName("Display codeblock language icon (if available)").setDesc("If enabled, the codeblock language icon will be displayed in the header.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.displayCodeBlockIcon).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.displayCodeBlockIcon = value;
-        await this.plugin.saveSettings();
-        alwaysDisplayIconToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const alwaysDisplayIconToggle = new import_obsidian3.Setting(headerDetails).setName("Always display codeblock language icon (if available)").setDesc("If enabled, the codeblock language icon will always be displayed (if a language is defined and it has an icon), even if the `file` parameter is not specified.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.header.alwaysDisplayCodeblockIcon = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    alwaysDisplayIconToggle.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.header.displayCodeBlockIcon);
-    const annotationDetails = this.createDetailsGroup(appearanceDiv, "Annotation Settings", "annotationDetailsOpen");
-    new import_obsidian3.Setting(annotationDetails).setName("Convert all comments to annotations").setDesc("If enabled, every comment in a code block will be styled as a `note` annotation, even without the `[!note]` syntax. ").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.annotations.convertAllComments).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.annotations.convertAllComments = value;
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-      })
-    );
-    new import_obsidian3.Setting(annotationDetails).setName("Exclude annotations from copying").setDesc("Enable to exclude annotation comments (e.g., // [!note] ...) when using the copy code button. Regular comments will always be copied.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.annotations.excludeAnnotationsFromCopy).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.annotations.excludeAnnotationsFromCopy = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    for (const type of Object.keys(ANNOTATION_TYPE_ICONS)) {
-      this.createPickrSetting(annotationDetails, `'${type}' icon color`, "", `annotations.colors.${type}`);
-    }
-    const langSpecificDetails = this.createDetailsGroup(appearanceDiv, "Language Specific Color Overrides", "langSpecificDetailsOpen");
-    let languageSpecificColorDisplayText;
-    new import_obsidian3.Setting(langSpecificDetails).setName("Add languages to set colors").setDesc('Add a language, to set the colors for this specific language. If you want to set colors for code blocks without a language, add "nolang" as a language.').addText((value) => {
-      languageSpecificColorDisplayText = value;
-      languageSpecificColorDisplayText.setPlaceholder("e.g. cpp, csharp");
-      languageSpecificColorDisplayText.onChange(async (languageSpecific) => {
-        this.plugin.settings.languageSpecificLanguageName = languageSpecific;
-      });
-    }).addButton(async (button) => {
-      button.setButtonText("Add");
-      button.onClick(async () => {
-        const colorNameRegex = /^[^\d][\w\d]*$/;
-        if (this.plugin.settings.languageSpecificLanguageName.trim() === "") {
-          new import_obsidian3.Notice("Please enter a language name.");
-        } else if (!colorNameRegex.test(this.plugin.settings.languageSpecificLanguageName)) {
-          new import_obsidian3.Notice(`"${this.plugin.settings.languageSpecificLanguageName}" is not a valid language name.`);
-        } else {
-          if (this.plugin.settings.languageSpecificLanguageName.toLowerCase() in this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors) {
-            new import_obsidian3.Notice(`A language with the name "${this.plugin.settings.languageSpecificLanguageName}" already exists.`);
-          } else {
-            this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[this.plugin.settings.languageSpecificLanguageName] = {};
-            this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[this.plugin.settings.languageSpecificLanguageName] = {};
-            new import_obsidian3.Notice(`Added language "${this.plugin.settings.languageSpecificLanguageName}".`);
-            languageSpecificColorDisplayText.setValue("");
-            this.plugin.settings.languageSpecificLanguageName = "";
-            await this.plugin.saveSettings();
-            this.updateLanguageSpecificColorContainer(languageSpecificContainer);
-          }
-        }
-      });
-    });
-    new import_obsidian3.Setting(langSpecificDetails).setName("Code block border styling position").setDesc("Select on which side the border should be displayed.").addDropdown(
-      (dropdown) => dropdown.addOptions({ "disable": "Disable", "left": "Left", "right": "Right" }).setValue(this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition).onChange((value) => {
-        this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition = value;
-        (async () => {
-          await this.plugin.saveSettings();
-        })();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    const languageSpecificContainer = langSpecificDetails.createDiv({ cls: "codeblock-customizer-languageSpecificColorContainer" });
-    this.updateLanguageSpecificColorContainer(languageSpecificContainer);
-    const inlineCodeDetails = this.createDetailsGroup(appearanceDiv, "Inline Code Settings", "inlineCodeDetailsOpen");
-    new import_obsidian3.Setting(inlineCodeDetails).setName("Enable click-to-copy for inline code").setDesc("Allows you to copy inline code by clicking on it while holding a modifier key.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick = value;
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-        copyModifierSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const copyModifierSetting = new import_obsidian3.Setting(inlineCodeDetails).setName("Modifier key for copy").setDesc("Select the key to hold while clicking to copy.").addDropdown(
-      (dropdown) => dropdown.addOption(InlineCodeModifierKeys.CTRL, "Ctrl").addOption(InlineCodeModifierKeys.ALT, "Alt").setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    copyModifierSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableCopyOnClick);
-    new import_obsidian3.Setting(inlineCodeDetails).setName("Enable inline code syntax highlighting").setDesc("If enabled, syntax highlighting will be added to inline code (if specified).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight = value;
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-        showIconsSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const showIconsSetting = new import_obsidian3.Setting(inlineCodeDetails).setName("Show icons for syntax highlighted inline code (if available)").setDesc("If enabled, icons will be shown for syntax highlighted inline code.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.showIcons).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.inlineCode.showIcons = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    showIconsSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight);
-    new import_obsidian3.Setting(inlineCodeDetails).setName("Enable inline code styling").setDesc("If enabled, the background color, and the text color of inline code can be styled.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling = value;
-        await this.plugin.saveSettings();
-        inlineCodeBackgroundSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        inlineCodeTextColorSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const inlineCodeBackgroundSetting = this.createPickrSetting(inlineCodeDetails, "Inline code background color", "", "inlineCode.backgroundColor");
-    inlineCodeBackgroundSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
-    const inlineCodeTextColorSetting = this.createPickrSetting(inlineCodeDetails, "Inline code text color", "", "inlineCode.textColor");
-    inlineCodeTextColorSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
-    return appearanceDiv;
-  }
-  // createAppearanceSettings
-  createHighlightingSettings(containerEl) {
-    const sectionData = SettingsPageData[SettingsPage.Highlighting];
-    const highlightingDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
-    highlightingDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Highlighting);
-    highlightingDiv.createEl("h3", { text: sectionData.displayName });
-    new import_obsidian3.Setting(highlightingDiv).setName("Enable codeblock active line highlight").setDesc("If enabled, you can set the color for the active line inside codeblocks only.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-        activeLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const activeLineSetting = this.createPickrSetting(highlightingDiv, "Codeblock active line color", "", "codeblock.activeLineColor");
-    activeLineSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight);
-    this.createPickrSetting(highlightingDiv, 'Highlight color (used by the "hl" parameter)', "Sets the default color for highlighting lines using the `hl` parameter (e.g., `hl:5`).", "codeblock.highlightColor");
-    const bracketDetails = this.createDetailsGroup(highlightingDiv, "Bracket Highlight & Selection Matching", "bracketDetailsOpen");
-    new import_obsidian3.Setting(bracketDetails).setName("Enable bracket highlight for matching brackets").setDesc("Highlights a bracket and its matching pair when you click next to one.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight = value;
-        if (value) {
-          this.plugin.extensions.push(this.plugin.editorExtensions.customBracketMatching);
-        } else {
-          this.plugin.extensions.remove(this.plugin.editorExtensions.customBracketMatching);
-        }
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-        bracketHighlightColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        bracketHighlightBackgroundColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        highlightNonMatchingBrackets.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        const subValue = this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets;
-        bracketHighlightColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value || !subValue);
-        bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value || !subValue);
-      })
-    );
-    const bracketHighlightColorMatch = this.createPickrSetting(bracketDetails, "Bracket highlight color for matching brackets", "", "codeblock.bracketHighlightColorMatch");
-    bracketHighlightColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
-    const bracketHighlightBackgroundColorMatch = this.createPickrSetting(bracketDetails, "Background color for matching brackets", "", "codeblock.bracketHighlightBackgroundColorMatch");
-    bracketHighlightBackgroundColorMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
-    const highlightNonMatchingBrackets = new import_obsidian3.Setting(bracketDetails).setName("Enable bracket highlight for non matching brackets").setDesc('If you click next to a bracket, and it doesn\'t have a corresponding pair, or the pair does not match the opening/closing bracket (e.g: `print("hello"]` ), they will be highlighted.').addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-        bracketHighlightColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    highlightNonMatchingBrackets.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight);
-    const bracketHighlightColorNoMatch = this.createPickrSetting(bracketDetails, "Bracket highlight color for non matching brackets", "", "codeblock.bracketHighlightColorNoMatch");
-    bracketHighlightColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight || !this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets);
-    const bracketHighlightBackgroundColorNoMatch = this.createPickrSetting(bracketDetails, "Background color for non matching brackets", "", "codeblock.bracketHighlightBackgroundColorNoMatch");
-    bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableBracketHighlight || !this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets);
-    new import_obsidian3.Setting(bracketDetails).setName("Enable selection matching").setDesc("If enabled, all occurrences of the selected text will be highlighted for easy identification.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching = value;
-        if (value) {
-          this.plugin.extensions.push(this.plugin.editorExtensions.selectionMatching);
-        } else {
-          this.plugin.extensions.remove(this.plugin.editorExtensions.selectionMatching);
-        }
-        await this.plugin.saveSettings();
-        selectionMatchHighlightSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const selectionMatchHighlightSetting = this.createPickrSetting(bracketDetails, "Selection match highlight color", "", "codeblock.selectionMatchHighlightColor");
-    selectionMatchHighlightSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableSelectionMatching);
-    const textHighlightDetails = this.createDetailsGroup(highlightingDiv, "Text Highlight", "textHighlightDetailsOpen");
-    new import_obsidian3.Setting(textHighlightDetails).setName("Line separator").setDesc("Override the default line separator `|` globally for text highlighting. You can also specify it for specific code blocks using the `lsep` parameter. The separator can only be one character long!").addText(
-      (text) => text.setPlaceholder(DEFAULT_LINE_SEPARATOR).setValue(this.plugin.settings.pluginSettings.textHighlight.lineSeparator).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.textHighlight.lineSeparator = value.charAt(0);
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian3.Setting(textHighlightDetails).setName("Text separator").setDesc("Override the default text separator `:` globally for text highlighting. You can also specify it for specific code blocks using the `tsep` parameter. The separator can only be one character long!").addText(
-      (text) => text.setPlaceholder(DEFAULT_TEXT_SEPARATOR).setValue(this.plugin.settings.pluginSettings.textHighlight.textSeparator).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.textHighlight.textSeparator = value.charAt(0);
-        await this.plugin.saveSettings();
-      })
-    );
-    const altColorsDetails = this.createDetailsGroup(highlightingDiv, "Alternative Highlight Colors", "altColorsDetailsOpen");
-    let alternateColorDisplayText;
-    new import_obsidian3.Setting(altColorsDetails).setName("Add alternative highlight color").setDesc("Define a name, by which you will reference the color. You can set the color itself after adding it to the list.").addText((value) => {
-      alternateColorDisplayText = value;
-      alternateColorDisplayText = value;
-      alternateColorDisplayText.setPlaceholder("e.g. error, warn");
-      alternateColorDisplayText.onChange(async (alternateHLColorName) => {
-        this.plugin.settings.alternateHighlightColorName = alternateHLColorName;
-      });
-    }).addButton(async (button) => {
-      button.setButtonText("Add");
-      button.onClick(async () => {
-        const colorNameRegex = /^[^\d][\w\d]*$/;
-        if (this.plugin.settings.alternateHighlightColorName.trim() === "") {
-          new import_obsidian3.Notice("Please enter a color name.");
-        } else if (!colorNameRegex.test(this.plugin.settings.alternateHighlightColorName)) {
-          new import_obsidian3.Notice(`"${this.plugin.settings.alternateHighlightColorName}" is not a valid color name.`);
-        } else if (this.plugin.settings.alternateHighlightColorName.trim().toLowerCase() === "hl") {
-          new import_obsidian3.Notice("You cannot override the default hl parameter.");
-        } else if (this.plugin.settings.alternateHighlightColorName.trim().toLowerCase() === "fold") {
-          new import_obsidian3.Notice("You cannot override the fold parameter.");
-        } else {
-          if (this.plugin.settings.alternateHighlightColorName.toLowerCase() in this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors) {
-            new import_obsidian3.Notice(`A color with the name "${this.plugin.settings.alternateHighlightColorName}" already exists.`);
-          } else {
-            const newColor = this.getRandomColor();
-            this.plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = newColor;
-            this.plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = newColor;
-            await this.plugin.saveSettings();
-            new import_obsidian3.Notice(`Added color "${this.plugin.settings.alternateHighlightColorName}".`);
-            alternateColorDisplayText.setValue("");
-            this.plugin.settings.alternateHighlightColorName = "";
-            this.updateColorContainer(colorContainer);
-            this.plugin.renderReadingViews();
-          }
-        }
-      });
-    });
-    const colorContainer = altColorsDetails.createDiv({ cls: "codeblock-customizer-alternateHLcolorContainer" });
-    this.updateColorContainer(colorContainer);
-    return highlightingDiv;
-  }
-  // createHighlightingSettings
-  createBehaviorSettings(containerEl) {
-    const sectionData = SettingsPageData[SettingsPage.Behavior];
-    const behaviorDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
-    behaviorDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Behavior);
-    behaviorDiv.createEl("h3", { text: sectionData.displayName });
-    new import_obsidian3.Setting(behaviorDiv).setName("Enable links usage").setDesc("If enabled, you can use links in the header, and code blocks as well. For links to work inside code blocks, they must be part of a comment. Examples: [[Document1]], [[Document1|DisplayText]], [[Document1#Paragraph|DisplayText]], [[Document1#^<BlockId>|DisplayText]], [DisplayText](Link), http://example.com etc.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableLinks).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.enableLinks = value;
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-        enableLinkUpdate.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    );
-    const enableLinkUpdate = new import_obsidian3.Setting(behaviorDiv).setName("Enable automatically updating links on file rename").setDesc("To enable this setting, enable links usage option first! If enabled, code block links will be automatically updated, when a file is renamed. Please read the README for more information!").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.enableLinkUpdate = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    enableLinkUpdate.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.enableLinks);
-    new import_obsidian3.Setting(behaviorDiv).setName("Hide fence lines").setDesc("If enabled, the opening and closing ``` or ~~~ lines will be hidden, when the cursor is outside the code block. They will reappear, when you click inside, allowing for easy editing.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.hideFenceLines).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.hideFenceLines = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    const groupedCodeBlocksDetails = this.createDetailsGroup(behaviorDiv, "Grouped Code Block Settings", "groupedCodeBlocksDetailsOpen");
-    new import_obsidian3.Setting(groupedCodeBlocksDetails).setName("Save active tab state").setDesc("If enabled, the active tab for each group will be remembered based on the options below.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState = value;
-        await this.plugin.saveSettings();
-        tabStatePersistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        if (value && this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent) {
-          clearTabCache.settingEl.removeClass("codeblock-customizer-setting-hidden");
-        } else {
-          clearTabCache.settingEl.addClass("codeblock-customizer-setting-hidden");
-        }
-      })
-    );
-    const tabStatePersistence = new import_obsidian3.Setting(groupedCodeBlocksDetails).setName("Tab state persistence").setDesc("Choose how long the active tab state is remembered.").addDropdown((dropdown) => {
-      dropdown.addOption(TabPersistence.Session, "Session Only").addOption(TabPersistence.Permanent, "Permanent").setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence).onChange(async (value) => {
-        const oldValue = this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence;
-        if (oldValue !== value) {
-          await this.plugin.clearAllTabData();
-        }
-        this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value;
-        await this.plugin.saveSettings();
-        clearTabCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", value !== TabPersistence.Permanent);
-      });
-    });
-    tabStatePersistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState);
-    const clearTabCache = new import_obsidian3.Setting(groupedCodeBlocksDetails).setName("Clear stored tab positions").setDesc("Clear all stored active tab states from disk and the current session.").addButton((button) => {
-      button.setButtonText("Clear cache");
-      button.onClick(async () => {
-        button.setDisabled(true);
-        button.setButtonText("Clearing...");
-        await this.plugin.clearAllTabData();
-        button.setDisabled(false);
-        button.setButtonText("Clear cache");
-      });
-    });
-    clearTabCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", !(this.plugin.settings.pluginSettings.groupedCodeBlocks.rememberTabState && this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent));
-    new import_obsidian3.Setting(groupedCodeBlocksDetails).setName('Show tab "Add" and "Remove" buttons (only editing view)').setDesc('If enabled, a "+" button will appear after the last tab to add a new block, and an "x" button will appear on each tab to remove it from the group.').addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    this.createPickrSetting(groupedCodeBlocksDetails, "Active tab background color", "Background color of the currently active tab.", "groupedCodeBlocks.activeTabBackgroundColor");
-    this.createPickrSetting(groupedCodeBlocksDetails, "Active tab text color", "Text color of the currently active tab.", "groupedCodeBlocks.activeTabTextColor");
-    this.createPickrSetting(groupedCodeBlocksDetails, "Header line color", "Sets the color of the separator line at the bottom of the header for grouped code blocks.", "groupedCodeBlocks.headerLineColor");
-    this.createPickrSetting(groupedCodeBlocksDetails, "Tab hover background color", "Background color when the mouse hovers over a tab.", "groupedCodeBlocks.hoverTabBackgroundColor");
-    this.createPickrSetting(groupedCodeBlocksDetails, "Tab hover text color", "Text color when the mouse hovers over a tab.", "groupedCodeBlocks.hoverTabTextColor");
-    const foldDetails = this.createDetailsGroup(behaviorDiv, "Folding Settings", "foldDetailsOpen");
-    const updateFoldingSettingsVisibility = () => {
-      const semiFoldEnabled = this.plugin.settings.pluginSettings.semiFold.enableSemiFold;
-      const inverseFoldEnabled = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
-      if (semiFoldLines)
-        semiFoldLines.setDisabled(!semiFoldEnabled);
-      if (semiFoldShowButton)
-        semiFoldShowButton.setDisabled(!semiFoldEnabled);
-      if (autoFold)
-        autoFold.settingEl.toggleClass("codeblock-customizer-setting-hidden", !semiFoldEnabled);
-      if (ignoreShortBlocks) {
-        const showIgnoreShortBlocks = semiFoldEnabled && inverseFoldEnabled;
-        ignoreShortBlocks.settingEl.toggleClass("codeblock-customizer-setting-hidden", !showIgnoreShortBlocks);
-      }
-    };
-    new import_obsidian3.Setting(foldDetails).setName("Inverse fold behavior").setDesc('If enabled, all code blocks are folded by default when opening a document. To disable this behavior for a specific code block, use the "unfold" parameter.').addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.folding.inverseFold).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.folding.inverseFold = value;
-        await this.plugin.saveSettings(true);
-        updateFoldingSettingsVisibility();
-        this.plugin.renderReadingViews();
-      })
-    );
-    const ignoreShortBlocks = new import_obsidian3.Setting(foldDetails).setName("Only apply inverse fold to semi-foldable blocks").setDesc("When `Inverse fold` and `Enable semi-fold` are both enabled, this prevents short code blocks (that cannot be semi-folded) from being fully folded by default.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.folding.ignoreShortBlocksOnInverseFold = value;
-        await this.plugin.saveSettings(true);
-        this.plugin.renderReadingViews();
-      })
-    );
-    let semiFoldLines;
-    let semiFoldShowButton;
-    new import_obsidian3.Setting(foldDetails).setName("Enable semi-fold").setDesc("If enabled folding will use semi-fold method. This means, that the first X lines will be visible only. Select the number of visisble lines. You can also enable an additional uncollapse button. Please refer to the README for more information.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.semiFold.enableSemiFold).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.semiFold.enableSemiFold = value;
-        await this.plugin.saveSettings(true);
-        updateSettingStyles(this.plugin.settings, this.app);
-        updateFoldingSettingsVisibility();
-        semiFoldEffect.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-      })
-    ).addDropdown((dropdown) => {
-      semiFoldLines = dropdown;
-      dropdown.selectEl.empty();
-      dropdown.addOptions(Object.fromEntries([...Array(50)].map((_2, index) => [`${index + 1}`, `${index + 1}`])));
-      dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString());
-      dropdown.onChange(async (value) => {
-        const number = parseInt(value);
-        this.plugin.settings.pluginSettings.semiFold.visibleLines = number;
-        await this.plugin.saveSettings(true);
-      });
-    }).addToggle(
-      (toggle) => semiFoldShowButton = toggle.setValue(this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon).setTooltip("Show additional uncollapse button").onChange(async (value) => {
-        this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    const semiFoldEffect = new import_obsidian3.Setting(foldDetails).setName("Semi-fold effect").setDesc("Select the visual effect for semi-folded code blocks.").addDropdown(
-      (dropdown) => dropdown.addOption(SemiFoldEffect.Opacity, "Opacity only").addOption(SemiFoldEffect.Blur, "Blur only").addOption(SemiFoldEffect.Both, "Both").setValue(this.plugin.settings.pluginSettings.semiFold.semifoldEffect).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    semiFoldEffect.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.semiFold.enableSemiFold);
-    let longCodeblockLinesInput;
-    const autoFold = new import_obsidian3.Setting(foldDetails).setName("Auto semi-fold long code blocks").setDesc("If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks = value;
-        longCodeblockLinesInput.setDisabled(!value);
-        longCodeblockLinesInput.inputEl.classList.toggle("is-disabled", !value);
-        await this.plugin.saveSettings(true);
-      })
-    ).addText((text) => {
-      longCodeblockLinesInput = text;
-      const isDisabled = !this.plugin.settings.pluginSettings.semiFold.autoFoldLongCodeblocks;
-      text.setPlaceholder("30").setValue(this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines.toString()).setDisabled(isDisabled);
-      text.inputEl.classList.toggle("is-disabled", isDisabled);
-      text.onChange(async (value) => {
-        const lines = parseInt(value);
-        if (!isNaN(lines)) {
-          this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
-          await this.plugin.saveSettings();
-        }
-      });
-    });
-    updateFoldingSettingsVisibility();
-    new import_obsidian3.Setting(foldDetails).setName("Save code blocks folded state").setDesc("Toggles the entire feature on or off. When enabled, the folded or unfolded state of code blocks will be saved based on the options below.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState = value;
-        await this.plugin.saveSettings();
-        scope.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        persistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        if (value && this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
-          clearFoldCache.settingEl.removeClass("codeblock-customizer-setting-hidden");
-        } else {
-          clearFoldCache.settingEl.addClass("codeblock-customizer-setting-hidden");
-        }
-      })
-    );
-    const scope = new import_obsidian3.Setting(foldDetails).setName("Scope").setDesc("Choose which code blocks are affected. 'Respect' only saves the state for blocks where `fold` wasn't explicitly set. 'All' saves the state for all blocks.").addDropdown((dropdown) => {
-      dropdown.addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"').addOption(FoldingScope.All, "All code blocks").setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.folding.scope = value;
-        await this.plugin.saveSettings();
-      });
-    });
-    scope.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState);
-    const persistence = new import_obsidian3.Setting(foldDetails).setName("Persistence").setDesc("Choose how long the folding state is remembered. 'Permanent' saves the state even after you restart Obsidian. 'Session' remembers the state only until you close the app.").addDropdown((dropdown) => {
-      dropdown.addOption(FoldingPersistence.Session, "Session Only").addOption(FoldingPersistence.Permanent, "Permanent").setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence).onChange(async (value) => {
-        const oldValue = this.plugin.settings.pluginSettings.codeblock.folding.persistence;
-        if (oldValue !== value) {
-          if (oldValue === FoldingPersistence.Permanent) {
-            await this.plugin.clearAllFoldData();
-            new import_obsidian3.Notice("Cleared permanent fold data.");
-          }
-          if (oldValue === FoldingPersistence.Session) {
-            this.plugin.activeEditorFolds.clear();
-            this.app.workspace.updateOptions();
-            new import_obsidian3.Notice("Cleared session fold data.");
-          }
-        }
-        this.plugin.settings.pluginSettings.codeblock.folding.persistence = value;
-        await this.plugin.saveSettings();
-        clearFoldCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", value !== FoldingPersistence.Permanent);
-      });
-    });
-    persistence.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState);
-    const clearFoldCache = new import_obsidian3.Setting(foldDetails).setName("Clear stored folded positions").setDesc("Clear all stored folded code block state from disk and the current session.").addButton((button) => {
-      button.setButtonText("Clear cache");
-      button.onClick(async () => {
-        button.setDisabled(true);
-        button.setButtonText("Clearing...");
-        await this.plugin.clearAllFoldData();
-        new import_obsidian3.Notice("Fold cache successfully cleared!");
-        button.setDisabled(false);
-        button.setButtonText("Clear cache");
-      });
-    });
-    clearFoldCache.settingEl.toggleClass("codeblock-customizer-setting-hidden", !(this.plugin.settings.pluginSettings.codeblock.folding.rememberFoldState && this.plugin.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent));
-    const buttonsDetails = this.createDetailsGroup(behaviorDiv, "Extra Button Settings", "buttonsDetailsOpen");
-    new import_obsidian3.Setting(buttonsDetails).setName("Modifier key for fence actions").setDesc("Hold this key while clicking copy, select, or delete to include the fence lines in the action.").addDropdown(
-      (dropdown) => dropdown.addOption(ButtonModifierKeys.NONE, "None").addOption(ButtonModifierKeys.CTRL, "Ctrl").addOption(ButtonModifierKeys.ALT, "Alt").addOption(ButtonModifierKeys.SHIFT, "Shift").setValue(this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian3.Setting(buttonsDetails).setName("Show 'Delete Code' button (only editing view)").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is deleted. Be careful!").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableDeleteCodeButton).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.enableDeleteCodeButton = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(buttonsDetails).setName("Show 'Select Code' button (only editing view)").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is selected (including the first and last lines of the code blocks which begin with three backticks).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableSelectCodeButton).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.enableSelectCodeButton = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(buttonsDetails).setName("Show 'Wrap Code' button (only reading view)").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is wrapped/unwrapped.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableWrapCodeButton).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.enableWrapCodeButton = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(buttonsDetails).setName("Show 'Copy as image' button").setDesc("If enabled, an additional button will be displayed on every code block. If clicked, a snapshot is created from the code block and inserted on the clipboard.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton = value;
-        snapshotWidthSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !value);
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    const snapshotWidthSetting = new import_obsidian3.Setting(buttonsDetails).setName("Image max width (pixels)").setDesc("Set a maximum width for the generated image. Leave blank to capture the code block at its current displayed width.").addText(
-      (text) => {
-        var _a, _b;
-        return text.setPlaceholder("800").setValue((_b = (_a = this.plugin.settings.pluginSettings.codeblock.buttons.snapshotMaxWidth) == null ? void 0 : _a.toString()) != null ? _b : "").onChange(async (value) => {
-          const width = parseInt(value);
-          this.plugin.settings.pluginSettings.codeblock.buttons.snapshotMaxWidth = isNaN(width) ? void 0 : width;
-          await this.plugin.saveSettings();
-        });
-      }
-    );
-    snapshotWidthSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton);
-    new import_obsidian3.Setting(buttonsDetails).setName("Always show buttons (only editing view)").setDesc("If enabled, all enabled buttons will always be displayed, even when you click inside the code block. Otherwise, they will only be shown when the cursor is outside the code block.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowButtons).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowButtons = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    new import_obsidian3.Setting(buttonsDetails).setName("Always show 'Copy Code' button for collapsed code blocks").setDesc("If enabled, in editing mode the 'Copy Code' button will always be visible on collapsed code blocks in the header. In reading mode the 'Copy Code' button will always be visible on collapsed and uncollapsed code blocks as well. Otherwise, it will only appear when hovering over the header (in editing mode) or the code block (in reading mode).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowCopyCodeButton).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowCopyCodeButton = value;
-        await this.plugin.saveSettings();
-        updateSettingStyles(this.plugin.settings, this.app);
-      })
-    );
-    return behaviorDiv;
-  }
-  // createBehaviorSettings
-  createPromptSettingsPage(containerEl) {
-    const sectionData = SettingsPageData[SettingsPage.Prompts];
-    const promptsDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
-    promptsDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Prompts);
-    promptsDiv.createEl("h3", { text: sectionData.displayName });
-    new import_obsidian3.Setting(promptsDiv).setName("Include prompts when copying").setDesc('If enabled, the prompt text (e.g., "$") will be included with the command when copying.').addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.prompts.includePromptsInCopy).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.prompts.includePromptsInCopy = value;
-        await this.plugin.saveSettings();
-      })
-    );
-    let selectedPromptId = Object.keys(defaultPrompts)[0];
-    let promptDropdown;
-    let promptRestoreButton;
-    let promptDeleteButton;
-    new import_obsidian3.Setting(promptsDiv).setName("Select Prompt").setDesc("Choose a prompt to edit or preview.").addDropdown((dropdown) => {
-      this.refreshPromptDropdown(dropdown, selectedPromptId);
-      dropdown.onChange(async (value) => {
-        selectedPromptId = value;
-        this.createPromptSettings(promptEditorContainer, selectedPromptId);
-        promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
-        promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
-        await this.plugin.saveSettings();
-      });
-      promptDropdown = dropdown;
-    }).addExtraButton((button) => {
-      promptRestoreButton = button;
-      button.setTooltip("Restore default prompt to its original state");
-      button.setIcon("reset");
-      button.onClick(async () => {
-        this.restorePromptColor(selectedPromptId);
-        await this.plugin.saveSettings();
-        new import_obsidian3.Notice(`All settings and colors of prompt "${selectedPromptId}" restored to its original state!`);
-      });
-      button.setDisabled(!(selectedPromptId in defaultPrompts));
-    }).addExtraButton((button) => {
-      promptDeleteButton = button;
-      button.setTooltip("Delete prompt");
-      button.setIcon("trash");
-      button.onClick(async () => {
-        var _a, _b, _c, _d, _e, _f;
-        if (!selectedPromptId) {
-          new import_obsidian3.Notice("Select a prompt first to delete.");
-          return;
-        }
-        if (selectedPromptId in defaultPrompts) {
-          new import_obsidian3.Notice("You cannot delete default prompts.");
-          return;
-        }
-        if (!(selectedPromptId in this.plugin.settings.pluginSettings.prompts.customPrompts)) {
-          new import_obsidian3.Notice("Prompt not found.");
-          return;
-        }
-        delete this.plugin.settings.pluginSettings.prompts.customPrompts[selectedPromptId];
-        (_a = this.plugin.settings.SelectedTheme.colors.light.prompts.promptColors) == null ? true : delete _a[selectedPromptId];
-        (_b = this.plugin.settings.SelectedTheme.colors.dark.prompts.promptColors) == null ? true : delete _b[selectedPromptId];
-        (_c = this.plugin.settings.SelectedTheme.colors.light.prompts.editedPromptColors) == null ? true : delete _c[selectedPromptId];
-        (_d = this.plugin.settings.SelectedTheme.colors.dark.prompts.editedPromptColors) == null ? true : delete _d[selectedPromptId];
-        (_e = this.plugin.settings.SelectedTheme.colors.light.prompts.editedRootPromptColors) == null ? true : delete _e[selectedPromptId];
-        (_f = this.plugin.settings.SelectedTheme.colors.dark.prompts.editedRootPromptColors) == null ? true : delete _f[selectedPromptId];
-        new import_obsidian3.Notice(`Prompt "${selectedPromptId}" deleted successfully!`);
-        selectedPromptId = Object.keys(defaultPrompts)[0];
-        promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
-        promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
-        this.refreshPromptDropdown(promptDropdown, selectedPromptId);
-        this.createPromptSettings(promptEditorContainer, selectedPromptId);
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-      });
-      button.setDisabled(selectedPromptId in defaultPrompts);
-    });
-    let promptName;
-    this.plugin.settings.newPromptName = "";
-    new import_obsidian3.Setting(promptsDiv).setName("Create your custom prompt").setDesc('Give your prompt a name and click the button to save it. You can use your prompt using this name e.g. "prompt:myPromptName".').addText((input) => {
-      promptName = input;
-      promptName.setPlaceholder("Name for your prompt").setValue(this.plugin.settings.newPromptName).onChange(async (value) => {
-        this.plugin.settings.newPromptName = value;
-      });
-    }).addExtraButton((button) => {
-      button.setTooltip("Save prompt");
-      button.setIcon("plus");
-      button.onClick(async () => {
-        const newPromptId = this.plugin.settings.newPromptName.trim();
-        if (newPromptId.length === 0) {
-          new import_obsidian3.Notice("Set a name for your prompt!");
-          return;
-        }
-        if (newPromptId in defaultPrompts) {
-          new import_obsidian3.Notice("You can't overwrite default prompts!");
-          return;
-        }
-        const exists = newPromptId in this.plugin.settings.pluginSettings.prompts.customPrompts;
-        this.plugin.settings.pluginSettings.prompts.customPrompts[this.plugin.settings.newPromptName] = {
-          name: this.plugin.settings.newPromptName,
-          basePrompt: "{user}@{host}:{path}$",
-          defaultUser: "user",
-          defaultHost: "localhost",
-          defaultDir: "~",
-          parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)$/,
-          highlightGroups: {
-            user: "user",
-            host: "host",
-            path: "path"
-          },
-          supportsRootStyling: false,
-          isWindowsShell: false
-        };
-        selectedPromptId = newPromptId;
-        if (!exists) {
-          promptDropdown.addOption(newPromptId, `[Custom] ${newPromptId}`);
-        }
-        promptDropdown.setValue(selectedPromptId);
-        promptRestoreButton.setDisabled(!(selectedPromptId in defaultPrompts));
-        promptDeleteButton.setDisabled(selectedPromptId in defaultPrompts);
-        if (exists)
-          new import_obsidian3.Notice(`Prompt "${this.plugin.settings.newPromptName}" updated successfully!`);
-        else
-          new import_obsidian3.Notice(`Prompt "${this.plugin.settings.newPromptName}" saved successfully!`);
-        this.plugin.settings.newPromptName = "";
-        promptName.setValue("");
-        await this.plugin.saveSettings();
-        this.createPromptSettings(promptEditorContainer, selectedPromptId);
-        this.plugin.renderReadingViews();
-      });
-    });
-    const promptEditorContainer = promptsDiv.createDiv({ cls: "codeblock-customizer-prompt-editor-container" });
-    this.createPromptSettings(promptEditorContainer, selectedPromptId);
-    return promptsDiv;
-  }
-  // createPromptSettingsPage
-  createPluginCompatibilitySettingsPage(containerEl) {
-    const sectionData = SettingsPageData[SettingsPage.Plugins];
-    const pluginsDiv = containerEl.createDiv({ cls: `${sectionData.hideClass} ${sectionData.class} cb-settings-section` });
-    pluginsDiv.toggleClass(sectionData.hideClass, this.plugin.settings.settingsType !== SettingsPage.Plugins);
-    pluginsDiv.createEl("h3", { text: sectionData.displayName });
-    const admonitionDetailsDetails = this.createDetailsGroup(pluginsDiv, "Admonition Settings", "admonitionDetailsOpen");
-    new import_obsidian3.Setting(admonitionDetailsDetails).setName("Enable Admonition support").setDesc("Enable styling for code blocks inside Admonition blocks.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.plugins.admonitions.enabled).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.plugins.admonitions.enabled = value;
-        detailSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !value);
-        const isTimerVisible = value && this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut;
-        timerSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !isTimerVisible);
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-      })
-    );
-    const detailSetting = new import_obsidian3.Setting(admonitionDetailsDetails).setName("Use timer for admonition processing").setDesc("Adds a small, configurable delay before styling code blocks inside admonitions. This can resolve rendering issues in complex notes.").addToggle((toggle) => {
-      toggle.setValue(this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut = value;
-        timerSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !value);
-        await this.plugin.saveSettings();
-      });
-    });
-    detailSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.plugins.admonitions.enabled);
-    const timerSetting = new import_obsidian3.Setting(admonitionDetailsDetails).setName("Admonition processing delay (ms)").setDesc("The delay in milliseconds to wait before processing.").addText(
-      (text) => text.setValue(this.plugin.settings.pluginSettings.plugins.admonitions.timeOut.toString()).onChange(async (value) => {
-        const numberValue = parseInt(value);
-        if (!isNaN(numberValue)) {
-          this.plugin.settings.pluginSettings.plugins.admonitions.timeOut = numberValue;
-          await this.plugin.saveSettings();
-        }
-      })
-    );
-    timerSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut);
-    const executeCodeDetails = this.createDetailsGroup(pluginsDiv, "Execute Code Settings", "executeCodeDetailsOpen");
-    new import_obsidian3.Setting(executeCodeDetails).setName("Enable Execute Code plugin support").setDesc("When disabled, this plugin completely ignores the Execute Code plugin, and does not apply any styling at all to run-* code blocks. Switch documents after changing this option, to refresh the view.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.plugins.executeCode.enabled).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.plugins.executeCode.enabled = value;
-        styleOutputSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !value);
-        await this.plugin.saveSettings();
-        this.plugin.renderReadingViews();
-      })
-    );
-    const styleOutputSetting = new import_obsidian3.Setting(executeCodeDetails).setName("Style Execute Code output").setDesc("When enabled, the plugin will add line numbers, highlighting, and other styles to the code output. Disable this to see the raw, default output.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.pluginSettings.plugins.executeCode.styleOutput).onChange(async (value) => {
-        this.plugin.settings.pluginSettings.plugins.executeCode.styleOutput = value;
-        await this.plugin.saveSettings();
-        updateSettingClasses(this.plugin.settings.pluginSettings);
-        this.plugin.renderReadingViews();
-      })
-    );
-    styleOutputSetting.settingEl.classList.toggle("codeblock-customizer-setting-hidden", !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);
-    return pluginsDiv;
-  }
-  // createPluginCompatibilitySettingsPage
-  restorePromptColor(promptId) {
-    var _a, _b, _c, _d;
-    const baseThemeName = (_a = this.plugin.settings.SelectedTheme.baseTheme) != null ? _a : "Obsidian";
-    const baseTheme = this.plugin.settings.Themes[baseThemeName];
-    if (!baseTheme) {
-      console.warn(`Base theme "${baseThemeName}" not found.`);
-      return;
-    }
-    const modes = ["light", "dark"];
-    for (const mode of modes) {
-      (_b = this.plugin.settings.SelectedTheme.colors[mode].prompts.editedPromptColors) == null ? true : delete _b[promptId];
-      (_c = this.plugin.settings.SelectedTheme.colors[mode].prompts.editedRootPromptColors) == null ? true : delete _c[promptId];
-    }
-    (_d = this.plugin.settings.pluginSettings.prompts.editedDefaults) == null ? true : delete _d[promptId];
-    this.display();
-  }
-  // restorePromptColor
-  createPromptSettings(promptEditorContainer, selectedPromptId) {
-    var _a, _b;
-    promptEditorContainer.empty();
-    const { def: currentPromptData } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-    const previewWrapper = promptEditorContainer.createDiv({ cls: "codeblock-customizer-prompt-preview-wrapper" });
-    previewWrapper.createDiv({ text: "Prompt preview" });
-    const previewEl = previewWrapper.createDiv({ cls: "codeblock-customizer-prompt-preview" });
-    const promptSettingsDetails = this.createDetailsGroup(promptEditorContainer, "Prompt Settings", "promptSettingsDetailsOpen", "codeblock-customizer-prompt-settings-group");
-    const updatePreview = () => {
-      const { def: promptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-      this.updatePromptPreview(previewEl, selectedPromptId, promptData, isCustom);
-    };
-    updatePreview();
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Prompt Name (for codeblock language)").setClass("codeblock-customizer-prompt-name").setDesc(`This is the identifier to use in your code block fence, e.g., prompt:${selectedPromptId}`).addText((text) => {
-      text.setValue(selectedPromptId);
-      text.setDisabled(true);
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Base Prompt").setDesc("Template for the prompt.").addText((text) => text.setValue(currentPromptData.basePrompt).onChange(async (value) => {
-      const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-      currentPromptData2.basePrompt = value;
-      await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-      updatePreview();
-    }));
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Default User").addText((text) => {
-      var _a2;
-      return text.setPlaceholder("e.g. root, admin etc.").setValue((_a2 = currentPromptData.defaultUser) != null ? _a2 : "").onChange(async (value) => {
-        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        currentPromptData2.defaultUser = value;
-        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-        updatePreview();
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Default Host").addText((text) => {
-      var _a2;
-      return text.setPlaceholder("e.g. localhost").setValue((_a2 = currentPromptData.defaultHost) != null ? _a2 : "").onChange(async (value) => {
-        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        currentPromptData2.defaultHost = value;
-        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-        updatePreview();
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Default Directory").addText((text) => {
-      var _a2;
-      return text.setPlaceholder("e.g. /var/www/html").setValue((_a2 = currentPromptData.defaultDir) != null ? _a2 : "").onChange(async (value) => {
-        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        currentPromptData2.defaultDir = value;
-        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-        updatePreview();
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Default Database").addText((text) => {
-      var _a2;
-      return text.setPlaceholder("e.g. postgres").setValue((_a2 = currentPromptData.defaultDb) != null ? _a2 : "").onChange(async (value) => {
-        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        currentPromptData2.defaultDb = value;
-        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-        updatePreview();
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Default Branch").addText((text) => {
-      var _a2;
-      return text.setPlaceholder("e.g. main, dev etc.").setValue((_a2 = currentPromptData.defaultBranch) != null ? _a2 : "").onChange(async (value) => {
-        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        currentPromptData2.defaultBranch = value;
-        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-        updatePreview();
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Default Module").addText((text) => {
-      var _a2;
-      return text.setPlaceholder("e.g. exploit/multi/handler").setValue((_a2 = currentPromptData.defaultModule) != null ? _a2 : "").onChange(async (value) => {
-        const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        currentPromptData2.defaultModule = value;
-        await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-        updatePreview();
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Highlight Groups").setDesc('Define the named capture groups from your regex that should be styled. For example,\nif your regex includes `(?<user>...)`, you would add a "user": "user" entry here to apply\nthe `user` style.').setClass("codeblock-customizer-highlightgroups-setting").addTextArea((textarea) => {
-      var _a2;
-      textarea.inputEl.rows = 6;
-      textarea.inputEl.classList.add("codeblock-customizer-highlightgroups-textarea");
-      textarea.setValue(JSON.stringify((_a2 = currentPromptData.highlightGroups) != null ? _a2 : {}, null, 2));
-      textarea.onChange(async (value) => {
-        try {
-          const parsed = JSON.parse(value);
-          const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData2.highlightGroups = parsed;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-          updatePreview();
-        } catch (e) {
-          new import_obsidian3.Notice("\u26A0\uFE0F Invalid JSON, not saved");
-        }
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Parse Prompt Regex").setDesc("Regex string for parsing the prompt.").addText((text) => {
-      var _a2, _b2;
-      return text.setValue((_b2 = (_a2 = currentPromptData.parsePromptRegex) == null ? void 0 : _a2.source) != null ? _b2 : "").onChange(async (value) => {
-        try {
-          const compiled = new RegExp(value);
-          const { def: currentPromptData2, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData2.parsePromptRegexString = value;
-          currentPromptData2.parsePromptRegex = compiled;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData2);
-          new import_obsidian3.Notice(`Regex saved for prompt "${selectedPromptId}"`);
-        } catch (e) {
-          new import_obsidian3.Notice("\u26A0\uFE0F Invalid regex, not saved");
-        }
-      }).inputEl.classList.add("codeblock-customizer-regex-input");
-    });
-    let windowsShellToggle;
-    let rootStylingToggle;
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Is Windows Shell").setDesc("Only enable for Windows prompts, otherwise this should remain false.").addToggle((toggle) => {
-      windowsShellToggle = toggle;
-      toggle.setValue(currentPromptData.isWindowsShell).onChange(async (value) => {
-        const { def: data, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        data.isWindowsShell = value;
-        if (value && rootStylingToggle) {
-          data.supportsRootStyling = false;
-          rootStylingToggle.setValue(false);
-        }
-        await this.savePromptData(isCustom, selectedPromptId, data);
-        this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl);
-      });
-    });
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Supports root styling").setDesc("Only enable for prompts, when you want to set different colors for the root prompt (linux prompts only).").addToggle((toggle) => {
-      var _a2;
-      rootStylingToggle = toggle;
-      toggle.setValue((_a2 = currentPromptData.supportsRootStyling) != null ? _a2 : false).onChange(async (value) => {
-        const { def: data, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        data.supportsRootStyling = value;
-        if (value && windowsShellToggle) {
-          data.isWindowsShell = false;
-          windowsShellToggle.setValue(false);
-        }
-        await this.savePromptData(isCustom, selectedPromptId, data);
-        this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl);
-      });
-    });
-    let languagesTextComponent;
-    let autoUseToggle;
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Auto-use Prompt").setDesc("If enabled, this prompt will be used automatically for the specified languages.").addToggle((toggle) => {
-      var _a2;
-      autoUseToggle = toggle;
-      toggle.setValue((_a2 = currentPromptData.autoUsePrompt) != null ? _a2 : false).onChange(async (isEnabling) => {
-        autoUseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !isEnabling);
-        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        updatedPromptData.autoUsePrompt = isEnabling;
-        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
-        const definedLanguages = languagesTextComponent.getValue();
-        if (definedLanguages && definedLanguages.trim() !== "") {
-          this.plugin.renderReadingViews();
-        }
-        if (isEnabling) {
-          languagesTextComponent.inputEl.focus();
-        }
-      });
-    });
-    const autoUseLanguagesSetting = new import_obsidian3.Setting(promptSettingsDetails).setName("Languages for Auto-use").setDesc("Comma-separated list of code block languages for which the prompt should be used\n(e.g., bash, python etc.).").addText((text) => {
-      var _a2;
-      languagesTextComponent = text;
-      text.setValue(((_a2 = currentPromptData.autoUseLanguages) != null ? _a2 : []).join(", "));
-      text.inputEl.onblur = async () => {
-        var _a3, _b2, _c;
-        const isEnabled = autoUseToggle.getValue();
-        if (!isEnabled)
-          return;
-        const newLangs = languagesTextComponent.getValue().split(",").map((s) => s.trim()).filter(Boolean);
-        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        if (newLangs.length === 0) {
-          const hadLanguages = ((_a3 = updatedPromptData.autoUseLanguages) != null ? _a3 : []).length > 0;
-          new import_obsidian3.Notice("\u26A0\uFE0F Auto-use is enabled, but no languages are specified. Disabling feature.");
-          updatedPromptData.autoUsePrompt = false;
-          updatedPromptData.autoUseLanguages = [];
-          await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
-          autoUseToggle.setValue(false);
-          if (hadLanguages) {
-            this.plugin.renderReadingViews();
-          }
-          return;
-        }
-        const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
-        for (const lang of newLangs) {
-          for (const promptId in allPrompts) {
-            if (promptId === selectedPromptId)
-              continue;
-            const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
-            if (pDef.autoUsePrompt && ((_b2 = pDef.autoUseLanguages) == null ? void 0 : _b2.includes(lang))) {
-              new import_obsidian3.Notice(`\u26A0\uFE0F Can't save. Language '${lang}' is already set for auto-use by prompt '${pDef.name}'.`);
-              const { def: currentDef } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-              languagesTextComponent.setValue(((_c = currentDef.autoUseLanguages) != null ? _c : []).join(", "));
-              autoUseToggle.setValue(false);
-              return;
-            }
-          }
-        }
-        updatedPromptData.autoUsePrompt = true;
-        updatedPromptData.autoUseLanguages = newLangs;
-        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
-        this.plugin.renderReadingViews();
-        new import_obsidian3.Notice("Auto-use settings saved.");
-      };
-    });
-    autoUseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !((_a = currentPromptData.autoUsePrompt) != null ? _a : false));
-    let parseLanguagesTextComponent;
-    let autoParseToggle;
-    new import_obsidian3.Setting(promptSettingsDetails).setName("Auto-parse Prompt").setDesc("If enabled, this prompt's regex will be used to automatically find and style prompts in code blocks of the specified languages.").addToggle((toggle) => {
-      var _a2;
-      autoParseToggle = toggle;
-      toggle.setValue((_a2 = currentPromptData.autoParsePrompt) != null ? _a2 : false).onChange(async (isEnabling) => {
-        autoParseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !isEnabling);
-        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        updatedPromptData.autoParsePrompt = isEnabling;
-        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
-        const definedLanguages = parseLanguagesTextComponent.getValue();
-        if (definedLanguages && definedLanguages.trim() !== "") {
-          this.plugin.renderReadingViews();
-        }
-        if (isEnabling) {
-          parseLanguagesTextComponent.inputEl.focus();
-        }
-      });
-    });
-    const autoParseLanguagesSetting = new import_obsidian3.Setting(promptSettingsDetails).setName("Languages for Auto-parse").setDesc("Comma-separated list of code block languages for which this prompt's parser should be used\n(e.g., bash, shell).\nWARNING: This could affect performance if you have a lot of code blocks with the specified languages.").addText((text) => {
-      var _a2;
-      parseLanguagesTextComponent = text;
-      text.setValue(((_a2 = currentPromptData.autoParseLanguages) != null ? _a2 : []).join(", "));
-      text.inputEl.onblur = async () => {
-        var _a3, _b2, _c, _d, _e, _f;
-        if (!autoParseToggle.getValue())
-          return;
-        const newLangs = parseLanguagesTextComponent.getValue().split(",").map((s) => s.trim()).filter(Boolean);
-        const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-        if (newLangs.length === 0) {
-          const hadLanguages = ((_a3 = updatedPromptData.autoParseLanguages) != null ? _a3 : []).length > 0;
-          new import_obsidian3.Notice("\u26A0\uFE0F Auto-parse is enabled, but no languages are specified. Disabling feature.");
-          updatedPromptData.autoParsePrompt = false;
-          updatedPromptData.autoParseLanguages = [];
-          await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
-          autoParseToggle.setValue(false);
-          autoParseLanguagesSetting.settingEl.addClass("codeblock-customizer-setting-hidden");
-          if (hadLanguages) {
-            this.plugin.renderReadingViews();
-          }
-          return;
-        }
-        const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
-        for (const lang of newLangs) {
-          if (updatedPromptData.autoUsePrompt && ((_b2 = updatedPromptData.autoUseLanguages) == null ? void 0 : _b2.includes(lang))) {
-            new import_obsidian3.Notice(`\u26A0\uFE0F Can't save. Language '${lang}' is already set for 'Auto-use' by this same prompt.`);
-            parseLanguagesTextComponent.setValue(((_c = updatedPromptData.autoParseLanguages) != null ? _c : []).join(", "));
-            return;
-          }
-          for (const promptId in allPrompts) {
-            if (promptId === selectedPromptId)
-              continue;
-            const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
-            if (pDef.autoUsePrompt && ((_d = pDef.autoUseLanguages) == null ? void 0 : _d.includes(lang)) || pDef.autoParsePrompt && ((_e = pDef.autoParseLanguages) == null ? void 0 : _e.includes(lang))) {
-              new import_obsidian3.Notice(`\u26A0\uFE0F Can't save. Language '${lang}' is already in use by prompt '${pDef.name}'.`);
-              parseLanguagesTextComponent.setValue(((_f = updatedPromptData.autoParseLanguages) != null ? _f : []).join(", "));
-              return;
-            }
-          }
-        }
-        updatedPromptData.autoParsePrompt = true;
-        updatedPromptData.autoParseLanguages = newLangs;
-        await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);
-        this.plugin.renderReadingViews();
-        new import_obsidian3.Notice("Auto-parse settings saved.");
-      };
-    });
-    autoParseLanguagesSetting.settingEl.toggleClass("codeblock-customizer-setting-hidden", !((_b = currentPromptData.autoParsePrompt) != null ? _b : false));
-    const colorsSettingsDetails = this.createDetailsGroup(promptEditorContainer, "Prompt Colors", "promptColorsDetailsOpen", "codeblock-customizer-prompt-colors-settings-group");
-    const promptColorSettingsContainer = colorsSettingsDetails.createDiv();
-    this.createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl);
-  }
-  // createPromptSettings
-  createPromptColorSettings(promptColorSettingsContainer, selectedPromptId, previewEl, showRootColor = false) {
-    var _a, _b;
-    promptColorSettingsContainer.empty();
-    promptColorSettingsContainer.appendChild(document.createElement("br"));
-    this.promptPickers.clear();
-    const allGroups = Array.from(collectAllPromptClasses(this.plugin.settings));
-    const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-    let editingRootColors = showRootColor != null ? showRootColor : false;
-    if (currentPromptData.supportsRootStyling) {
-      new import_obsidian3.Setting(promptColorSettingsContainer).setName("Configure Root Colors").setDesc("Enable to edit root-specific colors for this prompt.").addToggle(
-        (toggle) => toggle.setValue(editingRootColors).onChange((value) => {
-          var _a2, _b2;
-          editingRootColors = value;
-          const newColors = this.getResolvedPromptColors(selectedPromptId, editingRootColors);
-          const fallbackColors = this.getResolvedPromptColors(selectedPromptId, false);
-          for (const [partClass, pickr] of this.promptPickers.entries()) {
-            const newColor = (_b2 = (_a2 = newColors[partClass]) != null ? _a2 : fallbackColors[partClass]) != null ? _b2 : DEFAULT_PROMPT_COLOR;
-            pickr.setColor(newColor);
-          }
-          this.updatePromptPreview(previewEl, selectedPromptId, currentPromptData, isCustom, editingRootColors);
-        })
-      );
-    }
-    for (const part of allGroups) {
-      const partClass = part.startsWith("prompt-") ? part : `prompt-${part}`;
-      const displayName = promptClassDisplayNames[partClass];
-      let label;
-      const suffixTargets = [
-        "prompt-user",
-        "prompt-host",
-        "prompt-path",
-        "prompt-db",
-        "prompt-branch",
-        "prompt-msf",
-        "prompt-keyword",
-        "prompt-module",
-        "prompt-beacon"
-      ];
-      if (displayName) {
-        if (suffixTargets.includes(partClass)) {
-          label = `${displayName} (returned by RegEx)`;
-        } else {
-          label = displayName;
-        }
-      } else {
-        label = `${partClass} (returned by RegEx)`;
-      }
-      const resolvedColors = this.getResolvedPromptColors(selectedPromptId, editingRootColors);
-      const fallbackColors = this.getResolvedPromptColors(selectedPromptId, false);
-      const currentColor = (_b = (_a = resolvedColors[partClass]) != null ? _a : fallbackColors[partClass]) != null ? _b : DEFAULT_PROMPT_COLOR;
-      const isDefaultPrompt = selectedPromptId in defaultPrompts;
-      const setting = new import_obsidian3.Setting(promptColorSettingsContainer).setName(label).setClass(`detailpage`);
-      const pickr = this.addPickerControlsToSetting(setting, {
-        containerEl: promptColorSettingsContainer,
-        initialColor: currentColor,
-        onSave: (savedColor) => {
-          this.setPromptColorDiff(selectedPromptId, partClass, savedColor, editingRootColors);
-          this.plugin.saveSettings();
-        },
-        onReset: isDefaultPrompt ? () => {
-          return this.getDefaultPromptColor(selectedPromptId, partClass, editingRootColors);
-        } : void 0
-      });
-      this.promptPickers.set(partClass, pickr);
-    }
-  }
-  // createPromptColorSettings
-  getDefaultPromptColor(promptId, partClass, editingRootColors) {
-    var _a, _b, _c, _d, _e, _f, _g;
-    const baseThemeName = (_a = this.plugin.settings.SelectedTheme.baseTheme) != null ? _a : "Obsidian";
-    const defaultTheme = this.plugin.settings.Themes[baseThemeName];
-    const mode = getCurrentMode();
-    if (!defaultTheme) {
-      return DEFAULT_PROMPT_COLOR;
-    }
-    if (editingRootColors) {
-      const specificRootColor = (_c = (_b = defaultTheme.colors[mode].prompts.rootPromptColors) == null ? void 0 : _b[promptId]) == null ? void 0 : _c[partClass];
-      if (specificRootColor) {
-        return specificRootColor;
-      }
-      const fallbackNormalColor = (_e = (_d = defaultTheme.colors[mode].prompts.promptColors) == null ? void 0 : _d[promptId]) == null ? void 0 : _e[partClass];
-      if (fallbackNormalColor) {
-        return fallbackNormalColor;
-      }
-      return DEFAULT_PROMPT_COLOR;
-    }
-    const normalColor = (_g = (_f = defaultTheme.colors[mode].prompts.promptColors) == null ? void 0 : _f[promptId]) == null ? void 0 : _g[partClass];
-    if (normalColor) {
-      return normalColor;
-    }
-    return DEFAULT_PROMPT_COLOR;
-  }
-  // getDefaultPromptColor
-  updatePromptPreview(previewEl, selectedPromptId, promptData, isCustom, editingRootColors = false) {
-    var _a, _b, _c, _d, _e, _f;
-    previewEl.empty();
-    const promptEnv = {
-      user: (_a = promptData.defaultUser) != null ? _a : "user",
-      host: (_b = promptData.defaultHost) != null ? _b : "host",
-      dir: (_c = promptData.defaultDir) != null ? _c : "~",
-      previousDir: (_d = promptData.defaultDir) != null ? _d : "~",
-      db: (_e = promptData.defaultDb) != null ? _e : "postgres",
-      branch: (_f = promptData.defaultBranch) != null ? _f : "main",
-      homeDir: "~",
-      originalHomeDir: "~",
-      msfKeyword: promptData.defaultModule ? "exploit" : void 0,
-      msfModule: promptData.defaultModule
-    };
-    const promptKind = getPromptType(isCustom ? promptData.basePrompt : selectedPromptId);
-    const promptText = isCustom ? promptData.basePrompt : selectedPromptId;
-    const promptParts = replacePromptTemplate(promptKind, promptText, promptData, promptEnv);
-    const { def } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-    const normalPreview = addClassesToPrompt(promptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings);
-    normalPreview.classList.add("normal-preview");
-    const container = createDiv({ cls: "prompt-preview-container" });
-    container.appendChild(normalPreview);
-    const rootEnv = { ...promptEnv, user: "root" };
-    const rootPromptParts = replacePromptTemplate(promptKind, promptText, promptData, rootEnv);
-    const rootPreview = addClassesToPrompt(rootPromptParts, isCustom ? promptData.name : promptText, def, this.plugin.settings, true);
-    rootPreview.classList.add("root-preview");
-    if (editingRootColors && promptData.supportsRootStyling) {
-      rootPreview.classList.add("is-visible");
-    }
-    container.appendChild(rootPreview);
-    previewEl.appendChild(container);
-    previewEl.classList.toggle("only-normal", !editingRootColors);
-  }
-  // updatePromptPreview
-  async savePromptData(isCustom, selectedPromptId, promptData) {
-    var _a, _b, _c, _d, _e, _f;
-    if (isCustom) {
-      const clone = structuredClone(promptData);
-      delete clone.parsePromptRegex;
-      this.plugin.settings.pluginSettings.prompts.customPrompts[selectedPromptId] = clone;
-    } else {
-      const basePromptDef = defaultPrompts[selectedPromptId];
-      const diff = {};
-      if (promptData.basePrompt !== basePromptDef.basePrompt)
-        diff.basePrompt = promptData.basePrompt;
-      if (promptData.defaultUser !== basePromptDef.defaultUser)
-        diff.defaultUser = promptData.defaultUser;
-      if (promptData.defaultHost !== basePromptDef.defaultHost)
-        diff.defaultHost = promptData.defaultHost;
-      if (promptData.defaultDir !== basePromptDef.defaultDir)
-        diff.defaultDir = promptData.defaultDir;
-      if (promptData.defaultDb !== basePromptDef.defaultDb)
-        diff.defaultDb = promptData.defaultDb;
-      if (promptData.defaultBranch !== basePromptDef.defaultBranch)
-        diff.defaultBranch = promptData.defaultBranch;
-      if (promptData.defaultModule !== basePromptDef.defaultModule)
-        diff.defaultModule = promptData.defaultModule;
-      if (JSON.stringify((_a = promptData.highlightGroups) != null ? _a : {}) !== JSON.stringify((_b = basePromptDef.highlightGroups) != null ? _b : {}))
-        diff.highlightGroups = promptData.highlightGroups;
-      if (promptData.parsePromptRegexString !== basePromptDef.parsePromptRegexString)
-        diff.parsePromptRegexString = promptData.parsePromptRegexString;
-      if (promptData.isWindowsShell !== basePromptDef.isWindowsShell)
-        diff.isWindowsShell = promptData.isWindowsShell;
-      if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling)
-        diff.supportsRootStyling = promptData.supportsRootStyling;
-      if (promptData.autoUsePrompt !== basePromptDef.autoUsePrompt)
-        diff.autoUsePrompt = promptData.autoUsePrompt;
-      if (JSON.stringify((_c = promptData.autoUseLanguages) != null ? _c : []) !== JSON.stringify((_d = basePromptDef.autoUseLanguages) != null ? _d : []))
-        diff.autoUseLanguages = promptData.autoUseLanguages;
-      if (promptData.autoParsePrompt !== basePromptDef.autoParsePrompt)
-        diff.autoParsePrompt = promptData.autoParsePrompt;
-      if (JSON.stringify((_e = promptData.autoParseLanguages) != null ? _e : []) !== JSON.stringify((_f = basePromptDef.autoParseLanguages) != null ? _f : []))
-        diff.autoParseLanguages = promptData.autoParseLanguages;
-      this.plugin.settings.pluginSettings.prompts.editedDefaults[selectedPromptId] = diff;
-    }
-    await this.plugin.saveSettings();
-  }
-  // savePromptData
-  getResolvedPromptColors(promptId, editingRoot) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-    const mode = getCurrentMode();
-    const baseThemeName = (_a = this.plugin.settings.SelectedTheme.baseTheme) != null ? _a : "Obsidian";
-    const base = (_b = this.plugin.settings.Themes[baseThemeName]) == null ? void 0 : _b.colors[mode].prompts;
-    const edited = editingRoot ? (_d = (_c = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors) == null ? void 0 : _c[promptId]) != null ? _d : {} : (_f = (_e = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors) == null ? void 0 : _e[promptId]) != null ? _f : {};
-    const defaults = editingRoot ? (_h = (_g = base == null ? void 0 : base.rootPromptColors) == null ? void 0 : _g[promptId]) != null ? _h : {} : (_j = (_i = base == null ? void 0 : base.promptColors) == null ? void 0 : _i[promptId]) != null ? _j : {};
-    return { ...defaults, ...edited };
-  }
-  // getResolvedPromptColors
-  setPromptColorDiff(promptId, className, color, editingRoot) {
-    var _a, _b;
-    const defaultColor = this.getDefaultPromptColor(promptId, className, editingRoot);
-    const diff = editingRoot ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors;
-    if (color.toLowerCase() === defaultColor.toLowerCase()) {
-      (_a = diff == null ? void 0 : diff[promptId]) == null ? true : delete _a[className];
-      if (Object.keys((_b = diff == null ? void 0 : diff[promptId]) != null ? _b : {}).length === 0) {
-        diff == null ? true : delete diff[promptId];
-      }
-    } else {
-      if (!diff[promptId])
-        diff[promptId] = {};
-      diff[promptId][className] = color;
-    }
-  }
-  // setPromptColorDiff
-  restoreThemes(themeName, cloneAll) {
-    if (cloneAll) {
-      Object.entries(DEFAULT_THEMES).forEach(([name, theme]) => {
-        this.plugin.settings.Themes[name] = structuredClone(theme);
-      });
-    } else {
-      Object.entries(DEFAULT_THEMES).forEach(([name, theme]) => {
-        if (name === themeName)
-          this.plugin.settings.Themes[name] = structuredClone(theme);
-      });
-    }
-    if (themeName in DEFAULT_THEMES)
-      this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[themeName]);
-    this.display();
-  }
-  // restoreThemes
   refreshDropdown(dropdown, settings) {
     dropdown.selectEl.empty();
     Object.keys(settings.Themes).forEach((name) => {
@@ -19870,176 +20198,11 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     dropdown.setValue(settings.ThemeName);
   }
   // refreshDropdown
-  refreshPromptDropdown(promptDropdown, selectedPromptId) {
-    promptDropdown.selectEl.empty();
-    const allPrompts = [];
-    for (const [key, prompt] of Object.entries(defaultPrompts)) {
-      allPrompts.push({ key, name: prompt.name, type: "Default" });
-    }
-    for (const [key, prompt] of Object.entries(this.plugin.settings.pluginSettings.prompts.customPrompts)) {
-      allPrompts.push({ key, name: prompt.name, type: "Custom" });
-    }
-    allPrompts.sort((a, b) => a.name.localeCompare(b.name));
-    for (const prompt of allPrompts) {
-      promptDropdown.addOption(prompt.key, `[${prompt.type}] ${prompt.name}`);
-    }
-    promptDropdown.setValue(selectedPromptId);
-  }
-  // refreshPromptDropdown
-  getRandomColor() {
-    const letters = "0123456789ABCDEF";
-    let color = "#";
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-  }
-  // getRandomColor
   applyTheme() {
     updateSettingStyles(this.plugin.settings, this.app);
     this.plugin.saveSettings();
   }
   // applyTheme
-  addPickerControlsToSetting(setting, options) {
-    var _a;
-    const pickr = import_pickr.default.create({
-      el: setting.controlEl.createDiv({ cls: "picker" }),
-      container: options.containerEl.parentNode,
-      theme: "nano",
-      position: "left-middle",
-      lockOpacity: false,
-      default: options.initialColor,
-      swatches: [],
-      components: {
-        preview: true,
-        hue: true,
-        opacity: true,
-        interaction: {
-          hex: true,
-          rgba: true,
-          hsla: false,
-          input: true,
-          cancel: true,
-          save: true
-        }
-      },
-      i18n: (_a = options.i18n) != null ? _a : {}
-    }).on("show", (color, instance) => {
-      if (options.shouldShow && !options.shouldShow()) {
-        instance.hide();
-        return;
-      }
-      const { result } = instance.getRoot().interaction;
-      requestAnimationFrame(() => requestAnimationFrame(() => result.select()));
-    }).on("save", (color, instance) => {
-      if (!color)
-        return;
-      instance.hide();
-      const savedColor = color.toHEXA().toString();
-      instance.addSwatch(savedColor);
-      options.onSave(savedColor);
-    }).on("cancel", (instance) => {
-      instance.hide();
-    });
-    this.pickerInstances.push(pickr);
-    const onResetCallback = options.onReset;
-    if (onResetCallback) {
-      setting.addExtraButton((btn) => {
-        btn.setIcon("reset").setTooltip("restore default color").onClick(() => {
-          const defaultColor = onResetCallback();
-          pickr == null ? void 0 : pickr.setColor(defaultColor);
-          options.onSave(defaultColor);
-        });
-      });
-    }
-    const onDeleteCallback = options.onDelete;
-    if (onDeleteCallback) {
-      setting.addExtraButton((btn) => {
-        btn.setIcon("trash").setTooltip("Delete color").onClick(() => {
-          onDeleteCallback();
-        });
-      });
-    }
-    return pickr;
-  }
-  // addPickerControlsToSetting
-  createPickrSetting(containerEl, name, description, pickrClass) {
-    const setting = new import_obsidian3.Setting(containerEl).setName(name).setDesc(description);
-    this.addPickerControlsToSetting(setting, {
-      containerEl,
-      initialColor: this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, getCurrentMode(), pickrClass, true).toString(),
-      onSave: (savedColor) => {
-        this.setAndSavePickrSetting(pickrClass, savedColor);
-        if (["editorActiveLineColor", "codeblock.activeLineColor"].includes(pickrClass)) {
-          updateSettingStyles(this.plugin.settings, this.app);
-        }
-      },
-      onReset: () => {
-        return this.getColorFromPickrClass(this.plugin.settings.Themes[this.plugin.settings.ThemeName], getCurrentMode(), pickrClass, true).toString();
-      },
-      shouldShow: () => {
-        const settings = this.plugin.settings.pluginSettings;
-        if (!settings.codeblock.enableActiveLineHighlight && pickrClass === "codeblock.activeLineColor" || !settings.enableEditorActiveLineHighlight && pickrClass === "editorActiveLineColor" || !settings.header.displayCodeBlockLanguage && (pickrClass === "header.codeBlockLangTextColor" || pickrClass === "header.codeBlockLangBackgroundColor") || !settings.gutter.highlightActiveLineNr && pickrClass === "gutter.activeLineNrColor" || !settings.inlineCode.enableInlineCodeStyling && (pickrClass === "inlineCode.backgroundColor" || pickrClass === "inlineCode.textColor")) {
-          return false;
-        }
-        return true;
-      }
-    });
-    return setting;
-  }
-  // createPickrSetting
-  createAlternatePickr(containerEl, colorContainer, name, Color, type, colorKey = "", languageName = "") {
-    const desc = type === "normal" ? `To highlight lines with this color use the "${name}" parameter. e.g: ${name}:2,4-6` : "";
-    const setting = new import_obsidian3.Setting(containerEl).setName(name).setDesc(desc);
-    this.addPickerControlsToSetting(setting, {
-      containerEl,
-      initialColor: Color,
-      onSave: (savedColor) => {
-        if (type === "normal") {
-          this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors[name] = savedColor;
-        } else if (type === "langSpecific") {
-          this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
-        }
-        this.plugin.saveSettings();
-      },
-      onDelete: () => {
-        if (type === "normal") {
-          delete this.plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[name];
-          delete this.plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[name];
-          this.updateColorContainer(colorContainer);
-        } else if (type === "langSpecific") {
-          delete this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][colorKey];
-          delete this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][colorKey];
-          this.updateLanguageSpecificColorContainer(colorContainer, languageName);
-        }
-        this.plugin.saveSettings();
-        new import_obsidian3.Notice(`Removed color "${name}".`);
-      },
-      i18n: {
-        "btn:toggle": "select color for light theme"
-      }
-    });
-    return setting;
-  }
-  // createAlternatePickr
-  getColorFromPickrClass(selectedTheme, currentMode, pickrClass, resolveCSSVar) {
-    const properties = pickrClass.split(".");
-    let colorValue = selectedTheme.colors[currentMode];
-    for (const prop of properties) {
-      colorValue = colorValue == null ? void 0 : colorValue[prop];
-      if (colorValue === void 0) {
-        return "#000000";
-      }
-      if (resolveCSSVar && colorValue.toString().startsWith("--")) {
-        colorValue = getColorOfCssVariable(colorValue.toString());
-      }
-      if (!colorValue) {
-        break;
-      }
-    }
-    return colorValue || "";
-  }
-  // getColorFromPickrClass
   hide() {
     this.searchQuery = "";
     this.pickerInstances.forEach((p) => {
@@ -20050,141 +20213,21 @@ var _SettingsTab = class extends import_obsidian3.PluginSettingTab {
     this.pickerInstances = [];
     super.hide();
   }
-  // hide
-  setAndSavePickrSetting(className, savedColor) {
-    const currentMode = getCurrentMode();
-    const colors = this.plugin.settings.SelectedTheme.colors[currentMode];
-    this.setNestedValue(colors, className, savedColor);
-    this.plugin.saveSettings();
-  }
-  // setAndSavePickrSetting
-  setNestedValue(obj, path, value) {
-    const keys = path.split(".");
-    let current = obj;
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
-      current = current[key];
-      if (current === void 0) {
-        console.error("Invalid path provided to setNestedValue:", path);
-        return;
-      }
-    }
-    const finalKey = keys[keys.length - 1];
-    current[finalKey] = value;
-  }
-  // setNestedValue
-  updateColorContainer(colorContainer) {
-    colorContainer.empty();
-    Object.entries(this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors).forEach(([colorName, hexValue]) => {
-      this.createAlternatePickr(colorContainer, colorContainer, colorName, hexValue, "normal");
-    });
-  }
-  // updateColorContainer
-  updateLanguageSpecificColorContainer(colorContainer, language = "") {
-    colorContainer.empty();
-    const languageColors = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
-    const filteredLanguages = language ? { [language]: languageColors[language] } : languageColors;
-    Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
-      const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });
-      languageSettingsDiv.createEl("h4", { text: `${languageName} specific color settings` });
-      this.createDropdown(languageSettingsDiv, languageName);
-      Object.entries(colorObject).forEach(([colorProp, color]) => {
-        const propDisplayText = _SettingsTab.COLOR_OPTIONS[colorProp];
-        this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, color, "langSpecific", colorProp, languageName);
-      });
-    });
-  }
-  // updateLanguageSpecificColorContainer
-  createDropdown(languageSettingsDiv, languageName) {
-    const dropdownOptions = Object.entries(_SettingsTab.COLOR_OPTIONS).reduce((options, [key, value]) => {
-      options[key] = value;
-      return options;
-    }, {});
-    new import_obsidian3.Setting(languageSettingsDiv).setName("Select color to set").setDesc(`Select which color you would like to set for ${this.plugin.settings.languageSpecificLanguageName} specifically.`).addDropdown(
-      (dropdown) => dropdown.addOptions(dropdownOptions).setValue(this.plugin.settings.langSpecificSettingsType).onChange((value) => {
-        this.plugin.settings.langSpecificSettingsType = value;
-        (async () => {
-          await this.plugin.saveSettings();
-        })();
-      })
-    ).addExtraButton(async (button) => {
-      button.setIcon("plus");
-      button.setTooltip(`Add the selected property to customize it for code block language ${languageName} specifically`);
-      button.onClick(async () => {
-        const propDisplayText = _SettingsTab.COLOR_OPTIONS[this.plugin.settings.langSpecificSettingsType];
-        if (propDisplayText) {
-          if (this.plugin.settings.langSpecificSettingsType in this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]) {
-            new import_obsidian3.Notice(`${propDisplayText} is already defined for code block language "${languageName}"`);
-          } else {
-            if (this.plugin.settings.langSpecificSettingsType === "codeblock.borderColor") {
-              const newColor = this.getRandomColor();
-              this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName]["codeblock.borderColor"] = newColor;
-              this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName]["codeblock.borderColor"] = newColor;
-              this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, newColor, "langSpecific", this.plugin.settings.langSpecificSettingsType, languageName);
-            } else {
-              const defaultDarkColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "dark", this.plugin.settings.langSpecificSettingsType, true);
-              const defaultLightColor = this.getColorFromPickrClass(this.plugin.settings.SelectedTheme, "light", this.plugin.settings.langSpecificSettingsType, true);
-              this.createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, getCurrentMode() === "dark" ? defaultDarkColor : defaultLightColor, "langSpecific", this.plugin.settings.langSpecificSettingsType, languageName);
-              this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][this.plugin.settings.langSpecificSettingsType] = defaultLightColor;
-              this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][this.plugin.settings.langSpecificSettingsType] = defaultDarkColor;
-            }
-            (async () => {
-              await this.plugin.saveSettings();
-            })();
-            this.plugin.renderReadingViews();
-          }
-        } else {
-          console.error("Selected color not found.");
-        }
-      });
-    }).addExtraButton(async (button) => {
-      button.setIcon("trash");
-      button.setTooltip(`Delete all language specific colors for code block language ${languageName}`);
-      button.onClick(async () => {
-        delete this.plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName];
-        delete this.plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName];
-        this.display();
-        (async () => {
-          await this.plugin.saveSettings();
-        })();
-      });
-    });
-  }
-  // createReadMeLink
-};
-var SettingsTab = _SettingsTab;
-SettingsTab.COLOR_OPTIONS = {
-  "codeblock.activeLineColor": "Code block active line color",
-  "codeblock.backgroundColor": "Code block background color",
-  "codeblock.borderColor": "Code block border color",
-  "codeblock.textColor": "Code block text color",
-  "codeblock.bracketHighlightColorMatch": "Matching bracket color",
-  "codeblock.bracketHighlightColorNoMatch": "Non-matching bracket color",
-  "codeblock.bracketHighlightBackgroundColorMatch": "Matching bracket background color",
-  "codeblock.bracketHighlightBackgroundColorNoMatch": "Non-matching bracket background color",
-  "codeblock.selectionMatchHighlightColor": "Selection match highlight color",
-  "header.backgroundColor": "Header background color",
-  "header.textColor": "Header text color",
-  "header.lineColor": "Header line color",
-  "header.codeBlockLangTextColor": "Header language text color",
-  "header.codeBlockLangBackgroundColor": "Header language background color",
-  "gutter.textColor": "Gutter text color",
-  "gutter.backgroundColor": "Gutter background color",
-  "gutter.activeLineNrColor": "Gutter active line number color"
+  // createDonateButton
 };
 
 // src/EditorExtensions.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 var import_state = require("@codemirror/state");
 var import_view = require("@codemirror/view");
 var import_language = require("@codemirror/language");
 var import_search = require("@codemirror/search");
 
 // src/ReadingViewUtils.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 
 // src/ExecuteCode.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 function addAndObserveExecuteCodeButtons(frag, targetPreElement, parameters, plugin) {
   var _a;
   const executeButton = createExecuteCodeRunButton();
@@ -20284,7 +20327,7 @@ function createExecuteCodeRunButton() {
   button.classList.add(`codeblock-customizer-execute-code-button`);
   button.classList.add(`codeblock-customizer-execute-code-button-pending-verification`);
   button.setAttribute("aria-label", "Execute code");
-  (0, import_obsidian4.setIcon)(button, "circle-play");
+  (0, import_obsidian12.setIcon)(button, "circle-play");
   return button;
 }
 function executeCode(event, parentContainer, parameters) {
@@ -20292,9 +20335,9 @@ function executeCode(event, parentContainer, parameters) {
   const originalRunButton = parentContainer.querySelector(".run-code-button");
   if (originalRunButton) {
     originalRunButton.click();
-    new import_obsidian4.Notice(`Executing ${parameters.language} code...`);
+    new import_obsidian12.Notice(`Executing ${parameters.language} code...`);
   } else {
-    new import_obsidian4.Notice("Error: Could not find original run button.", 2e3);
+    new import_obsidian12.Notice("Error: Could not find original run button.", 2e3);
   }
 }
 function createExecuteCodeClearButton() {
@@ -20302,7 +20345,7 @@ function createExecuteCodeClearButton() {
   button.classList.add(`codeblock-customizer-execute-code-clear-button`);
   button.classList.add(`codeblock-customizer-execute-code-clear-button-hidden`);
   button.setAttribute("aria-label", "Clear output");
-  (0, import_obsidian4.setIcon)(button, "x");
+  (0, import_obsidian12.setIcon)(button, "x");
   return button;
 }
 function clearOutput(event, parentContainer) {
@@ -20311,14 +20354,14 @@ function clearOutput(event, parentContainer) {
   if (originalClearButton) {
     originalClearButton.click();
   } else {
-    new import_obsidian4.Notice("Error: Could not find original clear button.", 2e3);
+    new import_obsidian12.Notice("Error: Could not find original clear button.", 2e3);
   }
 }
 function createExecuteCodeEditButton() {
   const button = document.createElement("button");
   button.classList.add(`codeblock-customizer-execute-code-edit-button`);
   button.setAttribute("aria-label", "Edit this block");
-  (0, import_obsidian4.setIcon)(button, "code-xml");
+  (0, import_obsidian12.setIcon)(button, "code-xml");
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     const preElement = event.currentTarget.closest("pre");
@@ -20333,7 +20376,7 @@ function createExecuteCodeEditButton() {
     if (originalEditButton) {
       originalEditButton.click();
     } else {
-      new import_obsidian4.Notice("Error: Could not find original edit button.", 2e3);
+      new import_obsidian12.Notice("Error: Could not find original edit button.", 2e3);
     }
   });
   return button;
@@ -20461,9 +20504,9 @@ function createCopyButton(displayLanguage) {
     if (displayLanguage)
       container.setText(displayLanguage);
     else
-      (0, import_obsidian5.setIcon)(container, "copy");
+      (0, import_obsidian13.setIcon)(container, "copy");
   } else
-    (0, import_obsidian5.setIcon)(container, "copy");
+    (0, import_obsidian13.setIcon)(container, "copy");
   return container;
 }
 function createButtons(parameters, codeblockLines, plugin, targetPreElement) {
@@ -20500,12 +20543,12 @@ function createsnapshotButton(container, targetPreElement, parameters, plugin) {
   const snapshotButton = document.createElement("button");
   snapshotButton.classList.add("codeblock-customizer-snapshot-button");
   snapshotButton.setAttribute("aria-label", "Copy as image");
-  (0, import_obsidian5.setIcon)(snapshotButton, "camera");
+  (0, import_obsidian13.setIcon)(snapshotButton, "camera");
   snapshotButton.addEventListener("click", async (event) => {
     event.stopPropagation();
     const preEl = targetPreElement || event.currentTarget.closest("pre");
     if (!preEl || !preEl.parentElement) {
-      new import_obsidian5.Notice("Error: Could not find code block container.");
+      new import_obsidian13.Notice("Error: Could not find code block container.");
       return;
     }
     const parentContainer = preEl.parentElement;
@@ -20547,7 +20590,7 @@ function createWrapCodeButton() {
   const container = document.createElement("button");
   container.classList.add(`codeblock-customizer-wrap-code`);
   container.setAttribute("aria-label", "Wrap/Unwrap code");
-  (0, import_obsidian5.setIcon)(container, "wrap-text");
+  (0, import_obsidian13.setIcon)(container, "wrap-text");
   return container;
 }
 function copyCode(preElement, event, plugin, codeblockLines) {
@@ -20611,10 +20654,10 @@ function wrapCode(preElement, event) {
   const currentWhiteSpace = window.getComputedStyle(codeElement).whiteSpace;
   if (currentWhiteSpace === "pre") {
     wrapState = "pre-wrap";
-    new import_obsidian5.Notice("Code wrapped");
+    new import_obsidian13.Notice("Code wrapped");
   } else {
     wrapState = "pre";
-    new import_obsidian5.Notice("Code unwrapped");
+    new import_obsidian13.Notice("Code unwrapped");
   }
   codeElement.style.setProperty("white-space", wrapState, "important");
 }
@@ -21177,7 +21220,7 @@ function attachEventListeners(preCodeElm, plugin, sourcePath, annotationsToProce
   });
   const collapseIcons = preCodeElm.querySelectorAll(".codeblock-customizer-collapse-icon");
   collapseIcons.forEach((icon) => {
-    (0, import_obsidian5.setIcon)(icon, "chevron-down");
+    (0, import_obsidian13.setIcon)(icon, "chevron-down");
     icon.addEventListener("click", handleClick);
   });
   const uncollapseButton = preCodeElm.querySelector(".codeblock-customizer-uncollapse-code");
@@ -21352,7 +21395,7 @@ function parseInput(input, sourcePath, plugin) {
       const textBeforeMatch = textContent.slice(lastIndex, match.index);
       fragment.appendChild(document.createTextNode(textBeforeMatch));
       const span = createSpan({ cls: "codeblock-customizer-link" });
-      import_obsidian5.MarkdownRenderer.render(plugin.app, match[0], span, sourcePath, plugin);
+      import_obsidian13.MarkdownRenderer.render(plugin.app, match[0], span, sourcePath, plugin);
       fragment.appendChild(span);
       lastIndex = match.index + match[0].length;
     }
@@ -21399,7 +21442,7 @@ function handleClick(event) {
     lineCount++;
   }
   if (collapseIconParent.classList.contains("codeblock-customizer-lines-below-collapsed")) {
-    (0, import_obsidian5.setIcon)(collapseIcon, "chevron-right");
+    (0, import_obsidian13.setIcon)(collapseIcon, "chevron-right");
     for (const line of lines) {
       const lineTextEl = collapseIconParent.querySelector(".codeblock-customizer-line-text");
       if (lineTextEl) {
@@ -21414,7 +21457,7 @@ function handleClick(event) {
         line.element.setAttribute("collapsedBy", startPosLineId.toString());
     }
   } else {
-    (0, import_obsidian5.setIcon)(collapseIcon, "chevron-down");
+    (0, import_obsidian13.setIcon)(collapseIcon, "chevron-down");
     for (const line of lines) {
       if (parseInt(line.element.getAttribute("collapsedBy") || "") === startPosLineId) {
         line.element.classList.remove("codeblock-customizer-line-hidden");
@@ -21484,9 +21527,9 @@ function handleUncollapseClick(event) {
 }
 function toggleFold(pre, collapseIcon, toggleClass) {
   if (pre == null ? void 0 : pre.classList.contains(toggleClass)) {
-    (0, import_obsidian5.setIcon)(collapseIcon, "chevrons-up-down");
+    (0, import_obsidian13.setIcon)(collapseIcon, "chevrons-up-down");
   } else {
-    (0, import_obsidian5.setIcon)(collapseIcon, "chevrons-down-up");
+    (0, import_obsidian13.setIcon)(collapseIcon, "chevrons-down-up");
   }
   pre == null ? void 0 : pre.classList.toggle(toggleClass);
 }
@@ -21571,7 +21614,7 @@ function extractCodeBlocksFromSection(lines) {
 }
 
 // src/CodeBlockRenderer.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 
 // src/Parsing.ts
 var import_validator = __toESM(require_validator());
@@ -22255,7 +22298,7 @@ var DataSource = {
   API: "api",
   Fallback: "fallback"
 };
-var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
+var CodeBlockRenderer = class extends import_obsidian14.MarkdownRenderChild {
   constructor(containerEl, plugin, context) {
     super(containerEl);
     this.observer = null;
@@ -22568,7 +22611,7 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
     }
     if (codeblockLines.length === 0)
       return "";
-    const prism = await (0, import_obsidian6.loadPrism)();
+    const prism = await (0, import_obsidian14.loadPrism)();
     const langDefinition = prism.languages[language];
     const html = await prism.highlight(codeblockLines.join("\n"), langDefinition, language);
     return html || "";
@@ -22760,7 +22803,7 @@ var CodeBlockRenderer = class extends import_obsidian6.MarkdownRenderChild {
       let codeLinesToProcess = isIndentedBlock ? rawCodeLines : rawCodeLines.slice(1, -1);
       codeLinesToProcess = normalizeIndentation(codeLinesToProcess);
       const codeContentToHighlight = codeLinesToProcess.join("\n");
-      const prism = await (0, import_obsidian6.loadPrism)();
+      const prism = await (0, import_obsidian14.loadPrism)();
       const language = parameters.language;
       const langDefinition = prism.languages[customFormat ? customFormat : language];
       if (langDefinition) {
@@ -23142,7 +23185,7 @@ function extensions(plugin, settings) {
       }
       const initialGrouped = (_a = state.field(groupedCodeBlocksField, false)) != null ? _a : {};
       const initialTabs = {};
-      const docPath = (_c = (_b = state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _b.file) == null ? void 0 : _c.path;
+      const docPath = (_c = (_b = state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _b.file) == null ? void 0 : _c.path;
       let savedStatesForFile;
       if (docPath) {
         if (tabSettings.persistence === TabPersistence.Permanent) {
@@ -23173,7 +23216,7 @@ function extensions(plugin, settings) {
       var _a, _b;
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return {};
-      const docPath = (_b = (_a = transaction.state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
+      const docPath = (_b = (_a = transaction.state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
       if (transaction.docChanged && docPath) {
         plugin.remapTabs(docPath, transaction.changes);
         const docStateMap = plugin.activeEditorTabs.get(docPath);
@@ -23280,7 +23323,7 @@ function extensions(plugin, settings) {
       const foldSettings = settings.pluginSettings.codeblock.folding;
       if (!foldSettings.rememberFoldState)
         return {};
-      const docPath = (_b = (_a = state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
+      const docPath = (_b = (_a = state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
       if (!docPath)
         return {};
       let savedStatesForFile;
@@ -23299,7 +23342,7 @@ function extensions(plugin, settings) {
       if (!foldSettings.rememberFoldState) {
         return Object.keys(value).length > 0 ? {} : value;
       }
-      const docPath = (_b = (_a = transaction.state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
+      const docPath = (_b = (_a = transaction.state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
       const newFoldedState = { ...value };
       if (transaction.docChanged && docPath) {
         plugin.remapFolds(docPath, transaction.changes);
@@ -23418,7 +23461,7 @@ function extensions(plugin, settings) {
       if (!update.docChanged) {
         return;
       }
-      const fileName = (_a = update.view.state.field(import_obsidian7.editorInfoField, false)) == null ? void 0 : _a.file;
+      const fileName = (_a = update.view.state.field(import_obsidian15.editorInfoField, false)) == null ? void 0 : _a.file;
       if (!fileName) {
         return;
       }
@@ -23462,7 +23505,7 @@ function extensions(plugin, settings) {
       resetFoldDecos(false);
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return import_view.Decoration.none;
-      const defaultCharWidth = view.state.field(import_obsidian7.editorEditorField).defaultCharacterWidth;
+      const defaultCharWidth = view.state.field(import_obsidian15.editorEditorField).defaultCharacterWidth;
       const positions = (_a = view.state.field(codeBlockPositionsField, false)) != null ? _a : [];
       const visibleRanges = view.visibleRanges;
       const decorations = [];
@@ -23684,7 +23727,7 @@ function extensions(plugin, settings) {
         return import_view.Decoration.none;
       }
       const decorations = [];
-      const sourcePath = (_c = (_b = (_a = view.state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path) != null ? _c : "";
+      const sourcePath = (_c = (_b = (_a = view.state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path) != null ? _c : "";
       const codeBlockPositions = (_d = view.state.field(codeBlockPositionsField, false)) != null ? _d : [];
       const visibleRanges = view.visibleRanges;
       const visibleBlocks = codeBlockPositions.filter((pos) => {
@@ -23931,7 +23974,7 @@ function extensions(plugin, settings) {
           if (!blockData) {
             continue;
           }
-          const renderer = new CodeBlockRenderer(preElement, plugin, { sourcePath: (_d = (_c = (_b = view.state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _b.file) == null ? void 0 : _c.path) != null ? _d : "" });
+          const renderer = new CodeBlockRenderer(preElement, plugin, { sourcePath: (_d = (_c = (_b = view.state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _b.file) == null ? void 0 : _c.path) != null ? _d : "" });
           const absoluteLineStart = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.startLine;
           const absoluteLineEnd = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.endLine;
           const sectionInfo = { lineStart: absoluteLineStart - 1, lineEnd: absoluteLineEnd - 1, text: blockData.contentLines.join("\n") };
@@ -23998,13 +24041,13 @@ function extensions(plugin, settings) {
         const collapse = createCodeblockCollapse(this.parameters.fold);
         container.appendChild(collapse);
         if (this.foldingState === FoldingState.FullyFolded) {
-          (0, import_obsidian7.setIcon)(collapse, "chevrons-down-up");
+          (0, import_obsidian15.setIcon)(collapse, "chevrons-down-up");
           container.classList.add("collapsed");
         } else if (this.foldingState === FoldingState.SemiFolded) {
-          (0, import_obsidian7.setIcon)(collapse, "chevrons-down-up");
+          (0, import_obsidian15.setIcon)(collapse, "chevrons-down-up");
           container.classList.add("semi-collapsed");
         } else {
-          (0, import_obsidian7.setIcon)(collapse, "chevrons-up-down");
+          (0, import_obsidian15.setIcon)(collapse, "chevrons-up-down");
         }
       }
       if (this.parameters.indentLevel > 0) {
@@ -24122,7 +24165,7 @@ function extensions(plugin, settings) {
     }
     toDOM(view) {
       const span = createSpan({ cls: "codeblock-customizer-link" });
-      import_obsidian7.MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.plugin);
+      import_obsidian15.MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.plugin);
       return span;
     }
   }
@@ -24189,7 +24232,7 @@ ${this.output}` });
       var _a, _b, _c;
       const iconContainer = createSpan({ cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${this.type}` });
       iconContainer.innerHTML = rhombusSVG;
-      const sourcePath = (_c = (_b = (_a = view.state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path) != null ? _c : "";
+      const sourcePath = (_c = (_b = (_a = view.state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path) != null ? _c : "";
       new TooltipManager(iconContainer, this.content, this.type, this.plugin, sourcePath, this.title);
       return iconContainer;
     }
@@ -24487,7 +24530,7 @@ ${this.output}` });
   }
   function addAddTabButton(parameters, groupMembers, view, tabsContainer) {
     const addButton = createDiv({ cls: "codeblock-customizer-tab-add" });
-    (0, import_obsidian7.setIcon)(addButton, "plus");
+    (0, import_obsidian15.setIcon)(addButton, "plus");
     addButton.setAttribute("aria-label", "Add new code block to group");
     addButton.onclick = (event) => {
       event.preventDefault();
@@ -24511,7 +24554,7 @@ ${fence}`;
   }
   function addRemoveTabButton(view, member, groupName, tab) {
     const removeButton = createSpan({ cls: "codeblock-customizer-tab-remove" });
-    (0, import_obsidian7.setIcon)(removeButton, "x");
+    (0, import_obsidian15.setIcon)(removeButton, "x");
     removeButton.setAttribute("aria-label", "Remove from group");
     removeButton.onclick = (event) => {
       event.preventDefault();
@@ -24549,7 +24592,7 @@ ${fence}`;
     const { codeBlockStartPos, codeBlockEndPos } = pos;
     const start = view.state.doc.lineAt(codeBlockStartPos);
     const end = view.state.doc.lineAt(codeBlockEndPos);
-    const docPath = (_b = (_a = view.state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
+    const docPath = (_b = (_a = view.state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path;
     const enableSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
     const visibleLines = settings.pluginSettings.semiFold.visibleLines;
     const lineCount = end.number - start.number + 1;
@@ -24664,7 +24707,7 @@ ${fence}`;
     var _a, _b, _c, _d, _e, _f;
     if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
       return import_view.Decoration.none;
-    const sourcePath = (_c = (_b = (_a = state.field(import_obsidian7.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path) != null ? _c : "";
+    const sourcePath = (_c = (_b = (_a = state.field(import_obsidian15.editorInfoField)) == null ? void 0 : _a.file) == null ? void 0 : _b.path) != null ? _c : "";
     const positions = (_d = state.field(codeBlockPositionsField, false)) != null ? _d : [];
     const decorations = [];
     const grouped = (_e = state.field(groupedCodeBlocksField, false)) != null ? _e : {};
@@ -24844,7 +24887,7 @@ ${fence}`;
       }
     }
     if (!startingEl || !startingEl.parentElement) {
-      new import_obsidian7.Notice("Error: Could not find code block container.");
+      new import_obsidian15.Notice("Error: Could not find code block container.");
       return;
     }
     try {
@@ -24878,7 +24921,7 @@ ${fence}`;
       });
       const parent = view.contentDOM.parentElement;
       if (!parent) {
-        new import_obsidian7.Notice("Error: Could not get contentDOM.parentElement.");
+        new import_obsidian15.Notice("Error: Could not get contentDOM.parentElement.");
         return;
       }
       const snapshotOptions = {
@@ -24919,7 +24962,7 @@ ${fence}`;
       if (config.text) {
         button.textContent = config.text;
       } else {
-        (0, import_obsidian7.setIcon)(button, config.icon);
+        (0, import_obsidian15.setIcon)(button, config.icon);
       }
       container.appendChild(button);
     });
@@ -25372,8 +25415,8 @@ ${fence}`;
 }
 
 // src/GroupedCodeBlockRenderer.ts
-var import_obsidian8 = require("obsidian");
-var GroupedCodeBlockRenderChild = class extends import_obsidian8.MarkdownRenderChild {
+var import_obsidian16 = require("obsidian");
+var GroupedCodeBlockRenderChild = class extends import_obsidian16.MarkdownRenderChild {
   constructor(containerEl, view, childMap, plugin) {
     super(containerEl);
     this.clickListeners = [];
@@ -25955,8 +25998,8 @@ function debounce(func, wait, immediate) {
 }
 
 // src/InlineCodeRenderer.ts
-var import_obsidian9 = require("obsidian");
-var InlineCodeRenderer = class extends import_obsidian9.MarkdownRenderChild {
+var import_obsidian17 = require("obsidian");
+var InlineCodeRenderer = class extends import_obsidian17.MarkdownRenderChild {
   constructor(containerEl, plugin, context) {
     super(containerEl);
     this.clickHandler = null;
@@ -25979,7 +26022,7 @@ var InlineCodeRenderer = class extends import_obsidian9.MarkdownRenderChild {
     const settings = this.plugin.settings.pluginSettings.inlineCode;
     const isValidMatch = match && match[1] && !match[1].trim().startsWith("{") && match[2];
     if (settings.enableSyntaxHighlight && isValidMatch) {
-      const prism = await (0, import_obsidian9.loadPrism)();
+      const prism = await (0, import_obsidian17.loadPrism)();
       this.processInlineCodeElement(prism, match);
     } else {
       if (settings.enableCopyOnClick) {
@@ -26060,14 +26103,14 @@ var InlineCodeRenderer = class extends import_obsidian9.MarkdownRenderChild {
 };
 
 // src/PostProcessors.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 async function calloutPostProcessor(codeBlockElement, context, plugin) {
   var _a, _b, _c, _d;
   const callouts = codeBlockElement.querySelector(".callout:not(.admonition)");
   if (!callouts) {
     return;
   }
-  const markdownView = plugin.app.workspace.getActiveViewOfType(import_obsidian10.MarkdownView);
+  const markdownView = plugin.app.workspace.getActiveViewOfType(import_obsidian18.MarkdownView);
   if ((markdownView == null ? void 0 : markdownView.getMode()) !== "source") {
     return;
   }
@@ -26181,7 +26224,7 @@ async function processAdmonitionCodeBlocks(renderedPreElements, innerCodeBlocks,
 
 // src/main.ts
 var _ = __toESM(require_lodash());
-var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
+var CodeBlockCustomizerPlugin = class extends import_obsidian19.Plugin {
   constructor() {
     super(...arguments);
     this.activeEditorTabs = /* @__PURE__ */ new Map();
@@ -26232,7 +26275,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
     this.registerEvents(settingsTab);
     this.app.workspace.onLayoutReady(() => {
       this.app.workspace.iterateAllLeaves((leaf) => {
-        if (leaf.view instanceof import_obsidian11.MarkdownView && leaf.view.getMode() === "preview") {
+        if (leaf.view instanceof import_obsidian19.MarkdownView && leaf.view.getMode() === "preview") {
           this.registerGroupedRenderChildForView(leaf.view);
         }
       });
@@ -26241,7 +26284,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
   }
   // onload
   setFoldState(filePath, key, newState, viewType, parameters, lineCount) {
-    const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+    const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
     if (markdownView) {
       const isGlobalCommandActive = markdownView.getMode() === "source" && markdownView.containerEl.classList.contains("codeblock-customizer-header-collapse-command") || markdownView.getMode() === "preview" && this.foldCommandTrigger !== FoldCommand.Default;
       if (isGlobalCommandActive) {
@@ -26385,7 +26428,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
     this.permanentReadingViewTabs = {};
     await this.savePermanentData();
     this.app.workspace.updateOptions();
-    new import_obsidian11.Notice("Stored tab positions cleared!");
+    new import_obsidian19.Notice("Stored tab positions cleared!");
   }
   // clearAllTabData
   async loadAllPermanentData() {
@@ -26519,7 +26562,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       }
     }
     if (linkUpdateCount > 0) {
-      new import_obsidian11.Notice(`Updated ${linkUpdateCount} code block links in ${fileCount} files.`);
+      new import_obsidian19.Notice(`Updated ${linkUpdateCount} code block links in ${fileCount} files.`);
     }
   }
   // handleFileRename
@@ -26551,7 +26594,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
     const oldPathWithoutExtension = oldPath.replace(/\.[^.]*$/, "");
     const oldPathWithoutDir = oldPath.split("/").slice(-1)[0];
     const oldPathWithoutExtensionAndDir = oldPathWithoutDir.replace(/\.[^.]*$/, "");
-    const linkPath = this.app.metadataCache.getFirstLinkpathDest((0, import_obsidian11.getLinkpath)(linkTextWithoutDisplayName), currentFile.path);
+    const linkPath = this.app.metadataCache.getFirstLinkpathDest((0, import_obsidian19.getLinkpath)(linkTextWithoutDisplayName), currentFile.path);
     const newExtension = "." + newPath.extension;
     const displayNameAndRef = displayNameRef.reference + displayNameRef.displayName;
     let updated = false;
@@ -26692,7 +26735,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
   // saveSettings
   renderReadingViews() {
     this.app.workspace.iterateAllLeaves((leaf) => {
-      if (leaf.view instanceof import_obsidian11.MarkdownView && leaf.view.getMode() === "preview") {
+      if (leaf.view instanceof import_obsidian19.MarkdownView && leaf.view.getMode() === "preview") {
         const preview = leaf.view.previewMode;
         if (!preview || !preview.getScroll || !preview.applyScroll) {
           return;
@@ -26711,7 +26754,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       id: "codeblock-customizer-foldall-editor",
       name: "Fold all code blocks",
       callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+        const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
         if (markdownView) {
           markdownView.containerEl.classList.add("codeblock-customizer-header-collapse-command");
           const mode = markdownView.getMode();
@@ -26728,7 +26771,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       id: "codeblock-customizer-unfoldall-editor",
       name: "Unfold all code blocks",
       callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+        const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
         if (markdownView) {
           markdownView.containerEl.classList.add("codeblock-customizer-header-collapse-command");
           const mode = markdownView.getMode();
@@ -26745,7 +26788,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       id: "codeblock-customizer-restore-fold-editor",
       name: "Restore folding state of all code blocks to default",
       callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+        const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
         if (markdownView) {
           markdownView.containerEl.classList.remove("codeblock-customizer-header-collapse-command");
           const mode = markdownView.getMode();
@@ -26802,7 +26845,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       }
     }, this));
     this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
-      if (leaf && leaf.view instanceof import_obsidian11.MarkdownView && leaf.view.getMode() === "preview") {
+      if (leaf && leaf.view instanceof import_obsidian19.MarkdownView && leaf.view.getMode() === "preview") {
         this.registerGroupedRenderChildForView(leaf.view);
       }
       if (this.debounceTimer) {
@@ -26812,7 +26855,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       }
     }));
     this.registerEvent(this.app.workspace.on("layout-change", () => {
-      const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+      const markdownView = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
       if (markdownView) {
         const currentMode = markdownView.getMode();
         const file = markdownView.file;
@@ -26838,7 +26881,7 @@ var CodeBlockCustomizerPlugin = class extends import_obsidian11.Plugin {
       }
     }));
     this.registerEvent(this.app.workspace.on("file-open", (file) => {
-      const view = this.app.workspace.getActiveViewOfType(import_obsidian11.MarkdownView);
+      const view = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
       if (!view) {
         return;
       }

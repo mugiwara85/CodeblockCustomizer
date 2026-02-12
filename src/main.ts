@@ -4,7 +4,7 @@ import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
-import { SettingsTab } from "./SettingsTab";
+import { SettingsTab } from "./SettingsTab/SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting } from "./Utils";
 import { CodeBlockPositions, extensions, FoldCommand, FoldingState, resetFoldDecos, updateValue } from "./EditorExtensions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";

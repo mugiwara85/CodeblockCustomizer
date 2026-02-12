@@ -13,6 +13,7 @@
 }
 
 .codeblock-customizer-settingspage {
+  .setting-item .is-disabled,
   .setting-item.is-disabled {
     color: #666;
     cursor: not-allowed;
@@ -184,18 +185,97 @@
   }
 }
 
-/* Settings */
-.codeblock-customizer-Donation {
-  width: 70%;
-  margin: 0 auto;
-  text-align: center;
+.cbc-settings-firstrow-container {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 20px;
+  gap: 20px;
 }
 
-.codeblock-customizer-readMe {
+.cbc-settings-firstrow-search {
+  flex-grow: 1;
+}
+
+.cbc-settings-firstrow-search .setting-item {
+  display: block;
+  padding: 0;
+  border-top: none;
+  margin-bottom: 0;
+}
+
+.cbc-settings-firstrow-search .setting-item-control,
+.cbc-settings-firstrow-search .search-input-container,
+.cbc-settings-firstrow-search input {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.cb-settings-section h3 {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+.codeblock-customizer-readme-link {
   display: flex;
-  width: 100%;
-  flex-wrap: wrap;
+  height: 100%;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: center;
-  margin-top: 32px;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  font-weight: bold;
+  text-decoration: none;
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: color 0.2s ease;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--interactive-accent);
+      text-decoration: underline;
+    }
+  }
+}
+
+.buymeacoffee-ThePirateKing-img {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  transition: transform 0.2s ease;
+  
+  @media (hover: hover) {
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+}
+  
+.cbc-settings-firstrow-search input[type="search"] {
+  width: 100%;
+  border: 1px solid var(--background-modifier-border-hover);
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: all 0.2s ease;
+  
+  &:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+  }
+  
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--interactive-accent);
+    }
+  }
+}
+  
+.cbc-settings-firstrow-buttons {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 20px;
 }
