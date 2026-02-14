@@ -98,12 +98,45 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
         return Decoration.none;
 
-      return Decoration.none;
+      return insertHeader(state);
     },
     update(value: DecorationSet, transaction: Transaction): DecorationSet {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))
         return Decoration.none;
 
+      const docChanged = transaction.docChanged;
+      const oldState = transaction.startState;
+      const newState = transaction.state;
+
+      const positionsChanged = oldState.field(codeBlockPositionsField, false) !== newState.field(codeBlockPositionsField, false);
+      const tabsChanged = oldState.field(activeGroupTabField, false) !== newState.field(activeGroupTabField, false);
+      const foldChanged = oldState.field(collapseField, false) !== newState.field(collapseField, false);
+      const selectionChanged = !oldState.selection.eq(newState.selection);
+      const alwaysShowButtons = settings.pluginSettings.codeblock.buttons.alwaysShowButtons;
+      let needsSelectionUpdate = false;
+
+      if (!alwaysShowButtons && selectionChanged) { // check if selection moved in, or out of a code block
+        const oldHead = oldState.selection.main.head;
+        const newHead = newState.selection.main.head;
+        const oldPositions = oldState.field(codeBlockPositionsField, false) || [];
+        const newPositions = newState.field(codeBlockPositionsField, false) || [];
+
+        const oldPos = oldPositions.find(
+          block => oldHead >= block.codeBlockStartPos && oldHead <= block.codeBlockEndPos
+        );
+
+        const newPos = newPositions.find(
+          block => newHead >= block.codeBlockStartPos && newHead <= block.codeBlockEndPos
+        );
+
+        if (oldPos !== newPos) {
+          needsSelectionUpdate = true;
+        }
+      }
+
+      if (!docChanged && !settingsUpdated && !positionsChanged && !tabsChanged && !foldChanged && !needsSelectionUpdate) {
+        return value;
+      }
       return insertHeader(transaction.state);
     },
     provide(field: StateField<DecorationSet>): Extension {
