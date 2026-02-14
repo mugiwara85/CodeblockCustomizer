@@ -23112,7 +23112,35 @@ function extensions(plugin, settings) {
         return preservedHead.concat(newTail);
       }
       if ((0, import_language.syntaxTree)(startState) !== (0, import_language.syntaxTree)(state)) {
-        return findCodeBlockPositions(state);
+        const newPositions = findCodeBlockPositions(state);
+        if (value.length === newPositions.length) {
+          let equal = true;
+          for (let i = 0; i < value.length; i++) {
+            if (value[i].codeBlockStartPos !== newPositions[i].codeBlockStartPos || value[i].codeBlockEndPos !== newPositions[i].codeBlockEndPos || value[i].codeBlockFirstLineText !== newPositions[i].codeBlockFirstLineText) {
+              equal = false;
+              break;
+            }
+          }
+          if (equal) {
+            return value;
+          }
+        }
+        if (newPositions.length < value.length) {
+          let newIdx = 0;
+          let matchCount = 0;
+          for (let oldIdx = 0; oldIdx < value.length && newIdx < newPositions.length; oldIdx++) {
+            const oldBlock = value[oldIdx];
+            const newBlock = newPositions[newIdx];
+            if (oldBlock.codeBlockStartPos === newBlock.codeBlockStartPos && oldBlock.codeBlockEndPos === newBlock.codeBlockEndPos && oldBlock.codeBlockFirstLineText === newBlock.codeBlockFirstLineText) {
+              newIdx++;
+              matchCount++;
+            }
+          }
+          if (matchCount === newPositions.length) {
+            return value;
+          }
+        }
+        return newPositions;
       }
       return value;
     }
@@ -24670,7 +24698,7 @@ ${fence}`;
           codeBlockEndPos = node.to;
         }
         if (codeBlockStartPos !== -1 && codeBlockEndPos !== -1) {
-          positions.push({ codeBlockStartPos, codeBlockEndPos, parameters });
+          positions.push({ codeBlockStartPos, codeBlockEndPos, parameters, codeBlockFirstLineText: state.doc.lineAt(codeBlockStartPos).text });
           codeBlockStartPos = -1;
           codeBlockEndPos = -1;
         }
@@ -24679,7 +24707,7 @@ ${fence}`;
     if (codeBlockStartPos !== -1 && codeBlockEndPos === -1 && parameters.fenceChar) {
       const end = findCodeBlockEnd(codeBlockStartPos, state, parameters.fenceCount, parameters.fenceChar);
       if (end)
-        positions.push({ codeBlockStartPos, codeBlockEndPos: end, parameters });
+        positions.push({ codeBlockStartPos, codeBlockEndPos: end, parameters, codeBlockFirstLineText: state.doc.lineAt(codeBlockStartPos).text });
     }
     return positions;
   }
