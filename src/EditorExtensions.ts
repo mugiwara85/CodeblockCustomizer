@@ -328,7 +328,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       const globalFoldCmd = tr.state.field(foldCommandField, false) ?? FoldCommand.Default;
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
 
-      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
+      if ((newCodeBlockPositions !== oldCodeBlockPositions && !compareCodeBlockPositions(oldCodeBlockPositions, newCodeBlockPositions)) || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
         if (resetFoldDecorations || globalFoldCmdChanged) {
           value = Decoration.none;  // remove fold e.g. when inversefold is disabled
         }
@@ -1989,6 +1989,29 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
     return true;
   }// areGroupMembersEqual
+
+  function compareCodeBlockPositions(pos1: CodeBlockPositions[], pos2: CodeBlockPositions[]): boolean {
+    if (pos1.length !== pos2.length) {
+      return false;
+    }
+
+    for (let i = 0; i < pos1.length; i++) {
+      const p1 = pos1[i];
+      const p2 = pos2[i];
+
+      if (p1.codeBlockFirstLineText !== p2.codeBlockFirstLineText) {
+        return false;
+      }
+
+      const len1 = p1.codeBlockEndPos - p1.codeBlockStartPos;
+      const len2 = p2.codeBlockEndPos - p2.codeBlockStartPos;
+      if (len1 !== len2) {
+        return false;
+      }
+    }
+
+    return true;
+  }// compareCodeBlockPositions
 
   function addTabs(view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) {
     const tabsContainer = createDiv({ cls: "codeblock-customizer-header-group-tabs" });

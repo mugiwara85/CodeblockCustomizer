@@ -23216,7 +23216,7 @@ function extensions(plugin, settings) {
       const newFoldState = (_d = tr.state.field(rememberedFoldField, false)) != null ? _d : [];
       const globalFoldCmd = (_e = tr.state.field(foldCommandField, false)) != null ? _e : FoldCommand.Default;
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
-      if (newCodeBlockPositions !== oldCodeBlockPositions || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
+      if (newCodeBlockPositions !== oldCodeBlockPositions && !compareCodeBlockPositions(oldCodeBlockPositions, newCodeBlockPositions) || newFoldState !== oldFoldState || resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
         if (resetFoldDecorations || globalFoldCmdChanged) {
           value = import_view.Decoration.none;
         }
@@ -24539,6 +24539,24 @@ ${this.output}` });
     for (let i = 0; i < members1.length; i++) {
       if (!areCodeBlockPositionsEqual(members1[i], members2[i]))
         return false;
+    }
+    return true;
+  }
+  function compareCodeBlockPositions(pos1, pos2) {
+    if (pos1.length !== pos2.length) {
+      return false;
+    }
+    for (let i = 0; i < pos1.length; i++) {
+      const p1 = pos1[i];
+      const p2 = pos2[i];
+      if (p1.codeBlockFirstLineText !== p2.codeBlockFirstLineText) {
+        return false;
+      }
+      const len1 = p1.codeBlockEndPos - p1.codeBlockStartPos;
+      const len2 = p2.codeBlockEndPos - p2.codeBlockStartPos;
+      if (len1 !== len2) {
+        return false;
+      }
     }
     return true;
   }
