@@ -1,12 +1,12 @@
 import { setIcon, MarkdownRenderer, Notice } from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences } from "./Utils";
+import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences, getCollapseIcons } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
 import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, rhombusSVG } from "./Const";
 import { addAndObserveExecuteCodeButtons } from "./ExecuteCode";
-import { PluginSettings } from "./Settings";
+import { PluginSettings, CollapseIconStyle } from "./Settings";
 import { CBCParameters } from "./Parsing";
 
 interface IndentationInfo {
@@ -1319,11 +1319,12 @@ function handleUncollapseClick(event: Event) {
   }
 }// handleUncollapseClick
 
-export function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string) {
+export function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string, style: CollapseIconStyle = CollapseIconStyle.Chevrons) {
+  const icons = getCollapseIcons(style);
   if (pre?.classList.contains(toggleClass)) {
-    setIcon(collapseIcon, "chevrons-up-down");
+    setIcon(collapseIcon, icons.uncollapsed);
   } else {
-    setIcon(collapseIcon, "chevrons-down-up");
+    setIcon(collapseIcon, icons.collapsed);
   }
   pre?.classList.toggle(toggleClass);
 }// toggleFold

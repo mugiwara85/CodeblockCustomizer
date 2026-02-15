@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
-import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -330,13 +330,35 @@ export function createCodeblockIcon(displayLang: string, cls?: string) {
   return div;
 }// createCodeblockIcon
 
-export function createCodeblockCollapse(defaultFold: boolean) {
+export function getCollapseIcons(style: CollapseIconStyle) {
+  switch (style) {
+    case CollapseIconStyle.Arrows:
+      return { collapsed: "chevron-right", uncollapsed: "chevron-down" };
+    case CollapseIconStyle.PlusMinus:
+      return { collapsed: "plus", uncollapsed: "minus" };
+    case CollapseIconStyle.CirclePlusMinus:
+      return { collapsed: "plus-circle", uncollapsed: "minus-circle" };
+    case CollapseIconStyle.SquarePlusMinus:
+      return { collapsed: "plus-square", uncollapsed: "minus-square" };
+    case CollapseIconStyle.Chevrons:
+    default:
+      return { collapsed: "chevrons-down-up", uncollapsed: "chevrons-up-down" };
+  }
+}// getCollapseIcons
+
+export function createCodeblockCollapse(defaultFold: boolean, style: CollapseIconStyle = CollapseIconStyle.Chevrons) {
   const collapse = createDiv({ cls: `codeblock-customizer-header-collapse` });
-  //collapse.innerText = defaultFold ? "+" : "-";
+
+  const icons = getCollapseIcons(style);
   if (defaultFold)
+    setIcon(collapse, icons.collapsed);
+  else
+    setIcon(collapse, icons.uncollapsed);
+
+  /*if (defaultFold)
     setIcon(collapse, "chevrons-down-up");
   else
-    setIcon(collapse, "chevrons-up-down");
+    setIcon(collapse, "chevrons-up-down");*/
 
   return collapse;
 }// createCodeblockLang

@@ -3,7 +3,7 @@ import { Notice, Setting, TextComponent } from "obsidian";
 import { createDetailsGroup, SettingsPage, SettingsPageData, updateLanguageSpecificColorContainer } from "./Common";
 import { getCurrentMode, updateSettingStyles } from "src/Utils";
 import { createPickrSetting } from "./ColorUtils";
-import { InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
+import { CollapseIconStyle, InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
 import { DEFAULT_COLLAPSE_TEXT } from "src/Const";
 import { ANNOTATION_TYPE_ICONS } from "src/TooltipManager";
 import CodeBlockCustomizerPlugin from "src/main";
@@ -173,12 +173,34 @@ export class AppearanceSettings {
       .addDropdown((dropdown) => dropdown
         .addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" })
         .setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition)
-        .onChange((value) => {
+        .onChange(async (value: "hide" | "middle" | "right") => {
           this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
           updateSettingStyles(this.plugin.settings, this.plugin.app);
+          collapseIconStyle.settingEl.toggleClass('codeblock-customizer-setting-hidden', value === 'hide');
         })
       );
+
+    const collapseIconStyle = new Setting(headerDetails)
+      .setName('Collapse icon style')
+      .setDesc('Select the style of the collapse icon.')
+      .addDropdown((dropdown) => dropdown
+        .addOptions({
+          [CollapseIconStyle.Chevrons]: "Chevrons",
+          [CollapseIconStyle.Arrows]: "Arrows",
+          [CollapseIconStyle.PlusMinus]: "Plus/Minus",
+          [CollapseIconStyle.CirclePlusMinus]: "Circle (+/-)",
+          [CollapseIconStyle.SquarePlusMinus]: "Square (+/-)"
+        })
+        .setValue(this.plugin.settings.pluginSettings.header.collapseIconStyle)
+        .onChange(async (value: CollapseIconStyle) => {
+          this.plugin.settings.pluginSettings.header.collapseIconStyle = value;
+          await this.plugin.saveSettings();
+          this.plugin.renderReadingViews();
+        })
+      );
+
+    collapseIconStyle.settingEl.toggleClass('codeblock-customizer-setting-hidden', this.plugin.settings.pluginSettings.header.collapseIconPosition === 'hide');
 
     new Setting(headerDetails)
       .setName('Collapsed code text')

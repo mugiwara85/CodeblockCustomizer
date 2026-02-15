@@ -13981,6 +13981,13 @@ var SemiFoldEffect = {
   Blur: "blur",
   Both: "both"
 };
+var CollapseIconStyle = {
+  Chevrons: "chevrons",
+  Arrows: "arrows",
+  PlusMinus: "plus-minus",
+  CirclePlusMinus: "circle-plus-minus",
+  SquarePlusMinus: "square-plus-minus"
+};
 var defaultThemeSettings = {
   codeblock: {
     enableLineNumbers: true,
@@ -14028,6 +14035,7 @@ var defaultThemeSettings = {
     boldText: false,
     italicText: false,
     collapseIconPosition: "hide",
+    collapseIconStyle: CollapseIconStyle.Chevrons,
     collapsedCodeText: "",
     codeblockLangBoldText: true,
     codeblockLangItalicText: true,
@@ -17123,12 +17131,28 @@ function createCodeblockIcon(displayLang, cls) {
   div.appendChild(img);
   return div;
 }
-function createCodeblockCollapse(defaultFold) {
+function getCollapseIcons(style) {
+  switch (style) {
+    case CollapseIconStyle.Arrows:
+      return { collapsed: "chevron-right", uncollapsed: "chevron-down" };
+    case CollapseIconStyle.PlusMinus:
+      return { collapsed: "plus", uncollapsed: "minus" };
+    case CollapseIconStyle.CirclePlusMinus:
+      return { collapsed: "plus-circle", uncollapsed: "minus-circle" };
+    case CollapseIconStyle.SquarePlusMinus:
+      return { collapsed: "plus-square", uncollapsed: "minus-square" };
+    case CollapseIconStyle.Chevrons:
+    default:
+      return { collapsed: "chevrons-down-up", uncollapsed: "chevrons-up-down" };
+  }
+}
+function createCodeblockCollapse(defaultFold, style = CollapseIconStyle.Chevrons) {
   const collapse = createDiv({ cls: `codeblock-customizer-header-collapse` });
+  const icons = getCollapseIcons(style);
   if (defaultFold)
-    (0, import_obsidian.setIcon)(collapse, "chevrons-down-up");
+    (0, import_obsidian.setIcon)(collapse, icons.collapsed);
   else
-    (0, import_obsidian.setIcon)(collapse, "chevrons-up-down");
+    (0, import_obsidian.setIcon)(collapse, icons.uncollapsed);
   return collapse;
 }
 function createFileName(text, enableLinks, sourcePath, plugin) {
@@ -18574,14 +18598,27 @@ var AppearanceSettings = class {
       })
     );
     new import_obsidian6.Setting(headerDetails).setName("Collapse icon position").setDesc("If enabled a collapse icon will be displayed in the header. Select the position of the collapse icon.").addDropdown(
-      (dropdown) => dropdown.addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" }).setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition).onChange((value) => {
+      (dropdown) => dropdown.addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" }).setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition).onChange(async (value) => {
         this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
-        (async () => {
-          await this.plugin.saveSettings();
-        })();
+        await this.plugin.saveSettings();
         updateSettingStyles(this.plugin.settings, this.plugin.app);
+        collapseIconStyle.settingEl.toggleClass("codeblock-customizer-setting-hidden", value === "hide");
       })
     );
+    const collapseIconStyle = new import_obsidian6.Setting(headerDetails).setName("Collapse icon style").setDesc("Select the style of the collapse icon.").addDropdown(
+      (dropdown) => dropdown.addOptions({
+        [CollapseIconStyle.Chevrons]: "Chevrons",
+        [CollapseIconStyle.Arrows]: "Arrows",
+        [CollapseIconStyle.PlusMinus]: "Plus/Minus",
+        [CollapseIconStyle.CirclePlusMinus]: "Circle (+/-)",
+        [CollapseIconStyle.SquarePlusMinus]: "Square (+/-)"
+      }).setValue(this.plugin.settings.pluginSettings.header.collapseIconStyle).onChange(async (value) => {
+        this.plugin.settings.pluginSettings.header.collapseIconStyle = value;
+        await this.plugin.saveSettings();
+        this.plugin.renderReadingViews();
+      })
+    );
+    collapseIconStyle.settingEl.toggleClass("codeblock-customizer-setting-hidden", this.plugin.settings.pluginSettings.header.collapseIconPosition === "hide");
     new import_obsidian6.Setting(headerDetails).setName("Collapsed code text").setDesc('Overwrite the default "Collapsed Code" text in the header, when the file parameter is not defined.').addText(
       (text) => text.setPlaceholder(DEFAULT_COLLAPSE_TEXT).setValue(this.plugin.settings.pluginSettings.header.collapsedCodeText).onChange(async (value) => {
         this.plugin.settings.pluginSettings.header.collapsedCodeText = value;
@@ -21525,11 +21562,12 @@ function handleUncollapseClick(event) {
     }
   }
 }
-function toggleFold(pre, collapseIcon, toggleClass) {
+function toggleFold(pre, collapseIcon, toggleClass, style = CollapseIconStyle.Chevrons) {
+  const icons = getCollapseIcons(style);
   if (pre == null ? void 0 : pre.classList.contains(toggleClass)) {
-    (0, import_obsidian13.setIcon)(collapseIcon, "chevrons-up-down");
+    (0, import_obsidian13.setIcon)(collapseIcon, icons.uncollapsed);
   } else {
-    (0, import_obsidian13.setIcon)(collapseIcon, "chevrons-down-up");
+    (0, import_obsidian13.setIcon)(collapseIcon, icons.collapsed);
   }
   pre == null ? void 0 : pre.classList.toggle(toggleClass);
 }
@@ -22740,7 +22778,8 @@ var CodeBlockRenderer = class extends import_obsidian14.MarkdownRenderChild {
       frag.appendChild(createCodeblockLang(parameters.language));
     }
     frag.appendChild(createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin));
-    const collapseEl = createCodeblockCollapse(parameters.fold);
+    const collapseStyle = settings.pluginSettings.header.collapseIconStyle;
+    const collapseEl = createCodeblockCollapse(parameters.fold, collapseStyle);
     if (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold || this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold) {
       container.classList.add(`noCollapseIcon`);
     } else {
@@ -22765,11 +22804,11 @@ var CodeBlockRenderer = class extends import_obsidian14.MarkdownRenderChild {
       const isSemiCollapsed = preElement.classList.contains(`codeblock-customizer-codeblock-semi-collapsed`);
       let newState;
       if (isCollapsed || isSemiCollapsed) {
-        toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
+        toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = FoldingState.Unfolded;
         container.classList.remove("collapsed", "semi-collapsed");
       } else {
-        toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
+        toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
         container.classList.add(useSemiFold ? "semi-collapsed" : "collapsed");
       }
@@ -24061,10 +24100,11 @@ function extensions(plugin, settings) {
       this.showAddRemoveButtons = plugin2.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons;
       this.plugin = plugin2;
       this.modifierKey = modifierKey;
+      this.collapseIconStyle = plugin2.settings.pluginSettings.header.collapseIconStyle;
     }
     eq(other) {
       return other.parameters.headerDisplayText === this.parameters.headerDisplayText && other.parameters.language === this.parameters.language && other.specificHeader === this.specificHeader && other.parameters.fold === this.parameters.fold && other.parameters.hasLangBorderColor === this.parameters.hasLangBorderColor && other.enableLinks === this.enableLinks && //other.marginLeft === this.marginLeft &&
-      other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath && other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) && other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers) && other.showAddRemoveButtons === this.showAddRemoveButtons && other.modifierKey === this.modifierKey;
+      other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath && other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) && other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers) && other.showAddRemoveButtons === this.showAddRemoveButtons && other.modifierKey === this.modifierKey && other.collapseIconStyle === this.collapseIconStyle;
     }
     toDOM(view) {
       const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(this.parameters.language, null, this.languageSpecificColors);
@@ -24093,16 +24133,17 @@ function extensions(plugin, settings) {
       if (this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold || this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold) {
         container.classList.add(`noCollapseIcon`);
       } else {
-        const collapse = createCodeblockCollapse(this.parameters.fold);
+        const icons = getCollapseIcons(this.collapseIconStyle);
+        const collapse = createCodeblockCollapse(this.parameters.fold, this.collapseIconStyle);
         container.appendChild(collapse);
         if (this.foldingState === FoldingState.FullyFolded) {
-          (0, import_obsidian15.setIcon)(collapse, "chevrons-down-up");
+          (0, import_obsidian15.setIcon)(collapse, icons.collapsed);
           container.classList.add("collapsed");
         } else if (this.foldingState === FoldingState.SemiFolded) {
-          (0, import_obsidian15.setIcon)(collapse, "chevrons-down-up");
+          (0, import_obsidian15.setIcon)(collapse, icons.collapsed);
           container.classList.add("semi-collapsed");
         } else {
-          (0, import_obsidian15.setIcon)(collapse, "chevrons-up-down");
+          (0, import_obsidian15.setIcon)(collapse, icons.uncollapsed);
         }
       }
       if (this.parameters.indentLevel > 0) {

@@ -6,9 +6,9 @@ import { bracketMatching, syntaxTree } from "@codemirror/language";
 import { SyntaxNodeRef } from "@lezer/common";
 import { highlightSelectionMatches } from "@codemirror/search";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences, getDisplayLanguageName } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, findAllOccurrences, createUncollapseCodeButton, addTextToClipboard, getPropertyFromLanguageSpecificColors, getDefaultParameters, getInlineCodeIcon, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, determineDefaultFoldState, filterOccurrences, getDisplayLanguageName, getCollapseIcons } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
-import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence } from "./Settings";
+import { ButtonModifierKeys, CodeblockCustomizerSettings, FoldingPersistence, FoldingScope, InlineCodeModifierKeys, TabPersistence, CollapseIconStyle } from "./Settings";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR, fadeOutLineCount, INLINE_CODE_LANG_REGEX, rhombusSVG } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 import { PromptLineRenderResult, PromptManager } from "./PromptManager";
@@ -1359,6 +1359,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     showAddRemoveButtons: boolean;
     modifierKey: ButtonModifierKeys;
     plugin: CodeBlockCustomizerPlugin;
+    collapseIconStyle: CollapseIconStyle;
 
     constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin, modifierKey: ButtonModifierKeys) {
       super();
@@ -1380,6 +1381,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       this.showAddRemoveButtons = plugin.settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons;
       this.plugin = plugin;
       this.modifierKey = modifierKey;
+      this.collapseIconStyle = plugin.settings.pluginSettings.header.collapseIconStyle;
     }
 
     eq(other: HeaderWidget) {
@@ -1389,7 +1391,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         other.parameters.indentLevel === this.parameters.indentLevel && other.pos.codeBlockStartPos === this.pos.codeBlockStartPos && other.pos.codeBlockEndPos === this.pos.codeBlockEndPos && other.sourcePath === this.sourcePath &&
         other.plugin === this.plugin && areObjectsEqual(other.languageSpecificColors, this.languageSpecificColors) && compareButtonConfigs(this.buttonConfigs, other.buttonConfigs) &&
         other.disableFoldUnlessSpecified === this.disableFoldUnlessSpecified && other.foldingState === this.foldingState && areGroupMembersEqual(this.groupMembers, other.groupMembers) && other.showAddRemoveButtons === this.showAddRemoveButtons &&
-        other.modifierKey === this.modifierKey;
+        other.modifierKey === this.modifierKey && other.collapseIconStyle === this.collapseIconStyle;
     }
 
     toDOM(view: EditorView): HTMLElement {
@@ -1429,17 +1431,18 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
         container.classList.add(`noCollapseIcon`);
       } else {
-        const collapse = createCodeblockCollapse(this.parameters.fold);
+        const icons = getCollapseIcons(this.collapseIconStyle);
+        const collapse = createCodeblockCollapse(this.parameters.fold, this.collapseIconStyle);
         container.appendChild(collapse);
 
         if (this.foldingState === FoldingState.FullyFolded) {
-          setIcon(collapse, "chevrons-down-up"); // fully folded icon
+          setIcon(collapse, icons.collapsed); // fully folded icon
           container.classList.add('collapsed');
         } else if (this.foldingState === FoldingState.SemiFolded) {
-          setIcon(collapse, "chevrons-down-up");
+          setIcon(collapse, icons.collapsed);
           container.classList.add('semi-collapsed');
         } else {
-          setIcon(collapse, "chevrons-up-down"); // unfolded icon
+          setIcon(collapse, icons.uncollapsed); // unfolded icon
         }
       }
 

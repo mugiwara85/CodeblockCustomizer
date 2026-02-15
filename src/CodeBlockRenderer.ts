@@ -535,7 +535,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
     frag.appendChild(createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin));
 
-    const collapseEl = createCodeblockCollapse(parameters.fold);
+    const collapseStyle = settings.pluginSettings.header.collapseIconStyle;
+    const collapseEl = createCodeblockCollapse(parameters.fold, collapseStyle);
     if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
       (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
       container.classList.add(`noCollapseIcon`);
@@ -568,11 +569,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
       let newState: FoldingState;
       if (isCollapsed || isSemiCollapsed) {
-        toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
+        toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = FoldingState.Unfolded;
         container.classList.remove('collapsed', 'semi-collapsed');
       } else {
-        toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`);
+        toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
         container.classList.add(useSemiFold ? 'semi-collapsed' : 'collapsed');
       }

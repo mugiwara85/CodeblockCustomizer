@@ -101,6 +101,15 @@ export const SemiFoldEffect = {
 } as const;
 export type SemiFoldEffect = (typeof SemiFoldEffect)[keyof typeof SemiFoldEffect];
 
+export const CollapseIconStyle = {
+  Chevrons: 'chevrons',
+  Arrows: 'arrows',
+  PlusMinus: 'plus-minus',
+  CirclePlusMinus: 'circle-plus-minus',
+  SquarePlusMinus: 'square-plus-minus',
+} as const;
+export type CollapseIconStyle = (typeof CollapseIconStyle)[keyof typeof CollapseIconStyle];
+
 export interface PluginSettings {
   codeblock: {
     enableLineNumbers: boolean;
@@ -149,6 +158,7 @@ export interface PluginSettings {
     boldText: boolean;
     italicText: boolean;
     collapseIconPosition: string;
+    collapseIconStyle: CollapseIconStyle;
     collapsedCodeText: string;
     codeblockLangBoldText: boolean;
     codeblockLangItalicText: boolean;
@@ -274,6 +284,7 @@ const defaultThemeSettings: PluginSettings = {
     boldText: false,
     italicText: false,
     collapseIconPosition: 'hide',
+    collapseIconStyle: CollapseIconStyle.Chevrons,
     collapsedCodeText: '',
     codeblockLangBoldText: true,
     codeblockLangItalicText: true,
