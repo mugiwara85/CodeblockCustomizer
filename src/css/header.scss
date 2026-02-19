@@ -12,7 +12,7 @@ body {
   }
 
   &:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container .codeblock-customizer-icon-container {
-    display: none;
+    display: none !important;
   }
 
   &:not(.codeblock-customizer-show-langnames-always, .codeblock-customizer-show-langnames) {

@@ -37,8 +37,7 @@
 
     // show header button container on hover
 
-    &.collapsed:hover,
-    &.semi-collapsed:hover {
+    &.collapsed:hover {
       .codeblock-customizer-header-button-container {
         display: flex;
         flex-wrap: nowrap;
@@ -47,6 +46,18 @@
         .codeblock-customizer-select-code,
         .codeblock-customizer-delete-code,
         .codeblock-customizer-snapshot-button {
+          display: none;
+        }
+      }
+    }
+    &.semi-collapsed:hover {
+      .codeblock-customizer-header-button-container {
+        display: flex;
+        flex-wrap: nowrap;
+
+        // hide select, delete and snapshot buttons for collapsed code blocks
+        .codeblock-customizer-select-code,
+        .codeblock-customizer-delete-code {
           display: none;
         }
       }
@@ -130,8 +141,7 @@
 
   // show header button container on hover
 
-  &.collapsed:hover,
-  &.semi-collapsed:hover {
+  &.collapsed:hover {
     .codeblock-customizer-header-button-container {
       display: flex;
       flex-wrap: nowrap;
@@ -144,12 +154,23 @@
       }
     }
   }
+  &.semi-collapsed:hover {
+    .codeblock-customizer-header-button-container {
+      display: flex;
+      flex-wrap: nowrap;
+
+      // hide select, delete and snapshot buttons for collapsed code blocks
+      .codeblock-customizer-select-code,
+      .codeblock-customizer-delete-code {
+        display: none;
+      }
+    }
+  }
 }
 
 /* show header button container (copy code only) when enabled */
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific {
-  &.collapsed,
-  &.semi-collapsed {
+  &.collapsed {
     .codeblock-customizer-header-button-container {
       display: flex;
       flex-wrap: nowrap;
@@ -162,11 +183,22 @@
       }
     }
   }
+  &.semi-collapsed {
+    .codeblock-customizer-header-button-container {
+      display: flex;
+      flex-wrap: nowrap;
+
+      // hide select, delete and snapshot buttons when show (copy code only) is enabled
+      .codeblock-customizer-select-code,
+      .codeblock-customizer-delete-code {
+        display: none;
+      }
+    }
+  }
 }
 
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container {
-  &.collapsed,
-  &.semi-collapsed {
+  &.collapsed {
     .codeblock-customizer-header-button-container {
       display: flex;
       flex-wrap: nowrap;
@@ -175,6 +207,18 @@ body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-hea
       .codeblock-customizer-select-code,
       .codeblock-customizer-delete-code,
       .codeblock-customizer-snapshot-button {
+        display: none;
+      }
+    }
+  }
+  &.semi-collapsed {
+    .codeblock-customizer-header-button-container {
+      display: flex;
+      flex-wrap: nowrap;
+
+      // hide select, delete and snapshot buttons when show (copy code only) is enabled
+      .codeblock-customizer-select-code,
+      .codeblock-customizer-delete-code {
         display: none;
       }
     }

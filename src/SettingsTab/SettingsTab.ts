@@ -209,6 +209,9 @@ export class SettingsTab extends PluginSettingTab {
       return;
     }
 
+    const hideOnSearchElements = this.containerEl.querySelectorAll(".cbc-hide-on-search"); // for now only for hiding prompt preview
+    hideOnSearchElements.forEach(el => (el as HTMLElement).style.display = "none");
+
     let anyCategoryVisible = false;
     settingsCategories.forEach(div => {
       Object.values(SettingsPage).forEach(section => {

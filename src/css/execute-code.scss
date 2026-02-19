@@ -74,7 +74,8 @@ pre.codeblock-customizer-pre {
 }
 
 .codeblock-customizer-style-execute-code-output pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output .stderr,
-body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output {
+body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output,
+pre.codeblock-customizer-pre button.run-code-button+code.language-output {
   display: inline-block;
   padding-left: var(--line-number-gutter-padding) !important;
   white-space: pre-wrap;

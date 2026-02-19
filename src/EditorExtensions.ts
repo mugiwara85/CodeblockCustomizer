@@ -308,7 +308,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
             filter: (from, to, value) => {
               const isFadeOutLineDeco = value.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line');
               const isSemiFoldClassDeco = value.spec.attributes?.class?.includes('semi-folded');
-              const isUncollapseWidgetDeco = value.spec.widget?.constructor.name === 'uncollapseCodeWidget';
+              const isUncollapseWidgetDeco = value.spec.widget instanceof uncollapseCodeWidget;
               const isSemiFadeRelatedDeco = isFadeOutLineDeco || isSemiFoldClassDeco || isUncollapseWidgetDeco;
               const isInRange = from >= filterFrom && to <= filterTo;
               return !isInRange || !isSemiFadeRelatedDeco;
@@ -633,7 +633,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         } else if (effect.is(UnCollapse)) {
           newValue.add(effect.value.filterFrom);
         } else if (effect.is(semiCollapse)) {
-          newValue.delete(effect.value.from);
+          const codeBlocks = transaction.state.field(codeBlockPositionsField, false) || [];
+          const block = codeBlocks.find(b =>
+            effect.value.from >= b.codeBlockStartPos && effect.value.to <= b.codeBlockEndPos
+          );
+          if (block) {
+            newValue.delete(transaction.state.doc.lineAt(block.codeBlockStartPos).from);
+          }
         } else if (effect.is(semiUnCollapse)) {
           newValue.add(effect.value.filterFrom);
         }
@@ -1897,7 +1903,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         return false;
       }
 
-      if (decoration.spec.widget?.constructor.name === 'uncollapseCodeWidget' || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
+      if (decoration.spec.widget instanceof uncollapseCodeWidget || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
         folded = true;
       }
       return undefined;
@@ -2995,7 +3001,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
 
       // check if it is semi-folded
-      if (decoration.spec.widget?.constructor.name === 'uncollapseCodeWidget' || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
+      if (decoration.spec.widget instanceof uncollapseCodeWidget || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
         isSemiFolded = true;
         return undefined;
       }
@@ -3101,7 +3107,6 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     defaultFoldUnfoldedField,
     collapseField,
     headerField,
-
     viewPlugin,
     linkViewPlugin,
     inlineCodeViewPlugin,

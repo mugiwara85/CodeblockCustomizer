@@ -67,7 +67,7 @@ body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show
   display: none !important;
 }
 body:not(.codeblock-customizer-show-langicons-always) .codeblock-customizer-header-container .codeblock-customizer-icon-container {
-  display: none;
+  display: none !important;
 }
 body:not(.codeblock-customizer-show-langnames-always, .codeblock-customizer-show-langnames) .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag,
 body:not(.codeblock-customizer-show-langnames-always, .codeblock-customizer-show-langnames) .codeblock-customizer-header-group-container .codeblock-customizer-header-language-tag {
@@ -828,7 +828,8 @@ pre.codeblock-customizer-pre .codeblock-customizer-output .codeblock-customizer-
 }
 
 .codeblock-customizer-style-execute-code-output pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output .stderr,
-body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output {
+body:not(.codeblock-customizer-style-execute-code-output) pre.codeblock-customizer-pre .codeblock-customizer-execute-code-output,
+pre.codeblock-customizer-pre button.run-code-button + code.language-output {
   display: inline-block;
   padding-left: var(--line-number-gutter-padding) !important;
   white-space: pre-wrap;
@@ -1349,15 +1350,21 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container, .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container {
   display: none;
 }
-.markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container, .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container {
+.markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container {
   display: flex;
   flex-wrap: nowrap;
 }
 .markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button, .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
-.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+.markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+  display: none;
+}
+.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
 .markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
@@ -1508,40 +1515,58 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container, .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container {
   display: none;
 }
-.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container, .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container {
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container {
   display: flex;
   flex-wrap: nowrap;
 }
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button, .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
-.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+  display: none;
+}
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
 
 /* show header button container (copy code only) when enabled */
-.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container, .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container {
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container {
   display: flex;
   flex-wrap: nowrap;
 }
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button, .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
-.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+  display: none;
+}
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
 
-body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container, body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container {
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container {
   display: flex;
   flex-wrap: nowrap;
 }
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button, body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
-body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
-body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
+  display: none;
+}
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container {
+  display: flex;
+  flex-wrap: nowrap;
+}
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
 

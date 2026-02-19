@@ -203,7 +203,7 @@ export class PromptSettings {
     const { def: currentPromptData } = getPromptDefinition(selectedPromptId, this.plugin.settings);
 
     // prompt preview
-    const previewWrapper = promptEditorContainer.createDiv({ cls: 'codeblock-customizer-prompt-preview-wrapper' });
+    const previewWrapper = promptEditorContainer.createDiv({ cls: 'codeblock-customizer-prompt-preview-wrapper cbc-hide-on-search' });
     previewWrapper.createDiv({ text: 'Prompt preview' });
     const previewEl = previewWrapper.createDiv({ cls: 'codeblock-customizer-prompt-preview' });
 
