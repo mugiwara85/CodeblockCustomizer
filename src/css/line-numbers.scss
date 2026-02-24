@@ -1,5 +1,13 @@
+@use 'mixins';
+
 /* Line number gutter styling */
-.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .codeblock-customizer-line-number,
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) {
+  .codeblock-customizer-line-number,
+  .codeblock-customizer-hidden-line-gutter {
+    display: none;
+  }
+}
+
 .codeblock-customizer-line-number-hide {
   display: none;
 }
@@ -173,37 +181,145 @@
   }
 }
 
-.codeblock-customizer-linenumberseparator-dashed .codeblock-customizer-line-separator-content {
-  height: 1px;
+.codeblock-customizer-line-separator-content {
   flex-grow: 1;
-  border-bottom: 2px dashed var(--text-muted);
+  margin-right: var(--line-number-gutter-padding);
   margin-left: var(--line-number-gutter-padding);
-  opacity: 0.5;
+  opacity: 0.3;
+}
+  
+.codeblock-customizer-linenumberseparator-dashed .codeblock-customizer-line-separator-content {
+  @include mixins.separator-dashed;
 }
 
 .codeblock-customizer-linenumberseparator-doubleline .codeblock-customizer-line-separator-content {
-  height: 3px;
-  flex-grow: 1;
   align-self: center !important;
-  border-top: 1px solid var(--text-muted);
-  border-bottom: 1px solid var(--text-muted);
-  margin-left: var(--line-number-gutter-padding);
   background: none;
   mask: none;
-  opacity: 0.5;
+
+  @include mixins.separator-doubleline;
 }
 
 .codeblock-customizer-linenumberseparator-zigzag .codeblock-customizer-line-separator-content {
-  height: calc(var(--b) + var(--s) / 2);
-  flex-grow: 1;
   align-self: center !important;
-  margin-left: var(--line-number-gutter-padding);
-  background: var(--text-muted, #888);
-  mask: 50% calc(-1 * var(--b)) / var(--mask-gradient) exclude, 50% / var(--mask-gradient);
-  opacity: 0.5;
 
-  --s: 10px;
-  --b: 2px;
-  --a: 90deg;
-  --mask-gradient: var(--s) repeat-x conic-gradient(from calc(var(--a) / -2) at bottom, #0000, #000 1deg calc(var(--a) - 1deg), #0000 var(--a));
+  @include mixins.separator-zigzag;
+}
+  
+/* hidden lines */
+.has-hidden-lines {
+  position: relative;
+  padding-bottom: 1.5em !important;
+}
+
+.markdown-rendered .has-hidden-lines {
+  padding-bottom: 0 !important;
+
+  &.unhidden-range .codeblock-customizer-line-text {
+    padding-bottom: unset !important;
+  }
+
+  .codeblock-customizer-line-text {
+    padding-bottom: 1.5em !important;
+  }
+}
+
+.codeblock-customizer-hidden-line-container {
+  position: absolute;
+  z-index: 10;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 1.5em;
+  align-items: center;
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+
+  .codeblock-customizer-hidden-line-gutter,
+  .codeblock-customizer-hidden-line-gutter-specific {
+    display: flex;
+    width: var(--gutter-width);
+    min-width: var(--line-number-gutter-width);
+    height: 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 2px;
+    padding-right: 8px;
+    padding-left: 8px;
+    background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+    color: var(--gutter-text-color, var(--codeblock-customizer-gutter-text-color));
+    font-family: var(--font-monospace);
+    font-size: var(--code-size);
+    pointer-events: none;
+  }
+}
+
+.codeblock-customizer-hidden-line-content {
+  display: flex;
+  flex-grow: 1;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85em;
+  font-style: italic;
+  letter-spacing: 0;
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: color 0.15s ease, letter-spacing 0.15s ease, filter 0.15s ease;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--text-normal);
+      letter-spacing: 1px;
+
+      // filter: drop-shadow(0 0 4px var(--text-normal));
+    }
+  }
+
+  &::before,
+  &::after {
+    flex: 1;
+    content: "";
+    opacity: 0.3;
+    transition: opacity 0.15s ease;
+  }
+
+  @media (hover: hover) {
+    &:hover::before,
+    &:hover::after {
+      opacity: 0.7;
+    }
+  }
+
+  &::before {
+    margin: 0 8px 0 16px;
+  }
+
+  &::after {
+    margin: 0 16px 0 8px;
+  }
+}
+
+.codeblock-customizer-hidden-lines-dashed .codeblock-customizer-hidden-line-content {
+  &::before,
+  &::after {
+    @include mixins.separator-dashed;
+  }
+}
+
+.codeblock-customizer-hidden-lines-doubleline .codeblock-customizer-hidden-line-content {
+  &::before,
+  &::after {
+    @include mixins.separator-doubleline;
+  }
+}
+
+.codeblock-customizer-hidden-lines-zigzag .codeblock-customizer-hidden-line-content {
+  &::before,
+  &::after {
+    @include mixins.separator-zigzag;
+  }
 }

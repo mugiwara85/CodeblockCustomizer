@@ -3,7 +3,7 @@ import { Notice, Setting, TextComponent } from "obsidian";
 import { createDetailsGroup, SettingsPage, SettingsPageData, updateLanguageSpecificColorContainer } from "./Common";
 import { getCurrentMode, updateSettingStyles } from "src/Utils";
 import { createPickrSetting } from "./ColorUtils";
-import { CollapseIconStyle, InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
+import { CollapseIconStyle, HiddenLinesStyle, InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
 import { DEFAULT_COLLAPSE_TEXT } from "src/Const";
 import { ANNOTATION_TYPE_ICONS } from "src/TooltipManager";
 import CodeBlockCustomizerPlugin from "src/main";
@@ -77,7 +77,7 @@ export class AppearanceSettings {
 
     new Setting(codeBlockDetails)
       .setName('Line number jump separator style')
-      .setDesc('Select the style of the separator line shown when code is folded/skipped.')
+      .setDesc('Select the style of the separator line shown when line number jumps are used.')
       .addDropdown(dropdown => dropdown
         .addOption(LineNumberSeparatorStyle.Zigzag, 'Zigzag')
         .addOption(LineNumberSeparatorStyle.Dashed, 'Dashed')
@@ -85,6 +85,22 @@ export class AppearanceSettings {
         .setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle)
         .onChange(async (value: LineNumberSeparatorStyle) => {
           this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
+          await this.plugin.saveSettings();
+          //this.plugin.renderReadingViews();
+          updateSettingStyles(this.plugin.settings, this.plugin.app);
+        })
+      );
+
+    new Setting(codeBlockDetails)
+      .setName('Hidden lines style')
+      .setDesc('Select the style of the separator line shown when code lines are hidden.')
+      .addDropdown(dropdown => dropdown
+        .addOption(HiddenLinesStyle.Zigzag, 'Zigzag')
+        .addOption(HiddenLinesStyle.Dashed, 'Dashed')
+        .addOption(HiddenLinesStyle.DoubleLine, 'Double Line')
+        .setValue(this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle)
+        .onChange(async (value: HiddenLinesStyle) => {
+          this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle = value;
           await this.plugin.saveSettings();
           //this.plugin.renderReadingViews();
           updateSettingStyles(this.plugin.settings, this.plugin.app);

@@ -52,7 +52,8 @@
 .print {
   .codeblock-customizer-collapse-indicator,
   .codeblock-customizer-button-container,
-  .codeblock-customizer-header-collapse {
+  .codeblock-customizer-header-collapse,
+  .codeblock-customizer-uncollapse-code {
     display: none !important;
   }
 }
@@ -93,9 +94,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l0));
         opacity: var(--codeblock-customizer-semifold-opacity-l0);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 100%);
@@ -106,7 +109,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
     }
@@ -120,9 +126,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l1));
         opacity: var(--codeblock-customizer-semifold-opacity-l1);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 100%);
@@ -133,7 +141,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
     }
@@ -147,9 +158,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l2));
         opacity: var(--codeblock-customizer-semifold-opacity-l2);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 100%);
@@ -160,7 +173,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
     }
@@ -174,9 +190,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l3));
         opacity: var(--codeblock-customizer-semifold-opacity-l3);
+        pointer-events: none;
       }
 
       position: relative;
@@ -188,7 +206,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
     }
@@ -234,9 +255,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l0));
         opacity: var(--codeblock-customizer-semifold-opacity-l0);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 100%);
@@ -247,7 +270,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
 
@@ -266,9 +292,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l1));
         opacity: var(--codeblock-customizer-semifold-opacity-l1);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 100%);
@@ -279,7 +307,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
 
@@ -298,9 +329,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l2));
         opacity: var(--codeblock-customizer-semifold-opacity-l2);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 100%);
@@ -311,7 +344,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
 
@@ -330,9 +366,11 @@
       .codeblock-customizer-line-number-specific .codeblock-customizer-line-number-element,
       .codeblock-customizer-line-text,
       .codeblock-customizer-line-separator,
+      .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-annotation-icon {
         filter: blur(var(--codeblock-customizer-semifold-blur-l3));
         opacity: var(--codeblock-customizer-semifold-opacity-l3);
+        pointer-events: none;
       }
 
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 0%, var(--background-primary)) 100%);
@@ -343,7 +381,10 @@
       }
 
       .codeblock-customizer-line-separator,
-      .codeblock-customizer-line-separator-gutter {
+      .codeblock-customizer-line-separator-gutter,
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific {
         background: transparent;
       }
 

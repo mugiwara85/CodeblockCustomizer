@@ -178,7 +178,6 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 
 /* output parameter */
-
 .markdown-rendered pre.codeblock-customizer-pre.is-output {
   margin-top: 0 !important;
 }
@@ -191,4 +190,22 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 /* grouped blocks */
 .codeblock-customizer-pre-parent:has(pre.displayedInGroup):has(~ .codeblock-customizer-pre-parent > .is-output)>pre {
   margin-bottom: 0 !important;
+}
+
+/* hidden lines */
+.markdown-rendered div.codeblock-customizer-line-wrapper.hidden-line-hidden,
+.markdown-rendered div.codeblock-customizer-line-wrapper.has-prompt.hidden-line-hidden {
+  display: none;
+}
+
+.markdown-rendered .codeblock-customizer-line-wrapper.unhidden-range .codeblock-customizer-hidden-line-container {
+  display: none;
+}
+
+.codeblock-customizer-line-wrapper.dummy-wrapper {
+  height: calc(var(--line-height-normal) * 1em);
+}
+
+.codeblock-customizer-line-wrapper.dummy-wrapper.unhidden-range {
+  height: 0;
 }

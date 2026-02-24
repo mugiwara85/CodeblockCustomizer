@@ -1,6 +1,6 @@
 import { setIcon, MarkdownRenderer, Notice } from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences, getCollapseIcons } from "./Utils";
+import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences, getCollapseIcons, getVisibleLineCount } from "./Utils";
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
@@ -126,6 +126,18 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   });
   frag.appendChild(wrapCodeButton);
 
+  if (parameters.hideLines.length > 0) {
+    const rehideButton = createRehideButton();
+    rehideButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const preEl = targetPreElement || (event.currentTarget as HTMLElement).closest('pre');
+      if (preEl) {
+        rehideAllLines(preEl, parameters, plugin.settings.pluginSettings);
+      }
+    });
+    frag.appendChild(rehideButton);
+  }
+
   if (plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase())) {
     observer = addAndObserveExecuteCodeButtons(frag, targetPreElement, parameters, plugin);
   }
@@ -203,6 +215,15 @@ function createWrapCodeButton() {
 
   return container;
 }// createWrapCodeButton
+
+function createRehideButton() {
+  const rehideButton = document.createElement("button");
+  rehideButton.classList.add("codeblock-customizer-rehide-lines");
+  rehideButton.setAttribute("aria-label", "Re-hide unhidden lines");
+  setIcon(rehideButton, "eye-off");
+
+  return rehideButton;
+}// createRehideButton
 
 function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustomizerPlugin, codeblockLines?: string[]) {
   event.stopPropagation();
@@ -655,19 +676,36 @@ function getHighlightedLineHtml(lineHtml: string, parameters: CBCParameters, lin
 }// getHighlightedLineHtml
 
 function LineSeparatorWidget(maxDigits: number): HTMLElement {
-  const container = createDiv({ cls: 'codeblock-customizer-line-separator' });
-  const gutter = createSpan({ cls: 'codeblock-customizer-line-separator-gutter', text: '...' });
+  const container = createDiv({ cls: `codeblock-customizer-line-separator` });
+  const gutter = createSpan({ cls: `codeblock-customizer-line-separator-gutter`, text: '...' });
 
   if (maxDigits > 0) {
     gutter.style.minWidth = `${maxDigits}ch`;
     gutter.style.boxSizing = "content-box";
   }
 
-  const content = createSpan({ cls: 'codeblock-customizer-line-separator-content' });
+  const content = createSpan({ cls: `codeblock-customizer-line-separator-content` });
   container.appendChild(gutter);
   container.appendChild(content);
+
   return container;
 }// LineSeparatorWidget
+
+function HiddenLinesWidget(lineCount: number, maxDigits: number, isSpecific: boolean): HTMLElement {
+  const container = createDiv({ cls: `codeblock-customizer-hidden-line-container` });
+  const gutter = createSpan({ cls: `codeblock-customizer-hidden-line-gutter${isSpecific ? "-specific" : ""}`, text: '...' });
+
+  if (maxDigits > 0) {
+    gutter.style.minWidth = `${maxDigits}ch`;
+    gutter.style.boxSizing = "content-box";
+  }
+
+  const content = createSpan({ cls: `codeblock-customizer-hidden-line-content`, text: `${lineCount} ${lineCount === 1 ? "line" : "lines"} hidden - Click to reveal` });
+  container.appendChild(gutter);
+  container.appendChild(content);
+
+  return container;
+}// HiddenLinesWidget
 
 function calculateMaxLineDigits(lineCount: number, parameters: CBCParameters): number {
   let counter = parameters.lineNumberOffset;
@@ -733,7 +771,8 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
   const indentationLevels = addIndentationGuides ? trackIndentation(textLines) : null;
   const annotationsToProcess: AnnotationInfo[] = [];
 
-  const useSemiFold = lineCount >= settings.semiFold.visibleLines + fadeOutLineCount;
+  const visibleLinesCount = getVisibleLineCount(parameters, lineCount);
+  const useSemiFold = settings.semiFold.enableSemiFold && visibleLinesCount >= settings.semiFold.visibleLines + fadeOutLineCount;
   let fadeOutLineIndex = 0;
 
   let jumpCounter = parameters.lineNumberOffset; // counter to track line numbers with jumps
@@ -750,6 +789,11 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     }
   }
 
+  const hiddenLines = new Set(parameters.hideLines);
+  let hiddenRangeCount = 0;
+  let previousVisibleWrapper: HTMLElement | null = null;
+  let currentVisibleCount = 0;
+
   for (let index = 0; index < lineCount; index++) {
     const htmlLine = htmlLines[index] ?? '';
     const textLine = textLines[index] ?? '';
@@ -759,6 +803,11 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
     if (jumps.length > 0 && jumpIdx < jumps.length && jumpCounter === jumps[jumpIdx].lineNumber) {
       jumpCounter = jumps[jumpIdx].newStartNumber;
       jumpIdx++;
+    }
+
+    const isHidden = hiddenLines.has(physicalLineNumber) || hiddenLines.has(jumpCounter);
+    if (!isHidden) {
+      currentVisibleCount++;
     }
 
     const displayedLineNumber = jumpCounter; // this is the displayed number (including offsets and/or line number jumps)
@@ -773,7 +822,7 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
       annotationData = result.annotationData;
     }
 
-    const { lineClasses, uncollapseButton, updatedFadeOutLineIndex } = getLineClass(physicalLineNumber, displayedLineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex);
+    const { lineClasses, uncollapseButton, updatedFadeOutLineIndex } = getLineClass(currentVisibleCount, displayedLineNumber, caseInsensitiveLineText, parameters, settings, useSemiFold, fadeOutLineIndex, isHidden);
     fadeOutLineIndex = updatedFadeOutLineIndex;
     const lineWrapper = createDiv({ cls: 'codeblock-customizer-line-wrapper' });
 
@@ -864,6 +913,44 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
       lineWrapper.appendChild(uncollapseButton);
     }
 
+    // hidden lines
+    if (hiddenLines.has(displayedLineNumber)) {
+      lineWrapper.classList.add('hidden-line-hidden');
+      hiddenRangeCount++;
+      frag.appendChild(lineWrapper);
+
+      // insert widget if the next line is visible (or this is the last line)
+      let nextDisplayedLineNumber = displayedLineNumber;
+      if (index + 1 < lineCount) {
+        let tempJumpCounter = jumpCounter;
+        const tempJumpIdx = jumpIdx;
+        tempJumpCounter++;
+        if (jumps.length > 0 && tempJumpIdx < jumps.length && tempJumpCounter === jumps[tempJumpIdx].lineNumber) {
+          tempJumpCounter = jumps[tempJumpIdx].newStartNumber;
+        }
+        nextDisplayedLineNumber = tempJumpCounter;
+      }
+      const isLastLine = index + 1 >= lineCount;
+      const nextLineVisible = !isLastLine && !hiddenLines.has(nextDisplayedLineNumber);
+
+      if (isLastLine || nextLineVisible) {
+        if (previousVisibleWrapper) {
+          previousVisibleWrapper.classList.add('has-hidden-lines');
+          previousVisibleWrapper.appendChild(HiddenLinesWidget(hiddenRangeCount, maxDigits, parameters.showNumbers === "specific"));
+        } else {
+          // hidden range starts at first content line ==> insert a wrapper element and insert the widget at start of it
+          // TODO: line number element should also be added, but that makes things much more complicated. It is a very specific case. Ignore for now...
+          const dummyWrapper = createDiv({ cls: 'codeblock-customizer-line-wrapper dummy-wrapper has-hidden-lines' });
+          dummyWrapper.appendChild(HiddenLinesWidget(hiddenRangeCount, maxDigits, parameters.showNumbers === "specific"));
+          frag.insertBefore(dummyWrapper, frag.firstChild);
+        }
+        hiddenRangeCount = 0;
+      }
+      continue;
+    }
+
+    hiddenRangeCount = 0;
+    previousVisibleWrapper = lineWrapper;
     frag.appendChild(lineWrapper);
   }
 
@@ -968,10 +1055,10 @@ export function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockC
   });
 
   // uncollapse button for semi-folded code blocks
-  const uncollapseButton = preCodeElm.querySelector(".codeblock-customizer-uncollapse-code");
-  if (uncollapseButton) {
+  const uncollapseButtons = preCodeElm.querySelectorAll(".codeblock-customizer-uncollapse-code");
+  uncollapseButtons.forEach(uncollapseButton => {
     uncollapseButton.addEventListener("click", handleUncollapseClick);
-  }
+  });
 
   preCodeElm.addEventListener("mousedown", (event) => {
     const preEl = preCodeElm.closest('pre');
@@ -985,7 +1072,216 @@ export function attachEventListeners(preCodeElm: HTMLElement, plugin: CodeBlockC
       event.stopPropagation();
     }
   });
+
+  // hidden lines icon
+  const hiddenLineWidgets = preCodeElm.querySelectorAll('.codeblock-customizer-hidden-line-container');
+  hiddenLineWidgets.forEach(widget => {
+    widget.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      unhideLines(widget as HTMLElement, preCodeElm, plugin.settings.pluginSettings);
+    });
+  });
 }// attachEventListeners
+
+function getGroupHeader(preElement: HTMLElement): HTMLElement | null {
+  if (!preElement.classList.contains('codeblock-customizer-grouped')) {
+    return null;
+  }
+
+  let currentParent = preElement.parentElement;
+  while (currentParent) {
+    const header = currentParent.querySelector('.codeblock-customizer-header-group-container');
+    if (header) {
+      return header as HTMLElement;
+    }
+
+    currentParent = currentParent.previousElementSibling as HTMLElement;
+    if (!currentParent || !currentParent.classList.contains('codeblock-customizer-pre-parent')) {
+      break;
+    }
+  }
+
+  return null;
+}// getGroupHeader
+
+function unhideLines(widget: HTMLElement, preCodeElm: HTMLElement, settings: PluginSettings) {
+  const parentWrapper = widget.closest('.has-hidden-lines');
+  if (!parentWrapper) {
+    return;
+  }
+
+  const preElement = preCodeElm.parentElement;
+  if (!preElement) {
+    return;
+  }
+
+  preElement.classList.add('has-unhidden-lines');
+  const groupHeader = getGroupHeader(preElement);
+  if (groupHeader) {
+    groupHeader.classList.add('has-unhidden-lines');
+  }
+
+  const allWrappers = Array.from(preCodeElm.querySelectorAll('.codeblock-customizer-line-wrapper'));
+  const parentIndex = allWrappers.indexOf(parentWrapper as HTMLElement);
+
+  const isParentHidden = parentWrapper.classList.contains('hidden-line-hidden');
+  if (isParentHidden) {
+    // hidden range is at the start of the code block ==> widget is on the last hidden line
+    parentWrapper.classList.replace('hidden-line-hidden', 'hidden-line-unhidden');
+    for (let i = parentIndex - 1; i >= 0; i--) {
+      const wrapper = allWrappers[i] as HTMLElement;
+      if (wrapper.classList.contains('hidden-line-hidden')) {
+        wrapper.classList.replace('hidden-line-hidden', 'hidden-line-unhidden');
+      } else {
+        break;
+      }
+    }
+  } else {
+    // widget is on the visible line before the hidden lines
+    for (let i = parentIndex + 1; i < allWrappers.length; i++) {
+      const wrapper = allWrappers[i] as HTMLElement;
+      if (wrapper.classList.contains('hidden-line-hidden')) {
+        wrapper.classList.replace('hidden-line-hidden', 'hidden-line-unhidden');
+      } else {
+        break;
+      }
+    }
+  }
+
+  // hide widget
+  parentWrapper.classList.add('unhidden-range');
+
+  reassignFadeOutClasses(preElement, preCodeElm, settings);
+}// unhideLines
+
+function rehideAllLines(preElement: HTMLElement, parameters: CBCParameters, settings?: PluginSettings) {
+  const codeElement = preElement.querySelector('code');
+  if (!codeElement) {
+    return;
+  }
+
+  const unhiddenLines = codeElement.querySelectorAll('.hidden-line-unhidden');
+  if (unhiddenLines.length === 0) {
+    return;
+  }
+
+  // re-hide all unhidden lines
+  unhiddenLines.forEach(line => {
+    line.classList.replace('hidden-line-unhidden', 'hidden-line-hidden');
+  });
+
+  // re-show all hidden line widgets
+  const unhiddenRanges = codeElement.querySelectorAll('.unhidden-range');
+  unhiddenRanges.forEach(range => {
+    range.classList.remove('unhidden-range');
+  });
+
+  // hide the re-hide button
+  preElement.classList.remove('has-unhidden-lines');
+  const groupHeader = getGroupHeader(preElement);
+  if (groupHeader) {
+    groupHeader.classList.remove('has-unhidden-lines');
+  }
+
+  if (settings) {
+    reassignFadeOutClasses(preElement, codeElement as HTMLElement, settings);
+  }
+}// rehideAllLines
+
+export function reassignFadeOutClasses(preElement: HTMLElement, preCodeElm: HTMLElement, settings: PluginSettings) {
+  const isFullyCollapsed = preElement.classList.contains('codeblock-customizer-codeblock-collapsed');
+  const isSemiCollapsed = preElement.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
+
+  if (!isFullyCollapsed && !isSemiCollapsed) {
+    return;
+  }
+
+  const semiFold = settings.semiFold.enableSemiFold;
+  if (!semiFold) {
+    return;
+  }
+
+  const codeElements = preElement.querySelector('code:not(.codeblock-customizer-hidden-code)');
+  let allLines: Element[] = [];
+  let visibleLines: Element[] = [];
+  if (codeElements) {
+    allLines = Array.from(codeElements.children);
+    visibleLines = allLines.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line') && !child.classList.contains('hidden-line-hidden'));
+  }
+
+  const visibleLinesThreshold = settings.semiFold.visibleLines;
+  const canSemiFold = visibleLines.length >= visibleLinesThreshold + fadeOutLineCount;
+
+  let header = preElement.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');
+  if (preElement.classList.contains('codeblock-customizer-grouped')) {
+    const groupedHeader = getGroupHeader(preElement);
+    if (groupedHeader) {
+      header = groupedHeader;
+    }
+  }
+
+  const collapseIcon = header?.querySelector(".codeblock-customizer-header-collapse") as HTMLElement;
+  const collapseStyle = settings.header.collapseIconStyle;
+
+  // remove existing fade-out classes and buttons
+  for (const line of allLines) {
+    for (let i = 0; i < fadeOutLineCount; i++) {
+      line.classList.remove(`codeblock-customizer-fade-out-line${i}`);
+    }
+    line.classList.remove('codeblock-customizer-fade-out-line-hide');
+
+    const uncollapseBtn = line.querySelector('.codeblock-customizer-uncollapse-code');
+    if (uncollapseBtn) {
+      uncollapseBtn.remove();
+    }
+  }
+
+  if (canSemiFold && isFullyCollapsed) {
+    // switch from fully-folded to semi-folded
+    preElement.classList.remove('codeblock-customizer-codeblock-collapsed');
+    preElement.classList.add('codeblock-customizer-codeblock-semi-collapsed');
+    if (header) {
+      header.classList.remove('collapsed');
+      header.classList.add('semi-collapsed');
+    }
+  } else if (!canSemiFold && isSemiCollapsed) {
+    // switch from semi-folded to fully-folded
+    preElement.classList.remove('codeblock-customizer-codeblock-semi-collapsed');
+    preElement.classList.add('codeblock-customizer-codeblock-collapsed');
+    if (header) {
+      header.classList.remove('semi-collapsed');
+      header.classList.add('collapsed');
+
+      const icons = getCollapseIcons(collapseStyle);
+      setIcon(collapseIcon, icons.collapsed);
+    }
+  }
+
+  // reassign fade-out classes
+  const isNowSemiCollapsed = preElement.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
+  if (isNowSemiCollapsed) {
+    for (let currentVisibleLineIndex = 0; currentVisibleLineIndex < visibleLines.length; currentVisibleLineIndex++) {
+      const line = visibleLines[currentVisibleLineIndex];
+      const visualLineNumber = currentVisibleLineIndex + 1;
+
+      if (visualLineNumber > visibleLinesThreshold && visualLineNumber <= visibleLinesThreshold + fadeOutLineCount) {
+        const fadeOutLineIndex = visualLineNumber - visibleLinesThreshold - 1;
+        line.classList.add(`codeblock-customizer-fade-out-line${fadeOutLineIndex}`);
+
+        if (fadeOutLineIndex === fadeOutLineCount - 1) {
+          const uncollapseButton = createUncollapseCodeButton();
+          uncollapseButton.addEventListener("click", handleUncollapseClick);
+          line.appendChild(uncollapseButton);
+        }
+      }
+
+      if (visualLineNumber > visibleLinesThreshold + fadeOutLineCount) {
+        line.classList.add('codeblock-customizer-fade-out-line-hide');
+      }
+    }
+  }
+}// reassignFadeOutClasses
 
 function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeBlockCustomizerPlugin): { lineContent: string; annotationData: { type: string; content: string; title?: string } | null } {
   let annotationData: { type: string; content: string; title?: string } | null = null;
@@ -1030,7 +1326,7 @@ function processAnnotations(htmlLine: string, isPrinting: boolean, plugin: CodeB
   return { lineContent: tempDiv.innerHTML, annotationData };
 }// processAnnotations
 
-function getLineClass(physicalLineNumber: number, displayedLineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number) {
+function getLineClass(visualLineNumber: number, displayedLineNumber: number, caseInsensitiveLineText: string, parameters: CBCParameters, settings: PluginSettings, useSemiFold: boolean, fadeOutLineIndex: number, isHidden: boolean = false) {
   let lineClasses = '';
   let uncollapseButton: HTMLElement | null = null;
   let updatedFadeOutLineIndex = fadeOutLineIndex;
@@ -1046,7 +1342,7 @@ function getLineClass(physicalLineNumber: number, displayedLineNumber: number, c
     lineClasses = `codeblock-customizer-line`;
   }
 
-  if (useSemiFold && physicalLineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
+  if (!isHidden && useSemiFold && visualLineNumber > settings.semiFold.visibleLines && fadeOutLineIndex < fadeOutLineCount) {
     lineClasses += ` codeblock-customizer-fade-out-line${fadeOutLineIndex}`;
     updatedFadeOutLineIndex++;
     if (fadeOutLineIndex === fadeOutLineCount - 1) {
@@ -1054,7 +1350,7 @@ function getLineClass(physicalLineNumber: number, displayedLineNumber: number, c
     }
   }
 
-  if (useSemiFold && physicalLineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
+  if (!isHidden && useSemiFold && visualLineNumber > settings.semiFold.visibleLines + fadeOutLineCount) {
     lineClasses += ` codeblock-customizer-fade-out-line-hide`;
   }
 

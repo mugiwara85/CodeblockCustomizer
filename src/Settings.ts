@@ -94,6 +94,13 @@ export const LineNumberSeparatorStyle = {
 } as const;
 export type LineNumberSeparatorStyle = (typeof LineNumberSeparatorStyle)[keyof typeof LineNumberSeparatorStyle];
 
+export const HiddenLinesStyle = {
+  Zigzag: 'zigzag',
+  Dashed: 'dashed',
+  DoubleLine: 'double-line',
+} as const;
+export type HiddenLinesStyle = (typeof HiddenLinesStyle)[keyof typeof HiddenLinesStyle];
+
 export const SemiFoldEffect = {
   Opacity: 'opacity',
   Blur: 'blur',
@@ -124,6 +131,7 @@ export interface PluginSettings {
     unwrapcode: boolean;
     hideFenceLines: boolean;
     lineNumberSeparatorStyle: LineNumberSeparatorStyle;
+    hiddenLinesStyle: HiddenLinesStyle;
     buttons: {
       alwaysShowButtons: boolean;
       alwaysShowCopyCodeButton: boolean;
@@ -251,6 +259,7 @@ const defaultThemeSettings: PluginSettings = {
     unwrapcode: false,
     hideFenceLines: false,
     lineNumberSeparatorStyle: LineNumberSeparatorStyle.Dashed,
+    hiddenLinesStyle: HiddenLinesStyle.Dashed,
     buttons: {
       alwaysShowButtons: false,
       alwaysShowCopyCodeButton: false,

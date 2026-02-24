@@ -156,6 +156,7 @@ export interface CBCParameters {
   group: string;
   tab: string;
   output: boolean;
+  hideLines: number[];
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false): CBCParameters {
@@ -263,7 +264,11 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     }
   }
 
+  // output
   const output = isParameterDefined("output", lineText);
+
+  // hide
+  const hideLines = getLineRanges(extractParameter(parsedParameters, "hide"));
 
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
@@ -298,7 +303,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     noParseLines,
     group,
     tab,
-    output
+    output,
+    hideLines
   };
 }// getParameters
 

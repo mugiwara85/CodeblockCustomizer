@@ -82,6 +82,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   const semiUnCollapse = StateEffect.define<{ filterFrom: number, filterTo: number }>();
   const semiFade = StateEffect.define<Range<Decoration>>();
   const semiUnFade = StateEffect.define<{ filterFrom: number; filterTo: number }>();
+  const unhideEffect = StateEffect.define<{ from: number; to: number }>();
+  const rehideEffect = StateEffect.define<{ from: number; to: number }>();
 
   type CollapseEffect = Range<Decoration>;
   type UncollapseEffect = { filter: (from: number, to: number) => boolean; filterFrom: number; filterTo: number };
@@ -135,7 +137,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         }
       }
 
-      if (!docChanged && !settingsUpdated && !positionsChanged && !tabsChanged && !foldChanged && !needsSelectionUpdate) {
+      const unhiddenChanged = oldState.field(hiddenLinesUnhiddenField, false) !== newState.field(hiddenLinesUnhiddenField, false);
+      if (!docChanged && !settingsUpdated && !positionsChanged && !tabsChanged && !foldChanged && !needsSelectionUpdate && !unhiddenChanged) {
         return value;
       }
       return insertHeader(transaction.state);
@@ -344,6 +347,60 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     },
     provide: f => EditorView.decorations.from(f)
   });// collapseField
+
+  const hiddenLinesUnhiddenField = StateField.define<Set<number>>({
+    create(): Set<number> {
+      return new Set();
+    },
+    update(value, tr) {
+      if (tr.docChanged) {
+        const newSet = new Set<number>();
+        for (const pos of value) {
+          newSet.add(tr.changes.mapPos(pos));
+        }
+        value = newSet;
+      }
+      for (const effect of tr.effects) {
+        if (effect.is(unhideEffect)) {
+          value = new Set(value);
+          value.add(effect.value.from);
+        }
+        if (effect.is(rehideEffect)) {
+          const { from, to } = effect.value;
+          value = new Set([...value].filter(pos => pos < from || pos > to));
+        }
+      }
+      return value;
+    }
+  });// hiddenLinesUnhiddenField
+
+  const hiddenLinesField = StateField.define<DecorationSet>({
+    create(state): DecorationSet {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
+        return Decoration.none;
+
+      const positions = state.field(codeBlockPositionsField, false) ?? [];
+      const unhiddenPositions = state.field(hiddenLinesUnhiddenField, false) ?? new Set<number>();
+
+      return calculateHideDecorations(state, positions, unhiddenPositions);
+    },
+    update(value, tr) {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(tr.state))
+        return Decoration.none;
+
+      const oldCodeBlockPositions = tr.startState.field(codeBlockPositionsField, false) ?? [];
+      const newCodeBlockPositions = tr.state.field(codeBlockPositionsField, false) ?? [];
+      const unhiddenPositions = tr.state.field(hiddenLinesUnhiddenField, false) ?? new Set<number>();
+      const unhiddenChanged = tr.startState.field(hiddenLinesUnhiddenField, false) !== unhiddenPositions;
+
+      if (oldCodeBlockPositions === newCodeBlockPositions && !tr.docChanged && !unhiddenChanged) {
+        return value;
+      }
+
+      return calculateHideDecorations(tr.state, newCodeBlockPositions, unhiddenPositions);
+    },
+    provide: f => EditorView.decorations.from(f)
+  });// hiddenLinesField
 
   const activeGroupTabField = StateField.define<Record<string, number>>({
     create(state: EditorState) {
@@ -733,6 +790,112 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     });
   };// liveUpdateExtension
 
+  const forceRefreshListener = EditorView.updateListener.of((update) => {
+    if (update.docChanged || update.transactions.some(tr => tr.isUserEvent("codeblock-customizer.refresh"))) {
+      return;
+    }
+
+    const foldChanged = update.startState.field(collapseField, false) !== update.state.field(collapseField, false);
+    const unhiddenChanged = update.startState.field(hiddenLinesUnhiddenField, false) !== update.state.field(hiddenLinesUnhiddenField, false);
+    const commandChanged = update.startState.field(foldCommandField, false) !== update.state.field(foldCommandField, false);
+    if (!foldChanged && !unhiddenChanged && !commandChanged) {
+      return;
+    }
+
+    const codeBlockPositions = update.state.field(codeBlockPositionsField, false);
+    if (!codeBlockPositions) {
+      return;
+    }
+
+    const affectedBlocks = new Set<CodeBlockPositions>();
+
+    if (commandChanged && update.state.field(foldCommandField, false) === FoldCommand.UnfoldAll) {
+      codeBlockPositions.forEach(
+        block => affectedBlocks.add(block)
+      );
+    }
+
+    for (const tr of update.transactions) {
+      const foldStateAnnotation = tr.annotation(setFoldState);
+      if (foldStateAnnotation?.state === FoldingState.Unfolded) {
+        const block = codeBlockPositions.find(p => p.codeBlockStartPos === foldStateAnnotation.startPos);
+        if (block) {
+          affectedBlocks.add(block);
+        }
+      }
+
+      for (const effect of tr.effects) {
+        if (effect.is(unhideEffect)) {
+          const block = codeBlockPositions.find(p => effect.value.from >= p.codeBlockStartPos && effect.value.to <= p.codeBlockEndPos);
+          if (block) {
+            affectedBlocks.add(block);
+          }
+        } else if (effect.is(UnCollapse) || effect.is(semiUnCollapse)) {
+          const { filterFrom, filterTo } = effect.value;
+          const block = codeBlockPositions.find(p => filterFrom >= p.codeBlockStartPos && filterTo <= p.codeBlockEndPos);
+          if (block) {
+            affectedBlocks.add(block);
+          }
+        }
+      }
+    }
+
+    if (affectedBlocks.size === 0) {
+      return;
+    }
+
+    for (const affectedBlock of affectedBlocks) {
+      requestAnimationFrame(() => {
+        let needsFix = false;
+
+        for (const { from, to } of update.view.visibleRanges) {
+          if (from > affectedBlock.codeBlockEndPos || to < affectedBlock.codeBlockStartPos) {
+            continue;
+          }
+
+          const checkStart = Math.max(from, affectedBlock.codeBlockStartPos);
+          const checkEnd = Math.min(to, affectedBlock.codeBlockEndPos);
+          const startLineNr = update.state.doc.lineAt(checkStart).number;
+          const endLineNr = update.state.doc.lineAt(checkEnd).number;
+
+          for (let i = startLineNr; i <= endLineNr; i++) {
+            const pos = update.state.doc.line(i).from;
+            const lineDom = update.view.domAtPos(pos);
+
+            if (lineDom?.node) {
+              const el = lineDom.node instanceof HTMLElement ? lineDom.node : lineDom.node.parentElement;
+              if (el && !el.closest('.cm-line')?.classList.contains('HyperMD-codeblock')) {
+                needsFix = true;
+                break;
+              }
+            }
+          }
+          if (needsFix) {
+            break;
+          }
+        }
+
+        if (needsFix) {
+          update.view.dispatch({
+            changes: { from: affectedBlock.codeBlockEndPos, to: affectedBlock.codeBlockEndPos, insert: " " },
+            annotations: [
+              Transaction.addToHistory.of(false),
+              Transaction.userEvent.of("codeblock-customizer.refresh")
+            ]
+          });
+
+          update.view.dispatch({
+            changes: { from: affectedBlock.codeBlockEndPos, to: affectedBlock.codeBlockEndPos + 1, insert: "" },
+            annotations: [
+              Transaction.addToHistory.of(false),
+              Transaction.userEvent.of("codeblock-customizer.refresh")
+            ]
+          });
+        }
+      });
+    }
+  });// forceRefreshListener
+
   /* ViewPlugins */
 
   const viewPlugin = ViewPlugin.fromClass(class {
@@ -743,7 +906,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged || update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField) || settingsUpdated) {
+      const unhiddenChanged = update.startState.field(hiddenLinesUnhiddenField, false) !== update.state.field(hiddenLinesUnhiddenField, false);
+      const codeBlocksChanged = update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField)
+      if (update.docChanged || update.viewportChanged || codeBlocksChanged || settingsUpdated || unhiddenChanged) {
         this.decorations = this.buildDecorations(update.view);
       }
     }
@@ -773,6 +938,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
         const gutterStyle = getGutterStyle(parameters, rawLineCount, defaultCharWidth);
         const prompt = new PromptManager(parameters, rawLineCount, settings);
+        const hiddenRanges = getHiddenRanges(view.state, parameters, codeBlockStartPos, codeBlockEndPos);
         const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
         let jumpIdx = 0;
         let previousLineEndPos: number | null = null;
@@ -866,6 +1032,22 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
               decorations.push(Decoration.replace({}).range(lineStartPos, lineStartPos + parameters.indentCharacter));
             }
             decorations.push(Decoration.line({ attributes: { "style": `--level:${parameters.indentLevel}`, class: `indented-line` } }).range(lineStartPos));
+          }
+
+          // hidden lines
+          if (!startLine && !endLine && hiddenRanges.length > 0) {
+            for (const range of hiddenRanges) {
+              if (range.startLine === firstCodeBlockLine + 1 && line === range.endLine + 1) {
+                // hidden range starts at first content line ==> insert widget at start of the first visible line after
+                const fenceLine = view.state.doc.line(firstCodeBlockLine);
+                decorations.push(Decoration.widget({ widget: new HiddenLinesWidget(range.lineCount, range.from, range.to, parameters.showNumbers === "specific"), side: -1 }).range(fenceLine.to));
+                decorations.push(Decoration.line({ attributes: { class: "has-hidden-lines" } }).range(fenceLine.from));
+              } else if (line === range.startLine - 1) {
+                // normal case ==> insert widget at the end of the line before the hidden range
+                decorations.push(Decoration.widget({ widget: new HiddenLinesWidget(range.lineCount, range.from, range.to, parameters.showNumbers === "specific"), side: 1 }).range(currentLine.to));
+                decorations.push(Decoration.line({ attributes: { class: "has-hidden-lines" } }).range(previousLineStartPos));
+              }
+            }
           }
           //lineNumber++;
         }
@@ -1659,15 +1841,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
 
     toDOM(): HTMLElement {
-      const container = createSpan();
-      container.className = "codeblock-customizer-line-separator";
-
-      const gutter = createSpan();
-      gutter.className = "codeblock-customizer-line-separator-gutter";
-      gutter.textContent = "...";
-
-      const content = createSpan();
-      content.className = "codeblock-customizer-line-separator-content";
+      const container = createSpan({ cls: `codeblock-customizer-line-separator` });
+      const gutter = createSpan({ cls: `codeblock-customizer-line-separator-gutter`, text: `...` });
+      const content = createSpan({ cls: `codeblock-customizer-line-separator-content` });
 
       container.appendChild(gutter);
       container.appendChild(content);
@@ -1675,6 +1851,31 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       return container;
     }
   }// LineSeparatorWidget
+
+  class HiddenLinesWidget extends WidgetType {
+    constructor(readonly lineCount: number, readonly from: number, readonly to: number, readonly isSpecific: boolean) {
+      super();
+    }
+
+    eq(other: HiddenLinesWidget) {
+      return other.lineCount === this.lineCount && other.from === this.from && other.to === this.to && other.isSpecific === this.isSpecific;
+    }
+
+    toDOM(view: EditorView) {
+      const container = createSpan({ cls: `codeblock-customizer-hidden-line-container` });
+      const gutter = createSpan({ cls: `codeblock-customizer-hidden-line-gutter${this.isSpecific ? "-specific" : ""}`, text: `...` });
+      const content = createSpan({ cls: `codeblock-customizer-hidden-line-content`, text: `${this.lineCount} ${this.lineCount === 1 ? "line" : "lines"} hidden - Click to reveal` });
+
+      container.appendChild(gutter);
+      container.appendChild(content);
+
+      container.onclick = (e) => {
+        e.preventDefault();
+        view.dispatch({ effects: unhideEffect.of({ from: this.from, to: this.to }) });
+      };
+      return container;
+    }
+  }// HiddenLinesWidget
 
   class AnnotationIconWidget extends WidgetType {
     constructor(readonly type: string, readonly content: string, readonly plugin: CodeBlockCustomizerPlugin, readonly title?: string) {
@@ -1699,6 +1900,88 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   }// AnnotationIconWidget
 
   /* functions */
+
+  interface HiddenRange {
+    startLine: number;
+    endLine: number;
+    lineCount: number;
+    from: number;
+    to: number;
+  }
+
+  function getHiddenRanges(state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number, unhiddenPositions?: Set<number>): HiddenRange[] {
+    if (parameters.hideLines.length === 0) {
+      return [];
+    }
+
+    const resolvedUnhidden = unhiddenPositions ?? state.field(hiddenLinesUnhiddenField, false) ?? new Set<number>();
+    const firstLine = state.doc.lineAt(codeBlockStartPos).number;
+    const lastLine = state.doc.lineAt(codeBlockEndPos).number;
+    const hiddenLines = new Set(parameters.hideLines);
+    const ranges: HiddenRange[] = [];
+
+    const contentStartLine = firstLine + 1;
+    const contentEndLine = lastLine - 1;
+
+    let displayedLineNumber = parameters.lineNumberOffset;
+    let jumpIdx = 0;
+    const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
+
+    let currentRangeStartLine: number | null = null;
+    let currentRangeEndLine: number | null = null;
+
+    for (let i = 0; i < (contentEndLine - contentStartLine + 1); i++) {
+      displayedLineNumber++;
+
+      if (jumps && jumps.length > 0 && jumpIdx < jumps.length && displayedLineNumber === jumps[jumpIdx].lineNumber) {
+        displayedLineNumber = jumps[jumpIdx].newStartNumber;
+        jumpIdx++;
+      }
+
+      const absLineNumber = contentStartLine + i;
+
+      if (hiddenLines.has(displayedLineNumber)) {
+        if (currentRangeStartLine === null) {
+          currentRangeStartLine = absLineNumber;
+        }
+        currentRangeEndLine = absLineNumber;
+      } else {
+        if (currentRangeStartLine !== null && currentRangeEndLine !== null) {
+          addToHiddenRange(ranges, state, currentRangeStartLine, currentRangeEndLine, resolvedUnhidden);
+          currentRangeStartLine = null;
+          currentRangeEndLine = null;
+        }
+      }
+    }
+
+    if (currentRangeStartLine !== null && currentRangeEndLine !== null) {
+      addToHiddenRange(ranges, state, currentRangeStartLine, currentRangeEndLine, resolvedUnhidden);
+    }
+
+    return ranges;
+  }// getHiddenRanges
+
+  function addToHiddenRange(ranges: HiddenRange[], state: EditorState, currentRangeStartLine: number, currentRangeEndLine: number, unhiddenPositions: Set<number>) {
+    const from = state.doc.line(currentRangeStartLine).from;
+    const to = state.doc.line(currentRangeEndLine).to;
+
+    if (!unhiddenPositions.has(from)) {
+      ranges.push({ startLine: currentRangeStartLine, endLine: currentRangeEndLine, lineCount: currentRangeEndLine - currentRangeStartLine + 1, from, to });
+    }
+  }// addToHiddenRange
+
+  function calculateHideDecorations(state: EditorState, codeBlockPositions: CodeBlockPositions[], unhiddenPositions: Set<number>): DecorationSet {
+    const decorations: Range<Decoration>[] = [];
+
+    for (const block of codeBlockPositions) {
+      const ranges = getHiddenRanges(state, block.parameters, block.codeBlockStartPos, block.codeBlockEndPos, unhiddenPositions);
+      for (const range of ranges) {
+        decorations.push(Decoration.replace({ block: true }).range(range.from, range.to));
+      }
+    }
+
+    return RangeSet.of(decorations, true);
+  }// calculateHideDecorations
 
   function calculateFoldDecorations(state: EditorState, decorations: RangeSet<Decoration>, codeBlockPositions: CodeBlockPositions[], rememberedFolds: Record<number, FoldingState>, unfoldedBlocks: Set<number>, grouped: GroupedCodeBlocks, globalFoldCmd: FoldCommand): RangeSet<Decoration> {
     const decorationsToAdd: Range<Decoration>[] = [];
@@ -1755,9 +2038,11 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
       }
       if (foldNow) {
         const lineCount = state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1;
-        if (useSemiFold && lineCount >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount + 2) {
-          const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines);
-          decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges).map(e => e.value));
+        const hiddenLines = pos.parameters.hideLines.length > 0 ? getHiddenLines(state, pos, state.field(hiddenLinesUnhiddenField, false) ?? new Set<number>()) : new Set<number>();
+        const visibleLines = lineCount - 2 - hiddenLines.size;
+        if (useSemiFold && visibleLines >= settings.pluginSettings.semiFold.visibleLines + fadeOutLineCount) {
+          const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines, hiddenLines);
+          decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges, hiddenLines).map(e => e.value));
         } else {
           decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
         }
@@ -2154,15 +2439,17 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     const enableSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
     const visibleLines = settings.pluginSettings.semiFold.visibleLines;
     const lineCount = end.number - start.number + 1;
-    const canSemiFold = lineCount >= visibleLines + fadeOutLineCount + 2; // +2 to ignore the first and last lines
+    const hiddenLines = pos.parameters.hideLines.length > 0 ? getHiddenLines(view.state, pos, view.state.field(hiddenLinesUnhiddenField, false) ?? new Set<number>()) : new Set<number>();
+    const visibleContentLines = lineCount - 2 - hiddenLines.size; // -2 to ignore the first and last lines
+    const canSemiFold = visibleContentLines >= visibleLines + fadeOutLineCount;
 
     const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
 
     if (currentFoldState === FoldingState.Unfolded) {
       if (enableSemiFold && canSemiFold) {
         // semi-fold
-        const ranges = getRanges(view.state, pos.codeBlockStartPos, pos.codeBlockEndPos, visibleLines);
-        const semiFoldEffects = generateSemiFoldEffects(view.state, pos, ranges);
+        const ranges = getRanges(view.state, pos.codeBlockStartPos, pos.codeBlockEndPos, visibleLines, hiddenLines);
+        const semiFoldEffects = generateSemiFoldEffects(view.state, pos, ranges, hiddenLines);
         effects.push(...semiFoldEffects);
         if (docPath)
           annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.SemiFolded }));
@@ -2453,6 +2740,15 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
         enabled: settings.pluginSettings.codeblock.buttons.enableSelectCodeButton && showButton
       },
       {
+        class: `codeblock-customizer-rehide-lines`,
+        displayText: "Re-hide unhidden lines",
+        action: (view: EditorView) => {
+          view.dispatch({ effects: rehideEffect.of({ from: codeBlockStartPos, to: codeBlockEndPos }) });
+        },
+        icon: "eye-off",
+        enabled: parameters.hideLines.length > 0 && [...state.field(hiddenLinesUnhiddenField, false) || []].some(pos => pos >= codeBlockStartPos && pos <= codeBlockEndPos) && showButton
+      },
+      {
         class: `codeblock-customizer-delete-code`,
         displayText: "Delete code block content",
         action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
@@ -2538,7 +2834,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
 
       const snapshotOptions = {
         filter: (node: HTMLElement) => {
-          if (node.classList?.contains('codeblock-customizer-button-container') ||          // first-line button container
+          if (node.classList?.contains('codeblock-customizer-button-container') ||        // first-line button container
             node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
             node.classList?.contains('codeblock-customizer-header-collapse') ||           // header collapse icon
             node.classList?.contains('codeblock-customizer-tab-remove') ||                // grouped code block 'x' button
@@ -3018,21 +3314,31 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     }
   }// getFoldingState
 
-  function generateSemiFoldEffects(state: EditorState, pos: CodeBlockPositions, ranges: ReplaceFadeOutRanges): StateEffect<Range<Decoration>>[] {
+  function generateSemiFoldEffects(state: EditorState, pos: CodeBlockPositions, ranges: ReplaceFadeOutRanges, hiddenLines: Set<number> = new Set()): StateEffect<Range<Decoration>>[] {
     const effects: StateEffect<Range<Decoration>>[] = [];
 
     const semiFoldClass = Decoration.line({ attributes: { class: `semi-folded` } });
     effects.push(semiFade.of(semiFoldClass.range(ranges.firstLine.from, ranges.firstLine.from)));
 
-    for (let i = 0; i < fadeOutLineCount; i++) {
-      const fadeOutLine = state.doc.line(state.doc.lineAt(ranges.fadeOutStart.from).number + i);
-      const fadeOutDecoration = Decoration.line({ attributes: { class: `codeblock-customizer-fade-out-line${i}` } });
-      effects.push(semiFade.of(fadeOutDecoration.range(fadeOutLine.from, fadeOutLine.from)));
+    let fadeIdx = 0;
+    let lastFadeOutLine = ranges.fadeOutStart;
+    const fadeOutStartNumber = state.doc.lineAt(ranges.fadeOutStart.from).number;
+    const fadeOutEndNumber = state.doc.lineAt(ranges.fadeOutEnd.from).number;
 
-      if (i === fadeOutLineCount - 1) {
+    for (let i = fadeOutStartNumber; fadeIdx < fadeOutLineCount && i <= fadeOutEndNumber; i++) {
+      if (hiddenLines.has(i)) {
+        continue;
+      }
+
+      const fadeOutLine = state.doc.line(i);
+      const fadeOutDecoration = Decoration.line({ attributes: { class: `codeblock-customizer-fade-out-line${fadeIdx}` } });
+      effects.push(semiFade.of(fadeOutDecoration.range(fadeOutLine.from, fadeOutLine.from)));
+      lastFadeOutLine = fadeOutLine;
+      fadeIdx++;
+      if (fadeIdx === fadeOutLineCount) {
         const uncollapseWidget = new uncollapseCodeWidget(pos);
         const deco = Decoration.widget({ widget: uncollapseWidget });
-        const widgetPos = ranges.fadeOutEnd.to;
+        const widgetPos = lastFadeOutLine.to;
         effects.push(semiFade.of(deco.range(widgetPos, widgetPos)));
       }
     }
@@ -3068,13 +3374,54 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     return true;
   }// areObjectsEqual
 
-  function getRanges(state: EditorState, codeBlockStartPos: number, codeBlockEndPos: number, visibleLines: number): ReplaceFadeOutRanges {
-    const firstLine = state.doc.lineAt(codeBlockStartPos);
-    const fadeOutStart = state.doc.line(state.doc.lineAt(codeBlockStartPos).number + visibleLines + 1);
-    const fadeOutEnd = state.doc.line(state.doc.lineAt(fadeOutStart.from).number + fadeOutLineCount - 1);
+  function getHiddenLines(state: EditorState, block: CodeBlockPositions, unhiddenPositions: Set<number> = new Set()): Set<number> {
+    const ranges = getHiddenRanges(state, block.parameters, block.codeBlockStartPos, block.codeBlockEndPos, unhiddenPositions);
+    const result = new Set<number>();
+    for (const range of ranges) {
+      for (let i = range.startLine; i <= range.endLine; i++) {
+        result.add(i);
+      }
+    }
+    return result;
+  }// getHiddenLines
 
-    const replaceStart = state.doc.line(state.doc.lineAt(fadeOutEnd.from).number + 1);
-    const replaceEnd = state.doc.line(state.doc.lineAt(codeBlockEndPos).number);
+  function getRanges(state: EditorState, codeBlockStartPos: number, codeBlockEndPos: number, visibleLines: number, hiddenLines: Set<number> = new Set()): ReplaceFadeOutRanges {
+    const firstLine = state.doc.lineAt(codeBlockStartPos);
+    const contentStartLineNr = firstLine.number + 1;
+    const lastLineNr = state.doc.lineAt(codeBlockEndPos).number;
+    const replaceEnd = state.doc.line(lastLineNr);
+
+    // count non-hidden visible lines
+    let visibleCount = 0;
+    let fadeOutStartLineNum = contentStartLineNr;
+    for (let i = contentStartLineNr; i < lastLineNr; i++) {
+      if (hiddenLines.has(i)) {
+        continue;
+      }
+      visibleCount++;
+      if (visibleCount > visibleLines) {
+        fadeOutStartLineNum = i; break;
+      }
+    }
+    const fadeOutStart = state.doc.line(fadeOutStartLineNum);
+
+    // count non-hidden lines for fadeOut range
+    let fadeCount = 0;
+    let fadeOutEndLineNum = fadeOutStartLineNum;
+    for (let i = fadeOutStartLineNum; i < lastLineNr; i++) {
+      if (hiddenLines.has(i)) {
+        continue;
+      }
+
+      fadeOutEndLineNum = i;
+      fadeCount++;
+      if (fadeCount >= fadeOutLineCount) {
+        break;
+      }
+    }
+    const fadeOutEnd = state.doc.line(fadeOutEndLineNum);
+
+    const replaceStart = state.doc.line(fadeOutEnd.number + 1);
 
     return { replaceStart, replaceEnd, fadeOutStart, fadeOutEnd, firstLine };
   }// getRanges
@@ -3107,6 +3454,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     defaultFoldUnfoldedField,
     collapseField,
     headerField,
+    hiddenLinesUnhiddenField,
+    hiddenLinesField,
     viewPlugin,
     linkViewPlugin,
     inlineCodeViewPlugin,
@@ -3115,6 +3464,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     executeCodeViewPlugin,
     admonitionViewgPlugin,
     liveUpdateExtension(),
+    forceRefreshListener,
     EditorView.domEventHandlers({
       mousedown: (event, view) => {
         const target = event.target as HTMLElement;

@@ -1,11 +1,11 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, loadPrism, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState } from "./Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
 import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
 import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorExtensions";
-import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition } from "./ReadingViewUtils";
+import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "./Parsing";
 
 const DataSource = {
@@ -502,7 +502,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
 
     if (foldByDefault) {
-      const canSemiFold = lineCount >= settings.semiFold.visibleLines + fadeOutLineCount;
+      const visibleLinesCount = getVisibleLineCount(parameters, lineCount);
+      const canSemiFold = visibleLinesCount >= settings.semiFold.visibleLines + fadeOutLineCount;
       const isSemiCollapsed = useSemiFold && canSemiFold;
       if (isSemiCollapsed) {
         preElement.classList.add('codeblock-customizer-codeblock-semi-collapsed');
@@ -559,7 +560,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       let lines: Element[] = [];
       if (codeElements) {
         const children = Array.from(codeElements.children);
-        lines = children.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line'));
+        lines = children.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line') && !child.classList.contains('hidden-line-hidden'));
       }
       const canSemiFold = lines.length >= visibleLines + fadeOutLineCount;
       const useSemiFold = semiFold && canSemiFold;
@@ -576,6 +577,9 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
         container.classList.add(useSemiFold ? 'semi-collapsed' : 'collapsed');
+        if (useSemiFold) {
+          reassignFadeOutClasses(preElement, preElement.querySelector('code') as HTMLElement, settings.pluginSettings);
+        }
       }
 
       if (this.codeBlockSectionInfo) {

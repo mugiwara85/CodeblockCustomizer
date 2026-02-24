@@ -1,7 +1,7 @@
 import { MarkdownRenderChild, MarkdownView } from "obsidian";
 
 import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, determineDefaultFoldState, getDisplayLanguageName } from "./Utils";
-import { createButtons, toggleFold } from "./ReadingViewUtils";
+import { createButtons, toggleFold, reassignFadeOutClasses } from "./ReadingViewUtils";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
 import { FoldingState } from "./EditorExtensions";
@@ -228,8 +228,9 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     if (isCollapseEnabled) {
       const isFullyCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-collapsed');
       const isSemiCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
+      const collapseStyle = this.plugin.settings.pluginSettings.header.collapseIconStyle;
 
-      newCollapseIcon = createCodeblockCollapse(isFullyCollapsed || isSemiCollapsed);
+      newCollapseIcon = createCodeblockCollapse(isFullyCollapsed || isSemiCollapsed, collapseStyle);
       header.appendChild(newCollapseIcon);
       header.classList.remove("collapsed", "semi-collapsed");
 
@@ -586,8 +587,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// addTabClickHandler
 
   private foldCodeBlcok(activeBlock: HTMLPreElement, header: HTMLElement) {
-    const lines = activeBlock.querySelectorAll('code > div');
-    const codeblockLineCount = lines.length;
+    const lines = Array.from(activeBlock.querySelectorAll('code > div'));
+    const visibleLines = lines.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line') && !child.classList.contains('hidden-line-hidden'));
+    const parameters = this.getParametersFromElement(activeBlock);
+    const codeblockLineCount = visibleLines.length;
     const semiFoldSettings = this.plugin.settings.pluginSettings.semiFold;
     const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
 
@@ -606,13 +609,18 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       newState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
     }
 
+    const collapseStyle = this.plugin.settings.pluginSettings.header.collapseIconStyle;
+
     if (canSemiFold) {
-      toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-semi-collapsed');
+      toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-semi-collapsed', collapseStyle);
       if (header) {
         header.classList.toggle("semi-collapsed");
       }
+      if (activeBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed')) {
+        reassignFadeOutClasses(activeBlock, activeBlock.querySelector('code') as HTMLElement, this.plugin.settings.pluginSettings);
+      }
     } else {
-      toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-collapsed');
+      toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-collapsed', collapseStyle);
       if (header) {
         header.classList.toggle("collapsed");
       }
@@ -620,7 +628,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     const sourcePath = activeBlock.getAttribute('sourcepath');
     const charPosStr = activeBlock.dataset.charPos;
-    const parameters = this.getParametersFromElement(activeBlock);
     const remember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold);
 
     if (remember && sourcePath && charPosStr) {
@@ -637,6 +644,15 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     tabsContainer.querySelectorAll('.codeblock-customizer-header-group-tab').forEach(btn => btn.classList.remove('active'));
     clickedTab.classList.add('active');
+
+    const header = tabsContainer.closest('.codeblock-customizer-header-group-container');
+    if (header) {
+      if (targetBlock.classList.contains('has-unhidden-lines')) {
+        header.classList.add('has-unhidden-lines');
+      } else {
+        header.classList.remove('has-unhidden-lines');
+      }
+    }
 
     updateHeaderCallback(targetBlock, tabsContainer);
   }// switchTab

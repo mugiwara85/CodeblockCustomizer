@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
-import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -59,6 +59,7 @@ export function getDefaultParameters(): CBCParameters {
     group: '',
     tab: '',
     output: false,
+    hideLines: [],
   }
 }// getDefaultParameters
 
@@ -87,14 +88,42 @@ export function isSpecificHeader(parameters: CBCParameters, settings: CodeblockC
   return false;
 }// isSpecificHeader
 
+export function getVisibleLineCount(parameters: CBCParameters, contentLineCount: number): number {
+  if (parameters.hideLines.length === 0) {
+    return contentLineCount;
+  }
+
+  const hiddenLines = new Set(parameters.hideLines);
+  let visibleCount = 0;
+  let displayedLineNumber = parameters.lineNumberOffset;
+  let jumpIdx = 0;
+  const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
+
+  for (let i = 0; i < contentLineCount; i++) {
+    displayedLineNumber++;
+
+    if (jumps && jumps.length > 0 && jumpIdx < jumps.length && displayedLineNumber === jumps[jumpIdx].lineNumber) {
+      displayedLineNumber = jumps[jumpIdx].newStartNumber;
+      jumpIdx++;
+    }
+
+    if (!hiddenLines.has(displayedLineNumber)) {
+      visibleCount++;
+    }
+  }
+
+  return visibleCount;
+}// getVisibleLineCount
+
 export function determineDefaultFoldState(parameters: CBCParameters, settings: CodeblockCustomizerSettings, lineCount: number, isSpecificHeader: boolean, mode: "editor" | "reading"): { foldByDefault: boolean; useSemiFold: boolean } {
   const { inverseFold, ignoreShortBlocksOnInverseFold } = settings.pluginSettings.codeblock.folding;
   const { enableSemiFold, visibleLines, autoFoldLongCodeblocks, longCodeBlockLines } = settings.pluginSettings.semiFold;
 
   const contentLineCount = mode === "editor" ? lineCount - 2 : lineCount;
+  const visibleContentLineCount = getVisibleLineCount(parameters, contentLineCount);
 
-  const canSemiFold = enableSemiFold && contentLineCount >= visibleLines + fadeOutLineCount;
-  const autoFold = isSpecificHeader && enableSemiFold && autoFoldLongCodeblocks && contentLineCount >= longCodeBlockLines;
+  const canSemiFold = enableSemiFold && visibleContentLineCount >= visibleLines + fadeOutLineCount;
+  const autoFold = isSpecificHeader && enableSemiFold && autoFoldLongCodeblocks && visibleContentLineCount >= longCodeBlockLines;
   //const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold)) || autoFold;
 
   let doInverseFold = false;
@@ -770,6 +799,20 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
     document.body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
     document.body.classList.add('codeblock-customizer-linenumberseparator-dashed');
+  }
+
+  if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.Zigzag) {
+    document.body.classList.remove('codeblock-customizer-hidden-lines-dashed');
+    document.body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
+    document.body.classList.add('codeblock-customizer-hidden-lines-zigzag');
+  } else if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.DoubleLine) {
+    document.body.classList.remove('codeblock-customizer-hidden-lines-dashed');
+    document.body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
+    document.body.classList.add('codeblock-customizer-hidden-lines-doubleline');
+  } else if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.Dashed) {
+    document.body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
+    document.body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
+    document.body.classList.add('codeblock-customizer-hidden-lines-dashed');
   }
 
 }// updateSettingClasses

@@ -190,6 +190,7 @@ export class BehaviorSettings {
           updateSettingStyles(this.plugin.settings, this.plugin.app);
           updateFoldingSettingsVisibility();
           semiFoldEffect.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          this.plugin.renderReadingViews();
         })
       )
       .addDropdown((dropdown) => {
