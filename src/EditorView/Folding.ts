@@ -3,7 +3,7 @@ import { editorInfoField } from "obsidian";
 import { StateField, StateEffect, EditorState, Transaction, RangeSet, Range, Line, Annotation } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 
-import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "../Settings";
+import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
 import { fadeOutLineCount } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
 import { createUncollapseCodeButton, isPluginLoaded, isSpecificHeader, determineDefaultFoldState, isSourceMode } from "../Utils";
@@ -79,12 +79,7 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
       if (!docPath)
         return {};
 
-      let savedStatesForFile: Map<number, FoldingState> | undefined;
-      if (foldSettings.persistence === FoldingPersistence.Permanent) {
-        savedStatesForFile = plugin.loadPermanentEditorFolds(docPath);
-      } else {
-        savedStatesForFile = plugin.activeEditorFolds.get(docPath);
-      }
+      const savedStatesForFile = plugin.foldStoreEditor.getAll(docPath);
 
       return savedStatesForFile ? Object.fromEntries(savedStatesForFile) : {};
     },

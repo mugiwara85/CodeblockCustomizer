@@ -49,15 +49,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
       const initialGrouped = state.field(groupedCodeBlocksField, false) ?? {};
       const initialTabs: { [groupName: string]: number } = {};
       const docPath = state.field(editorInfoField)?.file?.path;
-
-      let savedStatesForFile: Map<string, number> | undefined;
-      if (docPath) {
-        if (tabSettings.persistence === TabPersistence.Permanent) {
-          savedStatesForFile = plugin.loadPermanentEditorTabs(docPath);
-        } else {
-          savedStatesForFile = plugin.activeEditorTabs.get(docPath);
-        }
-      }
+      const savedStatesForFile = docPath ? plugin.tabStoreEditor.getAll(docPath) : undefined;
 
       // restore saved state if present
       for (const groupName in initialGrouped) {
@@ -89,7 +81,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
       // on every document change immediately update the persistent storage
       if (transaction.docChanged && docPath) {
         plugin.remapTabs(docPath, transaction.changes);
-        const docStateMap = plugin.activeEditorTabs.get(docPath);
+        const docStateMap = plugin.tabStoreEditor.getAll(docPath);
         if (docStateMap && docStateMap.size > 0) {
           const newDocStateMap = new Map<string, number>();
           for (const [groupName, savedPos] of docStateMap.entries()) {
@@ -102,7 +94,10 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
               newDocStateMap.set(groupName, newPos);
             }
           }
-          plugin.activeEditorTabs.set(docPath, newDocStateMap);
+
+          for (const [groupName, pos] of newDocStateMap.entries()) {
+            plugin.tabStoreEditor.set(docPath, groupName, pos);
+          }
         }
       }
 
@@ -116,18 +111,10 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
             const groupName = groupUpdate.group;
 
             if (tabSettings.persistence === TabPersistence.Permanent) {
-              if (!plugin.permanentEditorTabs[docPath]) {
-                plugin.permanentEditorTabs[docPath] = {};
-              }
-              plugin.permanentEditorTabs[docPath][groupName] = newStartPos;
+              plugin.tabStoreEditor.set(docPath, groupName, newStartPos);
               plugin.requestSavePermanentData();
             } else {
-              let docStateMap = plugin.activeEditorTabs.get(docPath);
-              if (!docStateMap) {
-                docStateMap = new Map<string, number>();
-                plugin.activeEditorTabs.set(docPath, docStateMap);
-              }
-              docStateMap.set(groupName, newStartPos);
+              plugin.tabStoreEditor.set(docPath, groupName, newStartPos);
             }
           }
         }
@@ -146,15 +133,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
         const newState: Record<string, number> = {};
         const newGroupedCodeBlocks = newGroups ?? {};
         const tabSettings = settings.pluginSettings.groupedCodeBlocks;
-
-        let savedStatesForFile: Map<string, number> | undefined;
-        if (docPath && tabSettings.rememberTabState) {
-          if (tabSettings.persistence === TabPersistence.Permanent) {
-            savedStatesForFile = plugin.loadPermanentEditorTabs(docPath);
-          } else {
-            savedStatesForFile = plugin.activeEditorTabs.get(docPath);
-          }
-        }
+        const savedStatesForFile = (docPath && tabSettings.rememberTabState) ? plugin.tabStoreEditor.getAll(docPath) : undefined;
 
         for (const groupName in newGroupedCodeBlocks) {
           const groupMembers = newGroupedCodeBlocks[groupName];

@@ -2,7 +2,7 @@ import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInfor
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
 import CodeBlockCustomizerPlugin from "./main";
-import { CodeblockCustomizerSettings, FoldingPersistence, FoldingScope } from "./Settings";
+import { CodeblockCustomizerSettings, FoldingScope } from "./Settings";
 import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
 import { FoldCommand, FoldingState } from "./EditorView/EditorExtensions";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses } from "./ReadingViewUtils";
@@ -465,14 +465,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     let rememberedState: FoldingState | undefined;
 
     if (settings.codeblock.folding.rememberFoldState && keyToUse !== undefined) {
-      if (settings.codeblock.folding.persistence === FoldingPersistence.Permanent) {
-        const rememberedFolds = this.plugin.loadPermanentReadingViewFolds(this.context.sourcePath);
-        rememberedState = rememberedFolds.get(keyToUse);
-      } else {
-        // session
-        const rememberedFolds = this.plugin.activeReadingViewFolds.get(this.context.sourcePath);
-        rememberedState = rememberedFolds ? rememberedFolds.get(keyToUse) : undefined;
-      }
+      const rememberedFolds = this.plugin.foldStoreReading.getAll(this.context.sourcePath);
+      rememberedState = rememberedFolds ? rememberedFolds.get(keyToUse) : undefined;
     }
 
     let foldByDefault = false;

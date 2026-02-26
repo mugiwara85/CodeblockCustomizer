@@ -482,12 +482,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       return 0;
     }
 
-    let documentState: Map<string, number> | undefined;
-    if (tabSettings.persistence === TabPersistence.Permanent) {
-      documentState = this.plugin.loadPermanentReadingViewTabs(documentPath);
-    } else {
-      documentState = this.plugin.activeReadingViewTabs.get(documentPath);
-    }
+    const documentState = this.plugin.tabStoreReading.getAll(documentPath);
 
     if (documentState) {
       const storedIndex = documentState.get(groupName);
@@ -504,19 +499,9 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       return;
     }
 
+    this.plugin.tabStoreReading.set(documentPath, groupName, index);
     if (tabSettings.persistence === TabPersistence.Permanent) {
-      if (!this.plugin.permanentReadingViewTabs[documentPath]) {
-        this.plugin.permanentReadingViewTabs[documentPath] = {};
-      }
-      this.plugin.permanentReadingViewTabs[documentPath][groupName] = index;
       this.plugin.requestSavePermanentData();
-    } else {
-      let documentState = this.plugin.activeReadingViewTabs.get(documentPath);
-      if (!documentState) {
-        documentState = new Map<string, number>();
-        this.plugin.activeReadingViewTabs.set(documentPath, documentState);
-      }
-      documentState.set(groupName, index);
     }
   }// setStoredTabIndex
 

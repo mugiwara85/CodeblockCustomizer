@@ -1,4 +1,4 @@
-import { editorInfoField } from "obsidian";
+import { editorInfoField, MarkdownPostProcessorContext } from "obsidian";
 
 import { StateField } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
@@ -84,7 +84,7 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
             continue;
           }
 
-          const renderer = new CodeBlockRenderer(preElement, plugin, { sourcePath: view.state.field(editorInfoField)?.file?.path ?? "" } as any);
+          const renderer = new CodeBlockRenderer(preElement, plugin, { sourcePath: view.state.field(editorInfoField)?.file?.path ?? "" } as MarkdownPostProcessorContext);
           const absoluteLineStart = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.startLine;
           const absoluteLineEnd = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.endLine;
           const sectionInfo = { lineStart: absoluteLineStart - 1, lineEnd: absoluteLineEnd - 1, text: blockData.contentLines.join('\n') };

@@ -311,7 +311,7 @@ export class BehaviorSettings {
                 new Notice("Cleared permanent fold data.");
               }
               if (oldValue === FoldingPersistence.Session) {
-                this.plugin.activeEditorFolds.clear();
+                this.plugin.foldStoreEditor.clear();
                 this.plugin.app.workspace.updateOptions();
                 new Notice("Cleared session fold data.");
               }

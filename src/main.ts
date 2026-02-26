@@ -3,7 +3,7 @@ import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath,
 import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 
-import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence } from './Settings';
+import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting } from "./Utils";
 import { extensions, FoldCommand, FoldingState, resetFoldDecos, updateValue } from "./EditorView/EditorExtensions";
@@ -14,6 +14,7 @@ import { CodeBlockRenderer } from "./CodeBlockRenderer";
 import { InlineCodeRenderer } from "./InlineCodeRenderer";
 import { admonitionPostProcessor, calloutPostProcessor } from "./PostProcessors";
 import { CBCParameters } from "./Parsing";
+import { StateStore } from "./StateStore";
 
 import * as _ from 'lodash';
 
@@ -24,12 +25,6 @@ interface codeBlock {
   from: number;
   to: number;
 }
-
-interface PermanentFoldData {
-  [filePath: string]: Record<number, FoldingState>;
-}
-
-type PermanentTabData = Record<string, Record<string, number>>;
 
 export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
@@ -45,14 +40,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }
   customLanguageConfig: customLanguageConfig | null;
   groupedChildrenMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
-  activeEditorTabs: Map<string, Map<string, number>> = new Map();
-  permanentEditorTabs: PermanentTabData = {};
-  activeReadingViewTabs: Map<string, Map<string, number>> = new Map();
-  permanentReadingViewTabs: PermanentTabData = {};
-  activeEditorFolds: Map<string, Map<number, FoldingState>> = new Map();
-  permanentEditorFolds: PermanentFoldData = {};
-  activeReadingViewFolds: Map<string, Map<number, FoldingState>> = new Map();
-  permanentReadingViewFolds: PermanentFoldData = {};
+  foldStoreEditor: StateStore<number, FoldingState> = new StateStore(false, Number);
+  foldStoreReading: StateStore<number, FoldingState> = new StateStore(false, Number);
+  tabStoreEditor: StateStore<string, number> = new StateStore(false, String);
+  tabStoreReading: StateStore<string, number> = new StateStore(false, String);
   debounceTimer: NodeJS.Timeout | null = null;
   foldCommandTrigger: FoldCommand = FoldCommand.Default;
   rerenderQueue: Map<number, { content: string; count: number }> = new Map();
@@ -63,6 +54,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   async onload() {
     document.body.classList.add('codeblock-customizer');
     await this.loadSettings();
+    this.configurePersistence();
     await this.loadAllPermanentData();
     updateSettingStyles(this.settings, this.app);
 
@@ -142,44 +134,16 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
 
     const shouldDelete = (newState === defaultState);
-    const isPermanent = foldSettings.persistence === FoldingPersistence.Permanent;
-    const store = isPermanent ? (viewType === 'editor' ? this.permanentEditorFolds : this.permanentReadingViewFolds) : (viewType === 'editor' ? this.activeEditorFolds : this.activeReadingViewFolds);
+    const store = viewType === 'editor' ? this.foldStoreEditor : this.foldStoreReading;
 
-    if (isPermanent) {
-      // save to file file
-      const permanentStore = store as PermanentFoldData;
-      if (!permanentStore[filePath] && !shouldDelete) {
-        permanentStore[filePath] = {};
-      }
-
-      if (permanentStore[filePath]) {
-        const fileRecord = permanentStore[filePath];
-        if (shouldDelete) {
-          delete fileRecord[key];
-        } else {
-          fileRecord[key] = newState;
-        }
-
-        if (Object.keys(fileRecord).length === 0) {
-          delete permanentStore[filePath];
-        }
-        this.requestSavePermanentData();
-      }
+    if (shouldDelete) {
+      store.delete(filePath, key);
     } else {
-      // save to session
-      const sessionStore = store as Map<string, Map<number, FoldingState>>;
-      if (!sessionStore.has(filePath) && !shouldDelete) {
-        sessionStore.set(filePath, new Map());
-      }
+      store.set(filePath, key, newState);
+    }
 
-      const fileMap = sessionStore.get(filePath);
-      if (fileMap) {
-        if (shouldDelete) {
-          fileMap.delete(key);
-        } else {
-          fileMap.set(key, newState);
-        }
-      }
+    if (store.isPermanent) {
+      this.requestSavePermanentData();
     }
   }// setFoldState
 
@@ -188,96 +152,22 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (!foldSettings.rememberFoldState)
       return;
 
-    const remapRecord = (record: Record<number, FoldingState>): Record<number, FoldingState> => {
-      const newRecord: Record<number, FoldingState> = {};
-      for (const oldPosStr in record) {
-        //fix for #144
-        const oldPos = Number(oldPosStr);
-        if (oldPos > changes.length)
-          continue;
+    this.foldStoreEditor.remap(filePath, changes);
+    this.foldStoreReading.remap(filePath, changes);
 
-        const newPos = changes.mapPos(Number(oldPosStr));
-        if (newPos !== -1) {
-          newRecord[newPos] = record[oldPosStr];
-        }
-      }
-      return newRecord;
-    };
-
-    const remapMap = (map: Map<number, FoldingState>): Map<number, FoldingState> => {
-      const newMap = new Map<number, FoldingState>();
-      for (const [oldPos, state] of map.entries()) {
-        //fix for #144
-        if (oldPos > changes.length)
-          continue;
-
-        const newPos = changes.mapPos(oldPos);
-        if (newPos !== -1) {
-          newMap.set(newPos, state);
-        }
-      }
-      return newMap;
-    };
-
-    if (this.activeEditorFolds.has(filePath)) {
-      const editorFolds = this.activeEditorFolds.get(filePath);
-      if (editorFolds) {
-        this.activeEditorFolds.set(filePath, remapMap(editorFolds));
-      }
-    }
-
-    if (this.activeReadingViewFolds.has(filePath)) {
-      const readingFolds = this.activeReadingViewFolds.get(filePath);
-      if (readingFolds) {
-        this.activeReadingViewFolds.set(filePath, remapMap(readingFolds));
-      }
-    }
-
-    if (foldSettings.persistence === FoldingPersistence.Permanent) {
-      if (this.permanentEditorFolds[filePath])
-        this.permanentEditorFolds[filePath] = remapRecord(this.permanentEditorFolds[filePath]);
-
-      if (this.permanentReadingViewFolds[filePath]) {
-        const newlyRemappedRecord = remapRecord(this.permanentReadingViewFolds[filePath]);
-
-        this.permanentReadingViewFolds[filePath] = newlyRemappedRecord;
-      }
-
+    if (this.foldStoreEditor.isPermanent) {
       this.requestSavePermanentData();
     }
   }// remapFolds
 
   remapTabs(filePath: string, changes: ChangeSet): void {
-    const remapRecord = (record: Record<string, number>): Record<string, number> => {
-      const newRecord: Record<string, number> = {};
-      for (const groupName in record) {
-        const oldPos = record[groupName];
-        //fix for #144
-        if (oldPos > changes.length)
-          continue;
-
-        const newPos = changes.mapPos(oldPos);
-        if (newPos !== -1) {
-          newRecord[groupName] = newPos;
-        }
-      }
-      return newRecord;
-    };
-
-    if (this.permanentEditorTabs[filePath]) {
-      this.permanentEditorTabs[filePath] = remapRecord(this.permanentEditorTabs[filePath]);
-    }
-    if (this.permanentReadingViewTabs[filePath]) {
-      this.permanentReadingViewTabs[filePath] = remapRecord(this.permanentReadingViewTabs[filePath]);
-    }
+    this.tabStoreEditor.remapValues(filePath, changes);
+    this.tabStoreReading.remapValues(filePath, changes);
   }// remapTabs
 
   async clearAllFoldData(): Promise<void> {
-    this.activeEditorFolds.clear();
-    this.activeReadingViewFolds.clear();
-
-    this.permanentEditorFolds = {};
-    this.permanentReadingViewFolds = {};
+    this.foldStoreEditor.clear();
+    this.foldStoreReading.clear();
 
     await this.savePermanentData();
 
@@ -286,11 +176,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// clearAllFoldData
 
   async clearAllTabData(): Promise<void> {
-    this.activeEditorTabs.clear();
-    this.activeReadingViewTabs.clear();
-
-    this.permanentEditorTabs = {};
-    this.permanentReadingViewTabs = {};
+    this.tabStoreEditor.clear();
+    this.tabStoreReading.clear();
 
     await this.savePermanentData();
 
@@ -299,37 +186,47 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     new Notice("Stored tab positions cleared!");
   }// clearAllTabData
 
+  configurePersistence(): void {
+    const foldPermanent = this.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent;
+    this.foldStoreEditor.isPermanent = foldPermanent;
+    this.foldStoreReading.isPermanent = foldPermanent;
+
+    const tabPermanent = this.settings.pluginSettings.groupedCodeBlocks.persistence === TabPersistence.Permanent;
+    this.tabStoreEditor.isPermanent = tabPermanent;
+    this.tabStoreReading.isPermanent = tabPermanent;
+  }// configurePersistence
+
   async loadAllPermanentData() {
-    this.permanentEditorFolds = await this.loadPermanentDataFile<PermanentFoldData>('permanent-editor-folds.json');
-    this.permanentReadingViewFolds = await this.loadPermanentDataFile<PermanentFoldData>('permanent-reading-folds.json');
-    this.permanentEditorTabs = await this.loadPermanentDataFile<PermanentTabData>('permanent-editor-tabs.json');
-    this.permanentReadingViewTabs = await this.loadPermanentDataFile<PermanentTabData>('permanent-reading-tabs.json');
+    this.foldStoreEditor.permanentData = await this.loadPermanentDataFile<FoldingState>('permanent-editor-folds.json');
+    this.foldStoreReading.permanentData = await this.loadPermanentDataFile<FoldingState>('permanent-reading-folds.json');
+    this.tabStoreEditor.permanentData = await this.loadPermanentDataFile<number>('permanent-editor-tabs.json');
+    this.tabStoreReading.permanentData = await this.loadPermanentDataFile<number>('permanent-reading-tabs.json');
   }// loadAllPermanentData
 
   requestSavePermanentData(): void {
     if (this.debounceTimer)
       clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => this.savePermanentData(), 3000);
+    this.debounceTimer = setTimeout(() => this.savePermanentData(), 2000);
   }// requestSavePermanentData
 
   private async savePermanentData(): Promise<void> {
-    await this.writePermanentDataFile<PermanentFoldData>('permanent-editor-folds.json', this.permanentEditorFolds);
-    await this.writePermanentDataFile<PermanentFoldData>('permanent-reading-folds.json', this.permanentReadingViewFolds);
-    await this.writePermanentDataFile<PermanentTabData>('permanent-editor-tabs.json', this.permanentEditorTabs);
-    await this.writePermanentDataFile<PermanentTabData>('permanent-reading-tabs.json', this.permanentReadingViewTabs);
+    await this.writePermanentDataFile('permanent-editor-folds.json', this.foldStoreEditor.permanentData);
+    await this.writePermanentDataFile('permanent-reading-folds.json', this.foldStoreReading.permanentData);
+    await this.writePermanentDataFile('permanent-editor-tabs.json', this.tabStoreEditor.permanentData);
+    await this.writePermanentDataFile('permanent-reading-tabs.json', this.tabStoreReading.permanentData);
   }// savePermanentData
 
-  async loadPermanentDataFile<T>(fileName: string): Promise<T> {
+  async loadPermanentDataFile<V>(fileName: string): Promise<Record<string, Record<string, V>>> {
     try {
       const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
       const data = await this.app.vault.adapter.read(path);
-      return JSON.parse(data) as T;
+      return JSON.parse(data) as Record<string, Record<string, V>>;
     } catch (e) {
-      return {} as T;
+      return {} as Record<string, Record<string, V>>;
     }
   }// loadPermanentDataFile
 
-  private async writePermanentDataFile<T>(fileName: string, data: T): Promise<void> {
+  private async writePermanentDataFile(fileName: string, data: Record<string, unknown>): Promise<void> {
     try {
       const path = `${this.app.vault.configDir}/plugins/${this.manifest.id}/${fileName}`;
       await this.app.vault.adapter.write(path, JSON.stringify(data, null, 2)); // 2 for pretty printing
@@ -337,26 +234,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       console.error(`Codeblock Customizer: Error saving ${fileName}:`, e);
     }
   }// writePermanentDataFile
-
-  loadPermanentEditorFolds(filePath: string): Map<number, FoldingState> {
-    const foldsRecord = this.permanentEditorFolds[filePath];
-    return foldsRecord ? new Map(Object.entries(foldsRecord).map(([k, v]) => [Number(k), v as FoldingState])) : new Map();
-  }// loadPermanentEditorFolds
-
-  loadPermanentReadingViewFolds(filePath: string): Map<number, FoldingState> {
-    const foldsRecord = this.permanentReadingViewFolds[filePath];
-    return foldsRecord ? new Map(Object.entries(foldsRecord).map(([k, v]) => [Number(k), v as FoldingState])) : new Map();
-  }// loadPermanentReadingViewFolds
-
-  loadPermanentEditorTabs(filePath: string): Map<string, number> {
-    const tabsRecord = this.permanentEditorTabs[filePath];
-    return tabsRecord ? new Map(Object.entries(tabsRecord)) : new Map();
-  }// loadPermanentEditorTabs
-
-  loadPermanentReadingViewTabs(filePath: string): Map<string, number> {
-    const tabsRecord = this.permanentReadingViewTabs[filePath];
-    return tabsRecord ? new Map(Object.entries(tabsRecord)) : new Map();
-  }// loadPermanentReadingViewTabs
 
   handleCssChange(settingsTab: SettingsTab) {
     this.updateTheme(settingsTab);
@@ -670,65 +547,43 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     });
   }// renderReadingViews
 
+  private executeFoldCommand(func: (view: EditorView) => void, foldCommand: FoldCommand, action: 'add' | 'remove'): void {
+    const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!markdownView) {
+      return;
+    }
+
+    markdownView.containerEl.classList[action]('codeblock-customizer-header-collapse-command');
+    const mode = markdownView.getMode();
+    if (mode === 'source') {
+    // @ts-ignore
+      func(markdownView.editor.cm);
+    } else if (mode === 'preview') {
+      this.foldCommandTrigger = foldCommand;
+      this.renderReadingViews();
+    }
+  }// executeFoldCommand
+
   addCommands() {
     // add fold all command
     this.addCommand({
       id: 'codeblock-customizer-foldall-editor',
       name: 'Fold all code blocks',
-      callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          markdownView.containerEl.classList.add('codeblock-customizer-header-collapse-command');
-          const mode = markdownView.getMode();
-          if (mode === 'source') {
-            // @ts-ignore
-            this.editorExtensions.foldAll(markdownView.editor.cm);
-          } else if (mode === "preview") {
-            this.foldCommandTrigger = FoldCommand.FoldAll;
-            this.renderReadingViews();
-          }
-        }
-      }
+      callback: () => this.executeFoldCommand(this.editorExtensions.foldAll, FoldCommand.FoldAll, 'add')
     });
 
     // add unfold all command
     this.addCommand({
       id: 'codeblock-customizer-unfoldall-editor',
       name: 'Unfold all code blocks',
-      callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          markdownView.containerEl.classList.add('codeblock-customizer-header-collapse-command');
-          const mode = markdownView.getMode();
-          if (mode === "source") {
-            // @ts-ignore
-            this.editorExtensions.unfoldAll(markdownView.editor.cm);
-          } else if (mode === "preview") {
-            this.foldCommandTrigger = FoldCommand.UnfoldAll;
-            this.renderReadingViews();
-          }
-        }
-      }
+      callback: () => this.executeFoldCommand(this.editorExtensions.unfoldAll, FoldCommand.UnfoldAll, 'add')
     });
 
     // restore default state
     this.addCommand({
       id: 'codeblock-customizer-restore-fold-editor',
       name: 'Restore folding state of all code blocks to default',
-      callback: () => {
-        const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          markdownView.containerEl.classList.remove('codeblock-customizer-header-collapse-command');
-          const mode = markdownView.getMode();
-          if (mode === "source") {
-            // @ts-ignore
-            this.editorExtensions.restoreDefaultFold(markdownView.editor.cm);
-          } else if (mode === "preview") {
-            this.foldCommandTrigger = FoldCommand.Default;
-            this.renderReadingViews();
-          }
-        }
-      }
+      callback: () => this.executeFoldCommand(this.editorExtensions.restoreDefaultFold, FoldCommand.Default, 'remove')
     });
 
     // indent code block
