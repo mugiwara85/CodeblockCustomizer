@@ -4,7 +4,7 @@ import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageS
 import { createButtons, toggleFold, reassignFadeOutClasses } from "./ReadingViewUtils";
 import { fadeOutLineCount } from "./Const";
 import CodeBlockCustomizerPlugin from "./main";
-import { FoldingState } from "./EditorExtensions";
+import { FoldingState } from "./EditorView/EditorExtensions";
 import { FoldingScope, TabPersistence } from "./Settings";
 import { CBCParameters } from "./Parsing";
 
