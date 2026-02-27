@@ -56,21 +56,27 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
   }
 }// calloutPostProcessor
 
-async function waitForCmView(context: MarkdownPostProcessorContext, maxRetries = 25, delay = 2): Promise<boolean> {
+function waitForCmView(context: MarkdownPostProcessorContext, maxFrames = 10): Promise<boolean> {
   // @ts-ignore
-  if (context?.containerEl?.cmView)
-    return true;
-
-  let retries = 0;
-  // @ts-ignore
-  while (!context?.containerEl?.cmView) {
-    if (retries >= maxRetries) {
-      return false;
-    }
-    retries++;
-    await sleep(delay);
+  if (context?.containerEl?.cmView) {
+    return Promise.resolve(true);
   }
-  return true;
+
+  return new Promise<boolean>((resolve) => {
+    let frames = 0;
+    function check() {
+      // @ts-ignore
+      if (context?.containerEl?.cmView) {
+        resolve(true);
+      } else if (frames >= maxFrames) {
+        resolve(false);
+      } else {
+        frames++;
+        requestAnimationFrame(check);
+      }
+    }
+    requestAnimationFrame(check);
+  });
 }// waitForCmView
 
 export async function admonitionPostProcessor(containerElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {

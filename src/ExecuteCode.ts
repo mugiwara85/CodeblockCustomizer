@@ -21,7 +21,7 @@ export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPr
     const observer = setupExecuteCodeObserver(targetPreElement, clearButton, parameters, plugin);
 
     executeButton.addEventListener("click", (event) => {
-      const currentPre = (event.currentTarget as HTMLElement).closest('pre');
+      const currentPre = (event.currentTarget as HTMLElement).closest('pre') || targetPreElement;
       const currentParentContainer = currentPre?.parentElement;
 
       if (currentParentContainer) {
@@ -30,7 +30,7 @@ export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPr
     });
 
     clearButton.addEventListener("click", (event) => {
-      const currentPre = (event.currentTarget as HTMLElement).closest('pre');
+      const currentPre = (event.currentTarget as HTMLElement).closest('pre') || targetPreElement;
       const currentParentContainer = currentPre?.parentElement;
 
       if (currentParentContainer) {

@@ -10,12 +10,11 @@ import { CBCParameters } from "./Parsing";
 
 export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private view: MarkdownView;
-  private clickListeners: Array<() => void> = [];
+  private listenerAbortController: AbortController | null = null;
   private childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
   private observer: MutationObserver | null = null;
   private debouncedProcess: () => void;
   private plugin: CodeBlockCustomizerPlugin;
-  private hoverListeners: Array<() => void> = [];
   private activeExecuteCodeObserver: MutationObserver | null = null;
 
   constructor(containerEl: HTMLElement, view: MarkdownView, childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>, plugin: CodeBlockCustomizerPlugin) {
@@ -40,6 +39,14 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       this.activeExecuteCodeObserver = null;
     }
   }// onunload
+
+  private getListenerSignal(): AbortSignal {
+    if (!this.listenerAbortController) {
+      this.listenerAbortController = new AbortController();
+    }
+    
+    return this.listenerAbortController.signal;
+  }// getListenerSignal
 
   public processGroupedCodeBlocks() {
     this.cleanup();
@@ -135,7 +142,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       updateGroupHeader(firstBlock); // Fallback to first block if no active block found
     }
 
-    this.addHeaderClickHandler(header, tabsContainer, group);
+    this.addHeaderClickHandler(header, tabsContainer, groupButtonsContainer, group);
 
     if (firstBlock && firstBlock.parentElement) {
       firstBlock.parentElement.prepend(header);
@@ -252,9 +259,9 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     fileNameElement.setText(headerDisplayText);
   }// updateHeaderFileName
 
-  private addHeaderClickHandler(headerContainer: HTMLElement, tabsContainer: HTMLElement, group: HTMLPreElement[]) {
+  private addHeaderClickHandler(headerContainer: HTMLElement, tabsContainer: HTMLElement, buttonsContainer: HTMLElement, group: HTMLPreElement[]) {
     const headerClickHandler = (event: MouseEvent) => {
-      if (!tabsContainer.contains(event.target as Node)) {
+      if (!tabsContainer.contains(event.target as Node) && !buttonsContainer.contains(event.target as Node)) {
         const activeBlock = group.find(block => block.style.display !== 'none');
         if (!activeBlock)
           return;
@@ -262,8 +269,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         this.foldCodeBlcok(activeBlock, headerContainer);
       }
     };
-    headerContainer.addEventListener('click', headerClickHandler);
-    this.clickListeners.push(() => headerContainer.removeEventListener('click', headerClickHandler));
+    headerContainer.addEventListener('click', headerClickHandler, { signal: this.getListenerSignal() });
   }// addHeaderClickHandler
 
   private addHeaderHoverEffect(headerContainer: HTMLElement, groupedBlocks: HTMLPreElement[], buttonsContainer: HTMLElement) {
@@ -279,13 +285,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     const elementsToHover = [headerContainer, ...groupedBlocks];
 
+    const signal = this.getListenerSignal();
     elementsToHover.forEach(element => {
-      element.addEventListener('mouseenter', mouseEnterHandler);
-      element.addEventListener('mouseleave', mouseLeaveHandler);
-      this.hoverListeners.push(() => {
-        element.removeEventListener('mouseenter', mouseEnterHandler);
-        element.removeEventListener('mouseleave', mouseLeaveHandler);
-      });
+      element.addEventListener('mouseenter', mouseEnterHandler, { signal });
+      element.addEventListener('mouseleave', mouseLeaveHandler, { signal });
     });
   }// addHeaderHoverEffect
 
@@ -379,10 +382,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// reconnectObserver
 
   private cleanupListeners() {
-    this.clickListeners.forEach(removeListener => removeListener());
-    this.clickListeners = [];
-    this.hoverListeners.forEach(removeListener => removeListener());
-    this.hoverListeners = [];
+    if (this.listenerAbortController) {
+      this.listenerAbortController.abort();
+      this.listenerAbortController = null;
+    }
   }//cleanupListeners
 
   private removeLanguageClasses(element: HTMLElement) {
@@ -567,8 +570,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       }
     };
 
-    tabsContainer.addEventListener('click', tabClickHandler);
-    this.clickListeners.push(() => tabsContainer.removeEventListener('click', tabClickHandler));
+    tabsContainer.addEventListener('click', tabClickHandler, { signal: this.getListenerSignal() });
   }// addTabClickHandler
 
   private foldCodeBlcok(activeBlock: HTMLPreElement, header: HTMLElement) {

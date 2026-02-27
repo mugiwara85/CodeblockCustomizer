@@ -135,24 +135,33 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     return { codeBlockSectionInfo: null, source: null };
   }// getSectionInfo
 
-  private async waitForExecuteCodeToFinish(codeBlockElement: HTMLElement, maxRetries = 25, delay = 2): Promise<MarkdownSectionInformation | null> {
+  private waitForExecuteCodeToFinish(codeBlockElement: HTMLElement, maxFrames = 10): Promise<MarkdownSectionInformation | null> {
     if (!codeBlockElement || !this.context) {
-      return null;
+      return Promise.resolve(null);
     }
 
-    for (let i = 0; i < maxRetries; i++) {
-      const codeEl = codeBlockElement.querySelector('pre > code');
-      if (codeEl) {
-        const sectionInfo = this.context.getSectionInfo(codeEl as HTMLElement);
-        if (sectionInfo) {
-          return sectionInfo;
+    return new Promise<MarkdownSectionInformation | null>((resolve) => {
+      let frames = 0;
+      const context = this.context;
+      function check() {
+        const codeEl = codeBlockElement.querySelector('pre > code');
+        if (codeEl) {
+          const sectionInfo = context.getSectionInfo(codeEl as HTMLElement);
+          if (sectionInfo) {
+            resolve(sectionInfo);
+            return;
+          }
+        }
+
+        if (frames >= maxFrames) {
+          resolve(null);
+        } else {
+          frames++;
+          requestAnimationFrame(check);
         }
       }
-
-      await sleep(delay);
-    }
-
-    return null;
+      requestAnimationFrame(check);
+    });
   }// waitForExecuteCodeToFinish
 
   private async processCodeBlockSection() {

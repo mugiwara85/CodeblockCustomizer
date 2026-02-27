@@ -115,8 +115,8 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       return;
     }
 
-    for (const affectedBlock of affectedBlocks) {
-      requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      for (const affectedBlock of affectedBlocks) {
         let needsFix = false;
 
         for (const { from, to } of update.view.visibleRanges) {
@@ -163,8 +163,8 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
             ]
           });
         }
-      });
-    }
+      }
+    });
   });// forceRefreshListener
 
   const viewPlugin = ViewPlugin.fromClass(class {

@@ -23,6 +23,7 @@ export const ANNOTATION_TYPE_DISPLAY_TEXT: Record<string, string> = {
 export class TooltipManager {
   private tooltip: HTMLElement | null = null;
   private hideTimer: number | null = null;
+  private tooltipAbortController: AbortController | null = null;
 
   private readonly HIDE_DELAY = 100;
   private readonly ANIMATION_DURATION = 150;
@@ -68,24 +69,33 @@ export class TooltipManager {
 
     const textContentEl = this.tooltip.createDiv({ cls: 'codeblock-customizer-popup-content' });
     MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);
+
+    this.tooltip.style.position = 'fixed';
+    this.tooltip.style.visibility = 'hidden';
     document.body.appendChild(this.tooltip);
 
-    const iconRect = this.iconEl.getBoundingClientRect();
-    this.tooltip.style.position = 'fixed';
-    this.tooltip.style.left = `${iconRect.right + 8}px`;
-    this.tooltip.style.top = `${iconRect.top + (iconRect.height / 2) - (this.tooltip.offsetHeight / 2)}px`;
+    this.tooltipAbortController = new AbortController();
+    const signal = this.tooltipAbortController.signal;
+    this.tooltip.addEventListener('click', this.handleLinkClick, { signal });
+    this.tooltip.addEventListener('mouseenter', this.cancelHide, { signal });
+    this.tooltip.addEventListener('mouseleave', this.scheduleHide, { signal });
+    this.tooltip.addEventListener('mouseover', this.handleHover, { signal });
 
-    this.tooltip.addEventListener('click', this.handleLinkClick);
-    this.tooltip.addEventListener('mouseenter', this.cancelHide);
-    this.tooltip.addEventListener('mouseleave', this.scheduleHide);
-    this.tooltip.addEventListener('mouseover', this.handleHover);
-
-    requestAnimationFrame(() => this.tooltip?.classList.add('is-visible'));
+    const tooltip = this.tooltip;
+    const iconEl = this.iconEl;
+    requestAnimationFrame(() => {
+      const iconRect = iconEl.getBoundingClientRect();
+      tooltip.style.left = `${iconRect.right + 8}px`;
+      tooltip.style.top = `${iconRect.top + (iconRect.height / 2) - (tooltip.offsetHeight / 2)}px`;
+      tooltip.style.visibility = '';
+      tooltip.classList.add('is-visible');
+    });
   };// show
 
   private hide = () => {
     if (this.tooltip) {
-      this.tooltip.removeEventListener('mouseover', this.handleHover);
+      this.tooltipAbortController?.abort();
+      this.tooltipAbortController = null;
       this.tooltip.classList.remove('is-visible');
       setTimeout(() => {
         this.tooltip?.remove();

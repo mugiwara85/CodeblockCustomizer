@@ -16,7 +16,8 @@ import { admonitionPostProcessor, calloutPostProcessor } from "./PostProcessors"
 import { CBCParameters } from "./Parsing";
 import { StateStore } from "./StateStore";
 
-import * as _ from 'lodash';
+import merge from 'lodash/merge'
+import difference from 'lodash/difference'
 
 // npm i @simonwep/pickr
 
@@ -450,11 +451,11 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       console.log("Codeblock Customizer: Settigns migrated successfully.");
     }
 
-    this.settings = _.merge({}, DEFAULT_SETTINGS, loadedData); // copies new settings to default themes and selectedtheme
+    this.settings = merge({}, DEFAULT_SETTINGS, loadedData); // copies new settings to default themes and selectedtheme
 
     const defaultThemeNames = Object.keys(DEFAULT_SETTINGS.Themes);
     const currentThemeNames = Object.keys(this.settings.Themes);
-    const userThemeNames = _.difference(currentThemeNames, defaultThemeNames);
+    const userThemeNames: string[] = difference(currentThemeNames, defaultThemeNames);
 
     userThemeNames.forEach(themeName => {
       const userTheme = this.settings.Themes[themeName];
@@ -464,12 +465,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         // copy new settings from corresponding Theme to user themes which do have a baseTheme (created after this change)
         const baseTheme = this.settings.Themes[baseThemeName];
         if (baseTheme) {
-          userTheme.colors = _.merge({}, baseTheme.colors, userTheme.colors);
+          userTheme.colors = merge({}, baseTheme.colors, userTheme.colors);
         }
       } else {
         // copy new settings from Obsidian Theme to user themes which do not have a baseTheme (created before this change)
         const defaultObsidianSettings = this.settings.Themes["Obsidian"];
-        userTheme.colors = _.merge({}, defaultObsidianSettings.colors, userTheme.colors);
+        userTheme.colors = merge({}, defaultObsidianSettings.colors, userTheme.colors);
       }
     });
 
@@ -477,7 +478,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const masterTheme = this.settings.Themes[this.settings.ThemeName];
     const workingCopyTheme = loadedData?.SelectedTheme;
     if (masterTheme) {
-      this.settings.SelectedTheme = _.merge({}, masterTheme, workingCopyTheme);
+      this.settings.SelectedTheme = merge({}, masterTheme, workingCopyTheme);
     }
 
     // prevent bloating, remove unchnged colors

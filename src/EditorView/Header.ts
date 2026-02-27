@@ -8,7 +8,7 @@ import { ButtonModifierKeys, CodeblockCustomizerSettings, CollapseIconStyle } fr
 import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters, getAllParameters } from "../Parsing";
 import { PromptManager } from "../PromptManager";
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, createObjectCopy, addTextToClipboard, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons } from "../Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons } from "../Utils";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
 import { FoldingState, rehideEffect, CodeBlockFoldEffect } from "./EditorEffects";
 import { areGroupMembersEqual, areObjectsEqual } from "./CompareUtils";
@@ -94,19 +94,14 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
     plugin: CodeBlockCustomizerPlugin;
     collapseIconStyle: CollapseIconStyle;
 
-    constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin, modifierKey: ButtonModifierKeys) {
+    constructor(parameters: CBCParameters, specificHeader: boolean, pos: CodeBlockPositions, buttonConfigs: Array<ButtonConfig>, groupMembers: CodeBlockPositions[], foldingState: FoldingState, sourcePath: string, plugin: CodeBlockCustomizerPlugin, modifierKey: ButtonModifierKeys, resolvedLangColors: Record<string, string>) {
       super();
       this.parameters = parameters;
       this.specificHeader = specificHeader;
       this.pos = pos;
       this.buttonConfigs = buttonConfigs;
       this.enableLinks = plugin.settings.pluginSettings.codeblock.enableLinks;
-
-      const allLangColors = plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
-      const langKey = this.parameters.language.length > 0 ? this.parameters.language : "nolang";
-      const lowerCaseLangKey = langKey.toLowerCase();
-      const result = Object.keys(allLangColors).find(k => k.toLowerCase() === lowerCaseLangKey);
-      this.languageSpecificColors = createObjectCopy(result ? allLangColors[result] : {});
+      this.languageSpecificColors = resolvedLangColors;
       this.groupMembers = groupMembers;
       this.foldingState = foldingState;
       this.sourcePath = sourcePath;
@@ -236,6 +231,14 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
 
   }// buttonWidget
 
+  function createLanguageColorMap(allLangColors: Record<string, Record<string, string>>): Map<string, Record<string, string>> {
+    const map = new Map<string, Record<string, string>>();
+    for (const key of Object.keys(allLangColors)) {
+      map.set(key.toLowerCase(), allLangColors[key]);
+    }
+    return map;
+  }// createLanguageColorMap
+
   function insertHeader(state: EditorState): DecorationSet {
     if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
       return Decoration.none;
@@ -244,6 +247,8 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
     const positions = state.field(codeBlockPositionsField, false) ?? [];
     const decorations: Array<Range<Decoration>> = [];
     const grouped = state.field(groupedCodeBlocksField, false) ?? {};
+    const allLangColors = plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
+    const langColorMap = createLanguageColorMap(allLangColors);
 
     for (const pos of positions) {
       const { codeBlockStartPos, codeBlockEndPos, parameters } = pos;
@@ -290,7 +295,9 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
           const specificHeader = isSpecificHeader(parameters, settings, isMemberOfTabbedGroup, state.doc.lineAt(pos.codeBlockEndPos).number - state.doc.lineAt(pos.codeBlockStartPos).number + 1, "editor");
           const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, state, parameters);
           const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
-          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin, modifierKey), block: true }).range(codeBlockStartPos));
+          const langKey = (parameters.language.length > 0 ? parameters.language : "nolang").toLowerCase();
+          const resolvedLangColors = langColorMap.get(langKey) ?? {};
+          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin, modifierKey, resolvedLangColors), block: true }).range(codeBlockStartPos));
         }
       }
     }

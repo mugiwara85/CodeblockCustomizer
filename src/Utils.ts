@@ -1086,14 +1086,6 @@ export function getLanguageSpecificColorClass(codeblockLanguage: string, languag
   return codeblockLanguageSpecificClass;
 }// getLanguageSpecificColorClass
 
-export function createObjectCopy(object: Record<string, string>) {
-  const newObject: Record<string, string> = {};
-  for (const [property, value] of Object.entries(object)) {
-    newObject[property] = value;
-  }
-  return newObject;
-}//createObjectCopy
-
 export function getValueNameByLineNumber(lineNumber: number, altLineSpecificWords: { name: string; lineNumber: number; value?: string }[]): { extractedValues: { value: string | undefined, name: string }[] } {
   const matchingItems = altLineSpecificWords.filter(item => item.lineNumber === lineNumber);
   const extractedValues = matchingItems.map(item => ({ value: item.value, name: item.name }));
