@@ -308,6 +308,9 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   };
 }// getParameters
 
+const parseFenceRegexCache = new Map<string, RegExp>();
+const PARAM_REGEX_PATTERN = /(\S+?)([:=])(["'](?:\\.|[^\\])*?["']|(?:\\.|[^\\\s])+)/g;
+
 function parseParameters(input: string): ParsedParams {
   const params: ParsedParams = {};
   const { char, count } = getFenceDetails(input);
@@ -316,10 +319,14 @@ function parseParameters(input: string): ParsedParams {
   }
 
   const fence = char.repeat(count);
-  const fenceRegex = new RegExp(`^${fence}`);
+  let fenceRegex = parseFenceRegexCache.get(fence);
+  if (!fenceRegex) {
+    fenceRegex = new RegExp(`^${fence}`);
+    parseFenceRegexCache.set(fence, fenceRegex);
+  }
+
   const cleanedLine = input.replace(fenceRegex, '').trim();
-  //const regex = /(\S+?)([:=])(["'][^"']*["']|[^"'\s]+)?/g; // old
-  const regex = /(\S+?)([:=])(["'](?:\\.|[^\\])*?["']|(?:\\.|[^\\\s])+)/g;
+  const regex = new RegExp(PARAM_REGEX_PATTERN.source, PARAM_REGEX_PATTERN.flags);
   let match;
 
   while ((match = regex.exec(cleanedLine)) !== null) {
@@ -876,6 +883,19 @@ function isUnFoldDefined(str: string): boolean {
   return isParameterDefined("unfold", str);
 }// isUnFoldDefined
 
+const isParamDefinedCache = new Map<string, { mid: RegExp, end: RegExp }>();
+function getParamDefinedRegexes(term: string): { mid: RegExp, end: RegExp } {
+  let cached = isParamDefinedCache.get(term);
+  if (!cached) {
+    cached = {
+      mid: new RegExp(`^(?:\`|~){3,}\\w*\\s*${term}\\s`),
+      end: new RegExp(`^(?:\`|~){3,}\\w*\\s*${term}$`)
+    };
+    isParamDefinedCache.set(term, cached);
+  }
+  return cached;
+}// getParamDefinedRegexes
+
 function isParameterDefined(searchTerm: string, str: string): boolean {
   str = str.toLowerCase();
   searchTerm = searchTerm.toLowerCase();
@@ -883,15 +903,17 @@ function isParameterDefined(searchTerm: string, str: string): boolean {
   if (str.includes(` ${searchTerm} `)) {
     return true;
   }
+
   // check if parameter is at end of string with space before it
   if (str.endsWith(' ' + searchTerm)) {
     return true;
   }
-  const fenceAndLangRegex = new RegExp(`^(?:\`|~){3,}\\w*\\s*${searchTerm}\\s`);
+
+  const { mid: fenceAndLangRegex, end: fenceAndLangEndRegex } = getParamDefinedRegexes(searchTerm);
   if (fenceAndLangRegex.test(str)) {
     return true;
   }
-  const fenceAndLangEndRegex = new RegExp(`^(?:\`|~){3,}\\w*\\s*${searchTerm}$`);
+
   if (fenceAndLangEndRegex.test(str)) {
     return true;
   }
@@ -941,12 +963,22 @@ function getCodeBlockLanguage(str: string, isReadingView = false): string {
   return '';
 }// getCodeBlockLanguage
 
+let excludeRegexCacheKey = '';
+let excludeRegexCacheValue: RegExp[] = [];
+
 function isExcluded(lineText: string, excludeLangs: string): boolean {
   if (isParameterDefined("exclude", lineText))
     return true;
 
   const codeBlockLang = getCodeBlockLanguage(lineText);
-  const regexLangs = splitAndTrimString(excludeLangs).map(lang => new RegExp(`^${lang.replace(/\*/g, '.*')}$`, 'i'));
+  let regexLangs: RegExp[];
+  if (excludeLangs === excludeRegexCacheKey) {
+    regexLangs = excludeRegexCacheValue;
+  } else {
+    regexLangs = splitAndTrimString(excludeLangs).map(lang => new RegExp(`^${lang.replace(/\*/g, '.*')}$`, 'i'));
+    excludeRegexCacheKey = excludeLangs;
+    excludeRegexCacheValue = regexLangs;
+  }
 
   for (const regexLang of regexLangs) {
     if (codeBlockLang && regexLang.test(codeBlockLang)) {

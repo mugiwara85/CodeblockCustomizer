@@ -11,6 +11,8 @@ import { ANNOTATION_PATTERN, rhombusSVG } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeBlockPositions } from "./CodeBlockPositions";
 
+const COMMENT_REGEX = /^\s*(?:\/\/|#|--|\/\*)\s*|\s*\*\/$/g;
+
 export function annotationsExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>) {
   const annotationViewPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
@@ -56,7 +58,7 @@ export function annotationsExtension(plugin: CodeBlockCustomizerPlugin, settings
             }
 
             const commentText = view.state.sliceDoc(node.from, node.to);
-            const cleanCommentText = commentText.replace(/^\s*(?:\/\/|#|--|\/\*)\s*|\s*\*\/$/g, '').trim();
+            const cleanCommentText = commentText.replace(COMMENT_REGEX, '').trim();
             const match = cleanCommentText.match(ANNOTATION_PATTERN);
 
             let type: string;

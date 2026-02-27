@@ -4,7 +4,7 @@ import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderO
 import { TooltipManager } from "./TooltipManager";
 import { PromptManager } from "./PromptManager";
 import CodeBlockCustomizerPlugin from "./main";
-import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, rhombusSVG } from "./Const";
+import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, LINK_REGEX, fadeOutLineCount, rhombusSVG } from "./Const";
 import { addAndObserveExecuteCodeButtons } from "./ExecuteCode";
 import { PluginSettings, CollapseIconStyle } from "./Settings";
 import { CBCParameters } from "./Parsing";
@@ -1450,7 +1450,7 @@ function parseInput(input: string, sourcePath: string, plugin: CodeBlockCustomiz
   const parser = new DOMParser();
   const doc = parser.parseFromString(inputWithPlaceholders, 'text/html');
   const elementsWithClass = Array.from(doc.getElementsByClassName('comment'));
-  const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
+  const regex = new RegExp(LINK_REGEX.source, LINK_REGEX.flags);
 
   elementsWithClass.forEach((element: Element) => {
     const textContent = element.textContent || '';

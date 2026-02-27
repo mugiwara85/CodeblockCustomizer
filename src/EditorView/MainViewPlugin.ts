@@ -10,7 +10,7 @@ import { CBCParameters, HighlightedWord } from "../Parsing";
 import { PromptLineRenderResult, PromptManager } from "../PromptManager";
 import { getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, findAllOccurrences, getPropertyFromLanguageSpecificColors, filterOccurrences } from "../Utils";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR } from "../Const";
-import { CodeBlockPositions } from "./CodeBlockPositions";
+import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 import { HiddenLinesWidget } from "./HideLines";
 import { FoldingState, FoldCommand, setFoldState, UnCollapse, semiUnCollapse, unhideEffect } from "./EditorEffects";
 
@@ -169,6 +169,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
   const viewPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
+    lastVisibleBlockStarts: Set<number> = new Set();
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
@@ -177,10 +178,36 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     update(update: ViewUpdate) {
       const unhiddenChanged = update.startState.field(hiddenLinesUnhiddenField, false) !== update.state.field(hiddenLinesUnhiddenField, false);
       const codeBlocksChanged = update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField)
-      if (update.docChanged || update.viewportChanged || codeBlocksChanged || getSettingsUpdated() || unhiddenChanged) {
+
+      // full rebuild only when document changed, codeblocks changed, settings were modified, or ranges were unhidde
+      if (update.docChanged || codeBlocksChanged || getSettingsUpdated() || unhiddenChanged) {
         this.decorations = this.buildDecorations(update.view);
+        return;
+      }
+
+      // only viewport changed ==> keep existing decorations, and add decos for new blocks only
+      if (update.viewportChanged) {
+        this.decorations = this.extendDecorations(update.view);
       }
     }
+
+    extendDecorations(view: EditorView): DecorationSet {
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
+        return Decoration.none;
+
+      const positions = view.state.field(codeBlockPositionsField, false) ?? [];
+      const visibleBlocks = getVisibleCodeBlocks(positions, view.visibleRanges);
+
+      const newBlocks = visibleBlocks.filter(b => !this.lastVisibleBlockStarts.has(b.codeBlockStartPos));
+      this.lastVisibleBlockStarts = new Set(visibleBlocks.map(b => b.codeBlockStartPos));
+
+      if (newBlocks.length === 0) {
+        return this.decorations;
+      }
+
+      const newDecorations = this.buildDecorationsForBlocks(view, newBlocks);
+      return this.decorations.update({ add: newDecorations, sort: true });
+    }// extendDecorations
 
     buildDecorations(view: EditorView): DecorationSet {
       getUpdateValue()(false);
@@ -188,15 +215,20 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
-      const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
       const positions = view.state.field(codeBlockPositionsField, false) ?? [];
-      const visibleRanges = view.visibleRanges;
-      const decorations: Array<Range<Decoration>> = [];
-      const visibleBlocks = positions.filter(pos => {
-        return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
-      });
+      const visibleBlocks = getVisibleCodeBlocks(positions, view.visibleRanges);
 
-      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
+      this.lastVisibleBlockStarts = new Set(visibleBlocks.map(b => b.codeBlockStartPos));
+
+      const decorations = this.buildDecorationsForBlocks(view, visibleBlocks);
+      return RangeSet.of(decorations, true);
+    }// buildDecorations
+
+    buildDecorationsForBlocks(view: EditorView, blocks: CodeBlockPositions[]): Array<Range<Decoration>> {
+      const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
+      const decorations: Array<Range<Decoration>> = [];
+
+      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of blocks) {
         const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
         const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
 
@@ -321,7 +353,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
           //lineNumber++;
         }
       }
-      return RangeSet.of(decorations, true);
+      return decorations;
     }
   }, {
     decorations: v => v.decorations

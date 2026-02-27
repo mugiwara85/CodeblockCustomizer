@@ -7,8 +7,9 @@ import { SyntaxNodeRef } from "@lezer/common";
 
 import { isSourceMode } from "../Utils";
 import { CodeblockCustomizerSettings } from "../Settings";
+import { LINK_REGEX } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
-import { CodeBlockPositions } from "./CodeBlockPositions";
+import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 
 export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>) {
   const linkViewPlugin = ViewPlugin.fromClass(class {
@@ -36,10 +37,7 @@ export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: Code
       const decorations: Array<Range<Decoration>> = [];
       const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
       const codeBlockPositions = view.state.field(codeBlockPositionsField, false) ?? [];
-      const visibleRanges = view.visibleRanges;
-      const visibleBlocks = codeBlockPositions.filter(pos => {
-        return visibleRanges.some(({ from, to }) => !(pos.codeBlockEndPos < from || pos.codeBlockStartPos > to));
-      });
+      const visibleBlocks = getVisibleCodeBlocks(codeBlockPositions, view.visibleRanges);
 
       for (const { codeBlockStartPos, codeBlockEndPos, parameters } of visibleBlocks) {
         if (parameters.exclude) {
@@ -73,8 +71,7 @@ export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: Code
 
   function checkForLinks(state: EditorState, collapseFrom: number, collapseTo: number, decorations: Array<Range<Decoration>>, sourcePath: string) {
     const cursorPos = state.selection.main.head;
-    const regex = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
-
+    
     syntaxTree(state).iterate({
       from: collapseFrom, to: collapseTo,
       enter(node) {
@@ -83,7 +80,7 @@ export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: Code
         }
 
         const commentText = state.sliceDoc(node.from, node.to);
-        const matches = commentText.matchAll(regex);
+        const matches = commentText.matchAll(LINK_REGEX);
 
         for (const match of matches) {
           const fullMatch = match[0];
