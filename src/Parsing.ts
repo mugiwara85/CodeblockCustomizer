@@ -4,8 +4,6 @@ import { getPromptDefinition } from "./PromptUtils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { getBorderColorByLanguage, getCurrentMode, getDisplayLanguageName, getPropertyFromLanguageSpecificColors } from "./Utils";
 
-import validator from 'validator';
-
 export interface ParsedParams {
   [key: string]: string;
 }
@@ -530,7 +528,7 @@ function getLineRanges(params: string | null): number[] {
 }// getLineRanges
 
 function isWholeNumber(input: string): boolean {
-  return validator.isInt(input, { allow_leading_zeroes: false });
+  return /^(?:0|[1-9]\d*)$/.test(input);
 }// isWholeNumber
 
 function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: string, range: string, word: string | HighlightedWord) {
