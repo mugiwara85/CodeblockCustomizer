@@ -79,11 +79,11 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       return;
     }
 
-    const affectedBlocks = new Set<CodeBlockPositions>();
+    const unfoldedRanges: { from: number; to: number; blockEndPos: number }[] = [];
 
     if (commandChanged && update.state.field(foldCommandField, false) === FoldCommand.UnfoldAll) {
-      codeBlockPositions.forEach(
-        block => affectedBlocks.add(block)
+      codeBlockPositions.forEach(block =>
+        unfoldedRanges.push({ from: block.codeBlockStartPos, to: block.codeBlockEndPos, blockEndPos: block.codeBlockEndPos })
       );
     }
 
@@ -92,7 +92,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       if (foldStateAnnotation?.state === FoldingState.Unfolded) {
         const block = codeBlockPositions.find(p => p.codeBlockStartPos === foldStateAnnotation.startPos);
         if (block) {
-          affectedBlocks.add(block);
+          unfoldedRanges.push({ from: block.codeBlockStartPos, to: block.codeBlockEndPos, blockEndPos: block.codeBlockEndPos });
         }
       }
 
@@ -100,40 +100,44 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
         if (effect.is(unhideEffect)) {
           const block = codeBlockPositions.find(p => effect.value.from >= p.codeBlockStartPos && effect.value.to <= p.codeBlockEndPos);
           if (block) {
-            affectedBlocks.add(block);
+            unfoldedRanges.push({ from: effect.value.from, to: effect.value.to, blockEndPos: block.codeBlockEndPos });
           }
         } else if (effect.is(UnCollapse) || effect.is(semiUnCollapse)) {
           const { filterFrom, filterTo } = effect.value;
           const block = codeBlockPositions.find(p => filterFrom >= p.codeBlockStartPos && filterTo <= p.codeBlockEndPos);
           if (block) {
-            affectedBlocks.add(block);
+            unfoldedRanges.push({ from: filterFrom, to: filterTo, blockEndPos: block.codeBlockEndPos });
           }
         }
       }
     }
 
-    if (affectedBlocks.size === 0) {
+    if (unfoldedRanges.length === 0) {
       return;
     }
 
     requestAnimationFrame(() => {
-      for (const affectedBlock of affectedBlocks) {
-        let needsFix = false;
+      const blockEndPositions = new Set<number>();
 
-        for (const { from, to } of update.view.visibleRanges) {
-          if (from > affectedBlock.codeBlockEndPos || to < affectedBlock.codeBlockStartPos) {
+      for (const range of unfoldedRanges) {
+        if (blockEndPositions.has(range.blockEndPos)) {
+          continue;
+        }
+
+        for (const { from: visFrom, to: visTo } of update.view.visibleRanges) {
+          if (visFrom > range.to || visTo < range.from) {
             continue;
           }
 
-          const checkStart = Math.max(from, affectedBlock.codeBlockStartPos);
-          const checkEnd = Math.min(to, affectedBlock.codeBlockEndPos);
+          const checkStart = Math.max(visFrom, range.from);
+          const checkEnd = Math.min(visTo, range.to);
           const startLineNr = update.state.doc.lineAt(checkStart).number;
           const endLineNr = update.state.doc.lineAt(checkEnd).number;
 
+          let needsFix = false;
           for (let i = startLineNr; i <= endLineNr; i++) {
             const pos = update.state.doc.line(i).from;
             const lineDom = update.view.domAtPos(pos);
-
             if (lineDom?.node) {
               const el = lineDom.node instanceof HTMLElement ? lineDom.node : lineDom.node.parentElement;
               if (el && !el.closest('.cm-line')?.classList.contains('HyperMD-codeblock')) {
@@ -143,28 +147,33 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
             }
           }
           if (needsFix) {
+            blockEndPositions.add(range.blockEndPos);
             break;
           }
         }
-
-        if (needsFix) {
-          update.view.dispatch({
-            changes: { from: affectedBlock.codeBlockEndPos, to: affectedBlock.codeBlockEndPos, insert: " " },
-            annotations: [
-              Transaction.addToHistory.of(false),
-              Transaction.userEvent.of("codeblock-customizer.refresh")
-            ]
-          });
-
-          update.view.dispatch({
-            changes: { from: affectedBlock.codeBlockEndPos, to: affectedBlock.codeBlockEndPos + 1, insert: "" },
-            annotations: [
-              Transaction.addToHistory.of(false),
-              Transaction.userEvent.of("codeblock-customizer.refresh")
-            ]
-          });
-        }
       }
+
+      if (blockEndPositions.size === 0) {
+        return;
+      }
+
+      const sorted = [...blockEndPositions].sort((a, b) => a - b);
+
+      update.view.dispatch({
+        changes: sorted.map(pos => ({ from: pos, to: pos, insert: " " })),
+        annotations: [
+          Transaction.addToHistory.of(false),
+          Transaction.userEvent.of("codeblock-customizer.refresh")
+        ]
+      });
+
+      update.view.dispatch({
+        changes: sorted.map((pos, idx) => ({ from: pos + idx, to: pos + idx + 1, insert: "" })),
+        annotations: [
+          Transaction.addToHistory.of(false),
+          Transaction.userEvent.of("codeblock-customizer.refresh")
+        ]
+      });
     });
   });// forceRefreshListener
 
