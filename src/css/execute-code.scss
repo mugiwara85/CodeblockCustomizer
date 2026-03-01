@@ -1,3 +1,5 @@
+@use 'mixins';
+
 /* -------------------- Execute code plugin compatibility -------------------- */
 .codeblock-customizer-support-execute-code {
   .markdown-rendered pre.codeblock-customizer-pre {
@@ -44,8 +46,8 @@
 /* code output styling */
 pre.codeblock-customizer-pre {
   .codeblock-customizer-execute-code-output {
-    border-top: 2px solid var(--header-line-color, var(--codeblock-customizer-header-line-color));
-
+    // border-top: 2px solid var(--header-line-color, var(--codeblock-customizer-header-line-color));
+    padding-top: 0 !important;
     hr {
       // hide the hr element
       display: none;
@@ -92,8 +94,8 @@ pre.codeblock-customizer-pre button.run-code-button+code.language-output {
   }
 
   &:first-child>.codeblock-customizer-line-number {
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
   }
 }
 
@@ -123,4 +125,80 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
 .codeblock-customizer-execute-code-button-pending-verification,
 .codeblock-customizer-execute-code-clear-button-hidden {
   display: none;
+}
+
+/* output separator widget */
+.has-output-separator {
+  position: relative;
+  padding-bottom: 1.5em;
+
+  .codeblock-customizer-line-number {
+    border-bottom-left-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+  }
+}
+
+.codeblock-customizer-execute-code-output-separator-container {
+  position: absolute;
+  z-index: 10;
+  top: 70%;
+  left: 0;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 1.5em;
+  align-items: center;
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+}
+
+.codeblock-customizer-execute-code-output-separator-content {
+  display: flex;
+  flex-grow: 1;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: default;
+  font-size: 0.85em;
+  font-style: italic;
+  user-select: none;
+
+  &::before,
+  &::after {
+    flex: 1;
+    content: "";
+    opacity: 0.3;
+  }
+
+  &::before {
+    margin: 0 8px 0 16px;
+  }
+
+  &::after {
+    margin: 0 16px 0 8px;
+  }
+}
+
+.codeblock-customizer-execute-code-separator-dashed .codeblock-customizer-execute-code-output-separator-content {
+
+  &::before,
+  &::after {
+    @include mixins.separator-dashed;
+  }
+}
+
+.codeblock-customizer-execute-code-separator-doubleline .codeblock-customizer-execute-code-output-separator-content {
+
+  &::before,
+  &::after {
+    @include mixins.separator-doubleline;
+  }
+}
+
+.codeblock-customizer-execute-code-separator-zigzag .codeblock-customizer-execute-code-output-separator-content {
+
+  &::before,
+  &::after {
+    @include mixins.separator-zigzag;
+  }
 }

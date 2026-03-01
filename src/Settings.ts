@@ -101,6 +101,13 @@ export const HiddenLinesStyle = {
 } as const;
 export type HiddenLinesStyle = (typeof HiddenLinesStyle)[keyof typeof HiddenLinesStyle];
 
+export const ExecuteCodeSeparatorStyle = {
+  Zigzag: 'zigzag',
+  Dashed: 'dashed',
+  DoubleLine: 'double-line',
+} as const;
+export type ExecuteCodeSeparatorStyle = (typeof ExecuteCodeSeparatorStyle)[keyof typeof ExecuteCodeSeparatorStyle];
+
 export const SemiFoldEffect = {
   Opacity: 'opacity',
   Blur: 'blur',
@@ -220,6 +227,7 @@ export interface PluginSettings {
     executeCode: {
       enabled: boolean;
       styleOutput: boolean;
+      executeCodeSeparatorStyle: ExecuteCodeSeparatorStyle;
     }
   },
   enableEditorActiveLineHighlight: boolean;
@@ -347,6 +355,7 @@ const defaultThemeSettings: PluginSettings = {
     executeCode: {
       enabled: true,
       styleOutput: true,
+      executeCodeSeparatorStyle: ExecuteCodeSeparatorStyle.Zigzag,
     }
   },
   enableEditorActiveLineHighlight: true,

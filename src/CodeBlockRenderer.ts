@@ -699,11 +699,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return false;
     }
 
-    // admonitions and execute-code outputs must be excluded
+    // admonitions must be excluded
     const isAdmonition = Array.from(codeEl.classList).some(cls => cls.startsWith('language-ad-'));
-    const isOutput = codeEl.classList.contains('language-output');
+    // const isOutput = codeEl.classList.contains('language-output');
 
-    return !isAdmonition && !isOutput;
+    return !isAdmonition; //  && !isOutput
   }// isValidPdfExportElement
 
   private async processNativePdfBlocks(nativePreElements: HTMLElement[]): Promise<void> {

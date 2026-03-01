@@ -24,6 +24,10 @@ export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPr
       const currentPre = (event.currentTarget as HTMLElement).closest('pre') || targetPreElement;
       const currentParentContainer = currentPre?.parentElement;
 
+      if (currentPre) {
+        delete currentPre.dataset.cbcSeparatorHidden;
+      }
+
       if (currentParentContainer) {
         executeCode(event, currentParentContainer, parameters);
       }
@@ -32,6 +36,11 @@ export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPr
     clearButton.addEventListener("click", (event) => {
       const currentPre = (event.currentTarget as HTMLElement).closest('pre') || targetPreElement;
       const currentParentContainer = currentPre?.parentElement;
+
+      if (currentPre) {
+        currentPre.dataset.cbcSeparatorHidden = 'true';
+        removeOutputSeparator(currentPre);
+      }
 
       if (currentParentContainer) {
         clearOutput(event, currentParentContainer);
@@ -71,7 +80,13 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
     }
 
     const outputElement = preElement.querySelector('code.language-output') as HTMLElement;
-    if (!outputElement) {
+    if (outputElement) {
+      if (preElement.dataset.cbcSeparatorHidden !== 'true') {
+        insertOutputSeparator(preElement);
+      }
+    } else {
+      delete preElement.dataset.cbcSeparatorHidden;
+      removeOutputSeparator(preElement);
       return;
     }
 
@@ -97,6 +112,10 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
 
   executionObserver.observe(preElement, { childList: true, subtree: true, characterData: true });
   plugin.executeCodeObservers.set(preElement, executionObserver);
+
+  if (preElement.querySelector('code.language-output')) {
+    insertOutputSeparator(preElement);
+  }
 
   return executionObserver;
 }// setupExecuteCodeObserver
@@ -189,6 +208,46 @@ export function createExecuteCodeEditButton(): HTMLElement {
   return button;
 }// createExecuteCodeEditButton
 
+const ExecuteCodeSeparatorOutputClass = 'codeblock-customizer-execute-code-output-separator-container';
+
+function ExecuteCodeSeparatorWidget(): HTMLElement {
+  const container = createDiv({ cls: ExecuteCodeSeparatorOutputClass });
+  const content = createSpan({ cls: `codeblock-customizer-execute-code-output-separator-content`, text: 'Execute code output' });
+  
+  container.appendChild(content);
+  
+  return container;
+}// ExecuteCodeSeparatorWidget
+
+function insertOutputSeparator(preElement: HTMLElement) {
+  const sourceCodeEl = preElement.querySelector('code:not(.language-output):not(.codeblock-customizer-hidden-code)') as HTMLElement;
+  if (!sourceCodeEl) {
+    return;
+  }
+
+  if (sourceCodeEl.querySelector(`.${ExecuteCodeSeparatorOutputClass}`)) {
+    return;
+  }
+
+  const wrappers = sourceCodeEl.querySelectorAll('.codeblock-customizer-line-wrapper');
+  const lastWrapper = wrappers[wrappers.length - 1] as HTMLElement;
+  if (!lastWrapper) {
+    return;
+  }
+
+  lastWrapper.classList.add('has-output-separator');
+  lastWrapper.appendChild(ExecuteCodeSeparatorWidget());
+}// insertOutputSeparator
+
+function removeOutputSeparator(preElement: HTMLElement) {
+  const widget = preElement.querySelector(`.${ExecuteCodeSeparatorOutputClass}`);
+  if (widget) {
+    const wrapper = widget.closest('.codeblock-customizer-line-wrapper');
+    wrapper?.classList.remove('has-output-separator');
+    widget.remove();
+  }
+}// removeOutputSeparator
+
 async function processExecuteCodeOutput(outputElement: HTMLElement, observer: MutationObserver, parentContainer: HTMLElement, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin) {
   observer.disconnect();
 
@@ -269,5 +328,10 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
   } finally {
     outputElement.dataset.cbcProcessing = 'false';
     observer.observe(parentContainer, { childList: true, subtree: true, characterData: true });
+
+    // remove the separator when output was cleared
+    if (!parentContainer.contains(outputElement)) {
+      removeOutputSeparator(parentContainer);
+    }
   }
 }// processExecuteCodeOutput

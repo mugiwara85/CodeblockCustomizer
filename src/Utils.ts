@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
-import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -824,6 +824,20 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
     document.body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
     document.body.classList.add('codeblock-customizer-hidden-lines-dashed');
+  }
+
+  if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.Zigzag) {
+    document.body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
+    document.body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
+    document.body.classList.add('codeblock-customizer-execute-code-separator-zigzag');
+  } else if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.DoubleLine) {
+    document.body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
+    document.body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
+    document.body.classList.add('codeblock-customizer-execute-code-separator-doubleline');
+  } else if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.Dashed) {
+    document.body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
+    document.body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
+    document.body.classList.add('codeblock-customizer-execute-code-separator-dashed');
   }
 
 }// updateSettingClasses

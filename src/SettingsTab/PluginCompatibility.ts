@@ -3,6 +3,7 @@ import { Setting } from "obsidian";
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
 import { updateSettingClasses } from "src/Utils";
+import { ExecuteCodeSeparatorStyle } from "src/Settings";
 
 export class PluginCompatibilitySettings {
   admonitionDetailsOpen: boolean = false;
@@ -76,10 +77,27 @@ export class PluginCompatibilitySettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.plugins.executeCode.enabled = value;
           styleOutputSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+          executeCodeSeparatorStyleSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
           await this.plugin.saveSettings();
           this.plugin.renderReadingViews();
         })
       );
+
+    const executeCodeSeparatorStyleSetting = new Setting(executeCodeDetails)
+      .setName('Line number jump separator style')
+      .setDesc('Select the style of the separator line shown when line number jumps are used.')
+      .addDropdown(dropdown => dropdown
+        .addOption(ExecuteCodeSeparatorStyle.Zigzag, 'Zigzag')
+        .addOption(ExecuteCodeSeparatorStyle.Dashed, 'Dashed')
+        .addOption(ExecuteCodeSeparatorStyle.DoubleLine, 'Double Line')
+        .setValue(this.plugin.settings.pluginSettings.plugins.executeCode.executeCodeSeparatorStyle)
+        .onChange(async (value: ExecuteCodeSeparatorStyle) => {
+          this.plugin.settings.pluginSettings.plugins.executeCode.executeCodeSeparatorStyle = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    executeCodeSeparatorStyleSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);
 
     const styleOutputSetting = new Setting(executeCodeDetails)
       .setName('Style Execute Code output')
