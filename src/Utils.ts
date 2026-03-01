@@ -10,7 +10,9 @@ import { CBCParameters } from "./Parsing";
 
 import { toBlob } from 'html-to-image';
 
-export function getCurrentMode() {
+let cachedMode: "light" | "dark" | null = null;
+
+function retrieveCurrentMode(): "light" | "dark" {
   const body = document.querySelector('body');
   if (body !== null) {
     if (body.classList.contains('theme-light')) {
@@ -18,11 +20,20 @@ export function getCurrentMode() {
     } else if (body.classList.contains('theme-dark')) {
       return "dark";
     }
-  } else {
-    //console.log('Error - getCurrentTheme');
   }
   return 'dark'; // fall back to dark
-}// getCurrentTheme
+}// retrieveCurrentMode
+
+export function getCurrentMode(): "light" | "dark" {
+  if (cachedMode === null) {
+    cachedMode = retrieveCurrentMode();
+  }
+  return cachedMode;
+}// getCurrentMode
+
+export function refreshCachedMode(): void {
+  cachedMode = retrieveCurrentMode();
+}// refreshCachedMode
 
 export function getDefaultParameters(): CBCParameters {
   return {

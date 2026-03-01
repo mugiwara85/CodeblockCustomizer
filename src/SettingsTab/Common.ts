@@ -130,7 +130,7 @@ export function updateLanguageSpecificColorContainer(colorContainer: HTMLElement
   colorContainer.empty();
 
   const languageColors = plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
-  const filteredLanguages = language ? { [language]: languageColors[language] } : languageColors;
+  const filteredLanguages = language ? (languageColors[language] ? { [language]: languageColors[language] } : {}) : languageColors;
 
   Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
     const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });

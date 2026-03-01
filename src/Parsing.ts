@@ -188,7 +188,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const outputTextToHighlight = getTextHighlight(parsedParameters, "hlto", textSeparator, lineSeparator);
 
   // highlight with alternative colors (lines, words, lineSpecificWords, from - to)
-  const { alternativeLinesToHighlight, alternativeTextToHighlight } = extractAlternativeHighlights(parsedParameters, textSeparator, lineSeparator, settings);
+  const alternateColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors || {};
+  const { alternativeLinesToHighlight, alternativeTextToHighlight } = extractAlternativeHighlights(parsedParameters, textSeparator, lineSeparator, alternateColors);
 
   // isSpecificNumber and showNumbers
   const { isSpecificNumber, showNumbers, lineNumberOffset, lineNumberJumps } = determineLineNumberDisplay(parsedParameters);
@@ -709,10 +710,7 @@ function getLineSpecificTextBetween(result: TextHighlight, line: string, range: 
   }
 }// getLineSpecificTextBetween
 
-function extractAlternativeHighlights(parsedParameters: ParsedParams, textSeparator: string, lineSeparator: string, settings: CodeblockCustomizerSettings): AlternativeHighlight {
-  const currentMode = getCurrentMode();
-  const alternateColors = settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {};
-
+function extractAlternativeHighlights(parsedParameters: ParsedParams, textSeparator: string, lineSeparator: string, alternateColors: Record<string, string>): AlternativeHighlight {
   const alternativeTextToHighlight: AlternativeTextHighlight = {
     allWordsInLine: [], words: [], lineSpecificWords: [], textBetween: [], lineSpecificTextBetween: [],
     outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: []
@@ -725,6 +723,12 @@ function extractAlternativeHighlights(parsedParameters: ParsedParams, textSepara
   };
 
   for (const [alternateColorName] of Object.entries(alternateColors)) {
+    // skip this color if none of its variants exist in parsedParameters (e.g. no hl, hlt, hlo, hlto)
+    const alternativeColorName = alternateColorName.toLowerCase();
+    if (!(alternativeColorName in parsedParameters) && !(`${alternativeColorName}t` in parsedParameters) && !(`${alternativeColorName}o` in parsedParameters) && !(`${alternativeColorName}to` in parsedParameters)) {
+      continue;
+    }
+
     const lineHighlight = getHighlightedLines(parsedParameters, alternateColorName, textSeparator, lineSeparator);
     const textHighlight = getTextHighlight(parsedParameters, `${alternateColorName}t`, textSeparator, lineSeparator);
 

@@ -696,6 +696,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
       const firstNonWhiteSpaceIndex = caseInsensitiveLineText.match(/\S/)?.index || 0;
       const allMatches: { from: number, to: number }[] = [];
+      let isFiltered = false;
 
       if (start === '' && end === '') {
         const from = line.from + firstNonWhiteSpaceIndex;
@@ -714,6 +715,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
             allMatches.push({ from, to });
           }
         }
+        isFiltered = true;
       } else if (end === '') {
         const startIndices = findAllOccurrences(caseInsensitiveLineText, start);
         for (const startIndex of startIndices) {
@@ -736,7 +738,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
           }
         }
       }
-      const matchesToHighlight = filterOccurrences(allMatches, occurrencesFilter);
+      const matchesToHighlight = isFiltered ? allMatches : filterOccurrences(allMatches, occurrencesFilter);
       matchesToHighlight.forEach(match => {
         decorations.push(Decoration.mark({ class: classToUse }).range(match.from, match.to));
       });

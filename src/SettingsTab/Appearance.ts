@@ -1,7 +1,7 @@
 import { Notice, Setting, TextComponent } from "obsidian";
 
 import { createDetailsGroup, SettingsPage, SettingsPageData, updateLanguageSpecificColorContainer } from "./Common";
-import { getCurrentMode, updateSettingStyles } from "src/Utils";
+import { getCurrentMode } from "src/Utils";
 import { createPickrSetting } from "./ColorUtils";
 import { CollapseIconStyle, HiddenLinesStyle, InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
 import { DEFAULT_COLLAPSE_TEXT } from "src/Const";
@@ -29,7 +29,6 @@ export class AppearanceSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
           editorActiveLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
@@ -60,7 +59,6 @@ export class AppearanceSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.showIndentationLines = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -87,7 +85,6 @@ export class AppearanceSettings {
           this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
           await this.plugin.saveSettings();
           //this.plugin.renderReadingViews();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -103,7 +100,6 @@ export class AppearanceSettings {
           this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle = value;
           await this.plugin.saveSettings();
           //this.plugin.renderReadingViews();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -132,7 +128,6 @@ export class AppearanceSettings {
         .onChange((value) => {
           this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr = value;
           (async () => { await this.plugin.saveSettings() })();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
           highlightActiveLineNrSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
@@ -178,7 +173,6 @@ export class AppearanceSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
           this.plugin.renderReadingViews();
         })
       );
@@ -192,7 +186,6 @@ export class AppearanceSettings {
         .onChange(async (value: "hide" | "middle" | "right") => {
           this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
           collapseIconStyle.settingEl.toggleClass('codeblock-customizer-setting-hidden', value === 'hide');
         })
       );
@@ -399,7 +392,6 @@ export class AppearanceSettings {
         .onChange((value) => {
           this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition = value;
           (async () => { await this.plugin.saveSettings() })();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
     const languageSpecificContainer = langSpecificDetails.createDiv({ cls: "codeblock-customizer-languageSpecificColorContainer" });

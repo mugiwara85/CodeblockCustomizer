@@ -4,7 +4,6 @@ import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
 import { ButtonModifierKeys, FoldingPersistence, FoldingScope, SemiFoldEffect, TabPersistence } from "src/Settings";
 import { createPickrSetting } from "./ColorUtils";
-import { updateSettingStyles } from "src/Utils";
 
 import Pickr from "@simonwep/pickr";
 
@@ -187,7 +186,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.semiFold.enableSemiFold = value;
           await this.plugin.saveSettings(true);
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
           updateFoldingSettingsVisibility();
           semiFoldEffect.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
           this.plugin.renderReadingViews();
@@ -210,7 +208,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.semiFold.showAdditionalUncollapseButon = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -225,7 +222,6 @@ export class BehaviorSettings {
         .onChange(async (value: SemiFoldEffect) => {
           this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
     semiFoldEffect.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.semiFold.enableSemiFold);
@@ -365,7 +361,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.buttons.enableDeleteCodeButton = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -377,7 +372,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.buttons.enableSelectCodeButton = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -389,7 +383,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.buttons.enableWrapCodeButton = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -402,7 +395,6 @@ export class BehaviorSettings {
           this.plugin.settings.pluginSettings.codeblock.buttons.enableSnapshotButton = value;
           snapshotWidthSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -429,7 +421,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowButtons = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 
@@ -441,7 +432,6 @@ export class BehaviorSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.buttons.alwaysShowCopyCodeButton = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 

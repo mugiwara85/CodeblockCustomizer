@@ -2,7 +2,6 @@ import { Notice, Setting } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
-import { updateSettingStyles } from "src/Utils";
 import { ColorTheme, DEFAULT_THEMES } from "src/Settings";
 
 export class GeneralSettings {
@@ -25,7 +24,6 @@ export class GeneralSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.common.enableInSourceMode = value;
           await this.plugin.saveSettings(true);
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
         })
       );
 

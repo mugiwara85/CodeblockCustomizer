@@ -2,7 +2,7 @@ import { Notice, Setting, TextComponent } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, getRandomColor, SettingsPage, SettingsPageData, updateColorContainer } from "./Common";
-import { getCurrentMode, updateSettingStyles } from "src/Utils";
+import { getCurrentMode } from "src/Utils";
 import { createPickrSetting } from "./ColorUtils";
 import { DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "src/Const";
 
@@ -27,7 +27,6 @@ export class HighlightingSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
           activeLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
@@ -54,7 +53,6 @@ export class HighlightingSettings {
             this.plugin.extensions.remove(this.plugin.editorExtensions.customBracketMatching);
           }
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
 
           bracketHighlightColorMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
           bracketHighlightBackgroundColorMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
@@ -80,7 +78,6 @@ export class HighlightingSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.highlightNonMatchingBrackets = value;
           await this.plugin.saveSettings();
-          updateSettingStyles(this.plugin.settings, this.plugin.app);
 
           bracketHighlightColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
           bracketHighlightBackgroundColorNoMatch.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);

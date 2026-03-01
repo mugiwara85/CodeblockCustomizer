@@ -5,7 +5,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode } from "./Utils";
 import { extensions, FoldCommand, FoldingState, resetFoldDecos, updateValue } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
 import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
@@ -237,6 +237,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   }// writePermanentDataFile
 
   handleCssChange(settingsTab: SettingsTab) {
+    refreshCachedMode();
     this.updateTheme(settingsTab);
   }// handleCssChange
 
