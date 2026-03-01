@@ -664,7 +664,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    const allPreElements = this.allPreElements?.filter(this.isValidPdfExportElement) ?? [];
+    const allPreElements = this.allPreElements?.filter(pre => this.isValidPdfExportElement(pre)) ?? [];
     if (allPreElements.length === 0) {
       return;
     }
@@ -699,11 +699,16 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return false;
     }
 
-    // admonitions must be excluded
-    const isAdmonition = Array.from(codeEl.classList).some(cls => cls.startsWith('language-ad-'));
-    // const isOutput = codeEl.classList.contains('language-output');
+    // admonitions must be excluded only when the admonition plugin is installed
+    if (isPluginLoaded('obsidian-admonition', this.plugin)) {
+      const isAdmonition = Array.from(codeEl.classList).some(cls => cls.startsWith('language-ad-'));
+      // const isOutput = codeEl.classList.contains('language-output');
+      if (isAdmonition) {
+        return false;
+      }
+    }
 
-    return !isAdmonition; //  && !isOutput
+    return true; // !isAdmonition// && !isOutput
   }// isValidPdfExportElement
 
   private async processNativePdfBlocks(nativePreElements: HTMLElement[]): Promise<void> {
@@ -806,7 +811,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       const isAdmonitionContainer = section.type === 'code' && language.toLowerCase().startsWith('ad-');
 
       if (isAdmonitionContainer) {
-        return extractCodeBlocksFromAdmonition(blockLines);
+        if (isPluginLoaded('obsidian-admonition', this.plugin)) {
+          return extractCodeBlocksFromAdmonition(blockLines);
+        }
+        return extractCodeBlocksFromSection(blockLines);
       }
 
       return extractCodeBlocksFromSection(blockLines);
