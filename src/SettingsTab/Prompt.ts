@@ -59,6 +59,7 @@ export class PromptSettings {
         button.setIcon('reset');
         button.onClick(async () => {
           this.restorePromptColor(selectedPromptId);
+          this.createPromptSettings(promptEditorContainer, selectedPromptId, this.pickerInstances);
           await this.plugin.saveSettings();
           new Notice(`All settings and colors of prompt "${selectedPromptId}" restored to its original state!`);
         });
@@ -232,84 +233,49 @@ export class PromptSettings {
       .setDesc("Template for the prompt.")
       .addText(text => text
         .setValue(currentPromptData.basePrompt)
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.basePrompt = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'basePrompt', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Default User")
       .addText(text => text
         .setPlaceholder("e.g. root, admin etc.")
         .setValue(currentPromptData.defaultUser ?? "")
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.defaultUser = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'defaultUser', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Default Host")
       .addText(text => text
         .setPlaceholder("e.g. localhost")
         .setValue(currentPromptData.defaultHost ?? "")
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.defaultHost = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'defaultHost', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Default Directory")
       .addText(text => text
         .setPlaceholder("e.g. /var/www/html")
         .setValue(currentPromptData.defaultDir ?? "")
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.defaultDir = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'defaultDir', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Default Database")
       .addText(text => text
         .setPlaceholder("e.g. postgres")
         .setValue(currentPromptData.defaultDb ?? "")
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.defaultDb = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'defaultDb', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Default Branch")
       .addText(text => text
         .setPlaceholder("e.g. main, dev etc.")
         .setValue(currentPromptData.defaultBranch ?? "")
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.defaultBranch = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'defaultBranch', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Default Module")
       .addText(text => text
         .setPlaceholder("e.g. exploit/multi/handler")
         .setValue(currentPromptData.defaultModule ?? "")
-        .onChange(async (value) => {
-          const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
-          currentPromptData.defaultModule = value;
-          await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
-          updatePreview();
-        }));
+        .onChange(this.setField(selectedPromptId, 'defaultModule', updatePreview)));
 
     new Setting(promptSettingsDetails)
       .setName("Highlight Groups")
@@ -610,38 +576,30 @@ export class PromptSettings {
       const basePromptDef = defaultPrompts[selectedPromptId];
       const diff: Partial<PromptDefinition> = {};
 
-      if (promptData.basePrompt !== basePromptDef.basePrompt)
-        diff.basePrompt = promptData.basePrompt;
-      if (promptData.defaultUser !== basePromptDef.defaultUser)
-        diff.defaultUser = promptData.defaultUser;
-      if (promptData.defaultHost !== basePromptDef.defaultHost)
-        diff.defaultHost = promptData.defaultHost;
-      if (promptData.defaultDir !== basePromptDef.defaultDir)
-        diff.defaultDir = promptData.defaultDir;
-      if (promptData.defaultDb !== basePromptDef.defaultDb)
-        diff.defaultDb = promptData.defaultDb;
-      if (promptData.defaultBranch !== basePromptDef.defaultBranch)
-        diff.defaultBranch = promptData.defaultBranch;
-      if (promptData.defaultModule !== basePromptDef.defaultModule)
-        diff.defaultModule = promptData.defaultModule;
-      if (JSON.stringify(promptData.highlightGroups ?? {}) !== JSON.stringify(basePromptDef.highlightGroups ?? {}))
-        diff.highlightGroups = promptData.highlightGroups;
-      //if (promptData.parsePromptRegex?.source !== basePromptDef.parsePromptRegex?.source) 
-      // diff.parsePromptRegex = promptData.parsePromptRegex;
-      if (promptData.parsePromptRegexString !== basePromptDef.parsePromptRegexString)
-        diff.parsePromptRegexString = promptData.parsePromptRegexString;
-      if (promptData.isWindowsShell !== basePromptDef.isWindowsShell)
-        diff.isWindowsShell = promptData.isWindowsShell;
-      if (promptData.supportsRootStyling !== basePromptDef.supportsRootStyling)
-        diff.supportsRootStyling = promptData.supportsRootStyling;
-      if (promptData.autoUsePrompt !== basePromptDef.autoUsePrompt)
-        diff.autoUsePrompt = promptData.autoUsePrompt;
-      if (JSON.stringify(promptData.autoUseLanguages ?? []) !== JSON.stringify(basePromptDef.autoUseLanguages ?? []))
-        diff.autoUseLanguages = promptData.autoUseLanguages;
-      if (promptData.autoParsePrompt !== basePromptDef.autoParsePrompt)
-        diff.autoParsePrompt = promptData.autoParsePrompt;
-      if (JSON.stringify(promptData.autoParseLanguages ?? []) !== JSON.stringify(basePromptDef.autoParseLanguages ?? []))
-        diff.autoParseLanguages = promptData.autoParseLanguages;
+      const copyIfChanged = <K extends keyof PromptDefinition>(key: K) => {
+        if (promptData[key] !== basePromptDef[key]) {
+          diff[key] = promptData[key];
+        }
+      };
+
+      // compare simple fields directly
+      const simpleFields: (keyof PromptDefinition)[] = [
+        'basePrompt', 'defaultUser', 'defaultHost', 'defaultDir', 'defaultDb', 'defaultBranch', 'defaultModule',
+        'parsePromptRegexString', 'isWindowsShell', 'supportsRootStyling', 'autoUsePrompt', 'autoParsePrompt',
+      ];
+      for (const key of simpleFields) {
+        copyIfChanged(key);
+      }
+
+      // compare complex fields with JSON.stringify
+      const copyIfJsonChanged = <K extends keyof PromptDefinition>(key: K, fallback: unknown) => {
+        if (JSON.stringify(promptData[key] ?? fallback) !== JSON.stringify(basePromptDef[key] ?? fallback)) {
+          diff[key] = promptData[key];
+        }
+      };
+      copyIfJsonChanged('highlightGroups', {});
+      copyIfJsonChanged('autoUseLanguages', []);
+      copyIfJsonChanged('autoParseLanguages', []);
 
       this.plugin.settings.pluginSettings.prompts.editedDefaults[selectedPromptId] = diff;
     }
@@ -760,8 +718,6 @@ export class PromptSettings {
     }
 
     delete this.plugin.settings.pluginSettings.prompts.editedDefaults?.[promptId];
-
-    this.display();
   }// restorePromptColor
 
   setPromptColorDiff(promptId: string, className: string, color: string, editingRoot: boolean) {
@@ -810,4 +766,13 @@ export class PromptSettings {
 
     return DEFAULT_PROMPT_COLOR;
   }// getDefaultPromptColor
+
+  private setField(selectedPromptId: string, field: 'basePrompt' | 'defaultUser' | 'defaultHost' | 'defaultDir' | 'defaultDb' | 'defaultBranch' | 'defaultModule', updatePreview: () => void) {
+    return async (value: string) => {
+      const { def, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
+      def[field] = value;
+      await this.savePromptData(isCustom, selectedPromptId, def);
+      updatePreview();
+    };
+  }// setField
 }// PromptSettings
