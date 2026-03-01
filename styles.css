@@ -1056,6 +1056,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   color: var(--gutter-text-color, var(--codeblock-customizer-gutter-text-color));
   font-family: var(--font-monospace);
   font-size: var(--code-size);
+  user-select: none;
 }
 
 .codeblock-customizer-line-separator-content {
@@ -1134,6 +1135,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   font-family: var(--font-monospace);
   font-size: var(--code-size);
   pointer-events: none;
+  user-select: none;
 }
 
 .codeblock-customizer-hidden-line-content {
@@ -1149,6 +1151,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   letter-spacing: 0;
   /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
   transition: color 0.15s ease, letter-spacing 0.15s ease, filter 0.15s ease;
+  user-select: none;
 }
 @media (hover: hover) {
   .codeblock-customizer-hidden-line-content:hover {
