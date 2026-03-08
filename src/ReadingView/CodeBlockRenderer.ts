@@ -1,12 +1,12 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, loadPrism, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
-import CodeBlockCustomizerPlugin from "./main";
-import { CodeblockCustomizerSettings, FoldingScope } from "./Settings";
-import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "./Const";
-import { FoldCommand, FoldingState } from "./EditorView/EditorExtensions";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "../Utils";
+import CodeBlockCustomizerPlugin from "../main";
+import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
+import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "../Const";
+import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses } from "./ReadingViewUtils";
-import { CBCParameters, getAllParameters } from "./Parsing";
+import { CBCParameters, getAllParameters } from "../Parsing";
 
 const DataSource = {
   Dataset: 'dataset',

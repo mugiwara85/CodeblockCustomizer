@@ -2,7 +2,7 @@ import { Notice, setIcon } from "obsidian";
 
 import { CBCParameters } from "./Parsing";
 import CodeBlockCustomizerPlugin from "./main";
-import { renderCodeBlockLines } from "./ReadingViewUtils";
+import { renderCodeBlockLines } from "./ReadingView/ReadingViewUtils";
 
 export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPreElement: HTMLElement | undefined, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin): MutationObserver | null {
   const executeButton = createExecuteCodeRunButton();

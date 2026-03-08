@@ -4,7 +4,7 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import { isPluginLoaded, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors } from "../Utils";
 import { CodeblockCustomizerSettings } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
-import { createButtons, extractLinesFromHTML, renderCodeBlockLines } from "../ReadingViewUtils";
+import { createButtons, extractLinesFromHTML, renderCodeBlockLines } from "../ReadingView/ReadingViewUtils";
 import { createExecuteCodeEditButton, verifyAndRevealExecuteButtons } from "../ExecuteCode";
 import { getAllParameters } from "../Parsing";
 import { CodeBlockPositions } from "./CodeBlockPositions";

@@ -1330,6 +1330,11 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
       '.codeblock-customizer-tab-add'
     ).forEach(el => el.remove());
 
+    // hide per-line scrollbars for unwrapped code blocks
+    elementToSnapshot.querySelectorAll<HTMLElement>('.codeblock-customizer-nowrap').forEach(line => {
+      line.style.overflowX = 'hidden';
+    });
+
     // restore original padding
     if (settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons) {
       elementToSnapshot.querySelectorAll('.codeblock-customizer-header-group-tab')

@@ -29,6 +29,7 @@ export const semiFade = StateEffect.define<Range<Decoration>>();
 export const semiUnFade = StateEffect.define<{ filterFrom: number; filterTo: number }>();
 export const unhideEffect = StateEffect.define<{ from: number; to: number }>();
 export const rehideEffect = StateEffect.define<{ from: number; to: number }>();
+export const wrapEffect = StateEffect.define<{ pos: number; unwrap: boolean }>();
 
 export type CollapseEffect = Range<Decoration>;
 export type UncollapseEffect = { filter: (from: number, to: number) => boolean; filterFrom: number; filterTo: number };

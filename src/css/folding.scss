@@ -265,8 +265,15 @@
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 100%);
 
       .codeblock-customizer-line-number,
-      .codeblock-customizer-line-number-specific {
+      .codeblock-customizer-line-number-specific,
+      .cbc-line-num {
         background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) 100%);
+        box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) !important;
+      }
+
+      .codeblock-customizer-prompt-cmd-output::before {
+        background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) !important;
+        box-shadow: none !important;
       }
 
       .codeblock-customizer-line-separator,
@@ -302,8 +309,15 @@
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 100%);
 
       .codeblock-customizer-line-number,
-      .codeblock-customizer-line-number-specific {
+      .codeblock-customizer-line-number-specific,
+      .cbc-line-num {
         background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) 100%);
+        box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) !important;
+      }
+
+      .codeblock-customizer-prompt-cmd-output::before {
+        background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) !important;
+        box-shadow: none !important;
       }
 
       .codeblock-customizer-line-separator,
@@ -339,8 +353,15 @@
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 100%);
 
       .codeblock-customizer-line-number,
-      .codeblock-customizer-line-number-specific {
+      .codeblock-customizer-line-number-specific,
+      .cbc-line-num {
         background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) 100%);
+        box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) !important;
+      }
+
+      .codeblock-customizer-prompt-cmd-output::before {
+        background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) !important;
+        box-shadow: none !important;
       }
 
       .codeblock-customizer-line-separator,
@@ -376,8 +397,16 @@
       background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 0%, var(--background-primary)) 100%);
 
       .codeblock-customizer-line-number,
-      .codeblock-customizer-line-number-specific {
+      .codeblock-customizer-line-number-specific,
+      .cbc-line-num {
+        z-index: 0;
         background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 0%, var(--background-primary)) 100%);
+        box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 0%, var(--background-primary)) !important;
+      }
+
+      .codeblock-customizer-prompt-cmd-output::before {
+        background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 0%, var(--background-primary)) !important;
+        box-shadow: none !important;
       }
 
       .codeblock-customizer-line-separator,

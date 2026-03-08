@@ -1,10 +1,10 @@
 import { MarkdownPostProcessorContext, loadPrism, MarkdownRenderChild } from "obsidian";
 
-import { getLanguageIcon, getInlineCodeIcon, addTextToClipboard } from "./Utils";
-import CodeBlockCustomizerPlugin from "./main";
-import { INLINE_CODE_LANG_REGEX } from "./Const";
-import { InlineCodeModifierKeys } from "./Settings";
-import { getDisplayLanguageName } from "./Utils";
+import { getLanguageIcon, getInlineCodeIcon, addTextToClipboard } from "../Utils";
+import CodeBlockCustomizerPlugin from "../main";
+import { INLINE_CODE_LANG_REGEX } from "../Const";
+import { InlineCodeModifierKeys } from "../Settings";
+import { getDisplayLanguageName } from "../Utils";
 
 export class InlineCodeRenderer extends MarkdownRenderChild {
   plugin: CodeBlockCustomizerPlugin;

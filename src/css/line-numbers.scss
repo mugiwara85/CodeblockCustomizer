@@ -96,6 +96,21 @@
   flex-shrink: 0;
 }
 
+/* set gutter of separators to sticky for unwrapped code blocks */
+.markdown-rendered {
+  .codeblock-customizer-hidden-line-container {
+    overflow: visible;
+  }
+
+  .codeblock-customizer-hidden-line-gutter,
+  .codeblock-customizer-hidden-line-gutter-specific,
+  .codeblock-customizer-line-separator-gutter {
+    position: sticky;
+    z-index: 2;
+    left: 0;
+  }
+}
+
 /* Active line highlight in gutter */
 .codeblock-customizer-gutter-highlight {
   &.codeblock-customizer-active-line-highlight,

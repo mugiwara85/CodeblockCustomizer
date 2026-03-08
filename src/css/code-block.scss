@@ -74,14 +74,12 @@
   }
 }
 
-/* Source mode text styling */
-.HyperMD-codeblock:has(> .cm-widgetBuffer) {
-  /* Prevent Line Wraps */
+/* Prevent Line Wraps */
+.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap) {
   white-space: nowrap;
 }
 
-.HyperMD-codeblock:has(> .cm-widgetBuffer)>.cm-hmd-codeblock {
-  /* Prevent Line Wraps */
+.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap)>.cm-hmd-codeblock {
   white-space: break-spaces;
 }
 
@@ -100,6 +98,114 @@
       .codeblock-customizer-line-number,
       .codeblock-customizer-line-number-specific {
         border-bottom-left-radius: var(--border-radius);
+      }
+    }
+
+    .codeblock-customizer-prompt-cmd-output {
+      position: absolute;
+      z-index: 10;
+      bottom: 0;
+      display: flex;
+      overflow: hidden;
+      width: 100%;
+      flex-wrap: nowrap;
+      align-items: center;
+    }
+
+    &.has-prompt-output {
+      position: relative;
+      padding-bottom: 1.5em;
+    }
+
+    &.codeblock-customizer-nowrap {
+      padding-left: 0 !important;
+      overflow-wrap: normal !important;
+      overflow-x: auto;
+      overscroll-behavior: contain;
+      white-space: pre !important;
+      word-wrap: normal;
+
+      &.has-prompt-output {
+        padding-bottom: 0;
+      }
+
+      .cbc-line-num {
+        position: sticky;
+        left: 0;
+        margin-right: var(--line-number-gutter-padding);
+        box-shadow: 0 1px 0 0 var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+      }
+
+      &.HyperMD-codeblock-begin {
+        overflow: clip visible;
+        text-indent: var(--cbc-fence-scroll, 0);
+
+        .cbc-line-num {
+          position: relative;
+          left: calc(-1 * var(--cbc-fence-scroll, 0px));
+        }
+      }
+
+      .codeblock-customizer-prompt-cmd-output {
+        position: static !important;
+        display: flex !important;
+        overflow: visible;
+        width: auto !important;
+        min-width: max(100%, var(--cbc-min-scroll-width, 0px)) !important;
+        flex-wrap: nowrap;
+        float: left !important;
+
+        &::before {
+          position: sticky;
+          left: 0;
+          display: inline-block;
+          min-width: var(--line-number-gutter-width, 0);
+          height: 100%;
+          min-height: 1.5em;
+          margin-right: var(--line-number-gutter-padding);
+          background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+          box-shadow: 0 1px 0 0 var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+          color: transparent;
+          content: '\a0';
+        }
+      }
+
+      &::-webkit-scrollbar {
+        display: none;
+        height: 0;
+      }
+
+      &::after {
+        display: block;
+        width: var(--cbc-min-scroll-width, 0);
+        height: 0;
+        content: '';
+      }
+
+      &:has(.cbc-line-num)::after {
+        width: calc(var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + var(--line-number-gutter-padding, 0px));
+      }
+
+      /* Hidden line and separator widgets in unwrapped mode */
+      .codeblock-customizer-hidden-line-container,
+      .codeblock-customizer-line-separator {
+        overflow: visible;
+        width: max(100%, var(--cbc-min-scroll-width, 0px));
+      }
+
+      &:has(.cbc-line-num) {
+        .codeblock-customizer-hidden-line-container,
+        .codeblock-customizer-line-separator {
+          width: max(100%, calc(var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + var(--line-number-gutter-padding, 0px)));
+        }
+      }
+
+      .codeblock-customizer-hidden-line-gutter,
+      .codeblock-customizer-hidden-line-gutter-specific,
+      .codeblock-customizer-line-separator-gutter {
+        position: sticky;
+        z-index: 2;
+        left: 0;
       }
     }
   }
@@ -138,14 +244,13 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 
 /* fence line styling */
 .codeblock-customizer-fence-collapsed {
-  /* font-size: 1px !important; */
-  overflow: hidden;
+  overflow: visible;
   height: 8px;
   min-height: 8px;
   color: transparent !important;
 }
 
-.markdown-source-view {
+/* .markdown-source-view {
   .codeblock-customizer-fence-collapsed+.cm-line .codeblock-customizer-button-container {
     top: 1px;
   }
@@ -154,7 +259,7 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 .codeblock-customizer-header-container-specific+.cm-line.codeblock-customizer-fence-collapsed+.cm-line .codeblock-customizer-button-container,
 .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container+.cm-line.codeblock-customizer-fence-collapsed+.cm-line .codeblock-customizer-button-container {
   display: none;
-}
+} */
 
 .codeblock-customizer pre.codeblock-customizer-pre {
   min-height: unset;
@@ -208,4 +313,58 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 
 .codeblock-customizer-line-wrapper.dummy-wrapper.unhidden-range {
   height: 0;
+}
+
+// line numbers disabled
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) {
+  .markdown-source-view [class*="codeblock-customizer-line"].codeblock-customizer-nowrap {
+    padding-left: var(--line-number-gutter-padding) !important;
+
+    .codeblock-customizer-prompt-cmd-output::before {
+      display: none;
+    }
+
+    &:has(.cbc-line-num) {
+      padding-left: 0 !important;
+
+      .codeblock-customizer-prompt-cmd-output::before {
+        display: inline-block;
+      }
+    }
+  }
+}
+
+/* hide scrollbar when code block is collapsed/semi-collapsed */
+.codeblock-customizer-header-container-specific.collapsed ~ .codeblock-customizer-scrollbar,
+.codeblock-customizer-header-container-specific.semi-collapsed ~ .codeblock-customizer-scrollbar {
+  display: none;
+}
+
+/* codeblock scrollbar */
+.codeblock-customizer-scrollbar-spacer {
+  display: inline-block;
+  height: 1px;
+  visibility: hidden;
+}
+
+.codeblock-customizer-scrollbar {
+  overflow: auto hidden;
+  height: 12px;
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+  cursor: default;
+  overscroll-behavior: contain;
+
+  &::-webkit-scrollbar {
+    display: block;
+    height: 8px;
+
+    &-thumb {
+      border-radius: 4px;
+      background: var(--scrollbar-thumb-bg, rgb(128 128 128 / 40%));
+    }
+
+    &-track {
+      background: transparent;
+    }
+  }
 }

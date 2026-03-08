@@ -1,12 +1,12 @@
 import { MarkdownRenderChild, MarkdownView } from "obsidian";
 
-import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, determineDefaultFoldState, getDisplayLanguageName } from "./Utils";
+import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, determineDefaultFoldState, getDisplayLanguageName } from "../Utils";
 import { createButtons, toggleFold, reassignFadeOutClasses } from "./ReadingViewUtils";
-import { fadeOutLineCount } from "./Const";
-import CodeBlockCustomizerPlugin from "./main";
-import { FoldingState } from "./EditorView/EditorExtensions";
-import { FoldingScope, TabPersistence } from "./Settings";
-import { CBCParameters } from "./Parsing";
+import { fadeOutLineCount } from "../Const";
+import CodeBlockCustomizerPlugin from "../main";
+import { FoldingState } from "../EditorView/EditorEffects";
+import { FoldingScope, TabPersistence } from "../Settings";
+import { CBCParameters } from "../Parsing";
 
 export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private view: MarkdownView;
@@ -44,7 +44,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     if (!this.listenerAbortController) {
       this.listenerAbortController = new AbortController();
     }
-    
+
     return this.listenerAbortController.signal;
   }// getListenerSignal
 

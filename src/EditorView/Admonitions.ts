@@ -6,8 +6,8 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import { isPluginLoaded } from "../Utils";
 import { CodeblockCustomizerSettings } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
-import { extractCodeBlocksFromAdmonition } from "../ReadingViewUtils";
-import { CodeBlockRenderer } from "../CodeBlockRenderer";
+import { extractCodeBlocksFromAdmonition } from "../ReadingView/ReadingViewUtils";
+import { CodeBlockRenderer } from "../ReadingView/CodeBlockRenderer";
 import { CodeBlockPositions } from "./CodeBlockPositions";
 
 export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>) {

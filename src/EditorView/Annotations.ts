@@ -9,7 +9,7 @@ import { TooltipManager } from "../TooltipManager";
 import { CodeblockCustomizerSettings } from "../Settings";
 import { ANNOTATION_PATTERN, rhombusSVG } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
-import { CodeBlockPositions } from "./CodeBlockPositions";
+import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 
 const COMMENT_REGEX = /^\s*(?:\/\/|#|--|\/\*)\s*|\s*\*\/$/g;
 
@@ -42,10 +42,11 @@ export function annotationsExtension(plugin: CodeBlockCustomizerPlugin, settings
     buildDecorations(view: EditorView): DecorationSet {
       const decorations: Array<Range<Decoration>> = [];
       const codeBlockPositions = view.state.field(codeBlockPositionsField, false) ?? [];
+      const visibleBlocks = getVisibleCodeBlocks(codeBlockPositions, view.visibleRanges);
       const cursorPos = view.state.selection.main.head;
       const cursorLineNumber = view.state.doc.lineAt(cursorPos).number;
 
-      for (const pos of codeBlockPositions) {
+      for (const pos of visibleBlocks) {
         syntaxTree(view.state).iterate({
           from: pos.codeBlockStartPos, to: pos.codeBlockEndPos,
           enter: (node) => {

@@ -2,7 +2,7 @@ import { EditorState, Range, RangeSet, StateField } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 
 import { isSourceMode } from "../Utils";
-import { CodeblockCustomizerSettings } from "../Settings";
+import { ButtonModifierKeys, CodeblockCustomizerSettings } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters } from "../Parsing";
 import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
@@ -10,7 +10,7 @@ import { ButtonConfig } from "./Header";
 
 export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>,
   createButtonConfigs: (codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters) => ButtonConfig[],
-  buttonWidget: new (buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions, modifierKey: any) => WidgetType, getUpdateValue: () => (newValue: boolean) => void,
+  buttonWidget: new (buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions, modifierKey: ButtonModifierKeys) => WidgetType, getUpdateValue: () => (newValue: boolean) => void,
   getResetFoldDecos: () => (newValue: boolean) => void, getSettingsUpdated: () => boolean) {
 
   const hideFencesPlugin = ViewPlugin.fromClass(class {
@@ -60,11 +60,12 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
       const visibleBlocks = getVisibleCodeBlocks(positions, view.visibleRanges);
 
       const newBlocks = visibleBlocks.filter(b => !this.lastVisibleBlockStarts.has(b.codeBlockStartPos));
-      this.lastVisibleBlockStarts = new Set(visibleBlocks.map(b => b.codeBlockStartPos));
 
       if (newBlocks.length === 0) {
         return this.decorations;
       }
+
+      newBlocks.forEach(b => this.lastVisibleBlockStarts.add(b.codeBlockStartPos));
 
       const newDecorations = this.buildDecorationsForBlocks(view, newBlocks);
       return this.decorations.update({ add: newDecorations, sort: true });
@@ -116,17 +117,7 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
           }
         }
 
-        let buttonLineStartPos: number;
-        const firstCodeBlockLineNum = view.state.doc.lineAt(codeBlockStartPos).number;
-
-        if (hideFenceLines) {
-          // buttons go in the first line
-          buttonLineStartPos = view.state.doc.line(firstCodeBlockLineNum + 1).from;
-        } else {
-          // buttons go in the opening code block line
-          buttonLineStartPos = view.state.doc.lineAt(codeBlockStartPos).from;
-        }
-
+        const buttonLineStartPos = view.state.doc.lineAt(codeBlockStartPos).from;
         const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
         const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
         decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, pos, modifierKey), side: -1 }).range(buttonLineStartPos));

@@ -1,14 +1,14 @@
 import { setIcon, MarkdownRenderer, Notice } from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences, getCollapseIcons, getVisibleLineCount } from "./Utils";
-import { TooltipManager } from "./TooltipManager";
-import { PromptManager } from "./PromptManager";
-import CodeBlockCustomizerPlugin from "./main";
-import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, LINK_REGEX, fadeOutLineCount, rhombusSVG } from "./Const";
-import { addAndObserveExecuteCodeButtons } from "./ExecuteCode";
-import { PluginSettings, CollapseIconStyle } from "./Settings";
-import { CBCParameters, HighlightedWord } from "./Parsing";
-import { HighlightRules, createHighlightRules } from "./HighlightRules";
+import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, normalizeIndentation, generateSnapshot, filterOccurrences, getCollapseIcons, getVisibleLineCount } from "../Utils";
+import { TooltipManager } from "../TooltipManager";
+import { PromptManager } from "../PromptManager";
+import CodeBlockCustomizerPlugin from "../main";
+import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, LINK_REGEX, fadeOutLineCount, rhombusSVG } from "../Const";
+import { addAndObserveExecuteCodeButtons } from "../ExecuteCode";
+import { PluginSettings, CollapseIconStyle } from "../Settings";
+import { CBCParameters, HighlightedWord } from "../Parsing";
+import { HighlightRules, createHighlightRules } from "../HighlightRules";
 
 interface IndentationInfo {
   indentationLevels: number;

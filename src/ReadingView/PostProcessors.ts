@@ -1,10 +1,10 @@
 import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView } from "obsidian";
 
-import { getFileCacheAndContentLines } from "./Utils";
+import { getFileCacheAndContentLines } from "../Utils";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
-import CodeBlockCustomizerPlugin from "./main";
+import CodeBlockCustomizerPlugin from "../main";
 import { CodeBlockData, extractCodeBlocksFromAdmonition, extractCodeBlocksFromCallout } from "./ReadingViewUtils";
-import { getAllParameters } from "./Parsing";
+import { getAllParameters } from "../Parsing";
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
   // this only handles callouts in editing mode, because in reading mode callouts are styled by default

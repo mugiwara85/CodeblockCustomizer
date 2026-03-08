@@ -10,7 +10,7 @@ import { CBCParameters, getAllParameters } from "../Parsing";
 import { PromptManager } from "../PromptManager";
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons } from "../Utils";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
-import { FoldingState, rehideEffect, CodeBlockFoldEffect } from "./EditorEffects";
+import { FoldingState, rehideEffect, CodeBlockFoldEffect, wrapEffect } from "./EditorEffects";
 import { areGroupMembersEqual, areObjectsEqual } from "./CompareUtils";
 
 export interface ButtonConfig {
@@ -23,8 +23,9 @@ export interface ButtonConfig {
 }
 
 export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>, collapseField: StateField<RangeSet<Decoration>>, activeGroupTabField: StateField<Record<string, number>>,
-  groupedCodeBlocksField: StateField<GroupedCodeBlocks>, hiddenLinesUnhiddenField: StateField<Set<number>>, getFoldingState: (state: EditorState, startPos: number, endPos: number) => FoldingState,
-  toggleCodeBlockFold: (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, addTabs: (view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) => void, getSettingsUpdated: () => boolean) {
+  groupedCodeBlocksField: StateField<GroupedCodeBlocks>, hiddenLinesUnhiddenField: StateField<Set<number>>, unwrappedCodeBlocksField: StateField<Set<number>>, getFoldingState: (state: EditorState, startPos: number, endPos: number) => FoldingState,
+  toggleCodeBlockFold: (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, addTabs: (view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) => void, getSettingsUpdated: () => boolean,
+  getHiddenRanges: (state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number) => { startLine: number, endLine: number, lineCount: number, from: number, to: number }[]) {
 
   const headerField = StateField.define<DecorationSet>({
     create(state: EditorState): DecorationSet {
@@ -201,11 +202,6 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
 
       return container;
     }
-
-    updateDOM(dom: HTMLElement, view: EditorView) {
-      view.requestMeasure();
-      return false;
-    }
   }// HeaderWidget
 
   class buttonWidget extends WidgetType {
@@ -304,7 +300,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
     return RangeSet.of(decorations, true);
   }// insertHeader
 
-  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters) {
+  function createButtonConfigs(codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters): ButtonConfig[] {
     const cursorPos = state.selection.main.head;
     const isCursorInCodeBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
 
@@ -425,6 +421,19 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
         enabled: parameters.hideLines.length > 0 && [...state.field(hiddenLinesUnhiddenField, false) || []].some(pos => pos >= codeBlockStartPos && pos <= codeBlockEndPos) && showButton
       },
       {
+        class: `codeblock-customizer-wrap-code`,
+        displayText: "Wrap/Unwrap code",
+        action: (view: EditorView) => {
+          const unwrapped = view.state.field(unwrappedCodeBlocksField, false);
+          const isUnwrapped = unwrapped ? unwrapped.has(codeBlockStartPos) : false;
+
+          view.dispatch({ effects: wrapEffect.of({ pos: codeBlockStartPos, unwrap: !isUnwrapped }) });
+          new Notice(isUnwrapped ? "Code wrapped" : "Code unwrapped");
+        },
+        icon: "wrap-text",
+        enabled: settings.pluginSettings.codeblock.buttons.enableWrapCodeButton && showButton
+      },
+      {
         class: `codeblock-customizer-delete-code`,
         displayText: "Delete code block content",
         action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
@@ -484,8 +493,14 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
           currentEl = nextEl;
         }
       } else {
+        const firstLine = view.state.doc.lineAt(codeBlockStartPos).text;
+        const parameters = getAllParameters(firstLine, plugin.settings, false);
+        const hiddenRanges = getHiddenRanges(state, parameters, codeBlockStartPos, codeBlockEndPos);
+        const hiddenLineCount = hiddenRanges.reduce((sum, r) => sum + r.lineCount, 0);
+
         const lineCount = state.doc.lineAt(codeBlockEndPos).number - state.doc.lineAt(codeBlockStartPos).number + 1;
-        const loopIterations = headerEl ? lineCount : lineCount - 1;
+        const visibleLines = lineCount - hiddenLineCount;
+        const loopIterations = (headerEl ? visibleLines : visibleLines - 1) + hiddenRanges.length;
 
         for (let i = 0; i < loopIterations; i++) {
           currentEl = currentEl.nextElementSibling;

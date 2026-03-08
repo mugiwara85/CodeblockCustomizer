@@ -48,6 +48,7 @@ pre.codeblock-customizer-pre {
   .codeblock-customizer-execute-code-output {
     // border-top: 2px solid var(--header-line-color, var(--codeblock-customizer-header-line-color));
     padding-top: 0 !important;
+
     hr {
       // hide the hr element
       display: none;
@@ -147,6 +148,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
   overflow: hidden;
   width: 100%;
   height: 1.5em;
+  flex-wrap: nowrap;
   align-items: center;
   background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
 }
@@ -180,7 +182,6 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
 }
 
 .codeblock-customizer-execute-code-separator-dashed .codeblock-customizer-execute-code-output-separator-content {
-
   &::before,
   &::after {
     @include mixins.separator-dashed;
@@ -188,7 +189,6 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
 }
 
 .codeblock-customizer-execute-code-separator-doubleline .codeblock-customizer-execute-code-output-separator-content {
-
   &::before,
   &::after {
     @include mixins.separator-doubleline;
@@ -196,7 +196,6 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
 }
 
 .codeblock-customizer-execute-code-separator-zigzag .codeblock-customizer-execute-code-output-separator-content {
-
   &::before,
   &::after {
     @include mixins.separator-zigzag;

@@ -560,8 +560,14 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-number-specific,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .cbc-line-num {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 100%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) 100%);
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) !important;
+}
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-prompt-cmd-output::before {
+  background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) !important;
+  box-shadow: none !important;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line0 .codeblock-customizer-line-separator-gutter,
@@ -592,8 +598,14 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-number-specific,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .cbc-line-num {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 75%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) 100%);
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) !important;
+}
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-prompt-cmd-output::before {
+  background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) !important;
+  box-shadow: none !important;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line1 .codeblock-customizer-line-separator-gutter,
@@ -624,8 +636,14 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-number-specific,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .cbc-line-num {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 50%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) 100%);
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) !important;
+}
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-prompt-cmd-output::before {
+  background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) !important;
+  box-shadow: none !important;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line2 .codeblock-customizer-line-separator-gutter,
@@ -656,8 +674,15 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   background: linear-gradient(to bottom, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color)) 0%, var(--background-primary)) 100%);
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number,
-.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific {
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-number-specific,
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .cbc-line-num {
+  z-index: 0;
   background: linear-gradient(to bottom, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 25%, var(--background-primary)) 0%, color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 0%, var(--background-primary)) 100%);
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 0%, var(--background-primary)) !important;
+}
+.codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-prompt-cmd-output::before {
+  background: color-mix(in srgb, var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color)) 0%, var(--background-primary)) !important;
+  box-shadow: none !important;
 }
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator,
 .codeblock-customizer-use-semifold .markdown-source-view .HyperMD-codeblock-bg.codeblock-customizer-fade-out-line3 .codeblock-customizer-line-separator-gutter,
@@ -935,6 +960,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   overflow: hidden;
   width: 100%;
   height: 1.5em;
+  flex-wrap: nowrap;
   align-items: center;
   background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
 }
@@ -1054,6 +1080,18 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .markdown-rendered .codeblock-customizer-line-number-specific {
   flex-grow: 1;
   flex-shrink: 0;
+}
+
+/* set gutter of separators to sticky for unwrapped code blocks */
+.markdown-rendered .codeblock-customizer-hidden-line-container {
+  overflow: visible;
+}
+.markdown-rendered .codeblock-customizer-hidden-line-gutter,
+.markdown-rendered .codeblock-customizer-hidden-line-gutter-specific,
+.markdown-rendered .codeblock-customizer-line-separator-gutter {
+  position: sticky;
+  z-index: 2;
+  left: 0;
 }
 
 /* Active line highlight in gutter */
@@ -1319,14 +1357,12 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   overflow-y: hidden;
 }
 
-/* Source mode text styling */
-.HyperMD-codeblock:has(> .cm-widgetBuffer) {
-  /* Prevent Line Wraps */
+/* Prevent Line Wraps */
+.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap) {
   white-space: nowrap;
 }
 
-.HyperMD-codeblock:has(> .cm-widgetBuffer) > .cm-hmd-codeblock {
-  /* Prevent Line Wraps */
+.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap) > .cm-hmd-codeblock {
   white-space: break-spaces;
 }
 
@@ -1342,6 +1378,99 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].HyperMD-codeblock-end .codeblock-customizer-line-number,
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].HyperMD-codeblock-end .codeblock-customizer-line-number-specific {
   border-bottom-left-radius: var(--border-radius);
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line] .codeblock-customizer-prompt-cmd-output {
+  position: absolute;
+  z-index: 10;
+  bottom: 0;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].has-prompt-output {
+  position: relative;
+  padding-bottom: 1.5em;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap {
+  padding-left: 0 !important;
+  overflow-wrap: normal !important;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  white-space: pre !important;
+  word-wrap: normal;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap.has-prompt-output {
+  padding-bottom: 0;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .cbc-line-num {
+  position: sticky;
+  left: 0;
+  margin-right: var(--line-number-gutter-padding);
+  box-shadow: 0 1px 0 0 var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap.HyperMD-codeblock-begin {
+  overflow: clip visible;
+  text-indent: var(--cbc-fence-scroll, 0);
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap.HyperMD-codeblock-begin .cbc-line-num {
+  position: relative;
+  left: calc(-1 * var(--cbc-fence-scroll, 0px));
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-prompt-cmd-output {
+  position: static !important;
+  display: flex !important;
+  overflow: visible;
+  width: auto !important;
+  min-width: max(100%, var(--cbc-min-scroll-width, 0px)) !important;
+  flex-wrap: nowrap;
+  float: left !important;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-prompt-cmd-output::before {
+  position: sticky;
+  left: 0;
+  display: inline-block;
+  min-width: var(--line-number-gutter-width, 0);
+  height: 100%;
+  min-height: 1.5em;
+  margin-right: var(--line-number-gutter-padding);
+  background-color: var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+  box-shadow: 0 1px 0 0 var(--gutter-background-color, var(--codeblock-customizer-gutter-background-color));
+  color: transparent;
+  content: " ";
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap::after {
+  display: block;
+  width: var(--cbc-min-scroll-width, 0);
+  height: 0;
+  content: "";
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap:has(.cbc-line-num)::after {
+  width: calc(var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + var(--line-number-gutter-padding, 0px));
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap {
+  /* Hidden line and separator widgets in unwrapped mode */
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-hidden-line-container,
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-line-separator {
+  overflow: visible;
+  width: max(100%, var(--cbc-min-scroll-width, 0px));
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap:has(.cbc-line-num) .codeblock-customizer-hidden-line-container,
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap:has(.cbc-line-num) .codeblock-customizer-line-separator {
+  width: max(100%, var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + var(--line-number-gutter-padding, 0px));
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-hidden-line-gutter,
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-hidden-line-gutter-specific,
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-line-separator-gutter {
+  position: sticky;
+  z-index: 2;
+  left: 0;
 }
 
 body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langnames-always) .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin,
@@ -1380,22 +1509,22 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 
 /* fence line styling */
 .codeblock-customizer-fence-collapsed {
-  /* font-size: 1px !important; */
-  overflow: hidden;
+  overflow: visible;
   height: 8px;
   min-height: 8px;
   color: transparent !important;
 }
 
-.markdown-source-view .codeblock-customizer-fence-collapsed + .cm-line .codeblock-customizer-button-container {
-  top: 1px;
+/* .markdown-source-view {
+  .codeblock-customizer-fence-collapsed+.cm-line .codeblock-customizer-button-container {
+    top: 1px;
+  }
 }
 
-.codeblock-customizer-header-container-specific + .cm-line.codeblock-customizer-fence-collapsed + .cm-line .codeblock-customizer-button-container,
-.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container + .cm-line.codeblock-customizer-fence-collapsed + .cm-line .codeblock-customizer-button-container {
+.codeblock-customizer-header-container-specific+.cm-line.codeblock-customizer-fence-collapsed+.cm-line .codeblock-customizer-button-container,
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container+.cm-line.codeblock-customizer-fence-collapsed+.cm-line .codeblock-customizer-button-container {
   display: none;
-}
-
+} */
 .codeblock-customizer pre.codeblock-customizer-pre {
   min-height: unset;
   padding: 0 !important;
@@ -1448,6 +1577,51 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 
 .codeblock-customizer-line-wrapper.dummy-wrapper.unhidden-range {
   height: 0;
+}
+
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap {
+  padding-left: var(--line-number-gutter-padding) !important;
+}
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-prompt-cmd-output::before {
+  display: none;
+}
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap:has(.cbc-line-num) {
+  padding-left: 0 !important;
+}
+.codeblock-customizer:not(.codeblock-customizer-show-line-numbers) .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap:has(.cbc-line-num) .codeblock-customizer-prompt-cmd-output::before {
+  display: inline-block;
+}
+
+/* hide scrollbar when code block is collapsed/semi-collapsed */
+.codeblock-customizer-header-container-specific.collapsed ~ .codeblock-customizer-scrollbar,
+.codeblock-customizer-header-container-specific.semi-collapsed ~ .codeblock-customizer-scrollbar {
+  display: none;
+}
+
+/* codeblock scrollbar */
+.codeblock-customizer-scrollbar-spacer {
+  display: inline-block;
+  height: 1px;
+  visibility: hidden;
+}
+
+.codeblock-customizer-scrollbar {
+  overflow: auto hidden;
+  height: 12px;
+  background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
+  cursor: default;
+  overscroll-behavior: contain;
+}
+.codeblock-customizer-scrollbar::-webkit-scrollbar {
+  display: block;
+  height: 8px;
+}
+.codeblock-customizer-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--scrollbar-thumb-bg, rgba(128, 128, 128, 0.4));
+}
+.codeblock-customizer-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Inline code editor */
@@ -1591,6 +1765,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 }
 .markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+.markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 .markdown-source-view .codeblock-customizer-header-container-specific.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
   display: none;
 }
@@ -1599,6 +1775,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
   flex-wrap: nowrap;
 }
 .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+.markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
@@ -1781,6 +1959,41 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
     background-color: rgb(var(--mono-rgb-100), 0.075);
   }
 }
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code {
+  position: relative;
+  display: inline-flex;
+  height: auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  vertical-align: middle;
+}
+@media (hover: hover) {
+  .markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-wrap-code:hover,
+  .markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code:hover {
+    cursor: var(--cursor);
+  }
+}
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-wrap-code:disabled,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  pointer-events: none;
+}
+.markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
+.markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code {
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+}
+@media (hover: hover) {
+  .markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-wrap-code:hover,
+  .markdown-source-view .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code:hover {
+    background-color: rgb(var(--mono-rgb-100), 0.075);
+  }
+}
 
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container, .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container {
   display: none;
@@ -1791,6 +2004,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 }
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
   display: none;
 }
@@ -1799,6 +2014,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
   flex-wrap: nowrap;
 }
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
@@ -1810,6 +2027,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 }
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
   display: none;
 }
@@ -1818,6 +2037,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
   flex-wrap: nowrap;
 }
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+.codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 .codeblock-customizer-always-show-copy-code-button .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
@@ -1828,6 +2049,8 @@ body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-hea
 }
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code,
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.collapsed .codeblock-customizer-header-button-container .codeblock-customizer-snapshot-button {
   display: none;
 }
@@ -1836,6 +2059,8 @@ body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-hea
   flex-wrap: nowrap;
 }
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-select-code,
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-wrap-code,
+body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-rehide-lines,
 body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container.semi-collapsed .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
@@ -1879,8 +2104,11 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
 }
 
 .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
+.markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container .codeblock-customizer-rehide-lines,
 .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
-.markdown-rendered .codeblock-customizer-header-group-container.collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code {
+.markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .codeblock-customizer-button-container .codeblock-customizer-rehide-lines,
+.markdown-rendered .codeblock-customizer-header-group-container.collapsed .codeblock-customizer-button-container .codeblock-customizer-wrap-code,
+.markdown-rendered .codeblock-customizer-header-group-container.collapsed .codeblock-customizer-button-container .codeblock-customizer-rehide-lines {
   display: none;
 }
 .markdown-rendered .codeblock-customizer-pre.codeblock-customizer-codeblock-collapsed .codeblock-customizer-button-container .codeblock-customizer-snapshot-button,

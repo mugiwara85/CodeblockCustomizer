@@ -6,15 +6,16 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode } from "./Utils";
-import { extensions, FoldCommand, FoldingState, resetFoldDecos, updateValue } from "./EditorView/EditorExtensions";
+import { extensions, resetFoldDecos, updateValue } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
-import { GroupedCodeBlockRenderChild } from "./GroupedCodeBlockRenderer";
+import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
-import { CodeBlockRenderer } from "./CodeBlockRenderer";
-import { InlineCodeRenderer } from "./InlineCodeRenderer";
-import { admonitionPostProcessor, calloutPostProcessor } from "./PostProcessors";
+import { CodeBlockRenderer } from "./ReadingView/CodeBlockRenderer";
+import { InlineCodeRenderer } from "./ReadingView/InlineCodeRenderer";
+import { admonitionPostProcessor, calloutPostProcessor } from "./ReadingView/PostProcessors";
 import { CBCParameters } from "./Parsing";
 import { StateStore } from "./StateStore";
+import { FoldCommand, FoldingState } from "./EditorView/EditorEffects";
 
 import merge from 'lodash/merge'
 import difference from 'lodash/difference'
@@ -558,7 +559,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     markdownView.containerEl.classList[action]('codeblock-customizer-header-collapse-command');
     const mode = markdownView.getMode();
     if (mode === 'source') {
-    // @ts-ignore
+      // @ts-ignore
       func(markdownView.editor.cm);
     } else if (mode === 'preview') {
       this.foldCommandTrigger = foldCommand;

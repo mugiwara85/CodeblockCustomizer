@@ -189,7 +189,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       const unhiddenChanged = update.startState.field(hiddenLinesUnhiddenField, false) !== update.state.field(hiddenLinesUnhiddenField, false);
       const codeBlocksChanged = update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField)
 
-      // full rebuild only when document changed, codeblocks changed, settings were modified, or ranges were unhidde
+      // full rebuild only when document changed, codeblocks changed, settings were modified, or ranges were unhidden
       if (update.docChanged || codeBlocksChanged || getSettingsUpdated() || unhiddenChanged) {
         this.decorations = this.buildDecorations(update.view);
         return;
@@ -209,11 +209,12 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       const visibleBlocks = getVisibleCodeBlocks(positions, view.visibleRanges);
 
       const newBlocks = visibleBlocks.filter(b => !this.lastVisibleBlockStarts.has(b.codeBlockStartPos));
-      this.lastVisibleBlockStarts = new Set(visibleBlocks.map(b => b.codeBlockStartPos));
 
       if (newBlocks.length === 0) {
         return this.decorations;
       }
+
+      newBlocks.forEach(b => this.lastVisibleBlockStarts.add(b.codeBlockStartPos));
 
       const newDecorations = this.buildDecorationsForBlocks(view, newBlocks);
       return this.decorations.update({ add: newDecorations, sort: true });
@@ -331,6 +332,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
               }
 
               if (promptRenderResult.output.length > 0) {
+                decorations.push(Decoration.line({ attributes: { class: `has-prompt-output` } }).range(lineStartPos));
                 for (const out of promptRenderResult.output) {
                   decorations.push(Decoration.widget({ widget: new LineWidget(out.text, out.className), side: 1 }).range(currentLine.to));
                 }
@@ -410,12 +412,6 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
       return container;
     }
-
-    updateDOM(dom: HTMLElement, view: EditorView) {
-      view.requestMeasure();
-      return false;
-    }
-
   }// LineNumberWidget
 
   class NodeWidget extends WidgetType {
@@ -447,7 +443,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     }
 
     toDOM(view: EditorView): HTMLElement {
-      const span = createSpan({ cls: `${this.className}`, text: `\n${this.output}` });
+      const span = createSpan({ cls: `${this.className}`, text: this.output });
       return span
     }
   }// LineWidget

@@ -376,7 +376,7 @@ export class BehaviorSettings {
       );
 
     new Setting(buttonsDetails)
-      .setName('Show \'Wrap Code\' button (only reading view)')
+      .setName('Show \'Wrap Code\' button')
       .setDesc('If enabled, an additional button will be displayed on every code block. If clicked, the content of that code block is wrapped/unwrapped.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.codeblock.buttons.enableWrapCodeButton)
