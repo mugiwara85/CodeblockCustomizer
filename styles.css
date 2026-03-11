@@ -2689,6 +2689,10 @@ pre.codeblock-customizer-pre .cbc-line-num {
   background-color: var(--codeblock-bracket-highlight-background-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-nomatch));
   color: var(--codeblock-bracket-highlight-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-color-nomatch));
 }
+.markdown-source-view [class*=codeblock-customizer-line].cbc-prism .codeblock-customizer-bracket-highlight-match [class*=token],
+.markdown-source-view [class*=codeblock-customizer-line].cbc-prism .codeblock-customizer-bracket-highlight-nomatch [class*=token] {
+  color: inherit !important;
+}
 .markdown-source-view .codeblock-customizer-bracket-highlight-match:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-match), .markdown-source-view .codeblock-customizer-bracket-highlight-match:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-nomatch),
 .markdown-source-view .codeblock-customizer-bracket-highlight-nomatch:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-match),
 .markdown-source-view .codeblock-customizer-bracket-highlight-nomatch:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-nomatch) {
@@ -2737,6 +2741,16 @@ pre.codeblock-customizer-pre .cbc-line-num {
 }
 .markdown-source-view .cm-hmd-frontmatter.cm-bracket, .markdown-source-view .cm-hmd-frontmatter.cm-hr .markdown-source-view .cm-hmd-frontmatter.cm-punctuation {
   color: var(--code-punctuation);
+}
+
+/* undo CodeMirrors color assignment */
+.markdown-source-view .cbc-prism [class*=cm-] {
+  color: inherit !important;
+}
+
+/* undo CodeMirrors color assignment for inline code */
+.markdown-source-view .cbc-prism-inline [class*=cm-] {
+  color: inherit !important;
 }
 
 /* @use '../../node_modules/@simonwep/pickr/src/scss/themes/nano'; */

@@ -1,0 +1,13 @@
+/* undo CodeMirrors color assignment */
+.markdown-source-view .cbc-prism {
+  [class*="cm-"] {
+    color: inherit !important;
+  }
+}
+
+/* undo CodeMirrors color assignment for inline code */
+.markdown-source-view .cbc-prism-inline {
+  [class*="cm-"] {
+    color: inherit !important;
+  }
+}

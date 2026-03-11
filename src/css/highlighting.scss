@@ -30,6 +30,15 @@
       background-color: var(--codeblock-bracket-highlight-background-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-background-color-nomatch));
       color: var(--codeblock-bracket-highlight-color-nomatch, var(--codeblock-customizer-codeblock-bracket-highlight-color-nomatch));
     }
+
+    &.cbc-prism {
+      .codeblock-customizer-bracket-highlight-match,
+      .codeblock-customizer-bracket-highlight-nomatch {
+        [class*="token"] {
+          color: inherit !important;
+        }
+      }
+    }
   }
 
   .codeblock-customizer-bracket-highlight-match,

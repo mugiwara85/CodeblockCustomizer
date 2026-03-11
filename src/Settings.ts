@@ -135,6 +135,7 @@ export interface PluginSettings {
     enableBracketHighlight: boolean;
     highlightNonMatchingBrackets: boolean;
     enableSelectionMatching: boolean;
+    usePrismHighlight: boolean;
     unwrapcode: boolean;
     hideFenceLines: boolean;
     lineNumberSeparatorStyle: LineNumberSeparatorStyle;
@@ -264,6 +265,7 @@ const defaultThemeSettings: PluginSettings = {
     enableBracketHighlight: true,
     highlightNonMatchingBrackets: true,
     enableSelectionMatching: true,
+    usePrismHighlight: false,
     unwrapcode: false,
     hideFenceLines: false,
     lineNumberSeparatorStyle: LineNumberSeparatorStyle.Dashed,

@@ -6,6 +6,7 @@ import { getLanguageIcon, isSourceMode, addTextToClipboard, getInlineCodeIcon, g
 import { CodeblockCustomizerSettings, InlineCodeModifierKeys } from "../Settings";
 import { INLINE_CODE_LANG_REGEX } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
+import { getPrismInstance, getTokenRangesFromPrismHighlighedtHTML } from "./PrismHighlight";
 
 export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const inlineCodeViewPlugin = ViewPlugin.fromClass(class {
@@ -72,16 +73,30 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
               }
             }
 
-            const tokens = getCM5Tokens(code, langName);
-            let currentPos = codeStartPos;
-            for (const token of tokens) {
-              if (token.style) {
-                const classes = token.style.split(' ').map(s => `cm-${s}`).join(' ');
-                if (token.text.length > 0) {
-                  decorations.push(Decoration.mark({ class: classes }).range(currentPos, currentPos + token.text.length));
+            const prism = settings.pluginSettings.codeblock.usePrismHighlight ? getPrismInstance() : null;
+            const tokenRanges = prism ? getTokenRangesFromPrismHighlighedtHTML(code, langName) : null;
+            if (tokenRanges) {
+              decorations.push(Decoration.mark({ class: "cbc-prism-inline" }).range(node.from, node.to));
+              
+              for (const range of tokenRanges) {
+                const from = codeStartPos + range.from;
+                const to = codeStartPos + range.to;
+                if (from < to && to <= node.to) {
+                  decorations.push(Decoration.mark({ class: range.classes }).range(from, to));
                 }
               }
-              currentPos += token.text.length;
+            } else {
+              const tokens = getCM5Tokens(code, langName);
+              let currentPos = codeStartPos;
+              for (const token of tokens) {
+                if (token.style) {
+                  const classes = token.style.split(' ').map(s => `cm-${s}`).join(' ');
+                  if (token.text.length > 0) {
+                    decorations.push(Decoration.mark({ class: classes }).range(currentPos, currentPos + token.text.length));
+                  }
+                }
+                currentPos += token.text.length;
+              }
             }
           },
         });
