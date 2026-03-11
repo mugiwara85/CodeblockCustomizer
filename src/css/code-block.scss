@@ -5,8 +5,7 @@
       border-top-left-radius: 0;
     }
 
-    .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first,
-    .markdown-rendered pre.codeblock-customizer-pre.displayedInGroup {
+    .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first {
       border-top-left-radius: 0 !important;
     }
 
@@ -28,8 +27,7 @@
       border-top-right-radius: 0;
     }
 
-    .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first,
-    .markdown-rendered pre.codeblock-customizer-pre.displayedInGroup {
+    .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first {
       border-top-right-radius: 0 !important;
     }
 
@@ -45,6 +43,11 @@
       border-right: 5px solid var(--codeblock-bordercolor);
     }
   }
+}
+
+.markdown-rendered pre.codeblock-customizer-pre.displayedInGroup {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 
 /* Pre element styling */

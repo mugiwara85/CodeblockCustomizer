@@ -6,7 +6,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode } from "./Utils";
-import { extensions, resetFoldDecos, updateValue } from "./EditorView/EditorExtensions";
+import { extensions } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
 import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRenderer";
 import { fadeOutLineCount } from "./Const";
@@ -30,6 +30,8 @@ interface codeBlock {
 
 export default class CodeBlockCustomizerPlugin extends Plugin {
   settings: CodeblockCustomizerSettings;
+  settingsUpdated = false;
+  resetFoldDecorations = false;
   extensions: Extension[];
   theme: string;
   editorExtensions: {
@@ -518,12 +520,16 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
 
     await this.saveData(clonedSettings);
-    updateValue(true); // re-render decorations, re-scan codeblocks
+    this.settingsUpdated = true;  // re-render decorations, re-scan codeblocks
     if (resetFoldDecorations) {
-      resetFoldDecos(true); // reset fold decorations to their initial state
+      this.resetFoldDecorations = true;  // reset fold decorations to their initial state
     }
 
     this.app.workspace.updateOptions();
+    requestAnimationFrame(() => {
+      this.settingsUpdated = false;
+      this.resetFoldDecorations = false;
+    });
     updateSettingStyles(this.settings, this.app);
 
     if (this.settings.pluginSettings.codeblock.folding.persistence === FoldingPersistence.Permanent) {

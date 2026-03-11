@@ -20,7 +20,7 @@ export interface ReplaceFadeOutRanges {
 }
 
 export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>, hiddenLinesUnhiddenField: StateField<Set<number>>,
-  getHiddenLines: (state: EditorState, block: CodeBlockPositions, unhiddenPositions: Set<number>) => Set<number>, getGroupedCodeBlocksField: () => StateField<GroupedCodeBlocks>, getResetFoldDecorations: () => boolean) {
+  getHiddenLines: (state: EditorState, block: CodeBlockPositions, unhiddenPositions: Set<number>) => Set<number>, getGroupedCodeBlocksField: () => StateField<GroupedCodeBlocks>) {
 
   class uncollapseCodeWidget extends WidgetType {
     pos: CodeBlockPositions;
@@ -265,8 +265,8 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
       const globalFoldCmd = tr.state.field(foldCommandField, false) ?? FoldCommand.Default;
       const globalFoldCmdChanged = tr.startState.field(foldCommandField, false) !== globalFoldCmd;
 
-      if ((newCodeBlockPositions !== oldCodeBlockPositions && !compareCodeBlockPositions(oldCodeBlockPositions, newCodeBlockPositions)) || newFoldState !== oldFoldState || getResetFoldDecorations() || globalFoldCmdChanged || tr.reconfigured) {
-        if (getResetFoldDecorations() || globalFoldCmdChanged) {
+      if ((newCodeBlockPositions !== oldCodeBlockPositions && !compareCodeBlockPositions(oldCodeBlockPositions, newCodeBlockPositions)) || newFoldState !== oldFoldState || plugin.resetFoldDecorations || globalFoldCmdChanged || tr.reconfigured) {
+        if (plugin.resetFoldDecorations || globalFoldCmdChanged) {
           value = Decoration.none;  // remove fold e.g. when inversefold is disabled
         }
 

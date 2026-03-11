@@ -2,6 +2,7 @@ import { StateField, EditorState, Transaction, Line } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 
 import { CodeblockCustomizerSettings } from "../Settings";
+import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters, getAllParameters } from "../Parsing";
 import { isSourceMode, getDefaultParameters } from "../Utils";
 
@@ -18,7 +19,7 @@ export type GroupedCodeBlocks = {
   [groupName: string]: CodeBlockPositions[];
 };
 
-export function createCodeBlockPositionsField(settings: CodeblockCustomizerSettings, getSettingsUpdated: () => boolean) {
+export function createCodeBlockPositionsField(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   return StateField.define<CodeBlockPositions[]>({
     create(state: EditorState): CodeBlockPositions[] {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
@@ -31,7 +32,7 @@ export function createCodeBlockPositionsField(settings: CodeblockCustomizerSetti
         return [];
       }
 
-      if (getSettingsUpdated()) {
+      if (plugin.settingsUpdated) {
         return findCodeBlockPositions(transaction.state, settings);
       }
 

@@ -19,27 +19,18 @@ import { executeCodeExtension } from "./ExecuteCodePlugin";
 import { admonitionExtension } from "./Admonitions";
 import { wrapExtension } from "./Wrapping";
 
-let settingsUpdated = false;
-export function updateValue(newValue: boolean) {
-  settingsUpdated = newValue;
-}// updateValue
-
-let resetFoldDecorations = false;
-export function resetFoldDecos(newValue: boolean) {
-  resetFoldDecorations = newValue;
-}// resetFoldDecos
 
 export function extensions(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
-  const codeBlockPositionsField = createCodeBlockPositionsField(settings, () => settingsUpdated);
+  const codeBlockPositionsField = createCodeBlockPositionsField(plugin, settings);
   const { hiddenLinesUnhiddenField, hiddenLinesField, getHiddenRanges, getHiddenLines } = hideLinesExtension(settings, codeBlockPositionsField);
   const { wrappingField, unwrappedCodeBlocksField, scrollSyncPlugin } = wrapExtension(codeBlockPositionsField, settings);
   const {
     collapseField, foldCommandField, rememberedFoldField, defaultFoldUnfoldedField, toggleCodeBlockFold, getFoldingState, foldAll, unfoldAll, restoreDefaultFold
-  } = foldingExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, getHiddenLines, () => groupedCodeBlocksField, () => resetFoldDecorations);
+  } = foldingExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, getHiddenLines, () => groupedCodeBlocksField);
   const { groupedCodeBlocksField, activeGroupTabField, addTabs } = groupedCodeBlocksExtension(plugin, settings, codeBlockPositionsField, () => toggleCodeBlockFold);
-  const { headerField, buttonWidget, createButtonConfigs } = headerExtension(plugin, settings, codeBlockPositionsField, collapseField, activeGroupTabField, groupedCodeBlocksField, hiddenLinesUnhiddenField, unwrappedCodeBlocksField, getFoldingState, toggleCodeBlockFold, addTabs, () => settingsUpdated, getHiddenRanges);
-  const { viewPlugin, liveUpdateExtension, forceRefreshListener } = mainViewPluginExtension(plugin, settings, codeBlockPositionsField, collapseField, foldCommandField, hiddenLinesUnhiddenField, getHiddenRanges, () => updateValue, () => resetFoldDecos, () => settingsUpdated);
-  const { hideFencesPlugin } = hideFenceLinesExtension(plugin, settings, codeBlockPositionsField, createButtonConfigs, buttonWidget, () => updateValue, () => resetFoldDecos, () => settingsUpdated);
+  const { headerField, buttonWidget, createButtonConfigs } = headerExtension(plugin, settings, codeBlockPositionsField, collapseField, activeGroupTabField, groupedCodeBlocksField, hiddenLinesUnhiddenField, unwrappedCodeBlocksField, getFoldingState, toggleCodeBlockFold, addTabs, getHiddenRanges);
+  const { viewPlugin, liveUpdateExtension, forceRefreshListener } = mainViewPluginExtension(plugin, settings, codeBlockPositionsField, collapseField, foldCommandField, hiddenLinesUnhiddenField, getHiddenRanges);
+  const { hideFencesPlugin } = hideFenceLinesExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, createButtonConfigs, buttonWidget);
   const { inlineCodeViewPlugin } = inlineCodeExtension(plugin, settings);
   const { linkViewPlugin } = linksExtension(plugin, settings, codeBlockPositionsField);
   const { annotationViewPlugin } = annotationsExtension(plugin, settings, codeBlockPositionsField);

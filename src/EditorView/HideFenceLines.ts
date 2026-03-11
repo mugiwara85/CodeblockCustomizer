@@ -9,9 +9,9 @@ import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 import { ButtonConfig } from "./Header";
 
 export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>,
+  hiddenLinesUnhiddenField: StateField<Set<number>>,
   createButtonConfigs: (codeBlockStartPos: number, codeBlockEndPos: number, state: EditorState, parameters: CBCParameters) => ButtonConfig[],
-  buttonWidget: new (buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions, modifierKey: ButtonModifierKeys) => WidgetType, getUpdateValue: () => (newValue: boolean) => void,
-  getResetFoldDecos: () => (newValue: boolean) => void, getSettingsUpdated: () => boolean) {
+  buttonWidget: new (buttonsConfig: Array<ButtonConfig>, pos: CodeBlockPositions, modifierKey: ButtonModifierKeys) => WidgetType) {
 
   const hideFencesPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
@@ -24,10 +24,11 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
 
     update(update: ViewUpdate) {
       const codeBlocksChanged = update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField);
+      const unhiddenChanged = update.startState.field(hiddenLinesUnhiddenField, false) !== update.state.field(hiddenLinesUnhiddenField, false);
 
       // check if cursor moved into or out of a code block
       let needsSelectionUpdate = false;
-      if (update.selectionSet && settings.pluginSettings.codeblock.hideFenceLines) {
+      if (update.selectionSet) {
         const positions = update.state.field(codeBlockPositionsField, false) || [];
         const newHead = update.state.selection.main.head;
         const newCursorBlock = positions.find(
@@ -39,8 +40,8 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
         }
       }
 
-      // full rebuild only when document changed, codeblocks changed, settings were modified, or cursor moved in/out
-      if (update.docChanged || codeBlocksChanged || getSettingsUpdated() || needsSelectionUpdate) {
+      // full rebuild only when document changed, codeblocks changed, settings were modified, cursor moved in/out, or unhidden lines changed
+      if (update.docChanged || codeBlocksChanged || plugin.settingsUpdated || needsSelectionUpdate || unhiddenChanged) {
         this.decorations = this.buildDecorations(update.view);
         return;
       }
@@ -72,8 +73,6 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
     }// extendDecorations
 
     buildDecorations(view: EditorView): DecorationSet {
-      getUpdateValue()(false);
-      getResetFoldDecos()(false);
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state)) {
         return Decoration.none;
       }

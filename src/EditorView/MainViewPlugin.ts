@@ -16,8 +16,7 @@ import { HiddenLinesWidget } from "./HideLines";
 import { FoldingState, FoldCommand, setFoldState, UnCollapse, semiUnCollapse, unhideEffect } from "./EditorEffects";
 
 export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>, collapseField: StateField<RangeSet<Decoration>>, foldCommandField: StateField<FoldCommand>,
-  hiddenLinesUnhiddenField: StateField<Set<number>>, getHiddenRanges: (state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number) => { startLine: number, endLine: number, lineCount: number, from: number, to: number }[],
-  getUpdateValue: () => (newValue: boolean) => void, getResetFoldDecos: () => (newValue: boolean) => void, getSettingsUpdated: () => boolean) {
+  hiddenLinesUnhiddenField: StateField<Set<number>>, getHiddenRanges: (state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number) => { startLine: number, endLine: number, lineCount: number, from: number, to: number }[]) {
 
   const liveUpdateExtension = () => {
     return EditorView.updateListener.of((update) => {
@@ -190,7 +189,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       const codeBlocksChanged = update.startState.field(codeBlockPositionsField) !== update.state.field(codeBlockPositionsField)
 
       // full rebuild only when document changed, codeblocks changed, settings were modified, or ranges were unhidden
-      if (update.docChanged || codeBlocksChanged || getSettingsUpdated() || unhiddenChanged) {
+      if (update.docChanged || codeBlocksChanged || plugin.settingsUpdated || unhiddenChanged) {
         this.decorations = this.buildDecorations(update.view);
         return;
       }
@@ -221,8 +220,6 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     }// extendDecorations
 
     buildDecorations(view: EditorView): DecorationSet {
-      getUpdateValue()(false);
-      getResetFoldDecos()(false);
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 

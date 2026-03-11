@@ -259,7 +259,7 @@ const defaultThemeSettings: PluginSettings = {
     enableActiveLineHighlight: true,
     codeBlockBorderStylingPosition: 'disable',
     showIndentationLines: false,
-    enableLinks: false,
+    enableLinks: true,
     enableLinkUpdate: false,
     enableBracketHighlight: true,
     highlightNonMatchingBrackets: true,
@@ -318,7 +318,7 @@ const defaultThemeSettings: PluginSettings = {
   inlineCode: {
     enableInlineCodeStyling: true,
     enableSyntaxHighlight: true,
-    showIcons: false,
+    showIcons: true,
     enableCopyOnClick: true,
     copyModifierKey: InlineCodeModifierKeys.CTRL,
   },

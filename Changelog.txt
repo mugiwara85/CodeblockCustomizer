@@ -1,3 +1,34 @@
+- 1.4.0 (2026.03.10)
+  New:
+    - Wrap code now also works in editor mode
+    - Added compatibility with Execute Code Plugin (#129, #149)
+    - Added option "Only apply inverse fold to semi-foldable blocks" to exclude code blocks when inverse fold and semi-fold are both enabled (#138)
+    - Added option "Auto semi-fold long code blocks" (#133)
+    - Added Modifier keys for buttons and inline code (#132)
+    - Added new `parse` parameter to parse raw CLI output fro prompts, and apply colors to them (#131)
+    - Added new Themes (Dracula, Gruvbox, Nord, Tokyo Night)
+    - Added "Copy as image" button to create snapshot of code blocks
+    - Added option to display an additional "+" and "x" for grouped code blocks for easier adding/removing blocks
+    - Added option to search for settings on the settings page
+    - Added new option to select alternative collapse indicators
+    - Added option to hide lines or ranges using the `hide` parameter
+    - Added blur effect for semi-fold
+
+  Modified:
+    - It is now possible to define "line number jumps" for the `ln` parameter (#143)
+    - CSS refactored into SCSS. Also fixed slow selectors (#136)
+    - Settings are **NOT** stored in the Themes anymore. They are completely independent from themes (#135)
+    - For text highlight now occurences can also be specified to highlight specifc occurence(s) of the text
+
+  BugFix:
+    - Fixed a bug, where the copy button copies white spaces (#148)
+    - PDF export now correctly uses the specified text color override (#145)
+    - Fixed a bug, which led to plugin crash when editing tables (probably #139, and also #144)
+    - Fixed a bug where code blocks in lists were padding missing (#128)
+    - Prompt names are **NOT** case sensitive now
+    - Fixed inline code mustache syntax (#147)
+    - Fixed a bug, where uncollapsing code blocks sometimes resulted in no decorations at all
+
 - 1.3.1 (2025.08.21):
   BugFix:
     - Fixed immediate rerender. Current release of Obsidian broke this feature.

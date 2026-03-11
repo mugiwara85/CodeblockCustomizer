@@ -17,12 +17,24 @@ The plugin lets you customize the code blocks in the following way:
 - Fold code blocks by clicking the header, with options for default fold states and persistence. 
 - Display language names and icons in the header. 
 - Add line numbers with optional starting offsets. 
-- **NEW:** Create semi-interactive terminal prompts with `prompt:`. 
-- **NEW:** Group consecutive code blocks into a single tabbed interface. 
-- **NEW:** Transform code comments into styled annotations. 
-- **NEW:** Apply syntax highlighting to inline code. 
-- **NEW:** Hide fence lines in editor mode for a cleaner look. 
+- Create semi-interactive terminal prompts with `prompt:`. 
+- Group consecutive code blocks into a single tabbed interface. 
+- Transform code comments into styled annotations. 
+- Apply syntax highlighting to inline code. 
+- Hide fence lines in editor mode for a cleaner look. 
+- **NEW:** Search option in the settings page to find faster a specific setting 
+- **NEW:** Wrap/Unwrap button in editor mode 
+- **NEW:** Execute Code Plugin compatibility 
+- **NEW:** Modifier keys for buttons and inline code 
+- **NEW:** New Themes (Dracula, Gruvbox, Nord, Tokyo Night) 
+- **NEW:** New `parse` parameter to parse raw CLI output for promtps 
+- **NEW:** New `hide` parameter to hide lines or ranges 
+- **NEW:** New option to define "line number jumps" 
+- **NEW:** New "Copy as image" button to create snapshots of code blocks 
+- **NEW:** New blur effect for semi-fold
 - and much more...
+
+For a more detailed list of changes, check the [Changelog](./Changelog.txt). 
 
 ## 📋 Table of Contents 
 
@@ -34,18 +46,21 @@ The plugin lets you customize the code blocks in the following way:
 - [Highlighting](#highlighting) 
 - [Language Specific Coloring](#language-specific-coloring) 
 - [Folding](#folding) 
+- [Wrap Code Lines](#wrap-code-lines)
 - [Grouped Code Blocks](#grouped-code-blocks) 
 - [Terminal Prompts](#terminal-prompts) 
 - [Annotations](#annotations) 
 - [Hide Fence Lines](#hide-fence-lines) 
+- [Hiding Lines](#hiding-lines)
 - [Inline Code](#inline-code) 
 - [Commands](#commands) 
 - [Print to PDF](#print-to-pdf) 
 - [Indented Code Blocks](#indented-code-blocks) 
 - [Links](#links) 
-- [Custom SVGs and Custom Syntax Highlight](#custom-svgs-and-custom-syntax-highlight) 
+- [Custom SVGs and Syntax Highlight Assignment](#custom-svgs-and-syntax-highlight-assignment) 
 - [Bracket Highlight](#bracket-highlight) 
 - [Selection Matching](#selection-matching) 
+- [Plugin Compatibility](#plugin-compatibility)
 - [How to Install the Plugin](#how-to-install-the-plugin) 
 - [Contributing & Support](#contributing-support) 
 
@@ -76,7 +91,9 @@ All parameters can be defined using `:` or `=`.
 |          | hlt:{string}:         | `hlt:abc:` - If the start position is defined, but the end position is not, the text will be highlighted from the start position, until the end of the line.                                                                                                 |
 |          | hlt:{string}:{string} | `hlt:abc:xyz` - Highlights text in lines starting with `abc` and ending with `xyz`.                                                                                                                                                                          |
 |          | hlt:{number}\|...     | All the above options can be prepended with an optional number and a `\|` to specify in which line to highlight the text.                                                                                                                                    |
+|          | hlt:{number}[occurence]\|... | All the above options can be prepended with an optional occurence before the `\|` to specify which occurence to highlight in the text. (e.g. `hlt:5[2,5-8]\|test` -> highlights the second, and the 5th, 6th, 7th and 8th occurence of test in line five)  |
 |          | hlt:{range}\|...      | All the above options can be prepended with an optional range and a `\|` to specify in which range to highlight the text.                                                                                                                                    |
+|          | hlt:{range}[occurence]\|... | All the above options can be prepended with an optional occurence before the `\|` to specify which occurence to highlight in the text. (e.g. `hlt:5-7[2,5-8]\|test` -> highlights the second, and the 5th, 6th, 7th and 8th occurence of test in the lines 5, 6, 7)  |
 | lsep     | char                  | Line separator. Optionally you can define a line separator (a single character) for text highlight instead of the default `\|`. Useful, if you want to highlight text starting and/or ending with `\|`. This can be set globally as well.                    |
 | tsep     | char                  | Text separator. Optionally you can define a text separator (a single character) for text highlight instead of the default `:`. Useful, if you want to highlight text starting and/or ending with `:`. This can be set globally as well.                      |
 | file     | {string}              | Sets the display text for the header. (e.g: `file:hello` or `file:"Hello World!"`)                                                                                                                                                                           |
@@ -85,6 +102,9 @@ All parameters can be defined using `:` or `=`.
 |          | true                  | Displays line numbers for that specific code block, even if `Enable line numbers` is disabled                                                                                                                                                                |
 |          | false                 | Does not display line numbers for that specific code block, even if  `Enable line numbers` is enabled                                                                                                                                                        |
 |          | {number}              | Sets the offset for line number to start (e.g: `ln:5` -> line numbering starts from 5)                                                                                                                                                                       |
+|          | {number}:{number}     | Specifies a line number jump. The first number defined at which line number should the jump occur, and the second number defined the new value. (e.g.: `ln:10:20` -> line number changes on 10 to 20)                                                        |
+| parse    | parse:{promptName}    | Specifies what prompts to look for when parsing the code block text. Usefull when raw CLI output was pasted in the code block and the prompts should get colors. (e.g. `parse:bash`)                                                                         |
+| hide     | hide:{line or range}  | Specifies which lines or ranges should be hidden. If defined, a separator will be inserted where you can unhide the hidden ranges.                                                                                                                           |
 | prompt   | {prompt}              | Sets the name of the prompt to be used in the code block e.g. `prompt:kali`. Line numbers and ranges can also be specified in which lines the prompt should be displayed e.g. `prompt:1-2,4\|bash`                                                           |
 | noprompt |                       | Disables prompts for a specific code block, which is useful when the auto-use prompt option is enabled. It is also possible to specify lines or ranges for which the prompt should not be shown e.g. `noprompt` or `noprompt:1-3,5`                          |
 | user     | {string}              | Overrides the default user for the current prompt.                                                                                                                                                                                                           |
@@ -100,18 +120,34 @@ All parameters can be defined using `:` or `=`.
 
 ## Themes
 
-The plugin comes with a default Obsidian and a Solarized theme. The default theme is Obsidian.
+The plugin comes with multiple themes (Obsidian, Solarized, Dracula, Gruvbox, Nord, Tokyo Night). The default theme is Obsidian.
 
-Default Solarized theme (dark mode): 
+Obsidian Theme  
 
-![Pasted_image_20230125231644.png](attachments/Pasted_image_20230125231644.png)
+![Obsidian](attachments/Obsidian.png)
 
-Default Solarized theme (light mode): 
+Solarized Theme  
 
-![Pasted_image_20230125231735.png](attachments/Pasted_image_20230125231735.png)
+![Solarized](attachments/Solarized.png)
+
+Dracula Theme  
+
+![Dracula](attachments/Dracula.png)
+
+Gruvbox Theme  
+
+![Gruvbox](attachments/Gruvbox.png)
+
+Nord Theme  
+
+![Nord](attachments/Nord.png)
+
+Tokyo Night Theme  
+
+![TokyoNight](attachments/TokyoNight.png)
 
 How the themes work:
-- Every setting and color is saved in the theme, except the excluded languages.
+- Every color is saved in the theme.
 - You can modify the default themes (there is an option to restore them to default), but you can't delete them.
 - Save your changes!
 - Each theme has its own light and dark colors. To customize the light/dark colors, just switch Obsidian to light/dark mode, and you can change the colors for that mode.
@@ -167,18 +203,19 @@ Example:
 
 ![Pasted_image_20230314211657.png](attachments/Pasted_image_20230314211657.png)
 
-Example for reading mode:
-
-![Pasted_image_20230125232448.png](attachments/Pasted_image_20230125232448.png)
-
 ### ln Parameter
 
-The `ln:` parameter can have 3 values: `true`, `false`, `number`
+The `ln:` parameter can have 4 values: `true`, `false`, `number` and `{number}:{number}`
 - If `ln` is set to `ln:true`, then for that specific code block only, the line numbers will be displayed, even if line numbers are not enabled in the settings.
 - If `ln` is set to `ln:false`, then for that specific code block only, the line numbers will NOT be displayed, even if line number are enabled in the settings.
 - If `ln` is set to a number, e.g. `ln:5`, then it sets the offset for the line numbers.
+- If `ln` is set to `{number}:{number}` (e.g. `ln:10:20`), then a line number jump will occur on lines 10. The line numbering changes from 10 to 20. An additional separator will be inserted to make it more clear that a jump happened.
 
 ![Pasted_image_20230811140306.png](attachments/Pasted_image_20230811140306.png)
+
+Simple Line number jump:
+
+![LineNumberJump.png](attachments/LineNumberJump.png)  
 
 ## Highlighting
 
@@ -220,6 +257,7 @@ It is possible now to highlight text instead of lines. To use this feature use t
     * `hlt:abc:` -> startString is defined, but endString is not defined. This will highlight the text starting with `startString` until the end of the line
     * `hlt::xyz` -> startString is not defined, but endString is defined. This will highlight the text starting from the beginning of the line until `endString` 
     * `hlt:abc:xyz` -> highlights text starting with `abc` and ending with `xyz` in all lines it is present
+* It is also possible to specify which occurences to highlight. This is done by using "[]" before the `|` character. You can specify indexes, or index ranges comma separated, and negativ indexes, which will highlight from the lines end. e.g. `hlt:5[1,3-5,-1]|test` will highlight the 1st,3rd,4th and the last occurence of test in line 5
 
 All the above options can be prepended with an optional number or range and a `|` to specify in which line to highlight the text.
 
@@ -236,6 +274,10 @@ An example code block with text highlight, using three different colors is shown
 An example code block with text highlight, using from and to markers:  
 
 ![Pasted_image_20240923203830.png](attachments/Pasted_image_20240923203830.png)
+
+An example code block with text and occurence highlight is shown below:  
+
+![TextHighlightWithOccurences](attachments/TextHighlightWithOccurences.png)  
 
 ## Language Specific Coloring
 
@@ -310,6 +352,12 @@ Example semi-folded code block with additional uncollapse button:
 ### Inverse Fold Behavior
 
 When this options is enabled in the settings page, code blocks are collapsed by default when a document is opened, even if `fold` was **NOT** defined. If you enabled this option, and want some code blocks unfolded by default, you can use the `unfold` parameter.
+
+## Wrap Code Lines
+
+Wrapping code lines was already present in the plugin, but only in reading mode. Now, I also added this feature in editing mode. If you enabled the "Wrap code" button previously, you don't have to do anything else. If not, enable it in the settings page. A new button will be displayed, which when click will wrap/unwrap code lines.
+
+![WrapLines.gif](attachments/WrapLines.gif)
 
 ## Grouped Code Blocks 
 
@@ -407,6 +455,14 @@ The following commands are supported:
 
 ![Prompts.gif](attachments/Prompts.gif)
 
+### Parsing raw CLI output
+
+If the code block contains raw CLI output text including prompts, and you would just want to color the prompts automatically, you can use the `parse` parameter. You can specify the names of the default prompts, and the ones you created. For example `parse:bash` would look for bash prompts, that match the bash regex defined in the prompts settings page. If one is found, than the corresponding colors are automatically assigned.  
+
+**Example:**  
+
+![Parse](attachments/Parse.gif)  
+
 ## Annotations
 
 Bring your code comments to life by turning them into styled annotations. This feature helps draw attention to important notes, warnings, or questions directly within your code.
@@ -423,6 +479,12 @@ You can also define an optional title using the `[!<type>|<title>]` syntax.
 You can enable the option `Hide Fence Lines` under the `👆 Behavior & Interaction` settings tab. After enabling the opening and closing fence lines will be hidden by default. They will only reappear when the cursor is moved into the code block.
 
 ![HideFenceLines.gif](attachments/HideFenceLines.gif)
+
+## Hiding Lines
+
+Using the `hide` parameter it is possible to hide lines and/or ranges. The specified lines will be hidden and a separator will be inserted so you can unhide the lines. If a hidden line/range has been unhidden an additional button (eye) will be displayed, so you can re-hide the lines again. To hide lines simply specify the line numbers or ranges e.g. `hide:3,5,7-10`
+
+![Hide.gif](attachments/Hide.gif)
 
 ## Inline Code
 
@@ -463,7 +525,6 @@ Code blocks in **lists**, are now indented properly as shown below. Simply, mark
 
 If you want to convert markdown, wiki and normal http/https link syntax to actual links inside code blocks, then you have to mark them as comment according to the current code block language, and enable the setting `Enable links usage` in the settings on the `👆 Behavior & Interaction` settings page. **Links can also be used in the header.**
 For example if you are in a python code block, then you have write a "#" before the link (comment it out), and it will be automatically converted to a link. 
-**From version `1.2.6` only commented out links will be converted!**
 By default the links, which point to another document in your vault, are not updated, if you rename the file. This is because Obsidian does not provide (yet) a way to add these links to the metadata cache. A temporary solution for that is to enable the option `Enable automatically updating links on file rename` option in settings.
 
 >[!important]
@@ -477,9 +538,9 @@ Same code block with the `Enable links usage` option enabled:
 
 ![Pasted_image_20240228005240.png](attachments/Pasted_image_20240228005240.png)
 
-## Custom SVGs and Custom Syntax Highlight
+## Custom SVGs and Syntax Highlight Assignment
 
-It is possible to use custom SVGs, and apply custom syntax highlighting for code blocks. To use this feature create the following folder `<VaultFolder>\.obsidian\plugins\codeblock-customizer\customSVG`. In this folder create a file called `svg.json` with similar content:
+It is possible to use custom SVGs, and assign **existing** syntax highlighting for code blocks. To use this feature create the following folder `<VaultFolder>\.obsidian\plugins\codeblock-customizer\customSVG`. In this folder create a file called `svg.json` with similar content:
 
 ```json
 {
@@ -527,6 +588,23 @@ If you enable selection matching, you can set the background color for the match
 
 >[!note]
 >Selection matching (currently) has a limit of 750 matches. If there are more matches than this, then selection matching will not highlight anything. Should you encounter a case where this number is not enough, contact me, and I'll increase it.
+
+## Plugin Compatibility
+
+The Plugin is compatible with Admonition and Execute Code plugins. In the settings page, there is a dedicated page for plugin compatibility settings.
+
+### Admonition
+
+The plugin also works with Admonitions in editing mode and reading mode as well.  
+
+![Admonition.png](attachments/Admonition.png)
+
+### Execute Code
+
+For Execute Code you can choose if you want the "basic" styling (which is just the background color), or you want the more advanced styling (which includes lines numbers, highlighting lines and text in the output). 
+To highlight lines and text in the Execute Code output you have to append an "o" to the highlight parameters. So `hl` works for normal code, but `hlo` works on execute code output. The same is with `hlt`. `hlt` work for normal code and `hlto` works for Execute code output. This logic also aplies to all of your custom highlight colors as well.  
+
+![ExecuteCode.gif](attachments/ExecuteCode.gif)
 
 ## How to Install the Plugin
 

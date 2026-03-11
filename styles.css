@@ -1306,8 +1306,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered .codeblock-customizer-header-container-specific[class*=codeblock-customizer-languageSpecific-] {
   border-top-left-radius: 0;
 }
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first,
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .markdown-rendered pre.codeblock-customizer-pre.displayedInGroup {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first {
   border-top-left-radius: 0 !important;
 }
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-last {
@@ -1323,8 +1322,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered .codeblock-customizer-header-container-specific[class*=codeblock-customizer-languageSpecific-] {
   border-top-right-radius: 0;
 }
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first,
-.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered pre.codeblock-customizer-pre.displayedInGroup {
+.codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-first {
   border-top-right-radius: 0 !important;
 }
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .codeblock-customizer-line[style*="--codeblock-bordercolor"] .codeblock-customizer-line-number-last {
@@ -1336,6 +1334,11 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered pre.codeblock-customizer-pre[class*=codeblock-customizer-language-].hasLangBorderColor,
 .codeblock-customizer.codeblock-customizer-style-codeblock-border-right .markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[class*=codeblock-customizer-language-].hasLangBorderColor {
   border-right: 5px solid var(--codeblock-bordercolor);
+}
+
+.markdown-rendered pre.codeblock-customizer-pre.displayedInGroup {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 
 /* Pre element styling */

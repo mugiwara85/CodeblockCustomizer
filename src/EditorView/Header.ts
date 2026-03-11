@@ -24,7 +24,7 @@ export interface ButtonConfig {
 
 export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>, collapseField: StateField<RangeSet<Decoration>>, activeGroupTabField: StateField<Record<string, number>>,
   groupedCodeBlocksField: StateField<GroupedCodeBlocks>, hiddenLinesUnhiddenField: StateField<Set<number>>, unwrappedCodeBlocksField: StateField<Set<number>>, getFoldingState: (state: EditorState, startPos: number, endPos: number) => FoldingState,
-  toggleCodeBlockFold: (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, addTabs: (view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) => void, getSettingsUpdated: () => boolean,
+  toggleCodeBlockFold: (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, addTabs: (view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) => void,
   getHiddenRanges: (state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number) => { startLine: number, endLine: number, lineCount: number, from: number, to: number }[]) {
 
   const headerField = StateField.define<DecorationSet>({
@@ -69,7 +69,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       }
 
       const unhiddenChanged = oldState.field(hiddenLinesUnhiddenField, false) !== newState.field(hiddenLinesUnhiddenField, false);
-      if (!docChanged && !getSettingsUpdated() && !positionsChanged && !tabsChanged && !foldChanged && !needsSelectionUpdate && !unhiddenChanged) {
+      if (!docChanged && !plugin.settingsUpdated && !positionsChanged && !tabsChanged && !foldChanged && !needsSelectionUpdate && !unhiddenChanged) {
         return value;
       }
       return insertHeader(transaction.state);
