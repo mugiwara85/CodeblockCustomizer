@@ -22,6 +22,7 @@ The plugin lets you customize the code blocks in the following way:
 - Transform code comments into styled annotations. 
 - Apply syntax highlighting to inline code. 
 - Hide fence lines in editor mode for a cleaner look. 
+- **NEW:** Added option to use PrismJS for syntax highlighting in editor mode => Same syntax highlight in editor and reading mode and more langauges get syntax highlighted  
 - **NEW:** Search option in the settings page to find faster a specific setting 
 - **NEW:** Wrap/Unwrap button in editor mode 
 - **NEW:** Execute Code Plugin compatibility 
@@ -39,6 +40,7 @@ For a more detailed list of changes, check the [Changelog](./Changelog.txt).
 ## 📋 Table of Contents 
 
 - [Parameters](#parameters) 
+- [PrismJS Syntax Highlighting](#prismjs-syntax-highlighting)
 - [Themes](#themes) 
 - [Display Filename/Title](#display-filenametitle) 
 - [Header](#header) 
@@ -117,6 +119,27 @@ All parameters can be defined using `:` or `=`.
 | tab      | {string}              | Sets a custom display name for the tab when using grouped code blocks. If not provided, the language name is used.                                                                                                                                           |
 
 </details>
+
+## PrismJS Syntax Highlighting
+
+This is an **experimental** setting, but it is worth talking about this. 
+
+Small background information:
+The syntax highlighting wasn't the same in editing and reading mode, because Obsidian uses two different engines. The one used in editor mode is `CodeMirror 6`, and the other for reading mode is `PrismJS`. The problem with this is, that `CodeMirror` supports less languages then `PrismJS`, and even if it supports the same language it will probably still differ, because it works different.
+
+So what does this setting do? It forces the editor to use `PrismJS` in editor mode. This results, that when this setting is enabled, the syntax highlighting is the **same** in editing and reading modes!
+But that's not all! This setting also has a positive side effect. `CodeMirror` does support a lot of languages, but nearly not as many as `PrismJS`. When this setting is enabled, that also means that languages which `CodeMirror` does not support (e.g. `graphql` or `makefile` or `hlsl`) also get syntax highlighting, because `PrismJS` does support it.  
+
+Even though this setting is not as thourughly tested as others, I wanted to release it easlier. Should you encounter some errors or bugs, just open an issue.  
+
+Example code block in editor mode with the setting disabled:
+
+![PrismDisabled](attachments/PrismDisabled.png)
+
+Same code block with setting enabled (matches reading mode):
+
+![PrismEnabled](attachments/PrismEnabled.png)
+
 
 ## Themes
 

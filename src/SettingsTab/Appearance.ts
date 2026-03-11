@@ -36,6 +36,22 @@ export class AppearanceSettings {
     const editorActiveLineSetting = createPickrSetting(appearanceDiv, 'Editor active line color', '', "editorActiveLineColor", this.pickerInstances, this.plugin);
     editorActiveLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.enableEditorActiveLineHighlight);
 
+    const prismSetting = new Setting(appearanceDiv)
+      .setName('Use PrismJS syntax highlighting in editor mode')
+      .setDesc('If enabled, editor mode will use PrismJS for syntax highlighting instead of CodeMirror\'s built-in highlighting. This makes editor mode syntax highlighting match reading mode syntax highlighting.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.codeblock.usePrismHighlight)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.codeblock.usePrismHighlight = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    const warningEl = prismSetting.descEl.createDiv({ cls: "mod-warning" });
+    warningEl.style.color = "var(--text-error)";
+    warningEl.style.marginTop = "4px";
+    warningEl.style.fontWeight = "bold";
+    warningEl.setText("Experimental: This feature is still being tested. Please report any issues you encounter.");
+
     // code block styling
     const codeBlockDetails = createDetailsGroup(appearanceDiv, 'Code Block Styling', 'codeBlockDetailsOpen', this, this.getSearchQuery);
 

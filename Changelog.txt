@@ -1,3 +1,7 @@
+- 1.4.1 (2026.03.11)
+  New:
+    - Added option to use PrismJS for syntax highlighting in editor mode. This means more languages get syntax highlight and same syntax highlight between editor and reading mode (#82,#134,#140)
+
 - 1.4.0 (2026.03.10)
   New:
     - Wrap code now also works in editor mode
