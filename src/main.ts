@@ -4,6 +4,7 @@ import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
 
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
+import { DEFAULT_SYNTAX_THEMES } from './SyntaxThemeDefaults';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
 import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode } from "./Utils";
 import { extensions } from "./EditorView/EditorExtensions";
@@ -498,6 +499,12 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.settings.SelectedTheme.colors.light.prompts.rootPromptColors = {};
     this.settings.SelectedTheme.colors.dark.prompts.promptColors = {};
     this.settings.SelectedTheme.colors.dark.prompts.rootPromptColors = {};
+
+    for (const [name, defaultTheme] of Object.entries(DEFAULT_SYNTAX_THEMES)) {
+      if (!this.settings.SyntaxThemes[name]) {
+        this.settings.SyntaxThemes[name] = structuredClone(defaultTheme);
+      }
+    }
   }// loadSettings
 
   async saveSettings(resetFoldDecorations = false) {

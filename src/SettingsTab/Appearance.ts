@@ -6,14 +6,18 @@ import { createPickrSetting } from "./ColorUtils";
 import { CollapseIconStyle, HiddenLinesStyle, InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
 import { DEFAULT_COLLAPSE_TEXT } from "src/Const";
 import { ANNOTATION_TYPE_ICONS } from "src/TooltipManager";
+import { SyntaxThemeSettingsUI } from "./SyntaxThemes";
 import CodeBlockCustomizerPlugin from "src/main";
 
 import Pickr from "@simonwep/pickr";
 
 export class AppearanceSettings {
   debounceTimer: NodeJS.Timeout | null = null;
+  syntaxThemeSettings: SyntaxThemeSettingsUI;
 
-  constructor(private plugin: CodeBlockCustomizerPlugin, private containerEl: HTMLElement, private pickerInstances: Pickr[], private getSearchQuery: () => string) { }
+  constructor(private plugin: CodeBlockCustomizerPlugin, private containerEl: HTMLElement, private pickerInstances: Pickr[], private getSearchQuery: () => string) {
+    this.syntaxThemeSettings = new SyntaxThemeSettingsUI(plugin, containerEl, pickerInstances, getSearchQuery);
+  }
 
   public display(): void {
     const sectionData = SettingsPageData[SettingsPage.Appearance];
@@ -44,6 +48,10 @@ export class AppearanceSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.usePrismHighlight = value;
           await this.plugin.saveSettings();
+          const noteEl = appearanceDiv.querySelector('.codeblock-customizer-syntax-theme-note');
+          if (noteEl) {
+            noteEl.toggleClass('codeblock-customizer-setting-hidden', value);
+          }
         })
       );
     const warningEl = prismSetting.descEl.createDiv({ cls: "mod-warning" });
@@ -51,6 +59,9 @@ export class AppearanceSettings {
     warningEl.style.marginTop = "4px";
     warningEl.style.fontWeight = "bold";
     warningEl.setText("Experimental: This feature is still being tested. Please report any issues you encounter.");
+
+    // syntax themes
+    this.syntaxThemeSettings.display(appearanceDiv);
 
     // code block styling
     const codeBlockDetails = createDetailsGroup(appearanceDiv, 'Code Block Styling', 'codeBlockDetailsOpen', this, this.getSearchQuery);

@@ -1,5 +1,19 @@
 import { DEFAULT_PROMPT_COLOR, PromptDefinition } from "./PromptManager";
 
+export type SyntaxTokenColors = Partial<Record<string, string>>;
+
+export interface SyntaxTheme {
+  colors: {
+    dark: SyntaxTokenColors;
+    light: SyntaxTokenColors;
+  };
+}
+
+export interface SyntaxThemeSettings {
+  globalSyntaxTheme: string;
+  languageSpecificSyntaxThemes: Record<string, string>;
+}
+
 export interface Colors {
   codeblock: {
     activeLineColor: string;
@@ -232,6 +246,7 @@ export interface PluginSettings {
     }
   },
   enableEditorActiveLineHighlight: boolean;
+  syntaxThemes: SyntaxThemeSettings;
 }
 
 export interface ColorTheme {
@@ -251,6 +266,9 @@ export interface CodeblockCustomizerSettings {
   settingsType: string;
   langSpecificSettingsType: string;
   languageSpecificLanguageName: string;
+  SyntaxThemes: Record<string, SyntaxTheme>;
+  SyntaxThemeName: string;
+  newSyntaxThemeName: string;
 }
 
 // default settings for all themes
@@ -361,6 +379,10 @@ const defaultThemeSettings: PluginSettings = {
     }
   },
   enableEditorActiveLineHighlight: true,
+  syntaxThemes: {
+    globalSyntaxTheme: "",
+    languageSpecificSyntaxThemes: {},
+  },
 };
 
 const SELECTION_MATCH_COLOR = '#99ff7780';
@@ -1520,4 +1542,7 @@ export const DEFAULT_SETTINGS: CodeblockCustomizerSettings = {
   settingsType: "basic",
   langSpecificSettingsType: "",
   languageSpecificLanguageName: "",
+  SyntaxThemes: {},
+  SyntaxThemeName: "",
+  newSyntaxThemeName: "",
 }

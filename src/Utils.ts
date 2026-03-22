@@ -4,6 +4,7 @@ import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
+import { generateSyntaxThemeStyles } from "./SyntaxThemeUtils";
 import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
@@ -636,7 +637,9 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     ${printRules}
   `;
 
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling).trim().replace(/[\r\n\s]+/g, ' ');
+  const syntaxThemeStyles = generateSyntaxThemeStyles(settings);
+
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.pluginSettings);
 }// updateSettingStyles

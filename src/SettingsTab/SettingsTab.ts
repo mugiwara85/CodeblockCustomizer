@@ -37,6 +37,9 @@ export class SettingsTab extends PluginSettingTab {
   }
 
   display(): void {
+    this.pickerInstances.forEach(p => { if (p) p.destroy(); });
+    this.pickerInstances.length = 0;
+
     const { containerEl } = this;
     containerEl.empty();
     containerEl.classList.add(`codeblock-customizer-settingspage`);
@@ -378,7 +381,7 @@ export class SettingsTab extends PluginSettingTab {
       }
     });
 
-    this.pickerInstances = [];
+    this.pickerInstances.length = 0;
     super.hide();
   }// hide
 

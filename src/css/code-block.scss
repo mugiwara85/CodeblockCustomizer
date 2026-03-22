@@ -189,7 +189,7 @@
         width: calc(var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + var(--line-number-gutter-padding, 0px));
       }
 
-      /* Hidden line and separator widgets in unwrapped mode */
+      // Hidden line and separator widgets in unwrapped mode
       .codeblock-customizer-hidden-line-container,
       .codeblock-customizer-line-separator {
         overflow: visible;

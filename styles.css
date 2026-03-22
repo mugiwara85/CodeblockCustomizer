@@ -1456,9 +1456,6 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap:has(.cbc-line-num)::after {
   width: calc(var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + var(--line-number-gutter-padding, 0px));
 }
-.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap {
-  /* Hidden line and separator widgets in unwrapped mode */
-}
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-hidden-line-container,
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap .codeblock-customizer-line-separator {
   overflow: visible;
