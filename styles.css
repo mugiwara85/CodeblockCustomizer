@@ -2727,10 +2727,8 @@ pre.codeblock-customizer-pre .cbc-line-num {
 .markdown-source-view [class*=codeblock-customizer-line].cbc-prism .codeblock-customizer-bracket-highlight-nomatch [class*=token] {
   color: inherit !important;
 }
-.markdown-source-view .codeblock-customizer-bracket-highlight-match:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-match), .markdown-source-view .codeblock-customizer-bracket-highlight-match:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-nomatch),
-.markdown-source-view .codeblock-customizer-bracket-highlight-nomatch:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-match),
-.markdown-source-view .codeblock-customizer-bracket-highlight-nomatch:not([class*=codeblock-customizer-line] .codeblock-customizer-bracket-highlight-nomatch) {
-  /* dont apply to non-codeblock lines */
+.markdown-source-view .codeblock-customizer-bracket-highlight-match,
+.markdown-source-view .codeblock-customizer-bracket-highlight-nomatch {
   background-color: transparent;
 }
 .markdown-source-view .codeblock-customizer-line .cm-selectionMatch {

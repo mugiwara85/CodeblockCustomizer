@@ -43,11 +43,8 @@
 
   .codeblock-customizer-bracket-highlight-match,
   .codeblock-customizer-bracket-highlight-nomatch {
-    &:not([class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-match),
-    &:not([class*="codeblock-customizer-line"] .codeblock-customizer-bracket-highlight-nomatch) {
-      /* dont apply to non-codeblock lines */
-      background-color: transparent;
-    }
+    // dont apply to non-codeblock lines
+    background-color: transparent;
   }
 
   // Selection matching
