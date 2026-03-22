@@ -3,7 +3,7 @@ import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInfor
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
-import { EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "../Const";
+import { DEFAULT_COLLAPSE_TEXT, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "../Const";
 import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "../Parsing";
@@ -520,6 +520,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       const header = preElement.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');
       if (header) {
         header.classList.add(isSemiCollapsed ? 'semi-collapsed' : 'collapsed');
+        if (!parameters.hasTitle) {
+          const headerText = header.querySelector('.codeblock-customizer-header-text');
+          if (headerText) {
+            headerText.textContent = this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
+          }
+        }
       }
     }
   }// applyInitialFoldState
@@ -535,9 +541,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         frag.appendChild(createCodeblockIcon(parameters.displayLanguage));
         container.classList.add('has-icon');
       }
-      frag.appendChild(createCodeblockLang(parameters.language));
+      frag.appendChild(createCodeblockLang(parameters.displayLanguage));
     }
-    frag.appendChild(createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin));
+    const fileNameEl = createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin);
+    frag.appendChild(fileNameEl);
 
     const collapseStyle = settings.pluginSettings.header.collapseIconStyle;
     const collapseEl = createCodeblockCollapse(parameters.fold, collapseStyle);
@@ -576,10 +583,16 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         toggleFold(preElement, collapseEl, isSemiCollapsed ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = FoldingState.Unfolded;
         container.classList.remove('collapsed', 'semi-collapsed');
+        if (!parameters.hasTitle) {
+          fileNameEl.textContent = '';
+        }
       } else {
         toggleFold(preElement, collapseEl, useSemiFold ? `codeblock-customizer-codeblock-semi-collapsed` : `codeblock-customizer-codeblock-collapsed`, collapseStyle);
         newState = useSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
         container.classList.add(useSemiFold ? 'semi-collapsed' : 'collapsed');
+        if (!parameters.hasTitle) {
+          fileNameEl.textContent = this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
+        }
         if (useSemiFold) {
           reassignFadeOutClasses(preElement, preElement.querySelector('code') as HTMLElement, settings.pluginSettings);
         }

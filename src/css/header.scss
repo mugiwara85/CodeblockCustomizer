@@ -28,6 +28,19 @@ body {
     display: none;
   }
 
+  &[class*='codeblock-customizer-show-langicons']:not(.codeblock-customizer-show-langnames, .codeblock-customizer-show-langnames-always) {
+    .codeblock-customizer-header-container-specific:not(.has-icon) .codeblock-customizer-header-language-tag,
+    .codeblock-customizer-header-container:not(.has-icon) .codeblock-customizer-header-language-tag {
+      display: flex !important;
+      flex-wrap: nowrap;
+    }
+
+    .codeblock-customizer-header-container-specific:not(.has-icon) .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text,
+    .codeblock-customizer-header-container:not(.has-icon) .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text {
+      padding-left: 0;
+    }
+  }
+
   &:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langnames-always) .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container {
     display: none !important;
   }
@@ -40,8 +53,21 @@ body {
     display: none !important;
   }
 
+  .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container {
+    .codeblock-customizer-header-language-tag {
+      display: flex !important;
+      flex-wrap: nowrap;
+    }
+  }
+
+  &[class*='codeblock-customizer-show-langicons'] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-icon-container {
+    display: flex !important;
+    flex-wrap: nowrap;
+  }
+
   &[class*='codeblock-customizer-show-langnames'] {
     .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text,
+    .codeblock-customizer-header-container .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text,
     .codeblock-customizer-header-group-container .codeblock-customizer-header-group-tabs+.codeblock-customizer-header-text,
     .codeblock-customizer-header-container-specific .codeblock-customizer-header-group-tabs+.codeblock-customizer-header-text {
       padding-left: 0;
@@ -50,6 +76,7 @@ body {
 
   &[class*='codeblock-customizer-show-langicons'] {
     .codeblock-customizer-header-container-specific.has-icon .codeblock-customizer-header-text,
+    .codeblock-customizer-header-container.has-icon .codeblock-customizer-header-text,
     .codeblock-customizer-header-group-container.has-icon .codeblock-customizer-header-text {
       padding-left: 0;
     }
@@ -57,6 +84,10 @@ body {
 
   &[class*='codeblock-customizer-show-langnames-always'] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text,
   &[class*='codeblock-customizer-show-langicons-always'] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container.has-icon .codeblock-customizer-header-text {
+    padding-left: 0;
+  }
+
+  .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-header-language-tag+.codeblock-customizer-header-text {
     padding-left: 0;
   }
 

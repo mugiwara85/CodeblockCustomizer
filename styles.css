@@ -76,6 +76,15 @@ body:not(.codeblock-customizer-show-langnames-always, .codeblock-customizer-show
 body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container .codeblock-customizer-header-language-tag {
   display: none;
 }
+body[class*=codeblock-customizer-show-langicons]:not(.codeblock-customizer-show-langnames, .codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container-specific:not(.has-icon) .codeblock-customizer-header-language-tag,
+body[class*=codeblock-customizer-show-langicons]:not(.codeblock-customizer-show-langnames, .codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(.has-icon) .codeblock-customizer-header-language-tag {
+  display: flex !important;
+  flex-wrap: nowrap;
+}
+body[class*=codeblock-customizer-show-langicons]:not(.codeblock-customizer-show-langnames, .codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container-specific:not(.has-icon) .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
+body[class*=codeblock-customizer-show-langicons]:not(.codeblock-customizer-show-langnames, .codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(.has-icon) .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text {
+  padding-left: 0;
+}
 body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langnames-always) .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container {
   display: none !important;
 }
@@ -85,16 +94,29 @@ body:not(.codeblock-customizer-show-langnames-always) .workspace-leaf-content:no
 body .workspace-leaf-content:not(.codeblock-customizer-header-collapse-command) .codeblock-customizer-header-container:not(.has-icon) {
   display: none !important;
 }
+body .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-header-language-tag {
+  display: flex !important;
+  flex-wrap: nowrap;
+}
+body[class*=codeblock-customizer-show-langicons] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-icon-container {
+  display: flex !important;
+  flex-wrap: nowrap;
+}
 body[class*=codeblock-customizer-show-langnames] .codeblock-customizer-header-container-specific .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
+body[class*=codeblock-customizer-show-langnames] .codeblock-customizer-header-container .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text,
 body[class*=codeblock-customizer-show-langnames] .codeblock-customizer-header-group-container .codeblock-customizer-header-group-tabs + .codeblock-customizer-header-text,
 body[class*=codeblock-customizer-show-langnames] .codeblock-customizer-header-container-specific .codeblock-customizer-header-group-tabs + .codeblock-customizer-header-text {
   padding-left: 0;
 }
 body[class*=codeblock-customizer-show-langicons] .codeblock-customizer-header-container-specific.has-icon .codeblock-customizer-header-text,
+body[class*=codeblock-customizer-show-langicons] .codeblock-customizer-header-container.has-icon .codeblock-customizer-header-text,
 body[class*=codeblock-customizer-show-langicons] .codeblock-customizer-header-group-container.has-icon .codeblock-customizer-header-text {
   padding-left: 0;
 }
 body[class*=codeblock-customizer-show-langnames-always] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text, body[class*=codeblock-customizer-show-langicons-always] .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container.has-icon .codeblock-customizer-header-text {
+  padding-left: 0;
+}
+body .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container .codeblock-customizer-header-language-tag + .codeblock-customizer-header-text {
   padding-left: 0;
 }
 body.codeblock-customizer-show-langicons-always .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) .codeblock-customizer-header-text, body.codeblock-customizer-show-langnames-always .codeblock-customizer-header-collapse-command .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) .codeblock-customizer-header-text {
@@ -1488,11 +1510,25 @@ body .markdown-source-view .codeblock-customizer-header-container:not(.has-icon)
   border-top-left-radius: var(--border-radius);
 }
 
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-line-number,
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-line-number-specific {
+  border-top-left-radius: 0 !important;
+}
+
 body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container + .codeblock-customizer-pre,
 body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(.has-icon) + .codeblock-customizer-pre,
 body .codeblock-customizer-header-container:not(.has-icon) + .codeblock-customizer-pre {
   border-top-left-radius: var(--border-radius);
   border-top-right-radius: var(--border-radius);
+}
+
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container + .codeblock-customizer-pre {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 
 body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pre) > .codeblock-customizer-header-container-specific + [class*=codeblock-customizer-line].HyperMD-codeblock-begin {
@@ -1780,7 +1816,8 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
-.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
+.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
   display: none;
 }
 .markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-select-code,

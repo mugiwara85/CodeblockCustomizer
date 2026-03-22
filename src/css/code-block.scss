@@ -226,11 +226,26 @@ body .markdown-source-view .codeblock-customizer-header-container:not(.has-icon)
   }
 }
 
+.codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container+.HyperMD-codeblock-begin {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+
+  .codeblock-customizer-line-number,
+  .codeblock-customizer-line-number-specific {
+    border-top-left-radius: 0 !important;
+  }
+}
+
 body:not(.codeblock-customizer-show-langicons-always, .codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container+.codeblock-customizer-pre,
 body:not(.codeblock-customizer-show-langnames-always) .codeblock-customizer-header-container:not(.has-icon)+.codeblock-customizer-pre,
 body .codeblock-customizer-header-container:not(.has-icon)+.codeblock-customizer-pre {
   border-top-left-radius: var(--border-radius);
   border-top-right-radius: var(--border-radius);
+}
+
+.codeblock-customizer-header-collapse-command .codeblock-customizer-header-container+.codeblock-customizer-pre {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 
 body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pre)>.codeblock-customizer-header-container-specific+[class*="codeblock-customizer-line"].HyperMD-codeblock-begin {

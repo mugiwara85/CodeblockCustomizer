@@ -1,4 +1,4 @@
-import { DEFAULT_COLLAPSE_TEXT, DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
+import { DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { defaultPrompts, PromptLines } from "./PromptManager";
 import { getPromptDefinition } from "./PromptUtils";
 import { CodeblockCustomizerSettings } from "./Settings";
@@ -195,7 +195,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const { isSpecificNumber, showNumbers, lineNumberOffset, lineNumberJumps } = determineLineNumberDisplay(parsedParameters);
 
   // fileName/Title
-  let headerDisplayText = extractFileTitle(parsedParameters);
+  const headerDisplayText = extractFileTitle(parsedParameters);
   const hasTitle = !!headerDisplayText;
 
   // fold
@@ -208,7 +208,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const language = getCodeBlockLanguage(lineText, isReadingView);
 
   // displayLanguage
-  const displayLanguage = getDisplayLanguageName(language);
+  const displayLanguage = getDisplayLanguageName(language) || "Plain text";
 
   // isExcluded
   const exclude = isExcluded(lineText, settings.ExcludeLangs);
@@ -222,11 +222,6 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   // specificHeader and hasLangBorderColor
   let hasLangBorderColor = false;
   if (!exclude) {
-    if (headerDisplayText === null || headerDisplayText === "") {
-      headerDisplayText = settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
-      if (group)
-        headerDisplayText = ''; // if tabs are in use, header should not display any text by default
-    }
     hasLangBorderColor = getBorderColorByLanguage(language, getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings)).length > 0 ? true : false;
   }
 

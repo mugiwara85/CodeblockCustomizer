@@ -7,6 +7,7 @@ import { syntaxTree } from "@codemirror/language";
 import { ButtonModifierKeys, CodeblockCustomizerSettings, CollapseIconStyle } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters, getAllParameters } from "../Parsing";
+import { DEFAULT_COLLAPSE_TEXT } from "../Const";
 import { PromptManager } from "../PromptManager";
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons } from "../Utils";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
@@ -147,10 +148,12 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
         addTabs(view, container, this.parameters, this.groupMembers);
 
       if (this.parameters.displayLanguage && !isGrouped) {
-        container.appendChild(createCodeblockLang(this.parameters.language));
+        container.appendChild(createCodeblockLang(this.parameters.displayLanguage));
       }
 
-      container.appendChild(createFileName(this.parameters.headerDisplayText, this.enableLinks, this.sourcePath, this.plugin));
+      const isCollapsed = this.foldingState === FoldingState.FullyFolded || this.foldingState === FoldingState.SemiFolded;
+      const displayText = (!this.parameters.hasTitle && isCollapsed) ? (this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT) : this.parameters.headerDisplayText;
+      container.appendChild(createFileName(displayText, this.enableLinks, this.sourcePath, this.plugin));
 
       // header buttons
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
