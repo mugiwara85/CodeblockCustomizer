@@ -1,3 +1,13 @@
+- 1.4.2 (2026.03.23)
+  New:
+    - Added Syntax Themes. Using this, it is possible to define the color of each token in syntax highlighting. Read more in the README.
+
+  Modified:
+    - The header now only display the default "Collapsed Code" text, when the code block is either fully folded, or semi-folded.
+
+  BugFix:
+    - The background color in bracket matching wasn't working. It is fixed now.
+
 - 1.4.1 (2026.03.11)
   New:
     - Added option to use PrismJS for syntax highlighting in editor mode. This means more languages get syntax highlight and same syntax highlight between editor and reading mode (#82,#134,#140)

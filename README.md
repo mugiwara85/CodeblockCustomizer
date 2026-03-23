@@ -8,7 +8,7 @@
 This is a plugin for Obsidian (https://obsidian.md).
 
 The plugin lets you customize the code blocks in the following way:
-- Choose from built-in themes (Obsidian, Solarized) or create your own. 
+- Choose from built-in themes (Obsidian, Solarized, Dracula, Gruvbox, Nord, Tokyo Night) or create your own. 
 - Enable active line highlighting for the editor and for code blocks specifically. 
 - Exclude specific languages or individual code blocks from styling. 
 - Set custom background colors for code blocks. 
@@ -22,7 +22,7 @@ The plugin lets you customize the code blocks in the following way:
 - Transform code comments into styled annotations. 
 - Apply syntax highlighting to inline code. 
 - Hide fence lines in editor mode for a cleaner look. 
-- **NEW:** Added option to use PrismJS for syntax highlighting in editor mode => Same syntax highlight in editor and reading mode and more langauges get syntax highlighted  
+- **NEW:** Added option to use PrismJS for syntax highlighting in editor mode => Same syntax highlight in editor and reading mode and more languages get syntax highlighted  
 - **NEW:** Search option in the settings page to find faster a specific setting 
 - **NEW:** Wrap/Unwrap button in editor mode 
 - **NEW:** Execute Code Plugin compatibility 
@@ -33,6 +33,7 @@ The plugin lets you customize the code blocks in the following way:
 - **NEW:** New option to define "line number jumps" 
 - **NEW:** New "Copy as image" button to create snapshots of code blocks 
 - **NEW:** New blur effect for semi-fold
+- **NEW:** Syntax Themes. Using this you can define each color for syntax highlighting tokens. Read more below.
 - and much more...
 
 For a more detailed list of changes, check the [Changelog](./Changelog.txt). 
@@ -45,6 +46,7 @@ For a more detailed list of changes, check the [Changelog](./Changelog.txt).
 - [Display Filename/Title](#display-filenametitle) 
 - [Header](#header) 
 - [Line Numbers](#line-numbers) 
+- [Syntax Themes](#syntax-themes) 
 - [Highlighting](#highlighting) 
 - [Language Specific Coloring](#language-specific-coloring) 
 - [Folding](#folding) 
@@ -130,7 +132,7 @@ The syntax highlighting wasn't the same in editing and reading mode, because Obs
 So what does this setting do? It forces the editor to use `PrismJS` in editor mode. This results, that when this setting is enabled, the syntax highlighting is the **same** in editing and reading modes!
 But that's not all! This setting also has a positive side effect. `CodeMirror` does support a lot of languages, but nearly not as many as `PrismJS`. When this setting is enabled, that also means that languages which `CodeMirror` does not support (e.g. `graphql` or `makefile` or `hlsl`) also get syntax highlighting, because `PrismJS` does support it.  
 
-Even though this setting is not as thourughly tested as others, I wanted to release it easlier. Should you encounter some errors or bugs, just open an issue.  
+Even though this setting is not as thoroughly tested as others, I wanted to release it earlier. Should you encounter some errors or bugs, just open an issue.  
 
 Example code block in editor mode with the setting disabled:
 
@@ -239,6 +241,27 @@ The `ln:` parameter can have 4 values: `true`, `false`, `number` and `{number}:{
 Simple Line number jump:
 
 ![LineNumberJump.png](attachments/LineNumberJump.png)  
+
+## Syntax Themes
+
+Syntax Themes let you change the colors used for syntax highlighting in code blocks. Pick a built-in theme or create your own. Each theme automatically adapts to Obsidian's dark and light mode.
+
+Built-in themes: Obsidian, Dracula, Gruvbox, Nord, Solarized, Tokyo Night, VS Code Modern, Monokai, GitHub, Catppuccin.
+
+An example JavaScript code block, with the default `PrismJS` syntax highlighting:  
+![SyntaxThemeBefore](attachments/SyntaxThemeBefore.png)
+
+Same code block with `Nord` syntax theme applied:  
+![SyntaxThemeAfter](attachments/SyntaxThemeAfter.png)
+
+You can set a syntax theme globally for all languages, or override it for specific languages. For example, use Dracula globally but apply Nord to Python code blocks only.
+
+> **Note:** 
+> This feature works only with `PrismJS` tokens. For the best result, enable `Use PrismJS for syntax highlighting in editor mode`. Without it, syntax themes only apply in reading mode, **not** in editing mode.
+
+### How it works
+
+Syntax highlighting works by analyzing the text in a code block. Each word is identified as a `token`, which can be a keyword (`if`, `else`), a string, a number, a comment, etc. A color is then assigned based on the token type. The full list of tokens can be found [here](https://prismjs.com/tokens.html). Syntax Themes let you customize the color for each of these token types.  
 
 ## Highlighting
 
