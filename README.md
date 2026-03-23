@@ -34,6 +34,7 @@ The plugin lets you customize the code blocks in the following way:
 - **NEW:** New "Copy as image" button to create snapshots of code blocks 
 - **NEW:** New blur effect for semi-fold
 - **NEW:** Syntax Themes. Using this you can define each color for syntax highlighting tokens. Read more below.
+- **NEW:** Added customizable frontmatter syntax coloring in editing mode
 - and much more...
 
 For a more detailed list of changes, check the [Changelog](./Changelog.txt). 

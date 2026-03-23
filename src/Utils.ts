@@ -474,6 +474,13 @@ const stylesDict: StylesDict = {
   "annotations.colors.todo": "annotations-todo-color",
   "annotations.colors.question": "annotations-question-color",
   "annotations.colors.see": "annotations-see-color",
+  "frontmatter.colors.atom": 'frontmatter-atom-color',
+  "frontmatter.colors.meta": 'frontmatter-meta-color',
+  "frontmatter.colors.string": 'frontmatter-string-color',
+  "frontmatter.colors.keyword": 'frontmatter-keyword-color',
+  "frontmatter.colors.number": 'frontmatter-number-color',
+  "frontmatter.colors.comment": 'frontmatter-comment-color',
+  "frontmatter.colors.unclassed": 'frontmatter-unclassed-color',
 }// stylesDict
 
 export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
@@ -841,6 +848,12 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
     document.body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
     document.body.classList.add('codeblock-customizer-execute-code-separator-dashed');
+  }
+
+  if (settings.frontmatter.enableFrontmatterStyling) {
+    document.body.classList.add('codeblock-customizer-style-frontmatter');
+  } else {
+    document.body.classList.remove('codeblock-customizer-style-frontmatter');
   }
 
 }// updateSettingClasses

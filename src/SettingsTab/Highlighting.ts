@@ -190,6 +190,42 @@ export class HighlightingSettings {
     // Update the color container on page load
     updateColorContainer(colorContainer, this.pickerInstances, this.plugin);
 
+    // frontmatter
+    const frontmatterDetails = createDetailsGroup(highlightingDiv, 'Frontmatter Styling', 'frontmatterDetailsOpen', this, this.getSearchQuery);
+
+    const enabled = this.plugin.settings.pluginSettings.frontmatter.enableFrontmatterStyling;
+    const frontmatterColorPickers: Setting[] = [];
+
+    new Setting(frontmatterDetails)
+      .setName('Enable frontmatter syntax coloring')
+      .setDesc('Colors frontmatter properties using token-based syntax highlighting.')
+      .addToggle(toggle => toggle
+        .setValue(enabled)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.frontmatter.enableFrontmatterStyling = value;
+          await this.plugin.saveSettings();
+          frontmatterColorPickers.forEach(s =>
+            s.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value)
+          );
+        })
+      );
+
+    const frontmatterPickerDefs: { name: string; desc: string; pickrClass: string }[] = [
+      { name: 'Property key color', desc: 'Property names (e.g. title, tags)', pickrClass: 'frontmatter.colors.atom' },
+      { name: 'Separator color', desc: 'Colons, brackets, commas, and list markers (: [ ] , -)', pickrClass: 'frontmatter.colors.meta' },
+      { name: 'String color', desc: 'Quoted values (e.g. "hello")', pickrClass: 'frontmatter.colors.string' },
+      { name: 'Boolean color', desc: 'true / false values', pickrClass: 'frontmatter.colors.keyword' },
+      { name: 'Number color', desc: 'Numeric values (e.g. 42, 3.14)', pickrClass: 'frontmatter.colors.number' },
+      { name: 'Comment color', desc: 'YAML comments (# ...)', pickrClass: 'frontmatter.colors.comment' },
+      { name: 'Value color', desc: 'Unquoted text values (e.g. dates, plain text)', pickrClass: 'frontmatter.colors.unclassed' },
+    ];
+
+    for (const def of frontmatterPickerDefs) {
+      const picker = createPickrSetting(frontmatterDetails, def.name, def.desc, def.pickrClass, this.pickerInstances, this.plugin);
+      picker.settingEl.toggleClass('codeblock-customizer-setting-hidden', !enabled);
+      frontmatterColorPickers.push(picker);
+    }
+
     //return highlightingDiv;
   }// display
 }// HighlightingSettings

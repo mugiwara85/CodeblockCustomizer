@@ -60,6 +60,9 @@ export interface Colors {
   annotations: {
     colors: Record<string, string>;
   },
+  frontmatter: {
+    colors: Record<string, string>;
+  },
   editorActiveLineColor: string;
   languageSpecificColors: Record<string, Record<string, string>>;
 }
@@ -245,6 +248,9 @@ export interface PluginSettings {
       executeCodeSeparatorStyle: ExecuteCodeSeparatorStyle;
     }
   },
+  frontmatter: {
+    enableFrontmatterStyling: boolean;
+  },
   enableEditorActiveLineHighlight: boolean;
   syntaxThemes: SyntaxThemeSettings;
 }
@@ -378,6 +384,9 @@ const defaultThemeSettings: PluginSettings = {
       executeCodeSeparatorStyle: ExecuteCodeSeparatorStyle.Zigzag,
     }
   },
+  frontmatter: {
+    enableFrontmatterStyling: true,
+  },
   enableEditorActiveLineHighlight: true,
   syntaxThemes: {
     globalSyntaxTheme: "",
@@ -386,6 +395,17 @@ const defaultThemeSettings: PluginSettings = {
 };
 
 const SELECTION_MATCH_COLOR = '#99ff7780';
+
+// same for all themes
+const DEFAULT_FRONTMATTER_COLORS = {
+  atom: "--code-important",
+  meta: "--code-comment",
+  string: "--code-string",
+  keyword: "--code-keyword",
+  number: "--code-value",
+  comment: "--code-comment",
+  unclassed: "--code-normal",
+};
 
 const DarkPromptColors: Record<string, Record<string, string>> = {
   "bash": {
@@ -743,6 +763,9 @@ const SolarizedDarkColors = {
     }
   },
   editorActiveLineColor: '#468eeb33',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 }
 
@@ -800,6 +823,9 @@ const SolarizedLightColors = {
     }
   },
   editorActiveLineColor: '#60460633',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 }
 
@@ -866,6 +892,9 @@ const ObsidianDarkColors = {
     }
   },
   editorActiveLineColor: "--color-base-20",
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 }
 
@@ -923,6 +952,9 @@ const ObsidianLightColors = {
     }
   },
   editorActiveLineColor: "--color-base-20",
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 }
 
@@ -1007,6 +1039,9 @@ const GruvboxDarkColors = {
     }
   },
   editorActiveLineColor: '#3c383680',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 }
 
@@ -1064,6 +1099,9 @@ const GruvboxLightColors = {
     }
   },
   editorActiveLineColor: '#ebdbb280',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 }
 
@@ -1145,6 +1183,9 @@ const DraculaDarkColors = {
     }
   },
   editorActiveLineColor: `${dracula.currentLine}80`,
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 };
 
@@ -1202,6 +1243,9 @@ const DraculaLightColors = {
     }
   },
   editorActiveLineColor: '#e9e9f280',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 };
 
@@ -1290,6 +1334,9 @@ const NordDarkColors = {
     }
   },
   editorActiveLineColor: `#bf616a33`,
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 };
 
@@ -1347,6 +1394,9 @@ const NordLightColors = {
     }
   },
   editorActiveLineColor: `#bf616a1a`,
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 };
 
@@ -1453,6 +1503,9 @@ const TokyoNightDarkColors = {
     }
   },
   editorActiveLineColor: '#3D4462BF',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 };
 
@@ -1510,6 +1563,9 @@ const TokyoNightLightColors = {
     }
   },
   editorActiveLineColor: '#A9ABB880',
+  frontmatter: {
+    colors: { ...DEFAULT_FRONTMATTER_COLORS },
+  },
   languageSpecificColors: {},
 };
 

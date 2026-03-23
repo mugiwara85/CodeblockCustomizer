@@ -2735,44 +2735,29 @@ pre.codeblock-customizer-pre .cbc-line-num {
   background-color: var(--codeblock-selectionmatch-highlight-color, var(--codeblock-customizer-codeblock-selectionmatch-highlight-color));
 }
 .markdown-source-view .cm-selectionMatch:not(.codeblock-customizer-line .cm-selectionMatch) {
-  /* dont apply to non-codeblock lines */
   background-color: transparent !important;
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-operator {
-  color: var(--code-operator);
+
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter {
+  color: var(--codeblock-customizer-frontmatter-unclassed-color);
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-keyword {
-  color: var(--code-keyword);
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter.cm-atom {
+  color: var(--codeblock-customizer-frontmatter-atom-color);
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-atom {
-  color: var(--code-important);
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter.cm-meta {
+  color: var(--codeblock-customizer-frontmatter-meta-color);
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-number {
-  color: var(--code-value);
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter.cm-string {
+  color: var(--codeblock-customizer-frontmatter-string-color);
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-tag {
-  color: var(--code-tag);
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter.cm-keyword {
+  color: var(--codeblock-customizer-frontmatter-keyword-color);
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-variable-2, .markdown-source-view .cm-hmd-frontmatter.cm-variable, .markdown-source-view .cm-hmd-frontmatter.cm-variable-3, .markdown-source-view .cm-hmd-frontmatter.cm-link {
-  color: var(--code-property);
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter.cm-number {
+  color: var(--codeblock-customizer-frontmatter-number-color);
 }
-.markdown-source-view .cm-hmd-frontmatter.cm-type .markdown-source-view .cm-hmd-frontmatter.cm-property, .markdown-source-view .cm-hmd-frontmatter.cm-attribute, .markdown-source-view .cm-hmd-frontmatter.cm-builtin {
-  color: var(--code-function);
-}
-.markdown-source-view .cm-hmd-frontmatter:not([class*=cm-]), .markdown-source-view .cm-hmd-frontmatter.cm-type .cm-property {
-  color: var(--code-function);
-}
-.markdown-source-view .cm-hmd-frontmatter.cm-meta, .markdown-source-view .cm-hmd-frontmatter.cm-hmd-frontmatter.cm-def.cm-def, .markdown-source-view .cm-hmd-frontmatter.cm-comment {
-  color: var(--code-comment);
-}
-.markdown-source-view .cm-hmd-frontmatter.cm-string-2, .markdown-source-view .cm-hmd-frontmatter.cm-qualifier, .markdown-source-view .cm-hmd-frontmatter.cm-string {
-  color: var(--code-string);
-}
-.markdown-source-view .cm-hmd-frontmatter.cm-math, .markdown-source-view .cm-hmd-frontmatter.cm-inline-code {
-  color: var(--code-normal);
-}
-.markdown-source-view .cm-hmd-frontmatter.cm-bracket, .markdown-source-view .cm-hmd-frontmatter.cm-hr .markdown-source-view .cm-hmd-frontmatter.cm-punctuation {
-  color: var(--code-punctuation);
+.codeblock-customizer-style-frontmatter .markdown-source-view .cm-hmd-frontmatter.cm-comment {
+  color: var(--codeblock-customizer-frontmatter-comment-color);
 }
 
 /* undo CodeMirrors color assignment */
