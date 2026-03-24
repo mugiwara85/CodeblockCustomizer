@@ -1422,7 +1422,7 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   padding-left: 0 !important;
   overflow-wrap: normal !important;
   overflow-x: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
   white-space: pre !important;
   word-wrap: normal;
 }
@@ -1816,8 +1816,7 @@ body.codeblock-customizer .markdown-source-view .codeblock-customizer-header-con
 .markdown-source-view .codeblock-customizer-header-container-specific.semi-collapsed:hover .codeblock-customizer-header-button-container .codeblock-customizer-delete-code {
   display: none;
 }
-.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
+.markdown-source-view .codeblock-customizer-header-container-specific + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
   display: none;
 }
 .markdown-source-view .codeblock-customizer-button-container .codeblock-customizer-select-code,
@@ -2102,8 +2101,8 @@ body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-hea
   display: none;
 }
 
-.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang) + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container + .HyperMD-codeblock-begin .codeblock-customizer-button-container {
   display: none;
 }

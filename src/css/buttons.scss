@@ -70,8 +70,7 @@
   }
 
   // don't display the first-line button container, when either header is specified, forced, or collapse command is used
-  .codeblock-customizer-header-container-specific+.HyperMD-codeblock-begin .codeblock-customizer-button-container,
-  .codeblock-customizer-header-container+.HyperMD-codeblock-begin .codeblock-customizer-button-container {
+  .codeblock-customizer-header-container-specific+.HyperMD-codeblock-begin .codeblock-customizer-button-container {
     display: none;
   }
 
@@ -274,8 +273,8 @@ body.codeblock-customizer-always-show-copy-code-button .codeblock-customizer-hea
   }
 }
 
-.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang)+.HyperMD-codeblock-begin .codeblock-customizer-button-container,
-.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container:not(.codeblock-customizer-language-nolang)+.HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langicons-always .markdown-source-view .codeblock-customizer-header-container+.HyperMD-codeblock-begin .codeblock-customizer-button-container,
+.codeblock-customizer-show-langnames-always .markdown-source-view .codeblock-customizer-header-container+.HyperMD-codeblock-begin .codeblock-customizer-button-container,
 .codeblock-customizer-header-collapse-command .markdown-source-view .codeblock-customizer-header-container+.HyperMD-codeblock-begin .codeblock-customizer-button-container {
   display: none;
 }
