@@ -1,4 +1,4 @@
-import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, loadPrism, CachedMetadata, SectionCache } from "obsidian";
+import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownPreviewRenderer, loadPrism, CachedMetadata, SectionCache } from "obsidian";
 
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
@@ -801,6 +801,16 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// processBlocks
 
+  private isCodeBlockProcessor(language: string): boolean {
+    // @ts-expect-error: undocumented Obsidian API
+    const processors: Record<string, unknown> | undefined = MarkdownPreviewRenderer.codeBlockPostProcessors;
+    if (!processors) {
+      return false;
+    }
+
+    return language.toLowerCase() in processors;
+  }// isCodeBlockProcessor
+
   private extractCodeBlocksFromSections(sections: SectionCache[], fileContent: string[]): CodeBlockData[] {
     const sectionsToParse: SectionCache[] = [];
     const coveredLines = new Set<number>();
@@ -823,14 +833,26 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       const language = firstLine.replace(/^(?:`|~){3,}/, '').trim().split(' ')[0] || '';
       const isAdmonitionContainer = section.type === 'code' && language.toLowerCase().startsWith('ad-');
 
+      let extractedBlocks: CodeBlockData[];
       if (isAdmonitionContainer) {
         if (isPluginLoaded('obsidian-admonition', this.plugin)) {
-          return extractCodeBlocksFromAdmonition(blockLines);
+          extractedBlocks = extractCodeBlocksFromAdmonition(blockLines);
+        } else {
+          extractedBlocks = extractCodeBlocksFromSection(blockLines);
         }
-        return extractCodeBlocksFromSection(blockLines);
+      } else {
+        extractedBlocks = extractCodeBlocksFromSection(blockLines);
       }
 
-      return extractCodeBlocksFromSection(blockLines);
+      // filter out code blocks, which have registered code block processors ==> won't produce <pre> elements and this would lead to mismatch
+      return extractedBlocks.filter(block => {
+        const blockLang = block.firstLine.replace(/^(?:`|~){3,}/, '').trim().split(' ')[0] || '';
+        if (blockLang && this.isCodeBlockProcessor(blockLang)) {
+          //console.log(`[extractCodeBlocksFromSections] skipping code block with language "${blockLang}" (isCodeBlockProcessor)`);
+          return false;
+        }
+        return true;
+      });
     });
   }// extractCodeBlocksFromSections
 
