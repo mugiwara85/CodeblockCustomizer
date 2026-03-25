@@ -83,6 +83,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const { codeBlockSectionInfo, source } = await this.getSectionInfo(codeBlockElement);
     const isPrinting = !!codeBlockElement.closest('.print');
 
+    if (isPrinting && !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling) {
+      return;
+    }
+
     if (!codeBlockSectionInfo) {
       if (isPrinting) {
         this.allPreElements = await this.getPreElements(codeBlockElement);

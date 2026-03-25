@@ -23,9 +23,9 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     }
 
     this.containerEl.classList.add('codeblock-customizer-inline-code');
-    const isPdfExport = !this.context.getSectionInfo(this.containerEl);
+    const isPrinting = !!this.containerEl.closest('.print');
 
-    if (isPdfExport && !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling) {
+    if (isPrinting && !this.plugin.settings.pluginSettings.printing.enablePrintToPDFStyling) {
       // remove class during printing, so it does not gets styled
       this.containerEl.classList.remove('codeblock-customizer-inline-code');
       return;
