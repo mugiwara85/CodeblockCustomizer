@@ -1,3 +1,13 @@
+- 1.4.4 (2026.03.25)
+  - Modified:
+    - Added Mac support for modifier keys
+
+  - BugFix: 
+    - Inline code not rendering in tables in editing mode when PDF printing was not enabled (#156)
+    - Scrolling over unwrapped code blocks did not work in editing mode
+    - Added fix to exclude all code blocks which use MarkdownPreviewRenderer during PDF Printing (#155)
+    - Fixed "Enable print to PDF" toggle. It didn't had any effect. Accidently broke it during a refactor
+
 - 1.4.3 (2026.03.23)
   New:
     - Added customizable frontmatter syntax coloring in editing mode
