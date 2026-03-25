@@ -90,7 +90,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
   private createInlineCodeClickHandler(getTextToCopy: () => string): (event: MouseEvent) => void {
     return (event: MouseEvent) => {
       const requiredKey = this.plugin.settings.pluginSettings.inlineCode.copyModifierKey;
-      if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey)) {
+      if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey && !event.metaKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey)) {
         return;
       }
 

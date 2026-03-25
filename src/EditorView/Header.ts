@@ -321,7 +321,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
 
       switch (modifierKey) {
         case ButtonModifierKeys.CTRL:
-          return event.ctrlKey;
+          return event.ctrlKey || event.metaKey;
         case ButtonModifierKeys.ALT:
           return event.altKey;
         case ButtonModifierKeys.SHIFT:

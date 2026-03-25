@@ -1,4 +1,4 @@
-import { DropdownComponent, Notice, Setting, TextComponent, ToggleComponent } from "obsidian";
+import { DropdownComponent, Notice, Platform, Setting, TextComponent, ToggleComponent } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
@@ -343,8 +343,8 @@ export class BehaviorSettings {
       .setDesc('Hold this key while clicking copy, select, or delete to include the fence lines in the action.')
       .addDropdown(dropdown => dropdown
         .addOption(ButtonModifierKeys.NONE, 'None')
-        .addOption(ButtonModifierKeys.CTRL, 'Ctrl')
-        .addOption(ButtonModifierKeys.ALT, 'Alt')
+        .addOption(ButtonModifierKeys.CTRL, Platform.isMacOS ? 'Cmd' : 'Ctrl')
+        .addOption(ButtonModifierKeys.ALT, Platform.isMacOS ? 'Option' : 'Alt')
         .addOption(ButtonModifierKeys.SHIFT, 'Shift')
         .setValue(this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey)
         .onChange(async (value: ButtonModifierKeys) => {

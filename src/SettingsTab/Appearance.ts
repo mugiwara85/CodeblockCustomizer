@@ -1,4 +1,4 @@
-import { Notice, Setting, TextComponent } from "obsidian";
+import { Notice, Platform, Setting, TextComponent } from "obsidian";
 
 import { createDetailsGroup, SettingsPage, SettingsPageData, updateLanguageSpecificColorContainer } from "./Common";
 import { getCurrentMode } from "src/Utils";
@@ -446,8 +446,8 @@ export class AppearanceSettings {
       .setName('Modifier key for copy')
       .setDesc('Select the key to hold while clicking to copy.')
       .addDropdown(dropdown => dropdown
-        .addOption(InlineCodeModifierKeys.CTRL, 'Ctrl')
-        .addOption(InlineCodeModifierKeys.ALT, 'Alt')
+        .addOption(InlineCodeModifierKeys.CTRL, Platform.isMacOS ? 'Cmd' : 'Ctrl')
+        .addOption(InlineCodeModifierKeys.ALT, Platform.isMacOS ? 'Option' : 'Alt')
         .setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey)
         .onChange(async (value: InlineCodeModifierKeys) => {
           this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;

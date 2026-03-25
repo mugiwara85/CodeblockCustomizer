@@ -111,7 +111,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
           return;
 
         const requiredKey = plugin.settings.pluginSettings.inlineCode.copyModifierKey;
-        if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey))
+        if ((requiredKey === InlineCodeModifierKeys.CTRL && !event.ctrlKey && !event.metaKey) || (requiredKey === InlineCodeModifierKeys.ALT && !event.altKey))
           return;
 
         const target = event.target as HTMLElement;
