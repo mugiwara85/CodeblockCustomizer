@@ -1,4 +1,4 @@
-import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView, loadPrism } from "obsidian";
 
 import { EditorState } from "@codemirror/state";
 
@@ -273,6 +273,93 @@ export function loadSyntaxHighlightForCustomLanguages(plugin: CodeBlockCustomize
     }
   }
 }// loadSyntaxHighlightForCustomLanguages
+
+const CUSTOM_PRISM_LANGUAGES_FILE = "customPrismLanguages.json";
+let registeredCustomPrismLanguages: string[] = [];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertRegexStrings(value: any): any {
+  if (typeof value === "string") {
+    const regexMatch = value.match(/^\/(.+)\/([gimsuy]*)$/);
+    if (regexMatch) {
+      try {
+        return new RegExp(regexMatch[1], regexMatch[2]);
+      } catch (e) {
+        new Notice(`Invalid regex "${value}" in ${CUSTOM_PRISM_LANGUAGES_FILE}: ${e}`);
+        return value;
+      }
+    }
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(convertRegexStrings);
+  }
+
+  if (value !== null && typeof value === "object") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = {};
+    for (const key of Object.keys(value)) {
+      result[key] = convertRegexStrings(value[key]);
+    }
+    return result;
+  }
+
+  return value;
+}// convertRegexStrings
+
+export async function loadCustomPrismLanguages(plugin: CodeBlockCustomizerPlugin): Promise<void> {
+  const path = `${plugin.app.vault.configDir}/plugins/${plugin.manifest.id}/${CUSTOM_PRISM_LANGUAGES_FILE}`;
+  const fileExists = await plugin.app.vault.adapter.exists(path);
+  if (!fileExists) {
+    return;
+  }
+
+  let jsonContent: string;
+  try {
+    jsonContent = await plugin.app.vault.adapter.read(path);
+  } catch (e) {
+    new Notice(`Failed to read ${CUSTOM_PRISM_LANGUAGES_FILE}: ${e}`);
+    return;
+  }
+
+  let definitions: Record<string, unknown>;
+  try {
+    definitions = JSON.parse(jsonContent);
+  } catch (e) {
+    new Notice(`Invalid JSON in ${CUSTOM_PRISM_LANGUAGES_FILE}: ${e}`);
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prism: any = await loadPrism();
+  if (!prism) {
+    console.error("Prism instance not available for custom language registration.");
+    return;
+  }
+
+  for (const [name, definition] of Object.entries(definitions)) {
+    try {
+      const converted = convertRegexStrings(definition);
+      prism.languages[name] = converted;
+      registeredCustomPrismLanguages.push(name);
+    } catch (e) {
+      new Notice(`Failed to register language "${name}": ${e}`);
+    }
+  }
+}// loadCustomPrismLanguages
+
+export function unloadCustomPrismLanguages() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prism = (window as any).Prism;
+  if (prism) {
+    for (const name of registeredCustomPrismLanguages) {
+      delete prism.languages[name];
+    }
+  }
+
+  registeredCustomPrismLanguages = [];
+}// unloadCustomPrismLanguages
 
 export function getLanguageConfig(codeblockLanguage: string, plugin: CodeBlockCustomizerPlugin): LanguageConfig | undefined {
   codeblockLanguage = codeblockLanguage.toLowerCase();

@@ -6,7 +6,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { DEFAULT_SYNTAX_THEMES } from './SyntaxThemeDefaults';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode, loadCustomPrismLanguages, unloadCustomPrismLanguages } from "./Utils";
 import { extensions } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
 import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRenderer";
@@ -73,6 +73,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     await loadIcons(this);
     loadSyntaxHighlightForCustomLanguages(this); // load syntax highlight
+    await loadCustomPrismLanguages(this);        // load custom Prism language definitions
     registerExecuteCodeSyntaxHighlighting();
 
     mergeBorderColorsToLanguageSpecificColors(this, this.settings);
@@ -268,6 +269,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     // unload syntax highlight
     loadSyntaxHighlightForCustomLanguages(this, true);
+    unloadCustomPrismLanguages();
     unregisterExecuteCodeSyntaxHighlighting();
 
     if (this.debounceTimer)
