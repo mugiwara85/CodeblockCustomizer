@@ -1,4 +1,4 @@
-import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView, loadPrism } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView } from "obsidian";
 
 import { EditorState } from "@codemirror/state";
 
@@ -276,6 +276,9 @@ export function loadSyntaxHighlightForCustomLanguages(plugin: CodeBlockCustomize
 
 const CUSTOM_PRISM_LANGUAGES_FILE = "customPrismLanguages.json";
 let registeredCustomPrismLanguages: string[] = [];
+let customPrismLanguageNames: Set<string> = new Set();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let customPrismDefinitions: Record<string, any> | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertRegexStrings(value: any): any {
@@ -308,7 +311,7 @@ function convertRegexStrings(value: any): any {
   return value;
 }// convertRegexStrings
 
-export async function loadCustomPrismLanguages(plugin: CodeBlockCustomizerPlugin): Promise<void> {
+export async function parseCustomPrismLanguages(plugin: CodeBlockCustomizerPlugin): Promise<void> {
   const path = `${plugin.app.vault.configDir}/plugins/${plugin.manifest.id}/${CUSTOM_PRISM_LANGUAGES_FILE}`;
   const fileExists = await plugin.app.vault.adapter.exists(path);
   if (!fileExists) {
@@ -332,21 +335,35 @@ export async function loadCustomPrismLanguages(plugin: CodeBlockCustomizerPlugin
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const prism: any = await loadPrism();
-  if (!prism) {
-    console.error("Prism instance not available for custom language registration.");
+  const converted: Record<string, any> = {};
+  for (const [name, definition] of Object.entries(definitions)) {
+    try {
+      converted[name] = convertRegexStrings(definition);
+    } catch (e) {
+      new Notice(`Failed to parse language "${name}": ${e}`);
+    }
+  }
+
+  customPrismDefinitions = converted;
+  customPrismLanguageNames = new Set(Object.keys(converted));
+}// parseCustomPrismLanguages
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function loadCustomPrismLanguages(prism: any): void {
+  if (!customPrismDefinitions) {
     return;
   }
 
-  for (const [name, definition] of Object.entries(definitions)) {
+  for (const [name, definition] of Object.entries(customPrismDefinitions)) {
     try {
-      const converted = convertRegexStrings(definition);
-      prism.languages[name] = converted;
+      prism.languages[name] = definition;
       registeredCustomPrismLanguages.push(name);
     } catch (e) {
       new Notice(`Failed to register language "${name}": ${e}`);
     }
   }
+
+  customPrismDefinitions = null;
 }// loadCustomPrismLanguages
 
 export function unloadCustomPrismLanguages() {
@@ -359,7 +376,12 @@ export function unloadCustomPrismLanguages() {
   }
 
   registeredCustomPrismLanguages = [];
+  customPrismLanguageNames.clear();
 }// unloadCustomPrismLanguages
+
+export function isCustomPrismLanguage(language: string): boolean {
+  return customPrismLanguageNames.has(language);
+}// isCustomPrismLanguage
 
 export function getLanguageConfig(codeblockLanguage: string, plugin: CodeBlockCustomizerPlugin): LanguageConfig | undefined {
   codeblockLanguage = codeblockLanguage.toLowerCase();

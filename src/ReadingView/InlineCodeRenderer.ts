@@ -1,6 +1,6 @@
 import { MarkdownPostProcessorContext, loadPrism, MarkdownRenderChild } from "obsidian";
 
-import { getLanguageIcon, getInlineCodeIcon, addTextToClipboard } from "../Utils";
+import { getLanguageIcon, getInlineCodeIcon, addTextToClipboard, loadCustomPrismLanguages } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { INLINE_CODE_LANG_REGEX } from "../Const";
 import { InlineCodeModifierKeys } from "../Settings";
@@ -39,6 +39,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
 
     if (settings.enableSyntaxHighlight && isValidMatch) {
       const prism = await loadPrism();
+      loadCustomPrismLanguages(prism);
       this.processInlineCodeElement(prism, match);
     } else {
       if (settings.enableCopyOnClick) {

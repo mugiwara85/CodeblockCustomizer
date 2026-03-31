@@ -1,6 +1,6 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownPreviewRenderer, loadPrism, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "../Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, loadCustomPrismLanguages, isCustomPrismLanguage } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
 import { DEFAULT_COLLAPSE_TEXT, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "../Const";
@@ -402,6 +402,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return "";
 
     const prism = await loadPrism();
+    loadCustomPrismLanguages(prism);
     const langDefinition = prism.languages[language];
 
     const html = await prism.highlight(codeblockLines.join('\n'), langDefinition, language);
@@ -624,7 +625,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const isAlreadyProcessed = preCodeElm.innerHTML.includes('codeblock-customizer-line');
     const isRunLanguage = Array.from(htmlSourceEl.classList).some(cls => cls.startsWith('language-run-'));
     const isNotHighlighted = isRunLanguage && !htmlSourceEl.innerHTML.includes('<span') && this.plugin.settings.pluginSettings.plugins.executeCode.enabled;
-    const rebuild = isRerender || isAlreadyProcessed || isNotHighlighted;
+    const isCustomLanguage = isCustomPrismLanguage(parameters.language);
+    const rebuild = isRerender || isAlreadyProcessed || isNotHighlighted || isCustomLanguage;
     const tempCodeElm = document.createElement('div');
     const settings = this.plugin.settings.pluginSettings;
 
@@ -638,6 +640,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
       const codeContentToHighlight = codeLinesToProcess.join('\n');
       const prism = await loadPrism();
+      loadCustomPrismLanguages(prism);
       const language = parameters.language;
       const langDefinition = prism.languages[customFormat ? customFormat : language];
 

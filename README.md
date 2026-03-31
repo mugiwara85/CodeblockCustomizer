@@ -35,6 +35,7 @@ The plugin lets you customize the code blocks in the following way:
 - **NEW:** New blur effect for semi-fold
 - **NEW:** Syntax Themes. Using this you can define each color for syntax highlighting tokens. Read more below.
 - **NEW:** Added customizable frontmatter syntax coloring in editing mode
+- **NEW:** Added option to define PrismJS syntax highlighting rules for custom languages
 - and much more...
 
 For a more detailed list of changes, check the [Changelog](./Changelog.txt). 
@@ -63,6 +64,7 @@ For a more detailed list of changes, check the [Changelog](./Changelog.txt).
 - [Indented Code Blocks](#indented-code-blocks) 
 - [Links](#links) 
 - [Custom SVGs and Syntax Highlight Assignment](#custom-svgs-and-syntax-highlight-assignment) 
+- [Syntax Highlighting for Custom Languages](#syntax-highlighting-for-custom-languages)
 - [Bracket Highlight](#bracket-highlight) 
 - [Selection Matching](#selection-matching) 
 - [Plugin Compatibility](#plugin-compatibility)
@@ -616,6 +618,62 @@ Explanation:
 An example using the above shown JSON file, where `tcl` syntax highlighting is applied to `language1` code blocks, using the custom SVG file, and the custom display name:
 
 ![Pasted_image_20240613160326.png](attachments/Pasted_image_20240613160326.png)
+
+## Syntax Highlighting for Custom Languages
+
+`PrismJS` provides syntax highlighting for a lot of languages, but there are still some, which it doesn't support. This feature lets you define your own syntax highlighting rules for those unsupported languages by creating a JSON configuration file. If `Use PrismJS for syntax highlighting in editor mode` is enabled (see [PrismJS Syntax Highlighting](#prismjs-syntax-highlighting)), the rules apply in both editor and reading mode. If it is not enabled, the rules will only apply in reading mode.
+
+To get started, create a `customPrismLanguages.json` file in your `<VaultFolder>\.obsidian\plugins\codeblock-customizer\` folder. In this file you can define the RegExes used by `PrismJS` to provide syntax highlighting for those languages. You will need to define RegExes for the [tokens](https://prismjs.com/tokens.html). There are a few examples on the official `PrismJS` [website](https://prismjs.com/extending.html).
+
+> [!important]
+> The RegExes are stored as strings in the `customPrismLanguages.json` file. This means, that you will have to escape the backslashes. So instead of one backslash (`\`), you'll have to write two (`\\`).
+
+> [!note]
+> If the JSON file is malformed or contains invalid RegExes, a notice will be shown when the plugin loads.
+
+A sample `customPrismLanguages.json` which provides syntax highlighting for the `ma3` language would look like this:
+
+```json
+{
+  "ma3": {
+    "comment": "/(^|[^\\\\#])#.*/gim",
+    "string": [
+      {
+        "pattern": "/'(?:\\\\[\\s\\S]|[^\\\\''])*'/",
+        "greedy": true
+      },
+      {
+        "pattern": "/\"(?:\\\\[\\s\\S]|[^\\\\\"])*\"/",
+        "greedy": true
+      }
+    ],
+    "number": "/(?:\\b\\d+(?:\\.\\d*)?|\\B\\.\\d+)/gi",
+    "operator": "/[-+*%]/",
+    "slashModifier": {
+      "pattern": "/(\\/\\w+)/",
+      "alias": "class-name"
+    },
+    "macroInputPrompt": {
+      "pattern": "/\\((?:\\\\[\\s\\S]|[^\\\\(\\\\)])*\\)/",
+      "alias": "variable",
+      "greedy": true
+    },
+    "macroVariableResolve": {
+      "pattern": "/\\$.[^\\s]*/",
+      "alias": "variable",
+      "greedy": true
+    },
+    "keyword": "/\\b(?:\\w+)\\b/"
+  }
+}
+```
+
+`ma3` language without custom syntax highlight definition:  
+![Ma3WithoutCustomPrismLanguageDefitions.png](attachments/Ma3WithoutCustomPrismLanguageDefitions.png)
+
+`ma3` language with custom syntax highlight definition:  
+![Ma3WithCustomPrismLanguageDefitions.png](attachments/Ma3WithCustomPrismLanguageDefitions.png)
+
 
 ## Bracket Highlight
 

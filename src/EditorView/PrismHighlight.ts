@@ -5,7 +5,7 @@ import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from "@
 
 import { CodeblockCustomizerSettings } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
-import { getLanguageConfig, isSourceMode } from "../Utils";
+import { getLanguageConfig, isSourceMode, loadCustomPrismLanguages } from "../Utils";
 import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 
 export interface PrismTokenRange {
@@ -112,6 +112,7 @@ export function ensurePrismLoaded(onLoaded?: () => void): void {
 
   loadPrism().then(p => {
     prismInstance = p;
+    loadCustomPrismLanguages(p);
     isPrismLoading = false;
     onLoaded?.();
   });

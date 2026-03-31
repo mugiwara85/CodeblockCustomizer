@@ -1,6 +1,6 @@
 {
 	"name": "codeblock-customizer",
-	"version": "1.4.4",
+	"version": "1.4.5",
 	"description": "The plugin lets you customize your Obsidian code blocks and inline code in editing mode and reading mode as well.",
 	"main": "main.js",
 	"scripts": {
