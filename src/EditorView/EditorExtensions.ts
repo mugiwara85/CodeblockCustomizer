@@ -28,7 +28,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   const {
     collapseField, foldCommandField, rememberedFoldField, defaultFoldUnfoldedField, toggleCodeBlockFold, getFoldingState, foldAll, unfoldAll, restoreDefaultFold
   } = foldingExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, getHiddenLines, () => groupedCodeBlocksField);
-  const { groupedCodeBlocksField, activeGroupTabField, addTabs } = groupedCodeBlocksExtension(plugin, settings, codeBlockPositionsField, () => toggleCodeBlockFold);
+  const { groupedCodeBlocksField, activeGroupTabField, addTabs } = groupedCodeBlocksExtension(plugin, settings, codeBlockPositionsField, () => toggleCodeBlockFold, getFoldingState);
   const { headerField, buttonWidget, createButtonConfigs } = headerExtension(plugin, settings, codeBlockPositionsField, collapseField, activeGroupTabField, groupedCodeBlocksField, hiddenLinesUnhiddenField, unwrappedCodeBlocksField, getFoldingState, toggleCodeBlockFold, addTabs, getHiddenRanges);
   const { viewPlugin, liveUpdateExtension, forceRefreshListener } = mainViewPluginExtension(plugin, settings, codeBlockPositionsField, collapseField, foldCommandField, hiddenLinesUnhiddenField, getHiddenRanges);
   const { hideFencesPlugin } = hideFenceLinesExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, createButtonConfigs, buttonWidget);

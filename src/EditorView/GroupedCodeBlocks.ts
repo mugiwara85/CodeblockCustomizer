@@ -1,6 +1,6 @@
 import { editorInfoField, setIcon } from "obsidian";
 
-import { StateField, EditorState, Transaction } from "@codemirror/state";
+import { StateField, EditorState, Transaction, EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { CodeblockCustomizerSettings, TabPersistence } from "../Settings";
@@ -8,10 +8,10 @@ import CodeBlockCustomizerPlugin from "../main";
 import { createCodeblockLang, isSourceMode, getDisplayLanguageName } from "../Utils";
 import { CBCParameters } from "../Parsing";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
-import { setGroupTab, CodeBlockFoldEffect } from "./EditorEffects";
+import { setGroupTab, CodeBlockFoldEffect, FoldingState } from "./EditorEffects";
 
 export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>,
-  getToggleCodeBlockFold: () => (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }) {
+  getToggleCodeBlockFold: () => (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, getFoldingState?: (state: EditorState, startPos: number, endPos: number) => FoldingState) {
 
   const groupedCodeBlocksField = StateField.define<GroupedCodeBlocks>({
     create(state: EditorState): GroupedCodeBlocks {
@@ -230,7 +230,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
       const startPos = Number(tabElement.dataset.startPos);
       const clickedMember = groupMembers.find(m => m.codeBlockStartPos === startPos);
       if (clickedMember) {
-        handleTabClick(view, clickedMember, parameters);
+        handleTabClick(view, clickedMember, parameters, groupMembers);
       }
     };
 
@@ -299,7 +299,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
     tab.appendChild(removeButton);
   }// addRemoveTabButton
 
-  function handleTabClick(view: EditorView, member: CodeBlockPositions, parameters: CBCParameters) {
+  function handleTabClick(view: EditorView, member: CodeBlockPositions, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) {
     const groupName = parameters.group;
     if (!groupName) {
       console.error("Cannot dispatch tab selection: invalid group name.");
@@ -317,9 +317,45 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
       const foldChanges = getToggleCodeBlockFold()(view, member);
       effects.push(...foldChanges.effects);
       annotations.push(...foldChanges.annotations);
+      view.dispatch({ annotations, effects });
+      return;
     }
 
-    view.dispatch({ annotations, effects });
+    const selectionHead = view.state.selection.main.head;
+    const isCursorInGroup = groupMembers.some(m =>
+      selectionHead >= m.codeBlockStartPos && selectionHead <= m.codeBlockEndPos
+    );
+
+    if (isCursorInGroup) {
+      // cursor is inside one of the grouped code blocks ==> move cursor
+      const foldedState = getFoldingState ? getFoldingState(view.state, member.codeBlockStartPos, member.codeBlockEndPos) : FoldingState.Unfolded;
+
+      let cursorPos: number;
+      if (foldedState === FoldingState.FullyFolded) {
+        // code block is fully folded ==> move cursor after the group
+        const lastMember = groupMembers[groupMembers.length - 1];
+        const lastMemberEndLine = view.state.doc.lineAt(lastMember.codeBlockEndPos);
+        cursorPos = Math.min(lastMemberEndLine.to + 1, view.state.doc.length);
+      } else {
+        // code block is unfolded or semi-folded
+        const firstLine = view.state.doc.lineAt(member.codeBlockStartPos);
+        const lastLine = view.state.doc.lineAt(member.codeBlockEndPos);
+        const hasContentLines = lastLine.number - firstLine.number > 1;
+
+        if (!hasContentLines) {
+          // code block has no content lines ==> place the cursor at the end of the opening fence line
+          cursorPos = firstLine.to;
+        } else {
+          // code block has content lines ==> place the cursor at the start of the first content line
+          cursorPos = view.state.doc.line(firstLine.number + 1).from;
+        }
+      }
+
+      view.dispatch({ annotations, effects, selection: EditorSelection.cursor(cursorPos) });
+    } else {
+      // cursor is outside of grouped code blocks ==> leave it where it is
+      view.dispatch({ annotations, effects });
+    }
   }// handleTabClick
 
   return {
