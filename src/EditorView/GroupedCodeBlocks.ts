@@ -152,7 +152,16 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
             }
           }
 
-          // if no saved state was found, default to the first tab
+          // fix for #158 - if "save active tab state" is off or has no entry, preserve the current active tab
+          if (activePos === undefined && transaction.docChanged && value[groupName] !== undefined) {
+            const mappedPos = transaction.changes.mapPos(value[groupName]);
+            const correspondingBlock = groupMembers.find(b => b.codeBlockStartPos === mappedPos);
+            if (correspondingBlock) {
+              activePos = correspondingBlock.codeBlockStartPos;
+            }
+          }
+
+          // fallback for new groups ==> default to the first tab
           newState[groupName] = activePos ?? groupMembers[0].codeBlockStartPos;
         }
 
