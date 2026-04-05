@@ -1,3 +1,7 @@
+- 1.4.6 (2026.04.05)
+  - BugFix:
+    - Fixed switching to the first tab of grouped code blocks, when the "Save active tab state" setting was off (#158)
+
 - 1.4.5 (2026.03.31)
   - New
     - Added option to define PrismJS syntax highlighting rules for custom languages (#157)
