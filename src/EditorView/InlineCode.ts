@@ -36,7 +36,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
         syntaxTree(view.state).iterate({
           from, to,
           enter: (node) => {
-            if (!node.type.name.startsWith('inline-code'))
+            if (!node.type.name.includes('inline-code'))
               return;
 
             decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper" }).range(node.from, node.to));
@@ -133,7 +133,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
             if (found)
               return false;
 
-            if (node.type.name.startsWith('inline-code')) {
+            if (node.type.name.includes('inline-code')) {
               const text = view.state.sliceDoc(node.from, node.to);
               const match = text.match(INLINE_CODE_LANG_REGEX);
               // fix for #147

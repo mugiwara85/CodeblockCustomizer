@@ -1729,6 +1729,10 @@ body:not(.codeblock-customizer-show-inline-code-icons) div.cm-line span.codebloc
   vertical-align: middle;
 }
 
+.cm-s-obsidian div.cm-line.HyperMD-header span.codeblock-customizer-inline-code-icon-container.cm-inline-code {
+  font-size: inherit !important;
+}
+
 /* Inline code reading view */
 .codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre) > code.codeblock-customizer-inline-code {
   padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
