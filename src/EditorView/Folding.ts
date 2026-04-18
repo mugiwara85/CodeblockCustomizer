@@ -330,6 +330,12 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
             } else if (rememberedState === FoldingState.Unfolded) {
               foldNow = false;
             } else if (rememberedState === undefined && foldByDefault) {
+              // fix for #159: don't auto-fold a code block that was just created
+              const cursorHead = state.selection.main.head;
+              if (cursorHead >= pos.codeBlockStartPos && cursorHead <= pos.codeBlockEndPos) {
+                break;
+              }
+
               foldNow = true;
               useSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
             }
