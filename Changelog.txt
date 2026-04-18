@@ -1,3 +1,10 @@
+- 1.4.7 (2026.04.18)
+  - Modified:
+    - Newly inserted code blocks will not automatically fold anymore, when inverse-fold is enabled. (#159)
+
+  - BugFix
+    - Inline code syntax highlighting now also works in headings in editing mode (#160)
+
 - 1.4.6 (2026.04.05)
   - BugFix:
     - Fixed switching to the first tab of grouped code blocks, when the "Save active tab state" setting was off (#158)
