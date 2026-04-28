@@ -458,6 +458,28 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       console.log("Codeblock Customizer: Settigns migrated successfully.");
     }
 
+    // merge highlightcolor and alternatehighlightcolors to HighlightStyle
+    if (loadedData) {
+      for (const theme of [loadedData.SelectedTheme, ...Object.values(loadedData.Themes ?? {})]) {
+        for (const mode of ['light', 'dark']) {
+          const codeblock = theme?.colors?.[mode]?.codeblock;
+          if (!codeblock) {
+            continue;
+          }
+
+          if (typeof codeblock.highlightColor === 'string'){
+            codeblock.highlightColor = { useBackgroundColor: true, backgroundColor: codeblock.highlightColor };
+          }
+
+          for (const [key, value] of Object.entries(codeblock.alternateHighlightColors ?? {})) {
+            if (typeof value === 'string') {
+              codeblock.alternateHighlightColors[key] = { useBackgroundColor: true, backgroundColor: value };
+            }
+          }
+        }
+      }
+    }
+
     this.settings = merge({}, DEFAULT_SETTINGS, loadedData); // copies new settings to default themes and selectedtheme
 
     const defaultThemeNames = Object.keys(DEFAULT_SETTINGS.Themes);

@@ -2472,6 +2472,49 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
     transform: translateY(0);
   }
 }
+/* alternative highlight color collapsible */
+.codeblock-customizer-alt-highlight-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.codeblock-customizer-alt-highlight-header::before {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-top: 2px;
+  content: "▶";
+  font-size: 0.8em;
+  /* stylelint-disable-next-line plugin/no-low-performance-animation-properties */
+  transition: transform 0.2s ease-in-out;
+}
+
+.codeblock-customizer-alt-highlight-entry.is-open .codeblock-customizer-alt-highlight-header::before {
+  transform: rotate(90deg);
+}
+
+.codeblock-customizer-alt-highlight-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.codeblock-customizer-alt-highlight-name {
+  font-weight: bold;
+}
+
+.codeblock-customizer-alt-highlight-desc {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-weight: normal;
+  padding-top: 3px;
+}
+
+.codeblock-customizer-alt-highlight-content {
+  padding-top: 8px;
+}
+
 /* Settings page - settings groups */
 .settings-group {
   padding: 12px;

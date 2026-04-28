@@ -5,7 +5,7 @@ import { EditorState } from "@codemirror/state";
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
 import { generatePromptColorStyles } from "./PromptUtils";
 import { generateSyntaxThemeStyles } from "./SyntaxThemeUtils";
-import { CodeblockCustomizerSettings, Colors, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, HighlightStyle, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -556,7 +556,7 @@ const stylesDict: StylesDict = {
   "codeblock.activeLineColor": 'codeblock-active-line-color',
   "editorActiveLineColor": 'editor-active-line-color',
   "codeblock.backgroundColor": 'codeblock-background-color',
-  "codeblock.highlightColor": 'codeblock-highlight-color',
+  "codeblock.highlightColor.backgroundColor": 'codeblock-highlight-color',
   "codeblock.bracketHighlightColorMatch": 'codeblock-bracket-highlight-color-match',
   "codeblock.bracketHighlightColorNoMatch": 'codeblock-bracket-highlight-color-nomatch',
   "codeblock.bracketHighlightBackgroundColorMatch": 'codeblock-bracket-highlight-background-color-match',
@@ -602,18 +602,110 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   }
   const currentMode = getCurrentMode();
 
-  const altHighlightStyling = Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {}).reduce((styling, [colorName, hexValue]) => {
-    return styling + `
-      .codeblock-customizer-line-highlighted-${colorName.replace(/\s+/g, '-').toLowerCase()} {
-        background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
-      }
-    ` +
-      `
-      .codeblock-customizer-highlighted-text-${colorName.replace(/\s+/g, '-').toLowerCase()}{
-        background-color: var(--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color, ${hexValue}) !important;
-      }
-    `;
-  }, '');
+  const codeblockBackgroundColor = settings.SelectedTheme.colors[currentMode].codeblock.backgroundColor;
+  const codeblockBackgroundValue = codeblockBackgroundColor.startsWith('--') ? `var(${codeblockBackgroundColor})` : codeblockBackgroundColor;
+  const codeblockBackgroundFallback = `var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color, ${codeblockBackgroundValue}))`;
+
+  const buildHighlightStyleRules = (lineClass: string, textClass: string, lineBackgroundColor: string, textSpanBackgroundColor: string,
+    style: { bold?: boolean; italic?: boolean; fontFamily?: string; useTextColor?: boolean; textColor?: string; underline?: boolean; strikethrough?: boolean }): string => {
+    const textDecorations: string[] = [];
+    if (style.underline) {
+      textDecorations.push('underline');
+    }
+    if (style.strikethrough) {
+      textDecorations.push('line-through');
+    }
+
+    const textStyleProperties = [
+      style.bold ? `font-weight: bold` : '',
+      style.italic ? `font-style: italic` : '',
+      style.fontFamily ? `font-family: ${style.fontFamily}` : '',
+      style.useTextColor ? `color: ${style.textColor || '#000000'}` : '',
+      textDecorations.length ? `text-decoration: ${textDecorations.join(' ')}` : '',
+    ].filter(Boolean).map(prop => `${prop} !important`).join('; ');
+
+    // line wrapper background
+    let css = `.${lineClass} { ${lineBackgroundColor}; }`;
+
+    if (textStyleProperties) {
+      const tokenSelectors = [
+        `.markdown-source-view .${lineClass} [class^="cm-"]`,
+        `.markdown-source-view .${lineClass} [class*="token"]`,
+        `.markdown-reading-view .${lineClass} .codeblock-customizer-indentation-guide`,
+        `.markdown-reading-view .${lineClass} .codeblock-customizer-line-text`,
+        `.markdown-reading-view .${lineClass} [class*="token"]`,
+        `.print .${lineClass} .codeblock-customizer-indentation-guide`,
+        `.print .${lineClass} .codeblock-customizer-line-text`,
+        `.print .${lineClass} [class*="token"]`,
+      ].join(', ');
+      css += ` ${tokenSelectors} { ${textStyleProperties}; }`;
+    }
+
+    const textSpanProperties = textStyleProperties ? `${textSpanBackgroundColor}; ${textStyleProperties}` : textSpanBackgroundColor;
+    css += ` .${textClass} { ${textSpanProperties}; }`;
+
+    return css;
+  };
+
+  let altHighlightStyling = '';
+  for (const [colorName, style] of Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {})) {
+    const cssColorName = colorName.replace(/\s+/g, '-').toLowerCase();
+    const cssVariableName = `--codeblock-customizer-highlight-${cssColorName}-color`;
+    const backgroundValue = style.backgroundColor.startsWith('--') ? `var(${cssVariableName})` : `var(${cssVariableName}, ${style.backgroundColor})`;
+    const lineBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
+    const textSpanBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: transparent !important`;
+
+    altHighlightStyling += buildHighlightStyleRules(
+      `codeblock-customizer-line-highlighted-${cssColorName}`,
+      `codeblock-customizer-highlighted-text-${cssColorName}`,
+      lineBackgroundColor,
+      textSpanBackgroundColor,
+      style
+    );
+  }
+
+  const mainHighlightStyle = settings.SelectedTheme.colors[currentMode].codeblock.highlightColor;
+  const mainHighlightTextDecorations: string[] = [];
+  if (mainHighlightStyle.underline) {
+    mainHighlightTextDecorations.push('underline');
+  }
+  if (mainHighlightStyle.strikethrough) {
+    mainHighlightTextDecorations.push('line-through');
+  }
+
+  const mainHighlightTextStyleProperties = [
+    mainHighlightStyle.bold ? `font-weight: bold` : '',
+    mainHighlightStyle.italic ? `font-style: italic` : '',
+    mainHighlightStyle.fontFamily ? `font-family: ${mainHighlightStyle.fontFamily}` : '',
+    mainHighlightStyle.useTextColor ? `color: ${mainHighlightStyle.textColor || '#000000'}` : '',
+    mainHighlightTextDecorations.length ? `text-decoration: ${mainHighlightTextDecorations.join(' ')}` : '',
+  ].filter(Boolean).map(prop => `${prop} !important`).join('; ');
+
+  let mainHighlightExtraRules = '';
+
+  if (!mainHighlightStyle.useBackgroundColor) {
+    mainHighlightExtraRules += `.codeblock-customizer-line-highlighted { background-color: ${codeblockBackgroundFallback} !important; }`;
+  }
+
+  if (mainHighlightTextStyleProperties) {
+    const mainHighlightTokenSelectors = [
+      `.markdown-source-view .codeblock-customizer-line-highlighted [class^="cm-"]`,
+      `.markdown-source-view .codeblock-customizer-line-highlighted [class*="token"]`,
+      `.markdown-reading-view .codeblock-customizer-line-highlighted .codeblock-customizer-indentation-guide`,
+      `.markdown-reading-view .codeblock-customizer-line-highlighted .codeblock-customizer-line-text`,
+      `.markdown-reading-view .codeblock-customizer-line-highlighted [class*="token"]`,
+      `.print .codeblock-customizer-line-highlighted .codeblock-customizer-indentation-guide`,
+      `.print .codeblock-customizer-line-highlighted .codeblock-customizer-line-text`,
+      `.print .codeblock-customizer-line-highlighted [class*="token"]`,
+    ].join(', ');
+    mainHighlightExtraRules += ` ${mainHighlightTokenSelectors} { ${mainHighlightTextStyleProperties}; }`;
+  }
+
+  if (mainHighlightTextStyleProperties || !mainHighlightStyle.useBackgroundColor) {
+    const textSpanBackground = !mainHighlightStyle.useBackgroundColor ? `background-color: transparent !important` : `background-color: var(--codeblock-customizer-codeblock-highlight-color) !important`;
+    const textSpanProperties = mainHighlightTextStyleProperties ? `${textSpanBackground}; ${mainHighlightTextStyleProperties}` : textSpanBackground;
+    mainHighlightExtraRules += ` .codeblock-customizer-highlighted-text { ${textSpanProperties}; }`;
+  }
 
   const languageSpecificStyling = Object.entries(settings.SelectedTheme.colors[currentMode].languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
     const languageStyling = Object.entries(attributes || {}).reduce((languageStyling, [attribute, hexValue]) => {
@@ -755,7 +847,32 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
 
   const syntaxThemeStyles = generateSyntaxThemeStyles(settings);
 
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles).trim().replace(/[\r\n\s]+/g, ' ');
+  let inlineCodeExtraRules = '';
+  if (settings.pluginSettings.inlineCode.enableInlineCodeStyling) {
+    const inlineCode = settings.SelectedTheme.colors[currentMode].inlineCode;
+    const inlineCodeDecorations: string[] = [];
+
+    if (inlineCode.underline) {
+      inlineCodeDecorations.push('underline');
+    }
+    if (inlineCode.strikethrough) {
+      inlineCodeDecorations.push('line-through');
+    }
+
+    const inlineCodeStyles = [
+      inlineCode.bold ? `font-weight: bold` : '',
+      inlineCode.italic ? `font-style: italic` : '',
+      inlineCode.fontFamily ? `font-family: ${inlineCode.fontFamily}` : '',
+      inlineCodeDecorations.length ? `text-decoration: ${inlineCodeDecorations.join(' ')}` : '',
+    ].filter(Boolean).map(p => `${p} !important`).join('; ');
+
+    if (inlineCodeStyles) {
+      const inlineCodeSelector = `.codeblock-customizer.codeblock-customizer-style-inline-code`;
+      inlineCodeExtraRules = `${inlineCodeSelector} .cm-s-obsidian span.cm-inline-code, ${inlineCodeSelector} .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code { ${inlineCodeStyles}; }`;
+    }
+  }
+
+  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + altHighlightStyling + mainHighlightExtraRules + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles + inlineCodeExtraRules).trim().replace(/[\r\n\s]+/g, ' ');
 
   updateSettingClasses(settings.pluginSettings);
 }// updateSettingStyles
@@ -1140,12 +1257,12 @@ function hslToHex(hslColor: string, alpha: number): string {
   return hexColor;
 }// hslToHex
 
-function addAltHighlightColors(alternateColors: Record<string, string>) {
-  const altHighlightStyles = Object.entries(alternateColors).reduce((altHighlightStyles, [colorName, hexValue]) => {
-    return altHighlightStyles + `--codeblock-customizer-highlight-${colorName.replace(/\s+/g, '-').toLowerCase()}-color: ${hexValue};`;
+function addAltHighlightColors(alternateColors: Record<string, HighlightStyle>) {
+  return Object.entries(alternateColors).reduce((result, [colorName, style]) => {
+    const cssName = colorName.replace(/\s+/g, '-').toLowerCase();
+    const backgroundColor = style.backgroundColor.startsWith('--') ? `var(${style.backgroundColor})` : style.backgroundColor;
+    return result + `--codeblock-customizer-highlight-${cssName}-color: ${backgroundColor};`;
   }, '');
-
-  return altHighlightStyles;
 }// addAltHighlightColors
 
 function accessSetting(key: string, settings: Colors) {

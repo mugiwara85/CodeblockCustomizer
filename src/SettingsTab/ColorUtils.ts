@@ -1,7 +1,7 @@
-import { Setting, Notice } from "obsidian";
+import { Setting, Notice, setIcon } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "../main";
-import { ColorTheme, Colors } from "../Settings";
+import { ColorTheme, Colors, HighlightStyle } from "../Settings";
 import { getColorOfCssVariable, getCurrentMode, updateSettingStyles } from "../Utils";
 import { PickerOptions, updateColorContainer, updateLanguageSpecificColorContainer } from "./Common";
 
@@ -159,39 +159,183 @@ export function createPickrSetting(containerEl: HTMLElement, name: string, descr
   return setting;
 }// createPickrSetting
 
-export function createAlternatePickr(containerEl: HTMLElement, colorContainer: HTMLElement, name: string, Color: string, type: string, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin, colorKey = "", languageName = ""): Setting {
-  const desc = (type === "normal") ? `To highlight lines with this color use the "${name}" parameter. e.g: ${name}:2,4-6` : "";
-  const setting = new Setting(containerEl)
-    .setName(name)
-    .setDesc(desc);
+export function createHighlightStyleControls(containerEl: HTMLElement, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin, getStyle: (mode: 'light' | 'dark') => HighlightStyle, onChanged: () => void, onResetBackground?: () => string): void {
+  const style = getStyle(getCurrentMode());
 
+  new Setting(containerEl)
+    .setName('Use background color')
+    .addToggle(toggle => toggle
+      .setValue(style.useBackgroundColor)
+      .onChange((value) => {
+        getStyle('light').useBackgroundColor = value;
+        getStyle('dark').useBackgroundColor = value;
+        bgPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+
+  const bgPickrSetting = new Setting(containerEl).setName('Background color');
+  bgPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !style.useBackgroundColor);
+  addPickerControlsToSetting(bgPickrSetting, {
+    containerEl,
+    initialColor: style.backgroundColor,
+    onSave: (color: string) => {
+      getStyle(getCurrentMode()).backgroundColor = color;
+      plugin.saveSettings();
+      onChanged();
+    },
+    onReset: onResetBackground,
+    i18n: { 'btn:toggle': 'select background color' }
+  }, pickerInstances, plugin);
+
+  new Setting(containerEl)
+    .setName('Use text color')
+    .addToggle(toggle => toggle
+      .setValue(style.useTextColor ?? false)
+      .onChange((value) => {
+        getStyle('light').useTextColor = value;
+        getStyle('dark').useTextColor = value;
+        if (value && !getStyle('light').textColor) {
+          getStyle('light').textColor = '#000000';
+          getStyle('dark').textColor = '#000000';
+        }
+        textColorPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+
+  const textColorPickrSetting = new Setting(containerEl).setName('Text color');
+  textColorPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !(style.useTextColor ?? false));
+  addPickerControlsToSetting(textColorPickrSetting, {
+    containerEl,
+    initialColor: style.textColor || '#000000',
+    onSave: (color: string) => {
+      getStyle(getCurrentMode()).textColor = color;
+      plugin.saveSettings();
+      onChanged();
+    },
+    i18n: { 'btn:toggle': 'select text color' }
+  }, pickerInstances, plugin);
+
+  new Setting(containerEl)
+    .setName('Font family')
+    .setDesc('Leave blank to inherit.')
+    .addText(text => text
+      .setPlaceholder('e.g. monospace')
+      .setValue(style.fontFamily ?? '')
+      .onChange((value) => {
+        getStyle('light').fontFamily = value;
+        getStyle('dark').fontFamily = value;
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+
+  new Setting(containerEl)
+    .setName('Bold')
+    .addToggle(toggle => toggle
+      .setValue(style.bold ?? false)
+      .onChange((value) => {
+        getStyle('light').bold = value;
+        getStyle('dark').bold = value;
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+
+  new Setting(containerEl)
+    .setName('Italic')
+    .addToggle(toggle => toggle
+      .setValue(style.italic ?? false)
+      .onChange((value) => {
+        getStyle('light').italic = value;
+        getStyle('dark').italic = value;
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+
+  new Setting(containerEl)
+    .setName('Underline')
+    .addToggle(toggle => toggle
+      .setValue(style.underline ?? false)
+      .onChange((value) => {
+        getStyle('light').underline = value;
+        getStyle('dark').underline = value;
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+
+  new Setting(containerEl)
+    .setName('Strikethrough')
+    .addToggle(toggle => toggle
+      .setValue(style.strikethrough ?? false)
+      .onChange((value) => {
+        getStyle('light').strikethrough = value;
+        getStyle('dark').strikethrough = value;
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
+}// createHighlightStyleControls
+
+export function createAlternatePickr(containerEl: HTMLElement, colorContainer: HTMLElement, name: string, style: HighlightStyle | string, type: string, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin, colorKey = "", languageName = ""): Setting | undefined {
+  if (type === "normal") {
+    const entry = containerEl.createDiv({ cls: 'settings-group codeblock-customizer-alt-highlight-entry' });
+    const header = entry.createDiv({ cls: 'codeblock-customizer-alt-highlight-header' });
+
+    const info = header.createDiv({ cls: 'codeblock-customizer-alt-highlight-info' });
+    info.createDiv({ text: name, cls: 'codeblock-customizer-alt-highlight-name' });
+    info.createDiv({ text: `To highlight lines with this color use the "${name}" parameter. e.g: ${name}:2,4-6`, cls: 'codeblock-customizer-alt-highlight-desc' });
+
+    const trashBtn = header.createEl('button', { cls: 'clickable-icon extra-setting-button' });
+    setIcon(trashBtn, 'trash');
+    trashBtn.setAttribute('aria-label', 'Delete color');
+    trashBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      delete plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[name];
+      delete plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[name];
+      updateColorContainer(colorContainer, pickerInstances, plugin);
+      plugin.saveSettings();
+      new Notice(`Removed color "${name}".`);
+    });
+
+    const content = entry.createDiv({ cls: 'codeblock-customizer-setting-hidden codeblock-customizer-alt-highlight-content' });
+    header.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('button')) {
+        return;
+      }
+
+      const isOpen = entry.hasClass('is-open');
+      entry.toggleClass('is-open', !isOpen);
+      content.toggleClass('codeblock-customizer-setting-hidden', isOpen);
+    });
+
+    createHighlightStyleControls(content, pickerInstances, plugin, (mode) => plugin.settings.SelectedTheme.colors[mode].codeblock.alternateHighlightColors[name], () => updateSettingStyles(plugin.settings, plugin.app));
+
+    return undefined;
+  }
+
+  const setting = new Setting(containerEl).setName(name);
+  const initialColor = typeof style === 'string' ? style : style.backgroundColor;
   addPickerControlsToSetting(setting, {
     containerEl: containerEl,
-    initialColor: Color,
+    initialColor,
     onSave: (savedColor: string) => {
-      if (type === "normal") {
-        plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors[name] = savedColor;
-      } else if (type === "langSpecific") {
-        plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
-      }
+      plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
       plugin.saveSettings();
     },
     onDelete: () => {
-      if (type === "normal") {
-        delete plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[name];
-        delete plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[name];
-        updateColorContainer(colorContainer, pickerInstances, plugin);
-      } else if (type === "langSpecific") {
-        delete plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][colorKey];
-        delete plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][colorKey];
-        updateLanguageSpecificColorContainer(colorContainer, pickerInstances, plugin, languageName);
-      }
+      delete plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][colorKey];
+      delete plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][colorKey];
+      updateLanguageSpecificColorContainer(colorContainer, pickerInstances, plugin, languageName);
       plugin.saveSettings();
       new Notice(`Removed color "${name}".`);
     },
-    i18n: {
-      'btn:toggle': 'select color for light theme'
-    }
+    i18n: { 'btn:toggle': 'select color for light theme' }
   }, pickerInstances, plugin);
 
   return setting;

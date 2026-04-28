@@ -1,7 +1,7 @@
 import { DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { defaultPrompts, PromptLines } from "./PromptManager";
 import { getPromptDefinition } from "./PromptUtils";
-import { CodeblockCustomizerSettings } from "./Settings";
+import { CodeblockCustomizerSettings, HighlightStyle } from "./Settings";
 import { getBorderColorByLanguage, getCurrentMode, getDisplayLanguageName, getPropertyFromLanguageSpecificColors } from "./Utils";
 
 export interface ParsedParams {
@@ -705,7 +705,7 @@ function getLineSpecificTextBetween(result: TextHighlight, line: string, range: 
   }
 }// getLineSpecificTextBetween
 
-function extractAlternativeHighlights(parsedParameters: ParsedParams, textSeparator: string, lineSeparator: string, alternateColors: Record<string, string>): AlternativeHighlight {
+function extractAlternativeHighlights(parsedParameters: ParsedParams, textSeparator: string, lineSeparator: string, alternateColors: Record<string, HighlightStyle>): AlternativeHighlight {
   const alternativeTextToHighlight: AlternativeTextHighlight = {
     allWordsInLine: [], words: [], lineSpecificWords: [], textBetween: [], lineSpecificTextBetween: [],
     outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: []

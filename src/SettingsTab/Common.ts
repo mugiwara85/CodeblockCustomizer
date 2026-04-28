@@ -121,8 +121,8 @@ export function getRandomColor() {
 export function updateColorContainer(colorContainer: HTMLElement, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin) {
   colorContainer.empty();
 
-  Object.entries(plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors).forEach(([colorName, hexValue]) => {
-    createAlternatePickr(colorContainer, colorContainer, colorName, hexValue, "normal", pickerInstances, plugin);
+  Object.entries(plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors).forEach(([colorName, style]) => {
+    createAlternatePickr(colorContainer, colorContainer, colorName, style, "normal", pickerInstances, plugin);
   });
 }// updateColorContainer
 

@@ -2,8 +2,8 @@ import { Notice, Setting, TextComponent } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, getRandomColor, SettingsPage, SettingsPageData, updateColorContainer } from "./Common";
-import { getCurrentMode } from "src/Utils";
-import { createPickrSetting } from "./ColorUtils";
+import { getCurrentMode, updateSettingStyles } from "src/Utils";
+import { createPickrSetting, createHighlightStyleControls, getColorFromPickrClass } from "./ColorUtils";
 import { DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "src/Const";
 
 import Pickr from "@simonwep/pickr";
@@ -31,10 +31,13 @@ export class HighlightingSettings {
         })
       );
 
-      const activeLineSetting = createPickrSetting(highlightingDiv, 'Codeblock active line color', '', "codeblock.activeLineColor", this.pickerInstances, this.plugin);
+    const activeLineSetting = createPickrSetting(highlightingDiv, 'Codeblock active line color', '', "codeblock.activeLineColor", this.pickerInstances, this.plugin);
     activeLineSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.codeblock.enableActiveLineHighlight);
 
-    createPickrSetting(highlightingDiv, 'Highlight color (used by the "hl" parameter)', 'Sets the default color for highlighting lines using the `hl` parameter (e.g., `hl:5`).', "codeblock.highlightColor", this.pickerInstances, this.plugin);
+    const hlStyleDetails = highlightingDiv.createEl('details', { cls: 'settings-group' });
+    hlStyleDetails.createEl('summary', { text: 'Default highlight style (hl / hlt)' });
+    createHighlightStyleControls(hlStyleDetails, this.pickerInstances, this.plugin, (mode) => this.plugin.settings.SelectedTheme.colors[mode].codeblock.highlightColor,
+      () => updateSettingStyles(this.plugin.settings, this.plugin.app), () => getColorFromPickrClass(this.plugin.settings.Themes[this.plugin.settings.ThemeName], getCurrentMode(), 'codeblock.highlightColor.backgroundColor', true).toString());
 
     // bracket highlight
     const bracketDetails = createDetailsGroup(highlightingDiv, 'Bracket Highlight & Selection Matching', 'bracketDetailsOpen', this, this.getSearchQuery);
@@ -171,9 +174,9 @@ export class HighlightingSettings {
             if (this.plugin.settings.alternateHighlightColorName.toLowerCase() in this.plugin.settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors) {
               new Notice(`A color with the name "${this.plugin.settings.alternateHighlightColorName}" already exists.`);
             } else {
-              const newColor = getRandomColor();
-              this.plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = newColor;
-              this.plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = newColor;
+              const newStyle = { useBackgroundColor: true, backgroundColor: getRandomColor() };
+              this.plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = { ...newStyle };
+              this.plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[this.plugin.settings.alternateHighlightColorName] = { ...newStyle };
               await this.plugin.saveSettings();
               new Notice(`Added color "${this.plugin.settings.alternateHighlightColorName}".`);
               alternateColorDisplayText.setValue("");

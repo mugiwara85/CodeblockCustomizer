@@ -440,7 +440,7 @@ export class AppearanceSettings {
           this.plugin.renderReadingViews();
           copyModifierSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
-    );
+      );
 
     const copyModifierSetting = new Setting(inlineCodeDetails)
       .setName('Modifier key for copy')
@@ -481,24 +481,95 @@ export class AppearanceSettings {
       );
     showIconsSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableSyntaxHighlight);
 
+    const stylingEnabled = this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling;
+
     new Setting(inlineCodeDetails)
       .setName('Enable inline code styling')
-      .setDesc('If enabled, the background color, and the text color of inline code can be styled.')
+      .setDesc('If enabled, the background color, text color, and text styles of inline code can be customized.')
       .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling)
+        .setValue(stylingEnabled)
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling = value;
           await this.plugin.saveSettings();
-          inlineCodeBackgroundSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
-          inlineCodeTextColorSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          for (const setting of inlineCodeStyleSettings) {
+            setting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
+          }
         })
       );
 
-    const inlineCodeBackgroundSetting = createPickrSetting(inlineCodeDetails, 'Inline code background color', '', "inlineCode.backgroundColor", this.pickerInstances, this.plugin);
-    inlineCodeBackgroundSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
+    const inlineCodeStyleSettings: Setting[] = [];
+    const addInlineStyleSetting = (setting: Setting) => {
+      setting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !stylingEnabled);
+      inlineCodeStyleSettings.push(setting);
+      return setting;
+    };
 
-    const inlineCodeTextColorSetting = createPickrSetting(inlineCodeDetails, 'Inline code text color', '', "inlineCode.textColor", this.pickerInstances, this.plugin);
-    inlineCodeTextColorSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.inlineCode.enableInlineCodeStyling);
+    addInlineStyleSetting(createPickrSetting(inlineCodeDetails, 'Background color', '', "inlineCode.backgroundColor", this.pickerInstances, this.plugin));
+    addInlineStyleSetting(createPickrSetting(inlineCodeDetails, 'Text color', '', "inlineCode.textColor", this.pickerInstances, this.plugin));
+
+    const inlineCode = this.plugin.settings.SelectedTheme.colors[getCurrentMode()].inlineCode;
+
+    addInlineStyleSetting(new Setting(inlineCodeDetails)
+      .setName('Font family')
+      .setDesc('Leave blank to inherit.')
+      .addText(text => text
+        .setPlaceholder('e.g. monospace')
+        .setValue(inlineCode.fontFamily ?? '')
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.colors.light.inlineCode.fontFamily = value;
+          this.plugin.settings.SelectedTheme.colors.dark.inlineCode.fontFamily = value;
+          await this.plugin.saveSettings();
+        })
+      )
+    );
+
+    addInlineStyleSetting(new Setting(inlineCodeDetails)
+      .setName('Bold')
+      .addToggle(toggle => toggle
+        .setValue(inlineCode.bold ?? false)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.colors.light.inlineCode.bold = value;
+          this.plugin.settings.SelectedTheme.colors.dark.inlineCode.bold = value;
+          await this.plugin.saveSettings();
+        })
+      )
+    );
+
+    addInlineStyleSetting(new Setting(inlineCodeDetails)
+      .setName('Italic')
+      .addToggle(toggle => toggle
+        .setValue(inlineCode.italic ?? false)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.colors.light.inlineCode.italic = value;
+          this.plugin.settings.SelectedTheme.colors.dark.inlineCode.italic = value;
+          await this.plugin.saveSettings();
+        })
+      )
+    );
+
+    addInlineStyleSetting(new Setting(inlineCodeDetails)
+      .setName('Underline')
+      .addToggle(toggle => toggle
+        .setValue(inlineCode.underline ?? false)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.colors.light.inlineCode.underline = value;
+          this.plugin.settings.SelectedTheme.colors.dark.inlineCode.underline = value;
+          await this.plugin.saveSettings();
+        })
+      )
+    );
+
+    addInlineStyleSetting(new Setting(inlineCodeDetails)
+      .setName('Strikethrough')
+      .addToggle(toggle => toggle
+        .setValue(inlineCode.strikethrough ?? false)
+        .onChange(async (value) => {
+          this.plugin.settings.SelectedTheme.colors.light.inlineCode.strikethrough = value;
+          this.plugin.settings.SelectedTheme.colors.dark.inlineCode.strikethrough = value;
+          await this.plugin.saveSettings();
+        })
+      )
+    );
 
     //return appearanceDiv;
   }// display

@@ -14,12 +14,24 @@ export interface SyntaxThemeSettings {
   languageSpecificSyntaxThemes: Record<string, string>;
 }
 
+export interface HighlightStyle {
+  useBackgroundColor: boolean;
+  backgroundColor: string;
+  bold?: boolean;
+  italic?: boolean;
+  fontFamily?: string;
+  useTextColor?: boolean;
+  textColor?: string;
+  underline?: boolean;
+  strikethrough?: boolean;
+}
+
 export interface Colors {
   codeblock: {
     activeLineColor: string;
     backgroundColor: string;
-    highlightColor: string;
-    alternateHighlightColors: Record<string, string>;
+    highlightColor: HighlightStyle;
+    alternateHighlightColors: Record<string, HighlightStyle>;
     languageBorderColors: Record<string, string>;
     textColor: string;
     bracketHighlightColorMatch: string;
@@ -43,6 +55,11 @@ export interface Colors {
   inlineCode: {
     backgroundColor: string;
     textColor: string;
+    bold?: boolean;
+    italic?: boolean;
+    fontFamily?: string;
+    underline?: boolean;
+    strikethrough?: boolean;
   },
   prompts: {
     promptColors?: Record<string, Record<string, string>>;
@@ -713,7 +730,7 @@ const SolarizedDarkColors = {
   codeblock: {
     activeLineColor: '#073642',
     backgroundColor: '#002B36',
-    highlightColor: '#054b5c',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#054b5c' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
@@ -773,7 +790,7 @@ const SolarizedLightColors = {
   codeblock: {
     activeLineColor: '#EDE8D6',
     backgroundColor: '#FCF6E4',
-    highlightColor: '#E9DFBA',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#E9DFBA' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
@@ -842,7 +859,7 @@ const ObsidianDarkColors = {
   codeblock: {
     activeLineColor: "--color-base-30",
     backgroundColor: "--code-background",
-    highlightColor: "--text-highlight-bg",
+    highlightColor: { useBackgroundColor: true, backgroundColor: "--text-highlight-bg" },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
@@ -902,7 +919,7 @@ const ObsidianLightColors = {
   codeblock: {
     activeLineColor: "--color-base-30",
     backgroundColor: "--code-background",
-    highlightColor: "--text-highlight-bg",
+    highlightColor: { useBackgroundColor: true, backgroundColor: "--text-highlight-bg" },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#A30505',
@@ -989,7 +1006,7 @@ const GruvboxDarkColors = {
   codeblock: {
     activeLineColor: '#504945',
     backgroundColor: '#3c3836',
-    highlightColor: '#5B5654',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#5B5654' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#ebdbb2',
@@ -1049,7 +1066,7 @@ const GruvboxLightColors = {
   codeblock: {
     activeLineColor: '#E0D2AE',
     backgroundColor: '#EBDBB2',
-    highlightColor: '#d5c4a1',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#d5c4a1' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#3c3836',
@@ -1133,7 +1150,7 @@ const DraculaDarkColors = {
   codeblock: {
     activeLineColor: '#3B3D4E',
     backgroundColor: dracula.background,
-    highlightColor: dracula.comment,
+    highlightColor: { useBackgroundColor: true, backgroundColor: dracula.comment },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: dracula.foreground,
@@ -1193,7 +1210,7 @@ const DraculaLightColors = {
   codeblock: {
     activeLineColor: '#e9e9f2',
     backgroundColor: '#f8f8f2',
-    highlightColor: '#e1d6f5',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#e1d6f5' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#282a36',
@@ -1284,7 +1301,7 @@ const NordDarkColors = {
   codeblock: {
     activeLineColor: nord.polarNight2,
     backgroundColor: nord.polarNight1,
-    highlightColor: nord.polarNight3,
+    highlightColor: { useBackgroundColor: true, backgroundColor: nord.polarNight3 },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: nord.snowStorm1,
@@ -1344,7 +1361,7 @@ const NordLightColors = {
   codeblock: {
     activeLineColor: nord.snowStorm0,
     backgroundColor: nord.snowStorm2,
-    highlightColor: '#5E81AC66',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#5E81AC66' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: nord.polarNight1,
@@ -1453,7 +1470,7 @@ const TokyoNightDarkColors = {
   codeblock: {
     activeLineColor: tokyoNight.bgHighlight,
     backgroundColor: '#24283b',
-    highlightColor: tokyoNight.terminalBlack,
+    highlightColor: { useBackgroundColor: true, backgroundColor: tokyoNight.terminalBlack },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: tokyoNight.fg,
@@ -1513,7 +1530,7 @@ const TokyoNightLightColors = {
   codeblock: {
     activeLineColor: '#B5B7BA',
     backgroundColor: '#c3c5c9',
-    highlightColor: '#d5d6e2',
+    highlightColor: { useBackgroundColor: true, backgroundColor: '#d5d6e2' },
     alternateHighlightColors: {},
     languageBorderColors: {},
     textColor: '#343b58',
