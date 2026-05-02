@@ -303,7 +303,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 }// getParameters
 
 const parseFenceRegexCache = new Map<string, RegExp>();
-const PARAM_REGEX_PATTERN = /(\S+?)([:=])(["'](?:\\.|[^\\])*?["']|(?:\\.|[^\\\s])+)/g;
+const PARAM_REGEX_PATTERN = /(\S+?)([:=])((?:(?:\\.|[^\\\s"'])+|["'](?:\\.|[^\\])*?["'])+)/g;
 
 function parseParameters(input: string): ParsedParams {
   const params: ParsedParams = {};
@@ -326,13 +326,7 @@ function parseParameters(input: string): ParsedParams {
   while ((match = regex.exec(cleanedLine)) !== null) {
     const [, key, , value] = match;
 
-    let cleanedValue = value ? value.trim() : '';
-    // Remove surrounding quotes if present
-    if ((cleanedValue.startsWith('"') && cleanedValue.endsWith('"')) || (cleanedValue.startsWith("'") && cleanedValue.endsWith("'"))) {
-      cleanedValue = cleanedValue.slice(1, -1);
-    }
-    cleanedValue = cleanedValue.replace(/\\(["'])/g, '$1');
-    params[key.trim().toLowerCase()] = cleanedValue;
+    params[key.trim().toLowerCase()] = value ? value.trim() : '';
   }
 
   return params;
@@ -386,8 +380,34 @@ function extractFileTitle(parsedParameters: ParsedParams): string {
     return '';
 }// extractFileTitle
 
+function stripSingleQuotedBlob(value: string): string {
+  const quoteChar = value[0];
+  if (quoteChar !== '"' && quoteChar !== "'") {
+    return value.replace(/\\(["'])/g, '$1');
+  }
+
+  let i = 1;
+  while (i < value.length) {
+    if (value[i] === '\\') {
+      i += 2; continue;
+    }
+
+    if (value[i] === quoteChar) {
+      // multi-value (e.g. title:"a","b"), single value parameters only use the first value
+      return value.slice(1, i).replace(/\\(["'])/g, '$1');
+    }
+    i++;
+  }
+  return value.replace(/\\(["'])/g, '$1');
+}// stripSingleQuotedBlob
+
+function getRawParameter(parsedParameters: ParsedParams, parameter: string): string | undefined {
+  return parsedParameters[parameter.toLowerCase()];
+}// getRawParameter
+
 function extractParameter(parsedParameters: ParsedParams, searchTerm: string): string | null {
-  return parsedParameters[searchTerm.toLowerCase()] || null;
+  const raw = getRawParameter(parsedParameters, searchTerm);
+  return raw ? stripSingleQuotedBlob(raw) : null;
 }// extractParameter
 
 function getHighlightedLines(parsedParameters: ParsedParams, parameter: string, textSeparator: string, lineSeparator: string) {
@@ -397,13 +417,15 @@ function getHighlightedLines(parsedParameters: ParsedParams, parameter: string, 
     lineSpecificWords: [],
   };
 
-  const parameterValue = extractParameter(parsedParameters, parameter);
-  if (!parameterValue) {
+  const rawValue = getRawParameter(parsedParameters, parameter);
+  if (!rawValue) {
     return result;
   }
 
-  const trimmedParams = parameterValue.trim();
-  const segments = trimmedParams.split(",");
+  // backward compatibility (hl="1,2,3")
+  const segments = quoteAwareSplit(rawValue.trim()).flatMap(
+    seg => /^[\d\s,-]+$/.test(seg) && seg.includes(',') ? seg.split(',').map(s => s.trim()).filter(Boolean) : [seg]
+  );
 
   for (const segment of segments) {
     const { line, range, word, from, to } = parseSegment(segment, textSeparator, lineSeparator);
@@ -582,6 +604,64 @@ function processRange<T>(segment: string, segmentValue: string | HighlightedWord
   });
 }// processRange
 
+function quoteAwareSplit(value: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuote = false;
+  let quoteChar = '';
+  let bracketDepth = 0;
+
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === '\\' && i + 1 < value.length && (value[i + 1] === '"' || value[i + 1] === "'")) {
+      current += value[++i];
+      continue;
+    }
+
+    if (!inQuote && ch === '[') {
+      bracketDepth++;
+      current += ch;
+      continue;
+    }
+
+    if (!inQuote && ch === ']' && bracketDepth > 0) {
+      bracketDepth--;
+      current += ch;
+      continue;
+    }
+
+    if (!inQuote && bracketDepth === 0 && (ch === '"' || ch === "'")) {
+      inQuote = true;
+      quoteChar = ch;
+      continue;
+    }
+
+    if (inQuote && ch === quoteChar) {
+      inQuote = false;
+      quoteChar = '';
+      continue;
+    }
+
+    if (!inQuote && bracketDepth === 0 && ch === ',') {
+      const trimmed = current.trim();
+      if (trimmed) {
+        result.push(trimmed);
+      }
+      current = '';
+      continue;
+    }
+
+    current += ch;
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) {
+    result.push(trimmed);
+  }
+
+  return result;
+}// quoteAwareSplit
+
 function getTextHighlight(parsedParameters: ParsedParams, parameter: string | null, textSeparator: string, lineSeparator: string): TextHighlight {
   const result: TextHighlight = {
     allWordsInLine: [],
@@ -595,13 +675,12 @@ function getTextHighlight(parsedParameters: ParsedParams, parameter: string | nu
     return result;
   }
 
-  const parameterValue = extractParameter(parsedParameters, parameter);
-  if (!parameterValue) {
+  const rawValue = getRawParameter(parsedParameters, parameter);
+  if (!rawValue) {
     return result;
   }
 
-  const trimmedParams = parameterValue.trim();
-  const segments = trimmedParams.split(/,(?![^[]*\])/g);
+  const segments = quoteAwareSplit(rawValue.trim());
 
   for (const segment of segments) {
     const trimmedSegment = segment.trim();
