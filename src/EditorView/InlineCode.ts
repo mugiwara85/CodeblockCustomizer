@@ -128,13 +128,17 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
         let found = false;
         syntaxTree(view.state).iterate({
-          from: pos, to: pos,
+          from: pos, to: pos + 2,
           enter: (node) => {
             if (found)
               return false;
 
             if (node.type.name.includes('inline-code')) {
               const text = view.state.sliceDoc(node.from, node.to);
+              if (text.startsWith('`')) {
+                return;
+              }
+
               const match = text.match(INLINE_CODE_LANG_REGEX);
               // fix for #147
               const isValidMatch = match && match[1] && !match[1].trim().startsWith('{');
