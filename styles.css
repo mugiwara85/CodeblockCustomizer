@@ -1382,6 +1382,23 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   overflow-y: hidden;
 }
 
+/* expand - reading mode */
+.is-readable-line-width .codeblock-customizer-pre-parent.codeblock-customizer-expand {
+  width: var(--cbc-expand-width, 100%);
+  max-width: unset;
+  margin-left: var(--cbc-expand-margin, 0);
+}
+
+/* expand - editing mode */
+.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-sizer,
+.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-content {
+  max-width: unset !important;
+}
+.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-content > *:not(.codeblock-customizer-expand) {
+  max-width: var(--file-line-width) !important;
+  margin-inline: auto !important;
+}
+
 /* Prevent Line Wraps */
 .HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap) {
   white-space: nowrap;
@@ -1417,6 +1434,10 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].has-prompt-output {
   position: relative;
   padding-bottom: 1.5em;
+}
+.codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-expand {
+  max-width: unset;
+  margin-inline: 0;
 }
 .codeblock-customizer .markdown-source-view [class*=codeblock-customizer-line].codeblock-customizer-nowrap {
   padding-left: 0 !important;
@@ -2477,9 +2498,9 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-start;
-  gap: 8px;
   padding: 4px 0;
   cursor: pointer;
+  gap: 8px;
 }
 .codeblock-customizer-alt-highlight-header::before {
   display: inline-block;
@@ -2496,8 +2517,8 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
 }
 
 .codeblock-customizer-alt-highlight-info {
-  flex: 1;
   min-width: 0;
+  flex: 1;
 }
 
 .codeblock-customizer-alt-highlight-name {
@@ -2505,10 +2526,10 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
 }
 
 .codeblock-customizer-alt-highlight-desc {
+  padding-top: 3px;
   color: var(--text-muted);
   font-size: 0.85em;
   font-weight: normal;
-  padding-top: 3px;
 }
 
 .codeblock-customizer-alt-highlight-content {

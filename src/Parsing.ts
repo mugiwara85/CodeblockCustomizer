@@ -155,6 +155,7 @@ export interface CBCParameters {
   tab: string;
   output: boolean;
   hideLines: number[];
+  expand: boolean;
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false): CBCParameters {
@@ -264,6 +265,9 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   // hide
   const hideLines = getLineRanges(extractParameter(parsedParameters, "hide"));
 
+  // expand
+  const expand = isParameterDefined("expand", lineText);
+
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
     outputLinesToHighlight: outputLinesToHighlight,
@@ -298,7 +302,8 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     group,
     tab,
     output,
-    hideLines
+    hideLines,
+    expand
   };
 }// getParameters
 
@@ -1021,7 +1026,7 @@ function getCodeBlockLanguage(str: string, isReadingView = false): string {
     }
 
     if (!word.includes(":") && !word.includes("=")) {
-      if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold") {
+      if (word.toLowerCase() === "fold" || word.toLowerCase() === "unfold" || word.toLowerCase() === "expand") {
         return '';
       }
       else {

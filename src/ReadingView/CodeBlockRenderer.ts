@@ -19,6 +19,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   plugin: CodeBlockCustomizerPlugin;
   context: MarkdownPostProcessorContext;
   observer: MutationObserver | null = null;
+  expandObserver: ResizeObserver | null = null;
   allPreElements: HTMLElement[] | null = null;
   codeBlockSectionInfo: MarkdownSectionInformation | null = null;
 
@@ -35,6 +36,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   onunload() {
     if (this.observer) {
       this.observer.disconnect();
+    }
+
+    if (this.expandObserver) {
+      this.expandObserver.disconnect();
+      this.expandObserver = null;
     }
 
     if (this.allPreElements) {
@@ -424,6 +430,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
     }
 
+    // ignore callouts and admonitions (for now)
+    if (parameters.expand && !preElement.closest('.callout, .admonition')) {
+      this.setupExpandObserver(preElement);
+    }
+
     this.cleanupPreviousElements(preElement);
     const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, codeblockLines.length - 2, "reading");
     const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, specificHeader, charPos);
@@ -461,9 +472,53 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
 
     if (parameters.output) {
-      preElement.classList.add('is-output');
+      preElement.classList.add(`is-output`);
+    }
+
+    // ignore callouts and admonitions (for now)
+    if (parameters.expand && !preElement.closest('.callout, .admonition')) {
+      preElement.classList.add(`codeblock-customizer-expand`);
+      preElement.parentElement?.classList.add(`codeblock-customizer-expand`);
     }
   }// applyBaseStyling
+
+  private setupExpandObserver(preElement: HTMLElement) {
+    const preParent = preElement.parentElement;
+    if (!preParent) {
+      return;
+    }
+
+    const previewView = preParent.closest('.markdown-preview-view') as HTMLElement | null;
+    if (!previewView) {
+      return;
+    }
+
+    const update = () => {
+      preParent.style.removeProperty('--cbc-expand-width');
+      preParent.style.removeProperty('--cbc-expand-margin');
+
+      const style = getComputedStyle(previewView);
+      const leftPadding = parseFloat(style.paddingLeft) || 0;
+      const rightPadding = parseFloat(style.paddingRight) || 0;
+      const viewRect = previewView.getBoundingClientRect();
+      const preParentRect = preParent.getBoundingClientRect();
+
+      // clientWidth excludes scrollbar and border. subtract padding to get the inner content area which is the editor's `--file-margins` gaps
+      const expandWidth = previewView.clientWidth - leftPadding - rightPadding;
+      const expandLeft = viewRect.left + leftPadding;
+      preParent.style.setProperty('--cbc-expand-width', `${expandWidth}px`);
+      preParent.style.setProperty('--cbc-expand-margin', `${expandLeft - preParentRect.left}px`);
+    };
+
+    if (this.expandObserver) {
+      this.expandObserver.disconnect();
+    }
+
+    this.expandObserver = new ResizeObserver(update);
+    this.expandObserver.observe(previewView);
+
+    update();
+  }// setupExpandObserver
 
   private cleanupPreviousElements(preElement: HTMLElement) {
     // remove old header and buttons to prevent duplication during re-render

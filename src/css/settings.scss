@@ -123,9 +123,9 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-start;
-  gap: 8px;
   padding: 4px 0;
   cursor: pointer;
+  gap: 8px;
 
   &::before {
     display: inline-block;
@@ -143,8 +143,8 @@
 }
 
 .codeblock-customizer-alt-highlight-info {
-  flex: 1;
   min-width: 0;
+  flex: 1;
 }
 
 .codeblock-customizer-alt-highlight-name {
@@ -152,10 +152,10 @@
 }
 
 .codeblock-customizer-alt-highlight-desc {
+  padding-top: 3px;
   color: var(--text-muted);
   font-size: 0.85em;
   font-weight: normal;
-  padding-top: 3px;
 }
 
 .codeblock-customizer-alt-highlight-content {

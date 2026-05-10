@@ -169,13 +169,17 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
 
         if (this.foldingState === FoldingState.FullyFolded) {
           setIcon(collapse, icons.collapsed); // fully folded icon
-          container.classList.add('collapsed');
+          container.classList.add(`collapsed`);
         } else if (this.foldingState === FoldingState.SemiFolded) {
           setIcon(collapse, icons.collapsed);
-          container.classList.add('semi-collapsed');
+          container.classList.add(`semi-collapsed`);
         } else {
           setIcon(collapse, icons.uncollapsed); // unfolded icon
         }
+      }
+
+      if (this.parameters.expand) {
+        container.classList.add(`codeblock-customizer-expand`);
       }
 
       if (this.parameters.indentLevel > 0) {

@@ -282,13 +282,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
           }
 
           // lines
-          let lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations, highlightRules);
-          if (promptRenderResult.lineClassName) {
-            lineClass += ` ${promptRenderResult.lineClassName}`;
-          }
-          if (promptRenderResult.isRoot) {
-            lineClass += ` is-root`;
-          }
+          const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations, highlightRules, promptRenderResult);
           decorations.push(Decoration.line({ attributes: { class: lineClass, style: gutterStyle } }).range(lineStartPos));
 
           previousLineEndPos = currentLine.to;
@@ -523,7 +517,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     return calculatedMax;
   }// getMaxLineNumber
 
-  function getLineClass(parameters: CBCParameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, rules: HighlightRules) {
+  function getLineClass(parameters: CBCParameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, rules: HighlightRules, promptRenderResult: PromptLineRenderResult) {
     let codeblockLanguageClass = "";
     let codeblockLanguageSpecificClass = "";
     let borderColor = "";
@@ -540,8 +534,21 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     lineClass = highlightLinesOrWords(lineNumber, startLine, endLine, line, decorations, lineClass, rules, textSeparator);
     lineClass = lineClass + " " + codeblockLanguageClass + " " + codeblockLanguageSpecificClass;
 
-    if (borderColor.length > 0)
+    if (borderColor.length > 0) {
       lineClass = lineClass + " hasLangBorderColor";
+    }
+
+    if (promptRenderResult.lineClassName) {
+      lineClass += ` ${promptRenderResult.lineClassName}`;
+    }
+
+    if (promptRenderResult.isRoot) {
+      lineClass += ` is-root`;
+    }
+
+    if (parameters.expand) {
+      lineClass = lineClass + " codeblock-customizer-expand";
+    }
 
     return lineClass;
   }// getLineClass

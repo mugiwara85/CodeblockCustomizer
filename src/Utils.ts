@@ -72,6 +72,7 @@ export function getDefaultParameters(): CBCParameters {
     tab: '',
     output: false,
     hideLines: [],
+    expand: false,
   }
 }// getDefaultParameters
 
