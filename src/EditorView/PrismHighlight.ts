@@ -141,7 +141,7 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
         return;
       }
 
-      if (!settings.pluginSettings.codeblock.usePrismHighlight) {
+      if (!settings.pluginSettings.codeblock.usePrismHighlight || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
         if (this.decorations !== Decoration.none) {
           this.decorations = Decoration.none;
         }

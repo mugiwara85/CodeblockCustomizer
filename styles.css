@@ -2838,6 +2838,12 @@ pre.codeblock-customizer-pre .cbc-line-num {
   color: var(--codeblock-customizer-frontmatter-comment-color);
 }
 
+/* disable all editor syntax highlighting */
+body.codeblock-customizer-disable-editor-syntax-highlight .markdown-source-view .cm-line [class*=cm-],
+body.codeblock-customizer-disable-editor-syntax-highlight .markdown-source-view .cm-line span.token {
+  color: inherit !important;
+}
+
 /* undo CodeMirrors color assignment */
 .markdown-source-view .cbc-prism [class*=cm-] {
   color: inherit !important;

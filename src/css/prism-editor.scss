@@ -1,3 +1,11 @@
+/* disable all editor syntax highlighting */
+body.codeblock-customizer-disable-editor-syntax-highlight .markdown-source-view {
+  .cm-line [class*="cm-"],
+  .cm-line span.token {
+    color: inherit !important;
+  }
+}
+
 /* undo CodeMirrors color assignment */
 .markdown-source-view .cbc-prism {
   [class*="cm-"] {

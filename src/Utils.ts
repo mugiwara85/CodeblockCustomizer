@@ -1084,6 +1084,12 @@ export function updateSettingClasses(settings: PluginSettings) {
     document.body.classList.remove('codeblock-customizer-style-frontmatter');
   }
 
+  if (settings.common.disableEditorSyntaxHighlight) {
+    document.body.classList.add('codeblock-customizer-disable-editor-syntax-highlight');
+  } else {
+    document.body.classList.remove('codeblock-customizer-disable-editor-syntax-highlight');
+  }
+
 }// updateSettingClasses
 
 function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurrentColorUse: boolean) {

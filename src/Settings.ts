@@ -238,6 +238,7 @@ export interface PluginSettings {
   },
   common: {
     enableInSourceMode: boolean;
+    disableEditorSyntaxHighlight: boolean;
   },
   prompts: {
     editedDefaults: Record<string, Partial<PromptDefinition>>;
@@ -374,6 +375,7 @@ const defaultThemeSettings: PluginSettings = {
   },
   common: {
     enableInSourceMode: false,
+    disableEditorSyntaxHighlight: false,
   },
   prompts: {
     editedDefaults: {},

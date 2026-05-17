@@ -1,7 +1,7 @@
 import { Notice, Platform, Setting, TextComponent } from "obsidian";
 
 import { createDetailsGroup, SettingsPage, SettingsPageData, updateLanguageSpecificColorContainer } from "./Common";
-import { getCurrentMode } from "src/Utils";
+import { getCurrentMode, updateSettingClasses } from "src/Utils";
 import { createPickrSetting } from "./ColorUtils";
 import { CollapseIconStyle, HiddenLinesStyle, InlineCodeModifierKeys, LineNumberSeparatorStyle } from "src/Settings";
 import { DEFAULT_COLLAPSE_TEXT } from "src/Const";
@@ -59,6 +59,18 @@ export class AppearanceSettings {
     warningEl.style.marginTop = "4px";
     warningEl.style.fontWeight = "bold";
     warningEl.setText("Experimental: This feature is still being tested. Please report any issues you encounter.");
+
+    new Setting(appearanceDiv)
+      .setName('Disable syntax highlighting in editor')
+      .setDesc('When enabled, no syntax highlighting is applied to code blocks or inline code in editing mode. Reading mode is unaffected.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.common.disableEditorSyntaxHighlight)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.common.disableEditorSyntaxHighlight = value;
+          await this.plugin.saveSettings();
+          updateSettingClasses(this.plugin.settings.pluginSettings);
+        })
+      );
 
     // syntax themes
     this.syntaxThemeSettings.display(appearanceDiv);

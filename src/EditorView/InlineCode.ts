@@ -14,20 +14,24 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     decorations: DecorationSet;
     prevEnableSyntaxHighlight: boolean;
     prevUsePrismHighlight: boolean;
+    prevDisableEditorSyntaxHighlight: boolean;
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
       this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
       this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
+      this.prevDisableEditorSyntaxHighlight = settings.pluginSettings.common.disableEditorSyntaxHighlight;
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged || update.selectionSet ||
           this.prevEnableSyntaxHighlight != settings.pluginSettings.inlineCode.enableSyntaxHighlight ||
-          this.prevUsePrismHighlight != settings.pluginSettings.codeblock.usePrismHighlight) {
+          this.prevUsePrismHighlight != settings.pluginSettings.codeblock.usePrismHighlight ||
+          this.prevDisableEditorSyntaxHighlight != settings.pluginSettings.common.disableEditorSyntaxHighlight) {
         this.decorations = this.buildDecorations(update.view);
         this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
         this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
+        this.prevDisableEditorSyntaxHighlight = settings.pluginSettings.common.disableEditorSyntaxHighlight;
       }
     }
 
@@ -89,7 +93,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
               }
             };
 
-            if (!settings.pluginSettings.inlineCode.enableSyntaxHighlight) {
+            if (!settings.pluginSettings.inlineCode.enableSyntaxHighlight || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
               addPrefixDecoration(false);
               addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
               return;
