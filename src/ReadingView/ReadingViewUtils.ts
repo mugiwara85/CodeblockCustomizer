@@ -505,7 +505,7 @@ function isLineHighlighted(displayedLineNumber: number, caseInsensitiveLineText:
   return result;
 }// isLineHighlighted
 
-function getHighlightedLineHtml(lineHtml: string, rules: HighlightRules, lineNumber: number): string {
+export function getHighlightedLineHtml(lineHtml: string, rules: HighlightRules, lineNumber: number): string {
   const rulesToApply: { from?: string; to?: string; words?: HighlightedWord[]; all?: boolean; occurrences?: number[]; className: string }[] = [];
 
   const addRule = (details: { from?: string; to?: string; words?: HighlightedWord[]; all?: boolean; occurrences?: number[] }, colorName = '') => {

@@ -663,6 +663,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       textSpanBackgroundColor,
       style
     );
+    altHighlightStyling += ` .codeblock-customizer-inline-code-highlighted-${cssColorName}, .codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code.codeblock-customizer-inline-code-highlighted-${cssColorName}, .codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code:has(.codeblock-customizer-inline-code-highlighted-${cssColorName}), .codeblock-customizer .cm-s-obsidian span.cm-inline-code.codeblock-customizer-inline-code-highlighted-${cssColorName}, .codeblock-customizer .cm-s-obsidian span.cm-inline-code:has(.codeblock-customizer-inline-code-highlighted-${cssColorName}) { background-color: ${backgroundValue} !important; }`;
   }
 
   const mainHighlightStyle = settings.SelectedTheme.colors[currentMode].codeblock.highlightColor;

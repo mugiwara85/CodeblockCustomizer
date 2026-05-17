@@ -48,7 +48,7 @@ type TextHighlightLineSpecificWords = {
   lineNumber: number;
 };
 
-interface TextHighlight {
+export interface TextHighlight {
   allWordsInLine: number[];
   words: HighlightedWord[];
   lineSpecificWords: TextHighlightLineSpecificWords[];
@@ -156,6 +156,13 @@ export interface CBCParameters {
   output: boolean;
   hideLines: number[];
   expand: boolean;
+}
+
+export interface InlineCodeHighlightParameters {
+  language: string | null;
+  backgroundColorClass: string | null; // null=none, ''=default hl, '<name>'=custom color
+  textHighlight: TextHighlight;
+  alternativeTextHighlights: { colorName: string; highlight: TextHighlight }[];
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false): CBCParameters {
@@ -1123,3 +1130,56 @@ function getPromptLines(parsedParameters: ParsedParams, parameter: string, textS
 
   return result;
 }// getPromptLines
+
+export function parseInlineCodeHighlightParams(braceContent: string, settings: CodeblockCustomizerSettings): InlineCodeHighlightParameters {
+  const alternateColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.alternateHighlightColors || {};
+  const alternateColorNames = Object.keys(alternateColors).map(k => k.toLowerCase());
+  const content = braceContent.trim();
+  
+  const parsedParams: ParsedParams = {};
+  const removedRanges: [number, number][] = [];
+  const paramRegex = new RegExp(PARAM_REGEX_PATTERN.source, PARAM_REGEX_PATTERN.flags);
+  let match: RegExpExecArray | null;
+  while ((match = paramRegex.exec(content)) !== null) {
+    parsedParams[match[1].toLowerCase()] = match[3];
+    removedRanges.push([match.index, match.index + match[0].length]);
+  }
+
+  // remove matched key:value spans from content
+  let remaining = content;
+  for (let i = removedRanges.length - 1; i >= 0; i--) {
+    remaining = remaining.substring(0, removedRanges[i][0]) + ' ' + remaining.substring(removedRanges[i][1]);
+  }
+  const bareWords = remaining.split(/\s+/).map(w => w.toLowerCase()).filter(Boolean);
+
+  let language: string | null = null;
+  let backgroundColorClass: string | null = null;
+
+  for (const word of bareWords) {
+    if (word === 'hl') {
+      backgroundColorClass = '';
+    } else if (alternateColorNames.includes(word)) {
+      backgroundColorClass = word;
+    } else if (language === null) {
+      language = word;
+    }
+  }
+
+  const textSeparator = settings.pluginSettings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
+  const lineSeparator = settings.pluginSettings.textHighlight.lineSeparator || DEFAULT_LINE_SEPARATOR;
+  const textHighlight = getTextHighlight(parsedParams, 'hlt', textSeparator, lineSeparator);
+
+  const alternativeTextHighlights: { colorName: string; highlight: TextHighlight }[] = [];
+  for (const colorName of alternateColorNames) {
+    const key = `${colorName}t`;
+    if (key in parsedParams) {
+      alternativeTextHighlights.push({ colorName, highlight: getTextHighlight(parsedParams, key, textSeparator, lineSeparator) });
+    }
+  }
+
+  return { language, backgroundColorClass, textHighlight, alternativeTextHighlights };
+}// parseInlineCodeHighlightParams
+
+export function getInlineCodeBgClass(backgroundColorClass: string): string {
+  return backgroundColorClass === '' ? 'codeblock-customizer-inline-code-highlighted' : `codeblock-customizer-inline-code-highlighted-${backgroundColorClass.replace(/\s+/g, '-').toLowerCase()}`;
+}// getInlineCodeBgClass

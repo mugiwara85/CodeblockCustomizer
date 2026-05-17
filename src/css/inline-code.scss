@@ -83,12 +83,23 @@ body:not(.codeblock-customizer-show-inline-code-icons) {
 }
 
 /* Inline code reading view */
-.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code {
+.codeblock-customizer .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code {
   padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
   border-radius: var(--border-radius) !important;
   margin: 0 !important;
-  background-color: var(--codeblock-customizer-inline-code-background-color);
-  color: var(--codeblock-customizer-inline-code-text-color);
   font-family: var(--font-monospace);
   font-size: var(--code-size);
+}
+
+.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code{
+  background-color: var(--codeblock-customizer-inline-code-background-color);
+  color: var(--codeblock-customizer-inline-code-text-color);
+}
+
+.codeblock-customizer-inline-code-highlighted,
+.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code.codeblock-customizer-inline-code-highlighted,
+.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code:has(.codeblock-customizer-inline-code-highlighted),
+.codeblock-customizer .cm-s-obsidian span.cm-inline-code.codeblock-customizer-inline-code-highlighted,
+.codeblock-customizer .cm-s-obsidian span.cm-inline-code:has(.codeblock-customizer-inline-code-highlighted) {
+  background-color: var(--codeblock-customizer-codeblock-highlight-color) !important;
 }
