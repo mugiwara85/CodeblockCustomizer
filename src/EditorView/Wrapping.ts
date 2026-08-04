@@ -31,7 +31,20 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
       }
 
       if (tr.docChanged) {
-        return value.map(tr.changes);
+        // Rebuild so --cbc-min-scroll-width tracks typing (map alone freezes Nch).
+        // Map from startState so this stays correct even if wrappingField runs
+        // before unwrappedCodeBlocksField in the extension order.
+        const startUnwrapped = tr.startState.field(unwrappedCodeBlocksField, false);
+        if (!startUnwrapped || startUnwrapped.size === 0) {
+          return Decoration.none;
+        }
+
+        const mapped = new Set<number>();
+        for (const pos of startUnwrapped) {
+          mapped.add(tr.changes.mapPos(pos));
+        }
+
+        return buildDecorations(tr.state, mapped, codeBlockPositionsField);
       }
 
       return value;
@@ -271,7 +284,9 @@ function buildDecorations(state: EditorState, unwrapped: Set<number>, codeBlockP
       decorations.push(nowrapDecoration.range(state.doc.line(i).from));
     }
 
-    decorations.push(Decoration.widget({ widget: new ScrollbarWidget(maxLength), block: true, side: 1 }).range(codeBlockEndPos));
+    if (!parameters.expand) {
+      decorations.push(Decoration.widget({ widget: new ScrollbarWidget(maxLength), block: true, side: 1 }).range(codeBlockEndPos));
+    }
   }
 
   return RangeSet.of(decorations, true);
