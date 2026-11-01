@@ -20,6 +20,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   context: MarkdownPostProcessorContext;
   observer: MutationObserver | null = null;
   expandObserver: ResizeObserver | null = null;
+  expandInsertedListener: (() => void) | null = null;
   allPreElements: HTMLElement[] | null = null;
   codeBlockSectionInfo: MarkdownSectionInformation | null = null;
 
@@ -41,6 +42,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (this.expandObserver) {
       this.expandObserver.disconnect();
       this.expandObserver = null;
+    }
+
+    if (this.expandInsertedListener) {
+      this.expandInsertedListener();
+      this.expandInsertedListener = null;
     }
 
     if (this.allPreElements) {
@@ -490,6 +496,14 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     const previewView = preParent.closest('.markdown-preview-view') as HTMLElement | null;
     if (!previewView) {
+      // reading view renders sections before attaching them, so wait until the block is in the DOM
+      if (!preParent.isConnected) {
+        this.expandInsertedListener?.();
+        this.expandInsertedListener = preParent.onNodeInserted(() => {
+          this.expandInsertedListener = null;
+          this.setupExpandObserver(preElement);
+        }, true);
+      }
       return;
     }
 
@@ -498,16 +512,20 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       preParent.style.removeProperty('--cbc-expand-margin');
 
       const style = getComputedStyle(previewView);
-      const leftPadding = parseFloat(style.paddingLeft) || 0;
-      const rightPadding = parseFloat(style.paddingRight) || 0;
+      // some themes (e.g. Minimal) drop the horizontal file margins, so fall back to the default gutter
+      const defaultGutter = parseFloat(style.getPropertyValue('--file-margins-x')) || 0;
+      const leftPadding = parseFloat(style.paddingLeft) || defaultGutter;
+      const rightPadding = parseFloat(style.paddingRight) || defaultGutter;
       const viewRect = previewView.getBoundingClientRect();
       const preParentRect = preParent.getBoundingClientRect();
+      // some themes (e.g. Minimal) center the block with margin-inline, so measure from its margin edge
+      const currentMargin = parseFloat(getComputedStyle(preParent).marginLeft) || 0;
 
       // clientWidth excludes scrollbar and border. subtract padding to get the inner content area which is the editor's `--file-margins` gaps
       const expandWidth = previewView.clientWidth - leftPadding - rightPadding;
       const expandLeft = viewRect.left + leftPadding;
       preParent.style.setProperty('--cbc-expand-width', `${expandWidth}px`);
-      preParent.style.setProperty('--cbc-expand-margin', `${expandLeft - preParentRect.left}px`);
+      preParent.style.setProperty('--cbc-expand-margin', `${expandLeft - (preParentRect.left - currentMargin)}px`);
     };
 
     if (this.expandObserver) {

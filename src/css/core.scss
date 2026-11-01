@@ -1,5 +1,6 @@
 /* Codeblock background colors */
-.codeblock-customizer {
+// body is required as it adds specificity over themes like Things (.theme-light .markdown-preview-view pre:not(.frontmatter))
+body.codeblock-customizer {
   .markdown-rendered pre.codeblock-customizer-pre,
   .markdown-source-view .HyperMD-codeblock.codeblock-customizer-line {
     background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));

@@ -12,15 +12,15 @@
 }
 
 /* Codeblock background colors */
-.codeblock-customizer .markdown-rendered pre.codeblock-customizer-pre,
-.codeblock-customizer .markdown-source-view .HyperMD-codeblock.codeblock-customizer-line {
+body.codeblock-customizer .markdown-rendered pre.codeblock-customizer-pre,
+body.codeblock-customizer .markdown-source-view .HyperMD-codeblock.codeblock-customizer-line {
   background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
 }
-.codeblock-customizer pre.codeblock-customizer-pre::before,
-.codeblock-customizer pre.codeblock-customizer-pre::after {
+body.codeblock-customizer pre.codeblock-customizer-pre::before,
+body.codeblock-customizer pre.codeblock-customizer-pre::after {
   content: none !important;
 }
-.codeblock-customizer .markdown-source-view .HyperMD-codeblock[class*=codeblock-customizer-line]::before {
+body.codeblock-customizer .markdown-source-view .HyperMD-codeblock[class*=codeblock-customizer-line]::before {
   content: none !important;
 }
 
@@ -1384,6 +1384,9 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 
 /* expand - reading mode */
 .is-readable-line-width .codeblock-customizer-pre-parent.codeblock-customizer-expand {
+  --line-width: var(--cbc-expand-width, 100%);
+  --max-width: none;
+  --content-margin: var(--cbc-expand-margin, 0) 0;
   width: var(--cbc-expand-width, 100%);
   max-width: unset;
   margin-left: var(--cbc-expand-margin, 0);
@@ -1391,12 +1394,18 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 
 /* expand - editing mode */
 .is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-sizer,
+.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-contentContainer,
 .is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-content {
   max-width: unset !important;
 }
 .is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-content > *:not(.codeblock-customizer-expand) {
   max-width: var(--file-line-width) !important;
   margin-inline: auto !important;
+}
+.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) .cm-content > .codeblock-customizer-expand {
+  --line-width: calc(100% - 2 * var(--file-margins-x, 0px));
+  --max-width: none;
+  --content-margin: auto;
 }
 
 /* Prevent Line Wraps */

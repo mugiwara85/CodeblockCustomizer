@@ -79,6 +79,11 @@
 
 /* expand - reading mode */
 .is-readable-line-width .codeblock-customizer-pre-parent.codeblock-customizer-expand {
+  // some themes (e.g. Minimal) size blocks via these vars(--line-width, --max-width, --content-margin) and margin-inline: var(--content-margin) !important
+  --line-width: var(--cbc-expand-width, 100%);
+  --max-width: none;
+  --content-margin: var(--cbc-expand-margin, 0) 0;
+
   width: var(--cbc-expand-width, 100%);
   max-width: unset;
   margin-left: var(--cbc-expand-margin, 0);
@@ -86,8 +91,9 @@
 
 /* expand - editing mode */
 .is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) {
+  // Blue Topaz targets .cm-contentContainer instead of .cm-sizer so it is also needed
   .cm-sizer,
-  //.cm-contentContainer,
+  .cm-contentContainer,
   .cm-content {
     max-width: unset !important;
   }
@@ -95,6 +101,14 @@
   .cm-content > *:not(.codeblock-customizer-expand) {
     max-width: var(--file-line-width) !important;
     margin-inline: auto !important;
+  }
+
+  // some themes (e.g. Minimal) size lines via these vars(--line-width, --max-width, --content-margin) and margin-inline: var(--content-margin) !important
+  // these themes also drop the horizontal file margins. keep the default gutter
+  .cm-content > .codeblock-customizer-expand {
+    --line-width: calc(100% - 2 * var(--file-margins-x, 0px));
+    --max-width: none;
+    --content-margin: auto;
   }
 }
 
