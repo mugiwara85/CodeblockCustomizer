@@ -131,7 +131,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
   }// createInlineCodeIcon
 
   private createCodeContentSpan(code: string, language: string, prism: any, inlineParams?: InlineCodeHighlightParameters): HTMLSpanElement {
-    const langClass = language ? `language-${language}` : '';
+    const langClass = language ? `language-${language} codeblock-customizer-language-${language.toLowerCase()}` : '';
     const codeContentSpan = createSpan({ cls: `codeblock-customizer-inline-code-content${langClass ? ' ' + langClass : ''}` });
     const isLanguageSupportedByPrism = language && prism.languages[language];
 

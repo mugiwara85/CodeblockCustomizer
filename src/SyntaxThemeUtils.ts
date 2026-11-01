@@ -39,8 +39,8 @@ export function generateSyntaxThemeStyles(settings: CodeblockCustomizerSettings)
 
     for (const token of allTokens) {
       const varName = `--cbc-syntax-${token}`;
-      tokenRules.push(`.codeblock-customizer-line-text .token.${token}, .cbc-prism .token.${token} { color: var(${varName}) !important; }`);
-      tokenRules.push(`.print .codeblock-customizer-line-text .token.${token} { color: var(${varName}) !important; }`);
+      tokenRules.push(`.codeblock-customizer-line-text .token.${token}, .cbc-prism .token.${token}, .codeblock-customizer-inline-code-content .token.${token}, .cbc-prism-inline .token.${token} { color: var(${varName}) !important; }`);
+      tokenRules.push(`.print .codeblock-customizer-line-text .token.${token}, .print .codeblock-customizer-inline-code-content .token.${token} { color: var(${varName}) !important; }`);
     }
   }
 
@@ -77,8 +77,8 @@ export function generateSyntaxThemeStyles(settings: CodeblockCustomizerSettings)
     ]);
     for (const token of allTokens) {
       const varName = `--cbc-syntax-${langLower}-${token}`;
-      tokenRules.push(`.codeblock-customizer-language-${langLower} .codeblock-customizer-line-text .token.${token}, .cbc-prism.codeblock-customizer-language-${langLower} .token.${token} { color: var(${varName}) !important; }`);
-      tokenRules.push(`.print .codeblock-customizer-language-${langLower} .codeblock-customizer-line-text .token.${token} { color: var(${varName}) !important; }`);
+      tokenRules.push(`.codeblock-customizer-language-${langLower} .codeblock-customizer-line-text .token.${token}, .cbc-prism.codeblock-customizer-language-${langLower} .token.${token}, .codeblock-customizer-inline-code-content.codeblock-customizer-language-${langLower} .token.${token}, .cbc-prism-inline.codeblock-customizer-language-${langLower} .token.${token} { color: var(${varName}) !important; }`);
+      tokenRules.push(`.print .codeblock-customizer-language-${langLower} .codeblock-customizer-line-text .token.${token}, .print .codeblock-customizer-inline-code-content.codeblock-customizer-language-${langLower} .token.${token} { color: var(${varName}) !important; }`);
     }
   }
 

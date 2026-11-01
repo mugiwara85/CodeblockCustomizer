@@ -15,23 +15,29 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     prevEnableSyntaxHighlight: boolean;
     prevUsePrismHighlight: boolean;
     prevDisableEditorSyntaxHighlight: boolean;
+    prevPrismLoaded: boolean;
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
       this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
       this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
       this.prevDisableEditorSyntaxHighlight = settings.pluginSettings.common.disableEditorSyntaxHighlight;
+      this.prevPrismLoaded = getPrismInstance() !== null;
     }
 
     update(update: ViewUpdate) {
+      // since Prism loads async, rebuild once it is available. Otherwise the CM5 tokens stay until the next change/interaction (#168)
+      const prismLoaded = getPrismInstance() !== null;
       if (update.docChanged || update.viewportChanged || update.selectionSet ||
           this.prevEnableSyntaxHighlight != settings.pluginSettings.inlineCode.enableSyntaxHighlight ||
           this.prevUsePrismHighlight != settings.pluginSettings.codeblock.usePrismHighlight ||
-          this.prevDisableEditorSyntaxHighlight != settings.pluginSettings.common.disableEditorSyntaxHighlight) {
+          this.prevDisableEditorSyntaxHighlight != settings.pluginSettings.common.disableEditorSyntaxHighlight ||
+          this.prevPrismLoaded != prismLoaded) {
         this.decorations = this.buildDecorations(update.view);
         this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
         this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
         this.prevDisableEditorSyntaxHighlight = settings.pluginSettings.common.disableEditorSyntaxHighlight;
+        this.prevPrismLoaded = prismLoaded;
       }
     }
 
@@ -105,7 +111,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
             const prism = settings.pluginSettings.codeblock.usePrismHighlight ? getPrismInstance() : null;
             const tokenRanges = (prism && langName) ? getTokenRangesFromPrismHighlighedtHTML(code, langName) : null;
             if (tokenRanges) {
-              decorations.push(Decoration.mark({ class: "cbc-prism-inline" }).range(node.from, node.to));
+              decorations.push(Decoration.mark({ class: `cbc-prism-inline codeblock-customizer-language-${langName.toLowerCase()}` }).range(node.from, node.to));
 
               for (const range of tokenRanges) {
                 const from = codeStartPos + range.from;

@@ -92,6 +92,7 @@ export function getTokenRangesFromPrismHighlighedtHTML(code: string, language: s
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let prismInstance: any = null;
 let isPrismLoading = false;
+const pendingPrismCallbacks: Array<() => void> = [];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getPrismInstance(): any {
@@ -104,6 +105,11 @@ export function ensurePrismLoaded(onLoaded?: () => void): void {
     return;
   }
 
+  // queue callbacks, so every editor opened while loading gets notified
+  if (onLoaded) {
+    pendingPrismCallbacks.push(onLoaded);
+  }
+
   if (isPrismLoading) {
     return;
   }
@@ -114,7 +120,9 @@ export function ensurePrismLoaded(onLoaded?: () => void): void {
     prismInstance = p;
     loadCustomPrismLanguages(p);
     isPrismLoading = false;
-    onLoaded?.();
+    for (const callback of pendingPrismCallbacks.splice(0)) {
+      callback();
+    }
   });
 }// ensurePrismLoaded
 
