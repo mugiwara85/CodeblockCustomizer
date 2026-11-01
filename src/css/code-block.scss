@@ -410,7 +410,7 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   height: 12px;
   background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
   cursor: default;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
 
   &::-webkit-scrollbar {
     display: block;

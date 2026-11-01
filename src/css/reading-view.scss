@@ -31,7 +31,9 @@ pre.codeblock-customizer-pre .cbc-line-num {
   overflow: hidden;
   padding: unset !important;
   overflow-x: auto !important;
-  overscroll-behavior: contain;
+
+  /* x axis only: contain on the y axis stops the page from scrolling */
+  overscroll-behavior-x: contain;
 
   /* vertical scroll bar appears on header */
 }

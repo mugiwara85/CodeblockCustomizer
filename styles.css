@@ -1676,7 +1676,7 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   height: 12px;
   background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
   cursor: default;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
 }
 .codeblock-customizer-scrollbar::-webkit-scrollbar {
   display: block;
@@ -2726,7 +2726,8 @@ pre.codeblock-customizer-pre .cbc-line-num {
   overflow: hidden;
   padding: unset !important;
   overflow-x: auto !important;
-  overscroll-behavior: contain;
+  /* x axis only: contain on the y axis stops the page from scrolling */
+  overscroll-behavior-x: contain;
   /* vertical scroll bar appears on header */
 }
 
