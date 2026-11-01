@@ -9,29 +9,19 @@ import { isSourceMode } from "../Utils";
 export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPositions[]>, settings: CodeblockCustomizerSettings) {
 
   const wrappingField = StateField.define<DecorationSet>({
-    create() {
-      return Decoration.none;
+    create(state) {
+      return buildDecorations(state, state.field(unwrappedCodeBlocksField), codeBlockPositionsField);
     },
     update(value, tr) {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(tr.state)) {
         return Decoration.none;
       }
 
-      if (!tr.docChanged && tr.effects.length === 0) {
-        return value;
-      }
-
-      const unwrapped = tr.state.field(unwrappedCodeBlocksField, false);
-      if (!unwrapped || unwrapped.size === 0) {
-        return Decoration.none;
-      }
-
-      if (tr.effects.some(e => e.is(wrapEffect))) {
+      const unwrapped = tr.state.field(unwrappedCodeBlocksField);
+      if (tr.docChanged || tr.reconfigured ||
+          unwrapped !== tr.startState.field(unwrappedCodeBlocksField) ||
+          tr.state.field(codeBlockPositionsField) !== tr.startState.field(codeBlockPositionsField)) {
         return buildDecorations(tr.state, unwrapped, codeBlockPositionsField);
-      }
-
-      if (tr.docChanged) {
-        return value.map(tr.changes);
       }
 
       return value;
@@ -39,9 +29,22 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
     provide: f => EditorView.decorations.from(f)
   });// wrappingField
 
+  // Snapshot the effective default in editor state, not a shared mutable closure.
+  const defaultUnwrapField = StateField.define<boolean>({
+    create: state => settings.pluginSettings.codeblock.unwrapcode &&
+      (settings.pluginSettings.common.enableInSourceMode || !isSourceMode(state)),
+    update: (_value, tr) => settings.pluginSettings.codeblock.unwrapcode &&
+      (settings.pluginSettings.common.enableInSourceMode || !isSourceMode(tr.state))
+  });
+
   const unwrappedCodeBlocksField = StateField.define<Set<number>>({
-    create() {
-      return new Set<number>();
+    create(state) {
+      if (!settings.pluginSettings.codeblock.unwrapcode ||
+          (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))) {
+        return new Set<number>();
+      }
+      return new Set((state.field(codeBlockPositionsField, false) ?? [])
+        .filter(p => !p.parameters.exclude).map(p => p.codeBlockStartPos));
     },
     update(value, tr) {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(tr.state)) {
@@ -49,6 +52,11 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
       }
 
       const positions = tr.state.field(codeBlockPositionsField, false);
+      if (tr.state.field(defaultUnwrapField) !== tr.startState.field(defaultUnwrapField)) {
+        return new Set(tr.state.field(defaultUnwrapField)
+          ? (positions ?? []).filter(p => !p.parameters.exclude).map(p => p.codeBlockStartPos)
+          : []);
+      }
       let newSet = value;
       let changed = false;
 
@@ -58,7 +66,10 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
         let setChanged = false;
 
         for (const pos of value) {
-          const mappedPos = tr.changes.mapPos(pos);
+          const mappedPos = tr.changes.mapPos(pos, 1);
+          if (mappedPos !== pos) {
+            setChanged = true;
+          }
           if (validPositions.has(mappedPos)) {
             mappedSet.add(mappedPos);
           } else {
@@ -69,6 +80,20 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
         if (setChanged || mappedSet.size !== value.size) {
           newSet = mappedSet;
           changed = true;
+        }
+      }
+
+      if (settings.pluginSettings.codeblock.unwrapcode && positions) {
+        const previousPositions = new Set((tr.startState.field(codeBlockPositionsField, false) ?? [])
+          .filter(p => !p.parameters.exclude).map(p => tr.changes.mapPos(p.codeBlockStartPos, 1)));
+        for (const block of positions) {
+          if (!block.parameters.exclude && !previousPositions.has(block.codeBlockStartPos)) {
+            if (newSet === value) {
+              newSet = new Set(value);
+            }
+            newSet.add(block.codeBlockStartPos);
+            changed = true;
+          }
         }
       }
 
@@ -89,7 +114,8 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
       }
 
       return changed ? newSet : value;
-    }
+    },
+    provide: () => defaultUnwrapField
   });// unwrappedCodeBlocksField
 
   const scrollSyncPlugin = ViewPlugin.define(view => {
