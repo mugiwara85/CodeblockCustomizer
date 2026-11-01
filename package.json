@@ -15,7 +15,7 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
-		"@eslint/js": "^9.39.2",
+		"@eslint/js": "^9.39.5",
 		"@stylistic/stylelint-plugin": "^2.1.2",
 		"@types/dompurify": "^3.0.3",
 		"@types/lodash": "^4.14.197",
@@ -23,8 +23,8 @@
 		"@types/validator": "^13.12.0",
 		"builtin-modules": "3.3.0",
 		"concurrently": "^9.2.1",
-		"esbuild": "^0.27.3",
-		"eslint": "^9.19.0",
+		"esbuild": "^0.28.2",
+		"eslint": "^10.14.0",
 		"globals": "^17.1.0",
 		"obsidian": "latest",
 		"sass": "^1.97.3",
@@ -44,7 +44,7 @@
 		"typescript-eslint": "^8.20.0"
 	},
 	"overrides": {
-		"minimatch": "^10.2.1"
+		"minimatch": "^11.0.1"
 	},
 	"dependencies": {
 		"@codemirror/language": "^6.8.0",

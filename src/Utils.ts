@@ -607,8 +607,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   const codeblockBackgroundValue = codeblockBackgroundColor.startsWith('--') ? `var(${codeblockBackgroundColor})` : codeblockBackgroundColor;
   const codeblockBackgroundFallback = `var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color, ${codeblockBackgroundValue}))`;
 
-  const buildHighlightStyleRules = (lineClass: string, textClass: string, lineBackgroundColor: string, textSpanBackgroundColor: string,
-    style: { bold?: boolean; italic?: boolean; fontFamily?: string; useTextColor?: boolean; textColor?: string; underline?: boolean; strikethrough?: boolean }): string => {
+  const getHighlightTextStyleProperties = (style: HighlightStyle): string => {
     const textDecorations: string[] = [];
     if (style.underline) {
       textDecorations.push('underline');
@@ -617,13 +616,49 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       textDecorations.push('line-through');
     }
 
-    const textStyleProperties = [
+    return [
       style.bold ? `font-weight: bold` : '',
       style.italic ? `font-style: italic` : '',
       style.fontFamily ? `font-family: ${style.fontFamily}` : '',
       style.useTextColor ? `color: ${style.textColor || '#000000'}` : '',
       textDecorations.length ? `text-decoration: ${textDecorations.join(' ')}` : '',
     ].filter(Boolean).map(prop => `${prop} !important`).join('; ');
+  };
+
+  // highlight of the whole inline code (e.g. `{cpp hl}code` or `{cpp imp}code`)
+  const buildInlineCodeHighlightRules = (bgClass: string, backgroundValue: string | null, textStyleProperties: string): string => {
+    let css = '';
+
+    if (backgroundValue) {
+      const backgroundSelectors = [
+        `.${bgClass}`,
+        `.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code.${bgClass}`,
+        `.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code:has(.${bgClass})`,
+        `.codeblock-customizer .cm-s-obsidian span.cm-inline-code.${bgClass}`,
+        `.codeblock-customizer .cm-s-obsidian span.cm-inline-code:has(.${bgClass})`,
+      ].join(', ');
+      css += ` ${backgroundSelectors} { background-color: ${backgroundValue} !important; }`;
+    }
+
+    if (textStyleProperties) {
+      const tokenSelectors = [
+        `.${bgClass}`,
+        `.markdown-source-view .${bgClass} [class^="cm-"]`,
+        `.markdown-source-view .${bgClass} [class*="token"]`,
+        `.markdown-rendered .${bgClass} .codeblock-customizer-inline-code-content`,
+        `.markdown-rendered .${bgClass} [class*="token"]`,
+        `.print .${bgClass} .codeblock-customizer-inline-code-content`,
+        `.print .${bgClass} [class*="token"]`,
+      ].join(', ');
+      css += ` ${tokenSelectors} { ${textStyleProperties}; }`;
+    }
+
+    return css;
+  };
+
+  // highlighted lines in code blocks (hl:2) and highlighted text in code blocks and inline code (hlt:word)
+  const buildLineAndTextHighlightRules = (lineClass: string, textClass: string, lineBackgroundColor: string, textSpanBackgroundColor: string, style: HighlightStyle): string => {
+    const textStyleProperties = getHighlightTextStyleProperties(style);
 
     // line wrapper background
     let css = `.${lineClass} { ${lineBackgroundColor}; }`;
@@ -642,7 +677,11 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
       css += ` ${tokenSelectors} { ${textStyleProperties}; }`;
     }
 
-    const textSpanProperties = textStyleProperties ? `${textSpanBackgroundColor}; ${textStyleProperties}` : textSpanBackgroundColor;
+    let textSpanProperties = textStyleProperties ? `${textSpanBackgroundColor}; ${textStyleProperties}` : textSpanBackgroundColor;
+    // subscript only for highlighted text, relative positioning does not change the line height
+    if (style.subscript) {
+      textSpanProperties += `; font-size: 0.8em !important; position: relative !important; top: 0.1em !important`;
+    }
     css += ` .${textClass} { ${textSpanProperties}; }`;
 
     return css;
@@ -656,58 +695,37 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     const lineBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
     const textSpanBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: transparent !important`;
 
-    altHighlightStyling += buildHighlightStyleRules(
+    altHighlightStyling += buildLineAndTextHighlightRules(
       `codeblock-customizer-line-highlighted-${cssColorName}`,
       `codeblock-customizer-highlighted-text-${cssColorName}`,
       lineBackgroundColor,
       textSpanBackgroundColor,
       style
     );
-    altHighlightStyling += ` .codeblock-customizer-inline-code-highlighted-${cssColorName}, .codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code.codeblock-customizer-inline-code-highlighted-${cssColorName}, .codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code:has(.codeblock-customizer-inline-code-highlighted-${cssColorName}), .codeblock-customizer .cm-s-obsidian span.cm-inline-code.codeblock-customizer-inline-code-highlighted-${cssColorName}, .codeblock-customizer .cm-s-obsidian span.cm-inline-code:has(.codeblock-customizer-inline-code-highlighted-${cssColorName}) { background-color: ${backgroundValue} !important; }`;
+    altHighlightStyling += buildInlineCodeHighlightRules(
+      `codeblock-customizer-inline-code-highlighted-${cssColorName}`,
+      style.useBackgroundColor ? backgroundValue : null,
+      getHighlightTextStyleProperties(style)
+    );
   }
 
   const mainHighlightStyle = settings.SelectedTheme.colors[currentMode].codeblock.highlightColor;
-  const mainHighlightTextDecorations: string[] = [];
-  if (mainHighlightStyle.underline) {
-    mainHighlightTextDecorations.push('underline');
-  }
-  if (mainHighlightStyle.strikethrough) {
-    mainHighlightTextDecorations.push('line-through');
-  }
+  const mainBackgroundValue = 'var(--codeblock-customizer-codeblock-highlight-color)';
+  const mainLineBackgroundColor = mainHighlightStyle.useBackgroundColor ? `background-color: ${mainBackgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
+  const mainTextSpanBackgroundColor = mainHighlightStyle.useBackgroundColor ? `background-color: ${mainBackgroundValue} !important` : `background-color: transparent !important`;
 
-  const mainHighlightTextStyleProperties = [
-    mainHighlightStyle.bold ? `font-weight: bold` : '',
-    mainHighlightStyle.italic ? `font-style: italic` : '',
-    mainHighlightStyle.fontFamily ? `font-family: ${mainHighlightStyle.fontFamily}` : '',
-    mainHighlightStyle.useTextColor ? `color: ${mainHighlightStyle.textColor || '#000000'}` : '',
-    mainHighlightTextDecorations.length ? `text-decoration: ${mainHighlightTextDecorations.join(' ')}` : '',
-  ].filter(Boolean).map(prop => `${prop} !important`).join('; ');
-
-  let mainHighlightExtraRules = '';
-
-  if (!mainHighlightStyle.useBackgroundColor) {
-    mainHighlightExtraRules += `.codeblock-customizer-line-highlighted { background-color: ${codeblockBackgroundFallback} !important; }`;
-  }
-
-  if (mainHighlightTextStyleProperties) {
-    const mainHighlightTokenSelectors = [
-      `.markdown-source-view .codeblock-customizer-line-highlighted [class^="cm-"]`,
-      `.markdown-source-view .codeblock-customizer-line-highlighted [class*="token"]`,
-      `.markdown-reading-view .codeblock-customizer-line-highlighted .codeblock-customizer-indentation-guide`,
-      `.markdown-reading-view .codeblock-customizer-line-highlighted .codeblock-customizer-line-text`,
-      `.markdown-reading-view .codeblock-customizer-line-highlighted [class*="token"]`,
-      `.print .codeblock-customizer-line-highlighted .codeblock-customizer-indentation-guide`,
-      `.print .codeblock-customizer-line-highlighted .codeblock-customizer-line-text`,
-      `.print .codeblock-customizer-line-highlighted [class*="token"]`,
-    ].join(', ');
-    mainHighlightExtraRules += ` ${mainHighlightTokenSelectors} { ${mainHighlightTextStyleProperties}; }`;
-  }
-
-  if (mainHighlightTextStyleProperties || !mainHighlightStyle.useBackgroundColor) {
-    const textSpanBackground = !mainHighlightStyle.useBackgroundColor ? `background-color: transparent !important` : `background-color: var(--codeblock-customizer-codeblock-highlight-color) !important`;
-    const textSpanProperties = mainHighlightTextStyleProperties ? `${textSpanBackground}; ${mainHighlightTextStyleProperties}` : textSpanBackground;
-    mainHighlightExtraRules += ` .codeblock-customizer-highlighted-text { ${textSpanProperties}; }`;
-  }
+  let mainHighlightExtraRules = buildLineAndTextHighlightRules(
+    'codeblock-customizer-line-highlighted',
+    'codeblock-customizer-highlighted-text',
+    mainLineBackgroundColor,
+    mainTextSpanBackgroundColor,
+    mainHighlightStyle
+  );
+  mainHighlightExtraRules += buildInlineCodeHighlightRules(
+    'codeblock-customizer-inline-code-highlighted',
+    mainHighlightStyle.useBackgroundColor ? mainBackgroundValue : null,
+    getHighlightTextStyleProperties(mainHighlightStyle)
+  );
 
   const languageSpecificStyling = Object.entries(settings.SelectedTheme.colors[currentMode].languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
     const languageStyling = Object.entries(attributes || {}).reduce((languageStyling, [attribute, hexValue]) => {

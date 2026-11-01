@@ -280,6 +280,19 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
         onChanged();
       })
     );
+
+  new Setting(containerEl)
+    .setName('Subscript')
+    .setDesc('Smaller text, slightly below the baseline. Only applies to highlighted text (e.g. hlt:word).')
+    .addToggle(toggle => toggle
+      .setValue(style.subscript ?? false)
+      .onChange((value) => {
+        getStyle('light').subscript = value;
+        getStyle('dark').subscript = value;
+        plugin.saveSettings();
+        onChanged();
+      })
+    );
 }// createHighlightStyleControls
 
 export function createAlternatePickr(containerEl: HTMLElement, colorContainer: HTMLElement, name: string, style: HighlightStyle | string, type: string, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin, colorKey = "", languageName = ""): Setting | undefined {

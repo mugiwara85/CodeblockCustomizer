@@ -53,8 +53,9 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
 
     const hasLanguage = !!(inlineParams?.language);
     const hasTextHighlight = !!(inlineParams && (inlineParams.textHighlight.words.length > 0 || inlineParams.textHighlight.textBetween.length > 0 || inlineParams.textHighlight.lineSpecificWords.length > 0 || inlineParams.textHighlight.allWordsInLine.length > 0 || inlineParams.alternativeTextHighlights.length > 0));
+    const hasBackgroundHighlight = inlineParams?.backgroundColorClass != null;
 
-    if (isValidMatch && ((settings.enableSyntaxHighlight && hasLanguage) || hasTextHighlight)) {
+    if (isValidMatch && ((settings.enableSyntaxHighlight && hasLanguage) || hasTextHighlight || hasBackgroundHighlight)) {
       const prism = await loadPrism();
       loadCustomPrismLanguages(prism);
       this.processInlineCodeElement(prism, match, inlineParams!);

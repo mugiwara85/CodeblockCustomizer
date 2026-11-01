@@ -24,6 +24,7 @@ export interface HighlightStyle {
   textColor?: string;
   underline?: boolean;
   strikethrough?: boolean;
+  subscript?: boolean;
 }
 
 export interface Colors {
