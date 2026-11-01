@@ -35,7 +35,7 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
       (settings.pluginSettings.common.enableInSourceMode || !isSourceMode(state)),
     update: (_value, tr) => settings.pluginSettings.codeblock.unwrapcode &&
       (settings.pluginSettings.common.enableInSourceMode || !isSourceMode(tr.state))
-  });
+  });// defaultUnwrapField
 
   const unwrappedCodeBlocksField = StateField.define<Set<number>>({
     create(state) {

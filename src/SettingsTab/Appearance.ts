@@ -103,7 +103,7 @@ export class AppearanceSettings {
 
     new Setting(codeBlockDetails)
       .setName('Unwrap code')
-      .setDesc('If enabled, the code will be unwrapped in reading view.')
+      .setDesc('If enabled, the code will be unwrapped in reading view and editing view.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.codeblock.unwrapcode)
         .onChange(async (value) => {
