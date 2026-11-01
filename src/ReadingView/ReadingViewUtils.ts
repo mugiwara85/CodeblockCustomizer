@@ -1415,12 +1415,12 @@ function findHighlightRanges(fullText: string, from: string, to: string, occurre
     const fromRegex = new RegExp(fromPattern, 'gi');
     const toRegex = new RegExp(toPattern, 'gi');
 
-    const fromIndices: number[] = [];
+    const fromMatches: { index: number, length: number }[] = [];
     const toMatches: { index: number, length: number }[] = [];
     let match;
     while ((match = fromRegex.exec(fullText)) !== null) {
       if (match.index === fromRegex.lastIndex) fromRegex.lastIndex++;
-      fromIndices.push(match.index);
+      fromMatches.push({ index: match.index, length: match[0].length });
     }
 
     while ((match = toRegex.exec(fullText)) !== null) {
@@ -1428,11 +1428,12 @@ function findHighlightRanges(fullText: string, from: string, to: string, occurre
       toMatches.push({ index: match.index, length: match[0].length });
     }
 
-    for (const fromIndex of fromIndices) {
-      const nextToMatch = toMatches.find(toMatch => toMatch.index > fromIndex);
+    for (const fromMatch of fromMatches) {
+      // search for "to" after the end of "from" (same as in editor mode), otherwise "to" could match inside "from"
+      const nextToMatch = toMatches.find(toMatch => toMatch.index >= fromMatch.index + fromMatch.length);
 
       if (nextToMatch) {
-        const range = { from: fromIndex, to: nextToMatch.index + nextToMatch.length };
+        const range = { from: fromMatch.index, to: nextToMatch.index + nextToMatch.length };
         ranges.push(range);
       }
     }
