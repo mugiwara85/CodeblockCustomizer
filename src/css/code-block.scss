@@ -84,26 +84,93 @@
   margin-left: var(--cbc-expand-margin, 0);
 }
 
-/* expand - editing mode */
-.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) {
-  .cm-sizer,
-  //.cm-contentContainer,
-  .cm-content {
-    max-width: unset !important;
-  }
+/* expand - editing mode
+ *
+ * Ready flag on .markdown-source-view (cbc-expand-ready). Do not put state on
+ * .cm-line - CodeMirror rebuilds line DOM and would wipe classes/inline styles.
+ *
+ * Obsidian readable-line-width styles .cm-content children via:
+ *   margin-inline: var(--content-margin) !important;
+ *   width: var(--line-width);
+ *   max-width: var(--max-width);
+ * Override those vars so we cooperate with Obsidian instead of fighting it.
+ *
+ * Wrapped: same column width as a normal code block (left-aligned).
+ * Unwrapped: hug via --cbc-min-scroll-width from Wrapping.ts (per-block);
+ *   .cm-scroller scrolls when content exceeds the pane.
+ */
+.markdown-source-view.is-readable-line-width.cbc-expand-ready.cbc-expand-has-nowrap .cm-scroller {
+  overflow-x: auto;
+}
 
-  .cm-content > *:not(.codeblock-customizer-expand) {
-    max-width: var(--file-line-width) !important;
-    margin-inline: auto !important;
-  }
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .HyperMD-codeblock.codeblock-customizer-expand:not(.codeblock-customizer-nowrap) {
+  /* wrapped: left-align to column; keep Obsidian --line-width / --max-width */
+  --content-margin: var(--cbc-expand-margin-left) 0;
+  white-space: pre-wrap !important;
+}
+
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .HyperMD-codeblock.codeblock-customizer-expand:not(.codeblock-customizer-nowrap) > .cm-hmd-codeblock {
+  white-space: pre-wrap !important;
+}
+
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .HyperMD-codeblock.codeblock-customizer-expand.codeblock-customizer-nowrap {
+  --content-margin: var(--cbc-expand-margin-left) 0;
+  /* per-block hug from Wrapping.ts --cbc-min-scroll-width (e.g. 80ch) */
+  --line-width: max(var(--file-line-width), calc(var(--cbc-min-scroll-width, 0px) + var(--line-number-gutter-width, 0px) + 2em));
+  --max-width: none;
+  white-space: pre !important;
+  overflow-x: visible !important;
+}
+
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .HyperMD-codeblock.codeblock-customizer-expand.codeblock-customizer-nowrap > .cm-hmd-codeblock {
+  white-space: pre !important;
+}
+
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .HyperMD-codeblock-begin.codeblock-customizer-expand .codeblock-customizer-button-container {
+  /* same vertical placement as a normal block; horizontal clamp via right in Expand.ts */
+  position: absolute !important;
+  top: 6px !important;
+  right: 6px;
+  left: auto !important;
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+  float: none;
+  z-index: 50;
+}
+
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .codeblock-customizer-header-container.codeblock-customizer-expand,
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .codeblock-customizer-header-container-specific.codeblock-customizer-expand {
+  --content-margin: var(--cbc-expand-margin-left) 0;
+}
+
+.markdown-source-view.is-readable-line-width.cbc-expand-ready .codeblock-customizer-header-container-specific.codeblock-customizer-expand .codeblock-customizer-header-button-container {
+  position: absolute !important;
+  top: 0 !important;
+  right: 6px;
+  left: auto !important;
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+  z-index: 50;
+}
+
+/* Callouts / admonitions: reading mode skips expand; keep edit mode neutral too */
+.markdown-source-view.is-readable-line-width.cbc-expand-ready :is(.callout, .admonition) .HyperMD-codeblock.codeblock-customizer-expand,
+.markdown-source-view.is-readable-line-width.cbc-expand-ready :is(.callout, .admonition) .codeblock-customizer-header-container.codeblock-customizer-expand,
+.markdown-source-view.is-readable-line-width.cbc-expand-ready :is(.callout, .admonition) .codeblock-customizer-header-container-specific.codeblock-customizer-expand {
+  --content-margin: unset;
+  --line-width: unset;
+  --max-width: unset;
+  white-space: unset;
 }
 
 /* Prevent Line Wraps */
-.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap) {
+.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap):not(.codeblock-customizer-expand) {
   white-space: nowrap;
 }
 
-.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap)>.cm-hmd-codeblock {
+.HyperMD-codeblock:has(> .cm-widgetBuffer):not(.codeblock-customizer-nowrap):not(.codeblock-customizer-expand) > .cm-hmd-codeblock {
   white-space: break-spaces;
 }
 
@@ -141,12 +208,7 @@
       padding-bottom: 1.5em;
     }
 
-    &.codeblock-customizer-expand {
-      max-width: unset;
-      margin-inline: 0;
-    }
-
-    &.codeblock-customizer-nowrap {
+    &.codeblock-customizer-nowrap:not(.codeblock-customizer-expand) {
       padding-left: 0 !important;
       overflow-wrap: normal !important;
       overflow-x: auto;
@@ -376,6 +438,12 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
       }
     }
   }
+}
+
+/* expand blocks scroll on the line itself, not via the shared scrollbar widget */
+.HyperMD-codeblock-end.codeblock-customizer-expand ~ .codeblock-customizer-scrollbar,
+.codeblock-customizer-expand ~ .codeblock-customizer-scrollbar {
+  display: none !important;
 }
 
 /* hide scrollbar when code block is collapsed/semi-collapsed */

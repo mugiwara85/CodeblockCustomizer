@@ -18,6 +18,7 @@ import { annotationsExtension } from "./Annotations";
 import { executeCodeExtension } from "./ExecuteCodePlugin";
 import { admonitionExtension } from "./Admonitions";
 import { wrapExtension } from "./Wrapping";
+import { expandExtension } from "./Expand";
 import { prismHighlightExtension } from "./PrismHighlight";
 
 
@@ -25,6 +26,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   const codeBlockPositionsField = createCodeBlockPositionsField(plugin, settings);
   const { hiddenLinesUnhiddenField, hiddenLinesField, getHiddenRanges, getHiddenLines } = hideLinesExtension(settings, codeBlockPositionsField);
   const { wrappingField, unwrappedCodeBlocksField, scrollSyncPlugin } = wrapExtension(codeBlockPositionsField, settings);
+  const expandExtensions = expandExtension(codeBlockPositionsField, settings);
   const {
     collapseField, foldCommandField, rememberedFoldField, defaultFoldUnfoldedField, toggleCodeBlockFold, getFoldingState, foldAll, unfoldAll, restoreDefaultFold
   } = foldingExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, getHiddenLines, () => groupedCodeBlocksField);
@@ -78,8 +80,8 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     headerField,
     hiddenLinesUnhiddenField,
     hiddenLinesField,
-    wrappingField,
     unwrappedCodeBlocksField,
+    wrappingField,
     viewPlugin,
     linkViewPlugin,
     inlineCodeViewPlugin,
@@ -89,6 +91,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     admonitionViewPlugin,
     prismHighlightPlugin,
     scrollSyncPlugin,
+    ...expandExtensions,
     liveUpdateExtension(),
     forceRefreshListener,
     EditorView.domEventHandlers({
