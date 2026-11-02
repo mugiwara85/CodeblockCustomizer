@@ -54,7 +54,61 @@ export function setAndSavePickrSetting(className: string, savedColor: string, pl
   plugin.saveSettings();
 }// setAndSavePickrSetting
 
+// (Hopefully temporary) Fix for Pick3 1.10.2. Fixes dragging
+const forwardedDocuments = new WeakSet<Document>();
+function forwardPickrDragEvents(doc: Document): void {
+  if (doc === document || forwardedDocuments.has(doc)) {
+    return;
+  }
+  forwardedDocuments.add(doc);
+
+  doc.addEventListener('mousedown', (e: MouseEvent) => {
+    if (!(e.target as Element | null)?.closest?.('.pcr-app')) {
+      return;
+    }
+
+    const forward = (event: MouseEvent) => document.dispatchEvent(new MouseEvent(event.type, event));
+    const stop = (event: MouseEvent) => {
+      forward(event);
+      doc.removeEventListener('mousemove', forward);
+      doc.removeEventListener('mouseup', stop);
+    };
+    doc.addEventListener('mousemove', forward);
+    doc.addEventListener('mouseup', stop);
+  }, true);
+}// forwardPickrDragEvents
+
+// (Hopefully temporary) Fix for Pick3 1.10.2. Fixes escape-to-exit and click to exit
+function addPopoutWindowListeners(pickr: Pickr): (() => void) | null {
+  const { app, button } = pickr.getRoot() as { app: HTMLElement; button: HTMLElement };
+  const doc = app.ownerDocument;
+  if (doc === document) {
+    return null;
+  }
+
+  forwardPickrDragEvents(doc);
+
+  const onMouseDown = (e: MouseEvent) => {
+    if (!e.composedPath().some(el => el === app || el === button)) {
+      pickr.hide();
+    }
+  };
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' || e.code === 'Escape') {
+      pickr.hide();
+    }
+  };
+  doc.addEventListener('mousedown', onMouseDown, true);
+  doc.addEventListener('keyup', onKeyUp);
+
+  return () => {
+    doc.removeEventListener('mousedown', onMouseDown, true);
+    doc.removeEventListener('keyup', onKeyUp);
+  };
+}// addPopoutWindowListeners
+
 export function addPickerControlsToSetting(setting: Setting, options: PickerOptions, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin): Pickr {
+  let removePopoutWindowListeners: (() => void) | null = null;
   const pickr = Pickr.create({
     el: setting.controlEl.createDiv({ cls: 'picker' }),
     container: options.containerEl.parentNode as HTMLElement,
@@ -62,6 +116,7 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
     position: 'left-middle',
     lockOpacity: false,
     default: options.initialColor,
+    defaultRepresentation: 'HEXA',
     swatches: [],
     components: {
       preview: true,
@@ -84,7 +139,12 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
         return;
       }
       const { result } = (instance.getRoot() as any).interaction;
+      removePopoutWindowListeners = addPopoutWindowListeners(instance);
       requestAnimationFrame(() => requestAnimationFrame(() => result.select()));
+    })
+    .on('hide', () => {
+      removePopoutWindowListeners?.();
+      removePopoutWindowListeners = null;
     })
     .on('save', (color: Pickr.HSVaColor, instance: Pickr) => {
       if (!color) return;
@@ -96,6 +156,9 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
     .on('cancel', (instance: Pickr) => {
       instance.hide();
     });
+
+  // (Hopefully temporary) Fix for Pick3 1.10.2. Initial colors not set correctly
+  pickr.setColor(options.initialColor);
 
   pickerInstances.push(pickr);
 
