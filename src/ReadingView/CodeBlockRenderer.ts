@@ -443,7 +443,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     this.cleanupPreviousElements(preElement);
     const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, codeblockLines.length - 2, "reading");
-    const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, specificHeader, charPos);
+    const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, specificHeader, Math.max(1, codeblockLines.length - 2), charPos);
     const { container: buttons, observer } = createButtons(parameters, codeblockLines, this.plugin, preElement);
     this.observer = observer;
 
@@ -608,7 +608,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// applyInitialFoldState
 
-  private HeaderWidget(preElement: HTMLElement, parameters: CBCParameters, settings: CodeblockCustomizerSettings, specificHeader: boolean, charPos?: number) {
+  private HeaderWidget(preElement: HTMLElement, parameters: CBCParameters, settings: CodeblockCustomizerSettings, specificHeader: boolean, contentLineCount: number, charPos?: number) {
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     const container = createContainer(specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
     const frag = document.createDocumentFragment();
@@ -681,7 +681,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         const shouldRemember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold);
         if (shouldRemember) {
           const keyToUse = charPos ?? this.codeBlockSectionInfo.lineStart;
-          this.plugin.setFoldState(this.context.sourcePath, keyToUse, newState, 'reading', parameters, lines.length);
+          this.plugin.setFoldState(this.context.sourcePath, keyToUse, newState, 'reading', parameters, contentLineCount, false);
         }
       }
     });

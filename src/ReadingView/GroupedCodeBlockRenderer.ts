@@ -620,7 +620,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     if (remember && sourcePath && charPosStr) {
       const charPos = parseInt(charPosStr, 10);
       if (!isNaN(charPos)) {
-        this.plugin.setFoldState(sourcePath, charPos, newState, 'reading', parameters, codeblockLineCount);
+        // the initial fold state of grouped blocks is set by CodeBlockRenderer, which doesn't treat them as tabbed group members so isMemberOfTabbedGroup must be false
+        this.plugin.setFoldState(sourcePath, charPos, newState, 'reading', parameters, lines.length, false);
       }
     }
   }// foldCodeBlcok

@@ -113,8 +113,11 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
               const startLine = transaction.state.doc.lineAt(currentBlock.codeBlockStartPos).number;
               const endLine = transaction.state.doc.lineAt(currentBlock.codeBlockEndPos).number;
               const lineCount = endLine - startLine + 1;
+              const grouped = transaction.state.field(getGroupedCodeBlocksField(), false) ?? {};
+              const group = currentBlockParameters.group;
+              const isMemberOfTabbedGroup = !!(group && grouped[group] && grouped[group].some(member => member.codeBlockStartPos === startPos));
 
-              plugin.setFoldState(updatedDocPath, startPos, state, 'editor', currentBlockParameters, lineCount);
+              plugin.setFoldState(updatedDocPath, startPos, state, 'editor', currentBlockParameters, lineCount, isMemberOfTabbedGroup);
 
               if (state === FoldingState.Unfolded) {
                 delete newFoldedState[startPos];

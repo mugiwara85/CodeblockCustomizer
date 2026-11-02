@@ -6,7 +6,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { DEFAULT_SYNTAX_THEMES } from './SyntaxThemeDefaults';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode, parseCustomPrismLanguages, unloadCustomPrismLanguages } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode, parseCustomPrismLanguages, unloadCustomPrismLanguages, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
 import { extensions } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
 import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRenderer";
@@ -114,7 +114,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     console.log("loading CodeBlock Customizer plugin");
   }// onload
 
-  setFoldState(filePath: string, key: number, newState: FoldingState, viewType: 'editor' | 'reading', parameters: CBCParameters, lineCount: number): void {
+  // lineCount: in editor mode including the fences, in reading mode the content line count (same as determineDefaultFoldState)
+  setFoldState(filePath: string, key: number, newState: FoldingState, viewType: 'editor' | 'reading', parameters: CBCParameters, lineCount: number, isMemberOfTabbedGroup: boolean): void {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (markdownView) {
       const isGlobalCommandActive = (markdownView.getMode() === 'source' && markdownView.containerEl.classList.contains('codeblock-customizer-header-collapse-command')) ||
@@ -131,11 +132,14 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (!foldSettings.rememberFoldState)
       return;
 
-    let defaultState: FoldingState = FoldingState.Unfolded;
-    const foldByDefault = parameters.fold || (foldSettings.inverseFold && !parameters.unfold);
+    // fix for #179: use the same default fold logic as the renderers
+    const specificHeader = isSpecificHeader(parameters, this.settings, isMemberOfTabbedGroup, lineCount, viewType);
+    const { foldByDefault } = determineDefaultFoldState(parameters, this.settings, lineCount, specificHeader, viewType);
 
+    let defaultState: FoldingState = FoldingState.Unfolded;
     if (foldByDefault) {
-      const canSemiFold = semiFoldSettings.enableSemiFold && (lineCount >= semiFoldSettings.visibleLines + fadeOutLineCount);
+      const contentLineCount = viewType === 'editor' ? lineCount - 2 : lineCount;
+      const canSemiFold = semiFoldSettings.enableSemiFold && (getVisibleLineCount(parameters, contentLineCount) >= semiFoldSettings.visibleLines + fadeOutLineCount);
       defaultState = canSemiFold ? FoldingState.SemiFolded : FoldingState.FullyFolded;
     }
 
