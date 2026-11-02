@@ -143,8 +143,9 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
   }, {
     decorations: v => v.decorations,
     eventHandlers: {
-      click: (event, view) => {
-        if (!settings.pluginSettings.inlineCode.enableCopyOnClick)
+      // use mousedown instead of click (#185)
+      mousedown: (event, view) => {
+        if (!settings.pluginSettings.inlineCode.enableCopyOnClick || event.button !== 0)
           return;
 
         const requiredKey = plugin.settings.pluginSettings.inlineCode.copyModifierKey;
@@ -187,6 +188,9 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
             }
           }
         });
+
+        // return true to prevent CodeMirror from moving the cursor (#185)
+        return true;
       }
     }
   });// inlineCodeViewPlugin
