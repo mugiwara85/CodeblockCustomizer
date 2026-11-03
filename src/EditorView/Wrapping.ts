@@ -19,8 +19,8 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
 
       const unwrapped = tr.state.field(unwrappedCodeBlocksField);
       if (tr.docChanged || tr.reconfigured ||
-          unwrapped !== tr.startState.field(unwrappedCodeBlocksField) ||
-          tr.state.field(codeBlockPositionsField) !== tr.startState.field(codeBlockPositionsField)) {
+          unwrapped !== tr.startState.field(unwrappedCodeBlocksField, false) ||
+          tr.state.field(codeBlockPositionsField) !== tr.startState.field(codeBlockPositionsField, false)) {
         return buildDecorations(tr.state, unwrapped, codeBlockPositionsField);
       }
 
@@ -52,7 +52,7 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
       }
 
       const positions = tr.state.field(codeBlockPositionsField, false);
-      if (tr.state.field(defaultUnwrapField) !== tr.startState.field(defaultUnwrapField)) {
+      if (tr.state.field(defaultUnwrapField) !== tr.startState.field(defaultUnwrapField, false)) {
         return new Set(tr.state.field(defaultUnwrapField)
           ? (positions ?? []).filter(p => !p.parameters.exclude).map(p => p.codeBlockStartPos)
           : []);
