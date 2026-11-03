@@ -3,6 +3,7 @@ import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, 
 import { EditorState } from "@codemirror/state";
 
 import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount, Languages } from "./Const";
+import { buildSvg, svgToDataUri } from "./CustomSvg";
 import { generatePromptColorStyles } from "./PromptUtils";
 import { generateSyntaxThemeStyles } from "./SyntaxThemeUtils";
 import { CodeblockCustomizerSettings, Colors, HighlightStyle, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
@@ -209,7 +210,7 @@ export async function loadIcons(plugin: CodeBlockCustomizerPlugin) {
     BLOBS[key.replace(/\s/g, "_")] = URL.createObjectURL(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`], { type: "image/svg+xml" }));
   }*/
   for (const [key, value] of Object.entries(Icons)) {
-    BLOBS[key.replace(/\s/g, "_")] = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`)}`;
+    BLOBS[key.replace(/\s/g, "_")] = svgToDataUri(buildSvg(value));
   }
   await loadCustomIcons(plugin);
 }// loadIcons
@@ -249,9 +250,8 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
       const svgFileExists = await plugin.app.vault.adapter.exists(svgFilePath);
       if (svgFileExists) {
         const svgContent = await plugin.app.vault.adapter.read(svgFilePath);
-        const base64SVG = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${svgContent}</svg>`)}`;
         Icons[lang.displayName] = svgContent;
-        BLOBS[lang.displayName.replace(/\s/g, "_")] = `${base64SVG}`;
+        BLOBS[lang.displayName.replace(/\s/g, "_")] = svgToDataUri(buildSvg(svgContent));
       }
     }
     for (const language of lang.codeblockLanguages) {

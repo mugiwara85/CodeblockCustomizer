@@ -54,7 +54,7 @@ export function setAndSavePickrSetting(className: string, savedColor: string, pl
   plugin.saveSettings();
 }// setAndSavePickrSetting
 
-// (Hopefully temporary) Fix for Pick3 1.10.2. Fixes dragging
+// (Hopefully temporary) Fix for Pickr 1.10.2. Fixes dragging
 const forwardedDocuments = new WeakSet<Document>();
 function forwardPickrDragEvents(doc: Document): void {
   if (doc === document || forwardedDocuments.has(doc)) {
@@ -78,7 +78,7 @@ function forwardPickrDragEvents(doc: Document): void {
   }, true);
 }// forwardPickrDragEvents
 
-// (Hopefully temporary) Fix for Pick3 1.10.2. Fixes escape-to-exit and click to exit
+// (Hopefully temporary) Fix for Pickr 1.10.2. Fixes escape-to-exit and click to exit
 function addPopoutWindowListeners(pickr: Pickr): (() => void) | null {
   const { app, button } = pickr.getRoot() as { app: HTMLElement; button: HTMLElement };
   const doc = app.ownerDocument;
@@ -157,7 +157,7 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
       instance.hide();
     });
 
-  // (Hopefully temporary) Fix for Pick3 1.10.2. Initial colors not set correctly
+  // (Hopefully temporary) Fix for Pickr 1.10.2. Initial colors not set correctly
   pickr.setColor(options.initialColor);
 
   pickerInstances.push(pickr);

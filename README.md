@@ -607,7 +607,7 @@ It is possible to use custom SVGs, and assign **existing** syntax highlighting f
 Explanation:
 - codeblockLanguages (**required**): one or more languages, where you want to apply the displayName, SVG, and format.
 - displayName (**required**): the display Language, which is displayed in the header.
-- svgFile (**optional**): name of an SVGfile in the same folder. **The file must be a plain text SVG without the SVG tag itself**. Look at [Const.ts](src/Const.ts) for examples.
+- svgFile (**optional**): name of an SVG file in the same folder. You can use a normal, complete SVG file (for example downloaded from [Simple Icons](https://simpleicons.org/)). Its own `viewBox` is used, so icons of any size are displayed correctly. Alternatively, the file can contain only the content of the SVG without the `<svg>` tag. In this case the content must be drawn on a 32x32 grid (`viewBox="0 0 32 32"`). Look at [Const.ts](src/Const.ts) for examples.
 - format (**optional**): the syntax highlighting to apply for this code block.
 
 >[!important]

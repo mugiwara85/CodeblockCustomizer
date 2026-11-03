@@ -1715,7 +1715,8 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
   margin-right: 0 !important;
   margin-left: 0 !important;
 }
-.cm-s-obsidian span.codeblock-customizer-inline-code-icon-container ~ span.cm-inline-code:not(.cm-formatting-code) {
+.cm-s-obsidian span.codeblock-customizer-inline-code-icon-container + span.cm-inline-code:not(.cm-formatting-code),
+.cm-s-obsidian span.codeblock-customizer-inline-code-icon-container + img.cm-widgetBuffer + span.cm-inline-code:not(.cm-formatting-code) {
   padding-left: 0 !important;
   border-radius: 0 var(--border-radius) var(--border-radius) 0 !important;
   margin-left: 0 !important;
@@ -1746,7 +1747,8 @@ body:not(.codeblock-customizer-show-inline-code-icons) span.codeblock-customizer
 body:not(.codeblock-customizer-show-inline-code-icons) .markdown-rendered code .codeblock-customizer-inline-icon-wrapper {
   display: none;
 }
-body:not(.codeblock-customizer-show-inline-code-icons) div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code ~ span.cm-inline-code {
+body:not(.codeblock-customizer-show-inline-code-icons) div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code + span.cm-inline-code,
+body:not(.codeblock-customizer-show-inline-code-icons) div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code + img.cm-widgetBuffer + span.cm-inline-code {
   padding-left: var(--inline-code-padding-horizontal) !important;
   border-radius: var(--border-radius) var(--border-radius) var(--border-radius) var(--border-radius) !important;
 }

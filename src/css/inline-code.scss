@@ -30,7 +30,8 @@
   }
 
   // set border radius for inline code, if an icon is displayed
-  span.codeblock-customizer-inline-code-icon-container~span.cm-inline-code:not(.cm-formatting-code) {
+  span.codeblock-customizer-inline-code-icon-container+span.cm-inline-code:not(.cm-formatting-code),
+  span.codeblock-customizer-inline-code-icon-container+img.cm-widgetBuffer+span.cm-inline-code:not(.cm-formatting-code) {
     padding-left: 0 !important;
     border-radius: 0 var(--border-radius) var(--border-radius) 0 !important;
     margin-left: 0 !important;
@@ -64,7 +65,8 @@ body:not(.codeblock-customizer-show-inline-code-icons) {
     display: none;
   }
 
-  div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code~span.cm-inline-code {
+  div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code+span.cm-inline-code,
+  div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code+img.cm-widgetBuffer+span.cm-inline-code {
     padding-left: var(--inline-code-padding-horizontal) !important;
     border-radius: var(--border-radius) var(--border-radius) var(--border-radius) var(--border-radius) !important;
   }
