@@ -6,7 +6,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence } from './Settings';
 import { DEFAULT_SYNTAX_THEMES } from './SyntaxThemeDefaults';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, refreshCachedMode, parseCustomPrismLanguages, unloadCustomPrismLanguages, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, getExecuteCodeLanguages,refreshCachedMode, parseCustomPrismLanguages, unloadCustomPrismLanguages, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
 import { extensions } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
 import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRenderer";
@@ -55,6 +55,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
   modifiedBlocks: Map<string, string> = new Map();
   executeCodeObservers: WeakMap<HTMLElement, MutationObserver> = new WeakMap();
+  executeCodeLanguages: string[] = [];
 
   async onload() {
     document.body.classList.add('codeblock-customizer');
@@ -74,7 +75,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     await loadIcons(this);
     loadSyntaxHighlightForCustomLanguages(this); // load syntax highlight
     await parseCustomPrismLanguages(this);
-    registerExecuteCodeSyntaxHighlighting();
+    this.executeCodeLanguages = getExecuteCodeLanguages(this.settings.pluginSettings.plugins.executeCode.additionalLanguages);
+    registerExecuteCodeSyntaxHighlighting(this.executeCodeLanguages);
 
     mergeBorderColorsToLanguageSpecificColors(this, this.settings);
 
@@ -274,7 +276,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     // unload syntax highlight
     loadSyntaxHighlightForCustomLanguages(this, true);
     unloadCustomPrismLanguages();
-    unregisterExecuteCodeSyntaxHighlighting();
+    unregisterExecuteCodeSyntaxHighlighting(this.executeCodeLanguages);
 
     if (this.debounceTimer)
       clearTimeout(this.debounceTimer);

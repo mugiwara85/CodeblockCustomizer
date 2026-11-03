@@ -78,6 +78,7 @@ export class PluginCompatibilitySettings {
           this.plugin.settings.pluginSettings.plugins.executeCode.enabled = value;
           styleOutputSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
           executeCodeSeparatorStyleSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
+          additionalLanguagesSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
           await this.plugin.saveSettings();
           this.plugin.renderReadingViews();
         })
@@ -113,6 +114,25 @@ export class PluginCompatibilitySettings {
       );
 
     styleOutputSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);
+
+    const additionalLanguagesSetting = new Setting(executeCodeDetails)
+      .setName('Additional Execute Code languages')
+      .setDesc('Comma-separated list of languages to support in addition to the built-in Execute Code languages (e.g. languages added by a fork of Execute Code). If the run button disappears for a language, add it here.')
+      .addText(text => text
+        .setPlaceholder('e.g. tcl, perl')
+        .setValue(this.plugin.settings.pluginSettings.plugins.executeCode.additionalLanguages)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.plugins.executeCode.additionalLanguages = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    const reloadWarningEl = additionalLanguagesSetting.descEl.createDiv({ cls: "mod-warning" });
+    reloadWarningEl.style.color = "var(--text-error)";
+    reloadWarningEl.style.marginTop = "4px";
+    reloadWarningEl.style.fontWeight = "bold";
+    reloadWarningEl.setText("Reload the plugin after changing this option.");
+
+    additionalLanguagesSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);
 
     //return pluginsDiv;
   }// public

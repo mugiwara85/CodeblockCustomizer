@@ -265,6 +265,7 @@ export interface PluginSettings {
       enabled: boolean;
       styleOutput: boolean;
       executeCodeSeparatorStyle: ExecuteCodeSeparatorStyle;
+      additionalLanguages: string;
     }
   },
   frontmatter: {
@@ -402,6 +403,7 @@ const defaultThemeSettings: PluginSettings = {
       enabled: true,
       styleOutput: true,
       executeCodeSeparatorStyle: ExecuteCodeSeparatorStyle.Zigzag,
+      additionalLanguages: '',
     }
   },
   frontmatter: {

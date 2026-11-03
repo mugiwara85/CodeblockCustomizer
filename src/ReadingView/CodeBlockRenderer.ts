@@ -3,7 +3,7 @@ import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInfor
 import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, loadCustomPrismLanguages, isCustomPrismLanguage } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
-import { DEFAULT_COLLAPSE_TEXT, EXECUTE_CODE_SUPPORTED_LANGUAGES, fadeOutLineCount } from "../Const";
+import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount } from "../Const";
 import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "../Parsing";
@@ -333,7 +333,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       this.setGroupedCodeBlockAttributes(preElement, parameters, charPos);
     }
 
-    const isExecutable = this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', this.plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase());
+    const isExecutable = this.plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', this.plugin) && this.plugin.executeCodeLanguages.includes(parameters.language.toLowerCase());
     let codeElToProcess: HTMLElement;
 
     if (isExecutable) {

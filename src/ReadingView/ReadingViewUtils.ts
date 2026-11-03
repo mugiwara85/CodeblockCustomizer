@@ -4,7 +4,7 @@ import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderO
 import { TooltipManager } from "../TooltipManager";
 import { PromptManager } from "../PromptManager";
 import CodeBlockCustomizerPlugin from "../main";
-import { ANNOTATION_PATTERN, EXECUTE_CODE_SUPPORTED_LANGUAGES, LINK_REGEX, fadeOutLineCount, rhombusSVG } from "../Const";
+import { ANNOTATION_PATTERN, LINK_REGEX,fadeOutLineCount, rhombusSVG } from "../Const";
 import { addAndObserveExecuteCodeButtons } from "../ExecuteCode";
 import { PluginSettings, CollapseIconStyle } from "../Settings";
 import { CBCParameters, HighlightedWord } from "../Parsing";
@@ -139,7 +139,7 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
     frag.appendChild(rehideButton);
   }
 
-  if (plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin) && EXECUTE_CODE_SUPPORTED_LANGUAGES.includes(parameters.language.toLowerCase())) {
+  if (plugin.settings.pluginSettings.plugins.executeCode.enabled && isPluginLoaded('execute-code', plugin) && plugin.executeCodeLanguages.includes(parameters.language.toLowerCase())) {
     observer = addAndObserveExecuteCodeButtons(frag, targetPreElement, parameters, plugin);
   }
 

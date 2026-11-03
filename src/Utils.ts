@@ -428,15 +428,20 @@ const langNameToCodeMirrorMode: { [key: string]: string } = {
   wolfram: "mathematica"
 };
 
-export function registerExecuteCodeSyntaxHighlighting() {
-  for (const lang of EXECUTE_CODE_SUPPORTED_LANGUAGES) {
+export function getExecuteCodeLanguages(additionalLanguages: string): string[] {
+  const additional = additionalLanguages.split(/[\s,;]+/).map(lang => lang.toLowerCase().replace(/^run-/, '')).filter(lang => lang.length > 0);
+  return [...new Set([...EXECUTE_CODE_SUPPORTED_LANGUAGES, ...additional])];
+}// getExecuteCodeLanguages
+
+export function registerExecuteCodeSyntaxHighlighting(languages: string[]) {
+  for (const lang of languages) {
     const mode = langNameToCodeMirrorMode[lang] || lang;
     registerEditorSyntaxHighlightingForLanguage(`run-${lang}`, mode, false);
   }
 }// registerExecuteCodeSyntaxHighlighting
 
-export function unregisterExecuteCodeSyntaxHighlighting() {
-  for (const lang of EXECUTE_CODE_SUPPORTED_LANGUAGES) {
+export function unregisterExecuteCodeSyntaxHighlighting(languages: string[]) {
+  for (const lang of languages) {
     registerEditorSyntaxHighlightingForLanguage(`run-${lang}`, lang, true);
   }
 }// unregisterExecuteCodeSyntaxHighlighting

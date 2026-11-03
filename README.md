@@ -711,6 +711,8 @@ To highlight lines and text in the Execute Code output you have to append an "o"
 
 ![ExecuteCode.gif](attachments/ExecuteCode.gif)
 
+The plugin supports all languages that Execute Code supports by default. If you use a fork of Execute Code which supports additional languages (or Execute Code added a new language which isn't supported by this plugin yet), and the run button disappears for that language, add it to the `Additional Execute Code languages` setting as a comma-separated list (e.g. `tcl, perl`). Reload the plugin after changing this setting.
+
 ## How to Install the Plugin
 
 - Simply install directly from Obsidian
