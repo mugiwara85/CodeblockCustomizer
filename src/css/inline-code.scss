@@ -36,6 +36,19 @@
     border-radius: 0 var(--border-radius) var(--border-radius) 0 !important;
     margin-left: 0 !important;
   }
+
+  // inline HTML <code> elements
+  span.codeblock-customizer-inline-code-icon-container.codeblock-customizer-html-inline-code-icon {
+    padding-right: 0 !important;
+    border-radius: var(--border-radius) 0 0 var(--border-radius) !important;
+    margin-right: 0 !important;
+  }
+
+  span.cm-inline-code.codeblock-customizer-html-inline-code-after-icon {
+    padding-left: 0 !important;
+    border-radius: 0 var(--border-radius) var(--border-radius) 0 !important;
+    margin-left: 0 !important;
+  }
 }
 
 /* Inline code editor - language */
@@ -55,18 +68,19 @@ body.codeblock-customizer-show-inline-code-icons .cm-s-obsidian span.codeblock-c
 
 /* inline code icon container */
 body.codeblock-customizer-show-inline-code-icons .cm-s-obsidian span.codeblock-customizer-inline-code-icon-container,
-.codeblock-customizer.codeblock-customizer-show-inline-code-icons .markdown-rendered code.codeblock-customizer-inline-code:has(.codeblock-customizer-inline-icon-wrapper) {
+.codeblock-customizer.codeblock-customizer-show-inline-code-icons :is(.markdown-rendered, .markdown-source-view) code.codeblock-customizer-inline-code:has(.codeblock-customizer-inline-icon-wrapper) {
   padding-left: 0 !important;
 }
 
 body:not(.codeblock-customizer-show-inline-code-icons) {
   span.codeblock-customizer-inline-code-icon-container,
-  .markdown-rendered code .codeblock-customizer-inline-icon-wrapper {
+  :is(.markdown-rendered, .markdown-source-view) code .codeblock-customizer-inline-icon-wrapper {
     display: none;
   }
 
   div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code+span.cm-inline-code,
-  div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code+img.cm-widgetBuffer+span.cm-inline-code {
+  div.cm-line span.codeblock-customizer-inline-code-icon-container.cm-inline-code+img.cm-widgetBuffer+span.cm-inline-code,
+  div.cm-line span.cm-inline-code.codeblock-customizer-html-inline-code-after-icon {
     padding-left: var(--inline-code-padding-horizontal) !important;
     border-radius: var(--border-radius) var(--border-radius) var(--border-radius) var(--border-radius) !important;
   }
@@ -84,8 +98,8 @@ body:not(.codeblock-customizer-show-inline-code-icons) {
   font-size: inherit !important;
 }
 
-/* Inline code reading view */
-.codeblock-customizer .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code {
+/* Inline code reading view (and inline HTML <code> elements in live preview) */
+.codeblock-customizer :is(.markdown-rendered, .markdown-source-view) :not(pre)>code.codeblock-customizer-inline-code {
   padding: var(--inline-code-padding-vertical) var(--inline-code-padding-horizontal) !important;
   border-radius: var(--border-radius) !important;
   margin: 0 !important;
@@ -93,7 +107,7 @@ body:not(.codeblock-customizer-show-inline-code-icons) {
   font-size: var(--code-size);
 }
 
-.codeblock-customizer.codeblock-customizer-style-inline-code .markdown-rendered :not(pre)>code.codeblock-customizer-inline-code{
+.codeblock-customizer.codeblock-customizer-style-inline-code :is(.markdown-rendered, .markdown-source-view) :not(pre)>code.codeblock-customizer-inline-code{
   background-color: var(--codeblock-customizer-inline-code-background-color);
   color: var(--codeblock-customizer-inline-code-text-color);
 }

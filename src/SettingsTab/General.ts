@@ -27,6 +27,23 @@ export class GeneralSettings {
         })
       );
 
+    const htmlCodeBlocksSetting = new Setting(generalDiv)
+      .setName('Enable HTML code blocks')
+      .setDesc('If enabled, code blocks (<pre><code class="language-xxx">...</code></pre>) and inline code (<code>...</code>) written as HTML are styled as well. Parameters can be specified in the data-cbc attribute of the code element e.g.: <code class="language-python" data-cbc="title:example.py hl:2">. For inline code the {language parameters} prefix can be used as well.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginSettings.common.enableHtmlCodeBlocks)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginSettings.common.enableHtmlCodeBlocks = value;
+          await this.plugin.saveSettings(true);
+          this.plugin.renderReadingViews();
+        })
+      );
+    const htmlCodeBlocksWarningEl = htmlCodeBlocksSetting.descEl.createDiv({ cls: "mod-warning" });
+    htmlCodeBlocksWarningEl.style.color = "var(--text-error)";
+    htmlCodeBlocksWarningEl.style.marginTop = "4px";
+    htmlCodeBlocksWarningEl.style.fontWeight = "bold";
+    htmlCodeBlocksWarningEl.setText("Experimental: This feature is still being tested. Please report any issues you encounter.");
+
     new Setting(generalDiv)
       .setName('Exclude languages')
       .setDesc('Define languages, separated by a comma, to which the plugin should not apply. You can use a wildcard (*) either at the beginning, or at the end. For example: ad-* will exclude codeblocks where the language starts with ad- e.g.: ad-info, ad-error etc.')

@@ -354,7 +354,9 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
           const ranges = getRanges(state, pos.codeBlockStartPos, pos.codeBlockEndPos, settings.pluginSettings.semiFold.visibleLines, hiddenLines);
           decorationsToAdd.push(...generateSemiFoldEffects(state, pos, ranges, hiddenLines).map(e => e.value));
         } else {
-          decorationsToAdd.push(CollapsedDecoration.range(pos.codeBlockStartPos, pos.codeBlockEndPos));
+          // HTML code blocks use from <pre> to </pre> (which can be on separate lines than <code> and </code>)
+          const { from, to } = pos.htmlBlock ?? { from: pos.codeBlockStartPos, to: pos.codeBlockEndPos };
+          decorationsToAdd.push(CollapsedDecoration.range(from, to));
         }
       }
     }
@@ -388,6 +390,7 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
     const { codeBlockStartPos, codeBlockEndPos } = pos;
     const start = view.state.doc.lineAt(codeBlockStartPos);
     const end = view.state.doc.lineAt(codeBlockEndPos);
+    const foldRange = pos.htmlBlock ?? { from: start.from, to: end.to }; // HTML code blocks use from <pre> to </pre>
     const docPath = view.state.field(editorInfoField)?.file?.path;
 
     const enableSemiFold = settings.pluginSettings.semiFold.enableSemiFold;
@@ -409,13 +412,13 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
           annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.SemiFolded }));
       } else {
         // normal fold
-        effects.push(Collapse.of(CollapsedDecoration.range(start.from, end.to)));
+        effects.push(Collapse.of(CollapsedDecoration.range(foldRange.from, foldRange.to)));
         if (docPath)
           annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.FullyFolded }));
       }
     } else if (currentFoldState === FoldingState.FullyFolded) {
       // unfold
-      effects.push(UnCollapse.of({ filter: (from: number, to: number) => to <= start.from || from >= end.to, filterFrom: start.from, filterTo: end.to }));
+      effects.push(UnCollapse.of({ filter: (from: number, to: number) => to <= foldRange.from || from >= foldRange.to, filterFrom: foldRange.from, filterTo: foldRange.to }));
       if (docPath)
         annotations.push(setFoldState.of({ docPath, startPos: codeBlockStartPos, state: FoldingState.Unfolded }));
     } else if (currentFoldState === FoldingState.SemiFolded) {

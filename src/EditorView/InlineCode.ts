@@ -1,4 +1,6 @@
-import { Range, RangeSet } from "@codemirror/state";
+import { editorInfoField, MarkdownPostProcessorContext } from "obsidian";
+
+import { EditorState, Range, RangeSet } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
@@ -8,6 +10,9 @@ import { INLINE_CODE_LANG_REGEX } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
 import { getPrismInstance, getTokenRangesFromPrismHighlighedtHTML } from "./PrismHighlight";
 import { parseInlineCodeHighlightParams, getInlineCodeBgClass, InlineCodeHighlightParameters, HighlightedWord } from "../Parsing";
+import { combineInlineCodeParameters, decodeHtmlEntities, findHtmlInlineCodes } from "../HtmlCodeBlocks";
+import { getHtmlCodeBlockRange, getHtmlCodeBlocks } from "./CodeBlockPositions";
+import { InlineCodeRenderer } from "../ReadingView/InlineCodeRenderer";
 
 export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const inlineCodeViewPlugin = ViewPlugin.fromClass(class {
@@ -46,7 +51,6 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
         return Decoration.none;
 
       const decorations: Array<Range<Decoration>> = [];
-      const selection = view.state.selection.main;
 
       for (const { from, to } of view.visibleRanges) {
         syntaxTree(view.state).iterate({
@@ -56,87 +60,24 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
               return;
 
             decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper" }).range(node.from, node.to));
-
-            const inlineCodeText = view.state.sliceDoc(node.from, node.to);
-            const match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
-            // fix for #147
-            if (!match || match[1].trim().startsWith('{'))
-              return;
-
-            const fullMatchText = match[0];
-            const inlineParams = parseInlineCodeHighlightParams(match[1], settings);
-            const langName = inlineParams.language ?? '';
-            const code = match[2];
-            if (!code)
-              return;
-
-            const prefixLength = fullMatchText.length - code.length;
-            const codeStartPos = node.from + prefixLength;
-            const isCursorNextToBacktick = selection.from === node.from - 1 || selection.to === node.to + 1;
-            const isCursorInside = selection.from >= node.from && selection.to <= node.to;
-
-            // background highlight is always applied, even if enableSyntaxHighlight is enabled or not
-            let highlightClassForIcon: string | null = null;
-            if (inlineParams.backgroundColorClass !== null) {
-              const bgClass = getInlineCodeBgClass(inlineParams.backgroundColorClass);
-              decorations.push(Decoration.mark({ class: bgClass }).range(codeStartPos, node.to));
-              highlightClassForIcon = bgClass;
-            }
-
-            const addPrefixDecoration = (hideAlways: boolean) => {
-              if (isCursorInside || isCursorNextToBacktick) {
-                decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-langauge" }).range(node.from, codeStartPos));
-              } else if (langName) {
-                const displayLanguage = getDisplayLanguageName(langName);
-                const Icon = getLanguageIcon(displayLanguage);
-                if (Icon) {
-                  decorations.push(Decoration.replace({ widget: new inlineCodeIconWidget(displayLanguage, highlightClassForIcon) }).range(node.from, codeStartPos));
-                } else {
-                  decorations.push(Decoration.replace({}).range(node.from, codeStartPos));
-                }
-              } else if (hideAlways || inlineParams.backgroundColorClass !== null || inlineParams.textHighlight.words.length > 0 || inlineParams.textHighlight.textBetween.length > 0 || inlineParams.alternativeTextHighlights.length > 0) {
-                decorations.push(Decoration.replace({}).range(node.from, codeStartPos));
-              }
-            };
-
-            if (!settings.pluginSettings.inlineCode.enableSyntaxHighlight || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
-              addPrefixDecoration(false);
-              addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
-              return;
-            }
-
-            // syntax highlighting
-            addPrefixDecoration(true);
-
-            const prism = settings.pluginSettings.codeblock.usePrismHighlight ? getPrismInstance() : null;
-            const tokenRanges = (prism && langName) ? getTokenRangesFromPrismHighlighedtHTML(code, langName) : null;
-            if (tokenRanges) {
-              decorations.push(Decoration.mark({ class: `cbc-prism-inline codeblock-customizer-language-${langName.toLowerCase()}` }).range(node.from, node.to));
-
-              for (const range of tokenRanges) {
-                const from = codeStartPos + range.from;
-                const to = codeStartPos + range.to;
-                if (from < to && to <= node.to) {
-                  decorations.push(Decoration.mark({ class: range.classes }).range(from, to));
-                }
-              }
-            } else if (langName) {
-              const tokens = getCM5Tokens(code, langName);
-              let currentPos = codeStartPos;
-              for (const token of tokens) {
-                if (token.style) {
-                  const classes = token.style.split(' ').map(s => `cm-${s}`).join(' ');
-                  if (token.text.length > 0) {
-                    decorations.push(Decoration.mark({ class: classes }).range(currentPos, currentPos + token.text.length));
-                  }
-                }
-                currentPos += token.text.length;
-              }
-            }
-
-            addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
+            decorateInlineCode(view, node, decorations);
           },
         });
+
+        if (settings.pluginSettings.common.enableHtmlCodeBlocks) {
+          for (const node of findHtmlInlineCodesInRange(view.state, from, to)) {
+            if (node.from >= node.to) {
+              continue;
+            }
+
+            decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper codeblock-customizer-html-inline-code" }).range(node.from, node.to));
+            const { codeFrom, hasIcon } = decorateInlineCode(view, node, decorations, node.parameters, true);
+            // the content of the HTML element is not formatted as code by Obsidian. Only the visible code, so the icon (which replaces the prefix) is next to it, as for backticks
+            if (codeFrom < node.to) {
+              decorations.push(Decoration.mark({ class: `cm-inline-code${hasIcon ? ' codeblock-customizer-html-inline-code-after-icon' : ''}` }).range(codeFrom, node.to));
+            }
+          }
+        }
       }
       return RangeSet.of(decorations, true);
     }
@@ -164,6 +105,15 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
         if (pos === null)
           return;
 
+        if (wrapper.classList.contains('codeblock-customizer-html-inline-code')) {
+          const line = view.state.doc.lineAt(pos);
+          const node = findHtmlInlineCodesInRange(view.state, line.from, line.to).find(n => pos >= n.from && pos <= n.to);
+          if (node) {
+            addTextToClipboard(getInlineCodeToCopy(view.state.sliceDoc(node.from, node.to), true));
+          }
+          return true;
+        }
+
         let found = false;
         syntaxTree(view.state).iterate({
           from: pos, to: pos + 2,
@@ -177,11 +127,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
                 return;
               }
 
-              const match = text.match(INLINE_CODE_LANG_REGEX);
-              // fix for #147
-              const isValidMatch = match && match[1] && !match[1].trim().startsWith('{');
-              const textToCopy = isValidMatch && match[2] ? match[2] : text;
-              addTextToClipboard(textToCopy);
+              addTextToClipboard(getInlineCodeToCopy(text));
               found = true;
 
               return false;
@@ -195,19 +141,229 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     }
   });// inlineCodeViewPlugin
 
+  const htmlInlineCodeWidgetPlugin = ViewPlugin.fromClass(class {
+    private observer: MutationObserver;
+
+    constructor(private view: EditorView) {
+      this.observer = new MutationObserver((mutations) => {
+        if (settings.pluginSettings.common.enableHtmlCodeBlocks && mutations.some(mutation => Array.from(mutation.addedNodes).some(isOrContainsCode))) {
+          this.styleWidgets();
+        }
+      });
+      this.observer.observe(view.contentDOM, { childList: true, subtree: true });
+    }
+
+    private styleWidgets() {
+      const state = this.view.state;
+      if (isSourceMode(state)) {
+        return;
+      }
+
+      const sourcePath = state.field(editorInfoField, false)?.file?.path ?? "";
+      const context = { sourcePath, docId: "", frontmatter: undefined, addChild: () => { }, getSectionInfo: () => null } as unknown as MarkdownPostProcessorContext;
+
+      for (const codeElement of Array.from(this.view.contentDOM.querySelectorAll<HTMLElement>('code'))) {
+        if (codeElement.closest('pre') || codeElement.dataset.cbcProcessed || codeElement.classList.contains('codeblock-customizer-inline-code')) {
+          continue;
+        }
+
+        const parameters = this.getSourceParameters(codeElement);
+        if (parameters === null) {
+          continue;
+        }
+
+        new InlineCodeRenderer(codeElement, plugin, context, parameters).load();
+      }
+    }// styleWidgets
+
+    private getSourceParameters(codeElement: HTMLElement): string | null {
+      let pos: number;
+      try {
+        pos = this.view.posAtDOM(codeElement);
+      } catch {
+        return null;
+      }
+
+      const line = this.view.state.doc.lineAt(pos);
+      const widget = getWidgetRoot(codeElement);
+      const index = widget ? Array.from(widget.querySelectorAll('code')).indexOf(codeElement) : 0;
+      const sourceCodes = findHtmlInlineCodesInRange(this.view.state, line.from, line.to).filter(code => code.tagTo > pos);
+
+      return sourceCodes[index]?.parameters ?? null;
+    }// getSourceParameters
+
+    destroy() {
+      this.observer.disconnect();
+    }
+  });// htmlInlineCodeWidgetPlugin
+
+  function isOrContainsCode(node: Node): boolean {
+    return node instanceof HTMLElement && (node.tagName === 'CODE' || node.querySelector('code') !== null);
+  }// isOrContainsCode
+
+  function getWidgetRoot(element: HTMLElement): HTMLElement | null {
+    let current: HTMLElement | null = element;
+    while (current && current.parentElement && !current.parentElement.classList.contains('cm-line')) {
+      current = current.parentElement;
+    }
+    return current?.parentElement ? current : null;
+  }// getWidgetRoot
+
+  function getInlineCodeToCopy(text: string, isHtml = false): string {
+    const match = text.match(INLINE_CODE_LANG_REGEX);
+    // fix for #147
+    const isValidMatch = match && match[1] && !match[1].trim().startsWith('{');
+    const code = isValidMatch && match[2] ? match[2] : text;
+
+    return isHtml ? decodeHtmlEntities(code) : code;
+  }// getInlineCodeToCopy
+
+  function findHtmlInlineCodesInRange(state: EditorState, from: number, to: number): { from: number, to: number, tagTo: number, parameters: string }[] {
+    const result: { from: number, to: number, tagTo: number, parameters: string }[] = [];
+    const htmlCodeBlocks = getHtmlCodeBlocks(state).map(block => getHtmlCodeBlockRange(state, block));
+    const tree = syntaxTree(state);
+
+    for (let lineNumber = state.doc.lineAt(from).number; lineNumber <= state.doc.lineAt(to).number; lineNumber++) {
+      const line = state.doc.line(lineNumber);
+      if (!line.text.includes('<') || htmlCodeBlocks.some(range => line.from >= range.from && line.from <= range.to)) {
+        continue;
+      }
+
+      for (const code of findHtmlInlineCodes(line.text)) {
+        const nodeName = tree.resolveInner(line.from + code.from, 1).name;
+        if (/codeblock|inline-code|math|frontmatter|comment/.test(nodeName)) {
+          continue;
+        }
+        result.push({ from: line.from + code.contentFrom, to: line.from + code.contentTo, tagTo: line.from + code.to, parameters: code.parameters });
+      }
+    }
+
+    return result;
+  }// findHtmlInlineCodesInRange
+
+  function decorateInlineCode(view: EditorView, node: { from: number, to: number }, decorations: Array<Range<Decoration>>, attributeParameters = '', isHtml = false): { codeFrom: number, hasIcon: boolean } {
+    const selection = view.state.selection.main;
+    const inlineCodeText = view.state.sliceDoc(node.from, node.to);
+    let match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
+    if (attributeParameters.length > 0) {
+      // fix for #147
+      const hasPrefix = match && !match[1].trim().startsWith('{');
+      const parameters = combineInlineCodeParameters(hasPrefix ? match![1] : null, attributeParameters);
+      match = Object.assign([hasPrefix ? match![0] : inlineCodeText, parameters, hasPrefix ? match![2] : inlineCodeText], { index: 0, input: inlineCodeText }) as RegExpMatchArray;
+    }
+    // fix for #147
+    if (!match || match[1].trim().startsWith('{'))
+      return { codeFrom: node.from, hasIcon: false };
+
+    const fullMatchText = match[0];
+    const inlineParams = parseInlineCodeHighlightParams(match[1], settings);
+    const langName = inlineParams.language ?? '';
+    const code = match[2];
+    if (!code)
+      return { codeFrom: node.from, hasIcon: false };
+
+    const prefixLength = fullMatchText.length - code.length;
+    const codeStartPos = node.from + prefixLength;
+    const isCursorNextToBacktick = selection.from === node.from - 1 || selection.to === node.to + 1;
+    const isCursorInside = selection.from >= node.from && selection.to <= node.to;
+
+    // background highlight is always applied, even if enableSyntaxHighlight is enabled or not
+    let highlightClassForIcon: string | null = null;
+    if (inlineParams.backgroundColorClass !== null) {
+      const bgClass = getInlineCodeBgClass(inlineParams.backgroundColorClass);
+      decorations.push(Decoration.mark({ class: bgClass }).range(codeStartPos, node.to));
+      highlightClassForIcon = bgClass;
+    }
+
+    // HTML inline code is styled with its own classes
+    const iconClass = isHtml ? 'codeblock-customizer-html-inline-code-icon' : null;
+    let hasIcon = false;
+
+    const addPrefixDecoration = (hideAlways: boolean): boolean => {
+      // no prefix (language and parameters are in the attributes of the HTML element) ==> only the icon
+      if (prefixLength === 0) {
+        const displayLanguage = getDisplayLanguageName(langName);
+        if (langName && !isCursorInside && getLanguageIcon(displayLanguage)) {
+          decorations.push(Decoration.widget({ widget: new inlineCodeIconWidget(displayLanguage, highlightClassForIcon, iconClass), side: -1 }).range(node.from));
+          hasIcon = true;
+        }
+        return false;
+      }
+
+      if (isCursorInside || isCursorNextToBacktick) {
+        decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-langauge" }).range(node.from, codeStartPos));
+      } else if (langName) {
+        const displayLanguage = getDisplayLanguageName(langName);
+        const Icon = getLanguageIcon(displayLanguage);
+        if (Icon) {
+          decorations.push(Decoration.replace({ widget: new inlineCodeIconWidget(displayLanguage, highlightClassForIcon, iconClass) }).range(node.from, codeStartPos));
+          hasIcon = true;
+        } else {
+          decorations.push(Decoration.replace({}).range(node.from, codeStartPos));
+        }
+        return true;
+      } else if (hideAlways || inlineParams.backgroundColorClass !== null || inlineParams.textHighlight.words.length > 0 || inlineParams.textHighlight.textBetween.length > 0 || inlineParams.alternativeTextHighlights.length > 0) {
+        decorations.push(Decoration.replace({}).range(node.from, codeStartPos));
+        return true;
+      }
+      return false;
+    };
+
+    if (!settings.pluginSettings.inlineCode.enableSyntaxHighlight || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
+      const prefixHidden = addPrefixDecoration(false);
+      addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
+      return { codeFrom: prefixHidden ? codeStartPos : node.from, hasIcon };
+    }
+
+    // syntax highlighting
+    const prefixHidden = addPrefixDecoration(true);
+
+    const prism = settings.pluginSettings.codeblock.usePrismHighlight ? getPrismInstance() : null;
+    const tokenRanges = (prism && langName) ? getTokenRangesFromPrismHighlighedtHTML(code, langName) : null;
+    if (tokenRanges) {
+      decorations.push(Decoration.mark({ class: `cbc-prism-inline codeblock-customizer-language-${langName.toLowerCase()}` }).range(node.from, node.to));
+
+      for (const range of tokenRanges) {
+        const from = codeStartPos + range.from;
+        const to = codeStartPos + range.to;
+        if (from < to && to <= node.to) {
+          decorations.push(Decoration.mark({ class: range.classes }).range(from, to));
+        }
+      }
+    } else if (langName) {
+      const tokens = getCM5Tokens(code, langName);
+      let currentPos = codeStartPos;
+      for (const token of tokens) {
+        if (token.style) {
+          const classes = token.style.split(' ').map(s => `cm-${s}`).join(' ');
+          if (token.text.length > 0) {
+            decorations.push(Decoration.mark({ class: classes }).range(currentPos, currentPos + token.text.length));
+          }
+        }
+        currentPos += token.text.length;
+      }
+    }
+
+    addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
+    return { codeFrom: prefixHidden ? codeStartPos : node.from, hasIcon };
+  }// decorateInlineCode
+
   class inlineCodeIconWidget extends WidgetType {
-    constructor(readonly displayLanguage: string, readonly highlightClass: string | null = null) {
+    constructor(readonly displayLanguage: string, readonly highlightClass: string | null = null, readonly extraClass: string | null = null) {
       super();
     }
 
     eq(other: inlineCodeIconWidget) {
-      return other.displayLanguage === this.displayLanguage && other.highlightClass === this.highlightClass;
+      return other.displayLanguage === this.displayLanguage && other.highlightClass === this.highlightClass && other.extraClass === this.extraClass;
     }
 
     toDOM() {
       const container = getInlineCodeIcon(this.displayLanguage, `cm-inline-code`);
       if (this.highlightClass) {
         container.classList.add(this.highlightClass);
+      }
+      if (this.extraClass) {
+        container.classList.add(this.extraClass);
       }
 
       return container;
@@ -312,5 +468,5 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     }
   }// addTextHighlightDecorations
 
-  return { inlineCodeViewPlugin };
+  return { inlineCodeViewPlugin, htmlInlineCodeWidgetPlugin };
 }// inlineCodeExtension

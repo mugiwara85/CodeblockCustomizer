@@ -103,7 +103,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
           }
         } else if (effect.is(UnCollapse) || effect.is(semiUnCollapse)) {
           const { filterFrom, filterTo } = effect.value;
-          const block = codeBlockPositions.find(p => filterFrom >= p.codeBlockStartPos && filterTo <= p.codeBlockEndPos);
+          const block = codeBlockPositions.find(p => filterFrom >= (p.htmlBlock?.from ?? p.codeBlockStartPos) && filterTo <= (p.htmlBlock?.to ?? p.codeBlockEndPos));
           if (block) {
             unfoldedRanges.push({ from: filterFrom, to: filterTo, blockEndPos: block.codeBlockEndPos });
           }
@@ -236,7 +236,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       const defaultCharWidth = view.state.field(editorEditorField).defaultCharacterWidth;
       const decorations: Array<Range<Decoration>> = [];
 
-      for (const { codeBlockStartPos, codeBlockEndPos, parameters } of blocks) {
+      for (const { codeBlockStartPos, codeBlockEndPos, parameters, htmlBlock } of blocks) {
         const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
         const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
 
@@ -253,6 +253,8 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
         let jumpIdx = 0;
         let previousLineEndPos: number | null = null;
         let previousLineStartPos: number | null = null;
+        const blockFirstLine = htmlBlock ? view.state.doc.lineAt(htmlBlock.from).number : firstCodeBlockLine;
+        const blockLastLine = htmlBlock ? view.state.doc.lineAt(htmlBlock.to).number : lastCodeBlockLine;
 
         for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
           const startLine = line === firstCodeBlockLine;
@@ -282,18 +284,21 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
           }
 
           // lines
-          const lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations, highlightRules, promptRenderResult);
+          let lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations, highlightRules, promptRenderResult);
+          if (htmlBlock) {
+            lineClass += ` ${getHtmlCodeBlockLineClass(line === blockFirstLine, line === blockLastLine)}`;
+          }
           decorations.push(Decoration.line({ attributes: { class: lineClass, style: gutterStyle } }).range(lineStartPos));
 
           previousLineEndPos = currentLine.to;
           previousLineStartPos = lineStartPos;
 
           let spanClass = "";
-          if (startLine) {
+          if (line === blockFirstLine) {
             spanClass = `codeblock-customizer-line-number-first`;
           }
 
-          if (endLine) {
+          if (line === blockLastLine) {
             spanClass = `codeblock-customizer-line-number-last`;
           }
 
@@ -355,6 +360,24 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
             }
           }
           //lineNumber++;
+        }
+
+        // <pre> and </pre> lines outside of the <code> and </code> lines are styled like the fence lines
+        for (let line = blockFirstLine; line <= blockLastLine; line++) {
+          if (line >= firstCodeBlockLine && line <= lastCodeBlockLine) {
+            continue;
+          }
+
+          const currentLine = view.state.doc.line(line);
+          const beforeCode = line < firstCodeBlockLine;
+          const emptyPromptResult: PromptLineRenderResult = { styledParts: [], output: [], matchedLength: 0, lineClassName: null, isRoot: false };
+          const lineClass = getLineClass(parameters, lineNumber, beforeCode, !beforeCode, currentLine, decorations, highlightRules, emptyPromptResult) + ` ${getHtmlCodeBlockLineClass(line === blockFirstLine, line === blockLastLine)}`;
+          decorations.push(Decoration.line({ attributes: { class: lineClass, style: gutterStyle } }).range(currentLine.from));
+
+          if (settings.pluginSettings.codeblock.enableLineNumbers || parameters.isSpecificNumber || parameters.showNumbers === "specific") {
+            const spanClass = line === blockFirstLine ? `codeblock-customizer-line-number-first` : line === blockLastLine ? `codeblock-customizer-line-number-last` : "";
+            decorations.push(Decoration.widget({ widget: new LineNumberWidget(" ", parameters, spanClass), }).range(currentLine.from));
+          }
         }
       }
       return decorations;
@@ -516,6 +539,17 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
     return calculatedMax;
   }// getMaxLineNumber
+
+  function getHtmlCodeBlockLineClass(startLine: boolean, endLine: boolean) {
+    let lineClass = `HyperMD-codeblock HyperMD-codeblock-bg codeblock-customizer-html-line`;
+    if (startLine) {
+      lineClass += ` HyperMD-codeblock-begin HyperMD-codeblock-begin-bg`;
+    }
+    if (endLine) {
+      lineClass += ` HyperMD-codeblock-end HyperMD-codeblock-end-bg`;
+    }
+    return lineClass;
+  }// getHtmlCodeBlockLineClass
 
   function getLineClass(parameters: CBCParameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, rules: HighlightRules, promptRenderResult: PromptLineRenderResult) {
     let codeblockLanguageClass = "";

@@ -8,16 +8,20 @@ import { getDisplayLanguageName } from "../Utils";
 import { parseInlineCodeHighlightParams, getInlineCodeBgClass, InlineCodeHighlightParameters, HighlightedWord } from "../Parsing";
 import { HighlightRules, TextBetweenRule, AltTextBetweenRule } from "../HighlightRules";
 import { getHighlightedLineHtml } from "./ReadingViewUtils";
+import { combineInlineCodeParameters, getInlineCodeAttributeParameters } from "../HtmlCodeBlocks";
 
 export class InlineCodeRenderer extends MarkdownRenderChild {
   plugin: CodeBlockCustomizerPlugin;
   context: MarkdownPostProcessorContext;
   clickHandler: ((event: MouseEvent) => void) | null = null;
 
-  constructor(containerEl: HTMLElement, plugin: CodeBlockCustomizerPlugin, context: MarkdownPostProcessorContext) {
+  attributeParameters: string | undefined;
+
+  constructor(containerEl: HTMLElement, plugin: CodeBlockCustomizerPlugin, context: MarkdownPostProcessorContext, attributeParameters?: string) {
     super(containerEl);
     this.plugin = plugin;
     this.context = context;
+    this.attributeParameters = attributeParameters;
   }
 
   async onload() {
@@ -35,7 +39,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     }
 
     const text = this.containerEl.textContent ?? "";
-    const match = text.match(INLINE_CODE_LANG_REGEX);
+    const match = this.getMatch(text);
     const settings = this.plugin.settings.pluginSettings.inlineCode;
     // fix for #147
     const isValidMatch = match && match[1] && !match[1].trim().startsWith('{') && match[2];
@@ -68,6 +72,25 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
 
     this.containerEl.dataset.cbcProcessed = 'true';
   }// onload
+
+  private getMatch(text: string): RegExpMatchArray | null {
+    const prefixMatch = text.match(INLINE_CODE_LANG_REGEX);
+    if (!this.plugin.settings.pluginSettings.common.enableHtmlCodeBlocks) {
+      return prefixMatch;
+    }
+
+    const attributeParameters = this.attributeParameters ?? getInlineCodeAttributeParameters(this.containerEl.className, this.containerEl.getAttribute('data-cbc') ?? '');
+    if (attributeParameters.length === 0) {
+      return prefixMatch;
+    }
+
+    // fix for #147
+    const hasPrefix = prefixMatch && !prefixMatch[1].trim().startsWith('{');
+    const parameters = combineInlineCodeParameters(hasPrefix ? prefixMatch[1] : null, attributeParameters);
+    const code = hasPrefix ? prefixMatch[2] : text;
+
+    return Object.assign([hasPrefix ? prefixMatch[0] : text, parameters, code], { index: 0, input: text }) as RegExpMatchArray;
+  }// getMatch
 
   onunload() {
     if (this.clickHandler) {

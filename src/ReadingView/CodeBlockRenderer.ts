@@ -5,8 +5,9 @@ import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
 import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount } from "../Const";
 import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
-import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses } from "./ReadingViewUtils";
+import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses, getHtmlCodeBlockData, prepareHtmlCodeElement } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "../Parsing";
+import { countHtmlCodeElements, findHtmlCodeBlock, findHtmlCodeBlocks, isHtmlCodeBlockStart } from "../HtmlCodeBlocks";
 
 const DataSource = {
   Dataset: 'dataset',
@@ -198,7 +199,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    const allBlocks = extractCodeBlocksFromSection(sectionContent);
+    const allBlocks = this.isHtmlCodeBlockSection(firstLine) ? this.getHtmlCodeBlocks(sectionContent) : extractCodeBlocksFromSection(sectionContent);
     if (allBlocks.length === 0) {
       return;
     }
@@ -207,6 +208,20 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     await this.processCodeBlockFirstLines(allBlocks, charPos);
   }// processCodeBlockSection
+
+  private isHtmlCodeBlockSection(firstLine: string | undefined) {
+    return this.plugin.settings.pluginSettings.common.enableHtmlCodeBlocks && firstLine !== undefined && isHtmlCodeBlockStart(firstLine);
+  }// isHtmlCodeBlockSection
+
+  private getHtmlCodeBlocks(sectionContent: string[]): CodeBlockData[] {
+    const startLine = sectionContent.findIndex(line => line.trim() !== '');
+    const block = findHtmlCodeBlock(i => sectionContent[i], sectionContent.length, startLine);
+    if (!block || this.allPreElements?.length !== 1) {
+      return [];
+    }
+
+    return [getHtmlCodeBlockData(block, i => sectionContent[i])];
+  }// getHtmlCodeBlocks
 
   private async getFileContentLines() {
     if (!this.codeBlockSectionInfo) {
@@ -255,7 +270,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
 
     for (const [key, preElement] of this.allPreElements.entries()) {
-      const isRerenderQueued = this.codeBlockSectionInfo && this.plugin.rerenderQueue.has(this.codeBlockSectionInfo.lineStart);
+      const isRerenderQueued = this.codeBlockSectionInfo && this.plugin.rerenderQueue.has(this.codeBlockSectionInfo.lineStart + (allBlocks[key]?.firstLineOffset ?? 0));
 
       if (preElement.classList.contains('codeblock-customizer-pre') && !isRerenderQueued) {
         continue;
@@ -304,9 +319,14 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       await this.waitForClass(originalCodeEl, "is-loaded");
     }
 
+    if (blockData.isHtmlBlock) {
+      prepareHtmlCodeElement(preElement, originalCodeEl);
+    }
+
     let firstLine = codeBlockFirstLine;
     let isRerender = isParameterRerender;
-    const lineStart = this.codeBlockSectionInfo?.lineStart;
+    // for HTML code blocks the editor uses the line of the opening <code> tag as the first line (it can be after the <pre> line)
+    const lineStart = this.codeBlockSectionInfo ? this.codeBlockSectionInfo.lineStart + (blockData.firstLineOffset ?? 0) : undefined;
 
     if (!isPrinting && lineStart !== undefined) {
       const result = this.handleRerenderOverride(lineStart, codeBlockFirstLine, isParameterRerender);
@@ -810,7 +830,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    const sections = cache.sections?.filter(s => ['code', 'list', 'callout', 'blockquote'].includes(s.type)) ?? [];
+    const sections = cache.sections?.filter(s => ['code', 'list', 'callout', 'blockquote', 'html'].includes(s.type)) ?? [];
     const nativeCodeBlocks = this.extractCodeBlocksFromSections(sections, fileContentLines);
 
     await this.processBlocks(nativePreElements, nativeCodeBlocks, `native blocks in ${this.context.sourcePath}`);
@@ -846,6 +866,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       const block = cache.blocks?.[blockId];
       if (block) {
         const blockLines = content.slice(block.position.start.line, block.position.end.line + 1);
+        const htmlBlocks = this.plugin.settings.pluginSettings.common.enableHtmlCodeBlocks ? findHtmlCodeBlocks(i => blockLines[i], blockLines.length) : [];
+        if (htmlBlocks.length > 0) {
+          return htmlBlocks.map(htmlBlock => getHtmlCodeBlockData(htmlBlock, i => blockLines[i]));
+        }
         return extractCodeBlocksFromSection(blockLines);
       }
     } else if (header) {
@@ -863,7 +887,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
     } else {
       // full file embed
-      const sections = cache.sections?.filter(s => ['code', 'list', 'callout', 'blockquote'].includes(s.type)) ?? [];
+      const sections = cache.sections?.filter(s => ['code', 'list', 'callout', 'blockquote', 'html'].includes(s.type)) ?? [];
       return this.extractCodeBlocksFromSections(sections, content);
     }
     return [];
@@ -877,6 +901,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     const limit = Math.min(preElements.length, codeBlocks.length);
     for (let i = 0; i < limit; i++) {
+      // placeholders of <pre> elements which are not HTML code blocks (or the feature is disabled)
+      if (codeBlocks[i].isHtmlBlock && codeBlocks[i].contentLines.length === 0) {
+        continue;
+      }
       await this.processSingleCodeBlock(preElements[i], codeBlocks[i], { isPrinting: true });
     }
   }// processBlocks
@@ -909,6 +937,20 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     return sectionsToParse.flatMap(section => {
       const blockLines = fileContent.slice(section.position.start.line, section.position.end.line + 1);
+
+      // <pre><code> elements written as HTML are rendered as <pre> elements as well. Unless all of them are HTML code blocks, placeholders keep the count in sync
+      if (section.type === 'html') {
+        const count = countHtmlCodeElements(blockLines.join('\n'));
+        if (this.plugin.settings.pluginSettings.common.enableHtmlCodeBlocks) {
+          const htmlBlocks = findHtmlCodeBlocks(i => blockLines[i], blockLines.length);
+          if (htmlBlocks.length === count) {
+            return htmlBlocks.map(block => getHtmlCodeBlockData(block, i => blockLines[i]));
+          }
+        }
+        const placeholder: CodeBlockData = { firstLine: '', contentLines: [], startLine: section.position.start.line, endLine: section.position.end.line, isHtmlBlock: true };
+        return Array.from({ length: count }, () => placeholder);
+      }
+
       const firstLine = blockLines.find(l => l.trim() !== '')?.trim() || '';
       const language = firstLine.replace(/^(?:`|~){3,}/, '').trim().split(' ')[0] || '';
       const isAdmonitionContainer = section.type === 'code' && language.toLowerCase().startsWith('ad-');

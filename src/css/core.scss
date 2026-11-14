@@ -21,6 +21,27 @@ body.codeblock-customizer {
   display: inline-block !important;
 }
 
+/* HTML code blocks (<pre><code>) in the editor. Obsidian formats their lines as HTML, not as code */
+.markdown-source-view.mod-cm6 .cm-line.codeblock-customizer-html-line {
+  font-family: var(--font-monospace);
+  font-size: var(--code-size);
+}
+
+/* HTML code blocks rendered by Obsidian in live preview */
+.markdown-source-view.mod-cm6 .cm-embed-block.codeblock-customizer-html-embed {
+  &:hover {
+    box-shadow: none !important;
+  }
+
+  .edit-block-button {
+    display: none;
+  }
+}
+
+.markdown-source-view.mod-cm6 pre.codeblock-customizer-html-pending {
+  visibility: hidden;
+}
+
 /* Indentation lines */
 .codeblock-customizer-indentation-guide::before {
   display: none;

@@ -149,7 +149,7 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
         return;
       }
 
-      if (!settings.pluginSettings.codeblock.usePrismHighlight || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
+      if ((!settings.pluginSettings.codeblock.usePrismHighlight && !settings.pluginSettings.common.enableHtmlCodeBlocks) || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
         if (this.decorations !== Decoration.none) {
           this.decorations = Decoration.none;
         }
@@ -196,7 +196,7 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
         return Decoration.none;
 
-      if (!settings.pluginSettings.codeblock.usePrismHighlight) {
+      if ((!settings.pluginSettings.codeblock.usePrismHighlight && !settings.pluginSettings.common.enableHtmlCodeBlocks) || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
         return Decoration.none;
       }
 
@@ -214,7 +214,8 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
       const decorations: Range<Decoration>[] = [];
 
       for (const block of blocks) {
-        if (block.parameters.exclude) {
+        // syntax highlight HTML code blocks, because Obsidian doesn't highlight the code
+        if (block.parameters.exclude || (!settings.pluginSettings.codeblock.usePrismHighlight && !block.htmlBlock)) {
           continue;
         }
 

@@ -9,6 +9,7 @@ import { addAndObserveExecuteCodeButtons } from "../ExecuteCode";
 import { PluginSettings, CollapseIconStyle } from "../Settings";
 import { CBCParameters, HighlightedWord } from "../Parsing";
 import { HighlightRules, createHighlightRules } from "../HighlightRules";
+import { HtmlCodeBlock, getHtmlCodeBlockCode } from "../HtmlCodeBlocks";
 
 interface IndentationInfo {
   indentationLevels: number;
@@ -21,6 +22,8 @@ export interface CodeBlockData {
   startLine: number;
   endLine: number;
   isIndentedBlock?: boolean;
+  isHtmlBlock?: boolean;
+  firstLineOffset?: number;
 }
 
 export interface ExtractionOptions {
@@ -1759,3 +1762,52 @@ export function extractCodeBlocksFromAdmonition(lines: string[]): CodeBlockData[
 export function extractCodeBlocksFromSection(lines: string[]): CodeBlockData[] {
   return extractCodeBlocks(lines, { stripCalloutMarkers: true, handleIndentedBlocks: true });
 }// extractCodeBlocksFromSection
+
+// the code lines of an HTML code block are taken from the rendered element, and wrapped in fence lines like the lines of a fenced code block
+// the code is taken from the source, not from the rendered element (which might be already processed, e.g. when rerendering)
+export function getHtmlCodeBlockData(block: HtmlCodeBlock, getLine: (index: number) => string): CodeBlockData {
+  const sourceLines: string[] = [];
+  for (let i = block.codeOpenLine; i <= block.codeCloseLine; i++) {
+    sourceLines.push(getLine(i));
+  }
+  const codeLines = getHtmlCodeBlockCode(sourceLines).split('\n');
+  return {
+    firstLine: block.firstLine,
+    contentLines: [block.firstLine, ...codeLines, '```'],
+    startLine: block.preStartLine,
+    endLine: block.preEndLine,
+    isHtmlBlock: true,
+    firstLineOffset: block.codeOpenLine - block.preStartLine
+  };
+}// getHtmlCodeBlockData
+
+// removes what Obsidian would not render for a fenced code block (whitespace between <pre> and <code> (when they are on separate lines), and the newline after <code> and before </code>)
+export function prepareHtmlCodeElement(preElement: HTMLElement, codeElement: HTMLElement) {
+  for (const node of Array.from(preElement.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() === '') {
+      node.remove();
+    }
+  }
+
+  if (codeElement.querySelector('[class*="codeblock-customizer-line"]')) {
+    return;
+  }
+
+  const textNodes: Text[] = [];
+  const walker = document.createTreeWalker(codeElement, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (node.data.length > 0) {
+      textNodes.push(node);
+    }
+  }
+
+  if (textNodes.length === 0) {
+    return;
+  }
+
+  const first = textNodes[0];
+  first.data = first.data.replace(/^\r?\n/, '');
+  const last = textNodes[textNodes.length - 1];
+  last.data = last.data.replace(/\r?\n$/, '');
+}// prepareHtmlCodeElement

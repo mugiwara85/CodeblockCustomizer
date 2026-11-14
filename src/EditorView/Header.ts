@@ -13,6 +13,7 @@ import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockI
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
 import { FoldingState, rehideEffect, CodeBlockFoldEffect, wrapEffect } from "./EditorEffects";
 import { areGroupMembersEqual, areObjectsEqual } from "./CompareUtils";
+import { getHtmlCodeBlockCode } from "../HtmlCodeBlocks";
 
 export interface ButtonConfig {
   class: string;
@@ -300,7 +301,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
           const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
           const langKey = (parameters.language.length > 0 ? parameters.language : "nolang").toLowerCase();
           const resolvedLangColors = langColorMap.get(langKey) ?? {};
-          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin, modifierKey, resolvedLangColors), block: true }).range(codeBlockStartPos));
+          decorations.push(Decoration.widget({ widget: new HeaderWidget(parameters, specificHeader, pos, buttonConfigs, currentGroupMembers, foldingState, sourcePath, plugin, modifierKey, resolvedLangColors), block: true }).range(pos.htmlBlock?.from ?? codeBlockStartPos));
         }
       }
     }
@@ -335,12 +336,35 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       }
     };
 
+    const htmlBlock = state.field(codeBlockPositionsField, false)?.find(p => p.codeBlockStartPos === codeBlockStartPos)?.htmlBlock;
+    const getHtmlCodeRange = (): { from: number, to: number } => {
+      const firstLine = state.doc.lineAt(codeBlockStartPos);
+      const openTag = firstLine.text.match(/<code(?=[\s>])[^>]*>/i);
+      const lastLine = state.doc.lineAt(codeBlockEndPos);
+      const closeIndex = lastLine.text.toLowerCase().lastIndexOf('</code>');
+      return {
+        from: openTag ? firstLine.from + (openTag.index ?? 0) + openTag[0].length : firstLine.to,
+        to: closeIndex >= 0 ? lastLine.from + closeIndex : lastLine.from
+      };
+    };
+
     return [
       {
         class: `codeblock-customizer-copy-code`,
         displayText: "Copy code",
         action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
           const includeFences = getModifierState(event);
+          if (htmlBlock) {
+            const firstLineNumber = state.doc.lineAt(codeBlockStartPos).number;
+            const lastLineNumber = state.doc.lineAt(codeBlockEndPos).number;
+            const lines = [];
+            for (let i = firstLineNumber; i <= lastLineNumber; i++) {
+              lines.push(state.doc.line(i).text);
+            }
+            addTextToClipboard(includeFences ? view.state.sliceDoc(htmlBlock.from, htmlBlock.to) : getHtmlCodeBlockCode(lines));
+            return;
+          }
+
           const from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
           const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
 
@@ -406,8 +430,11 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
         displayText: "Select code",
         action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
           const includeFences = getModifierState(event);
-          const from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
-          const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
+          let from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
+          let to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
+          if (htmlBlock) {
+            ({ from, to } = includeFences ? htmlBlock : getHtmlCodeRange());
+          }
 
           if (to < from) {
             view.dispatch(view.state.update({ selection: EditorSelection.cursor(from) }));
@@ -445,6 +472,13 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
         displayText: "Delete code block content",
         action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
           const includeFences = getModifierState(event);
+          if (htmlBlock) {
+            // the code is replaced by a newline ==> the opening and closing tags stay on separate lines
+            const { from, to } = includeFences ? htmlBlock : getHtmlCodeRange();
+            view.dispatch(view.state.update({ changes: { from, to, insert: includeFences ? "" : "\n" } }));
+            return;
+          }
+
           const from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
           const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
 

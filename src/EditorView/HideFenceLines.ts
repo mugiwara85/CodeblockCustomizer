@@ -32,7 +32,7 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
         const positions = update.state.field(codeBlockPositionsField, false) || [];
         const newHead = update.state.selection.main.head;
         const newCursorBlock = positions.find(
-          block => newHead >= block.codeBlockStartPos && newHead <= block.codeBlockEndPos
+          block => newHead >= (block.htmlBlock?.from ?? block.codeBlockStartPos) && newHead <= (block.htmlBlock?.to ?? block.codeBlockEndPos)
         );
         if (newCursorBlock !== this.lastCursorBlock) {
           needsSelectionUpdate = true;
@@ -101,7 +101,7 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
 
         const firstCodeBlockLine = view.state.doc.lineAt(codeBlockStartPos).number;
         const lastCodeBlockLine = view.state.doc.lineAt(codeBlockEndPos).number;
-        const isCursorInsideThisBlock = cursorPos >= codeBlockStartPos && cursorPos <= codeBlockEndPos;
+        const isCursorInsideThisBlock = cursorPos >= (pos.htmlBlock?.from ?? codeBlockStartPos) && cursorPos <= (pos.htmlBlock?.to ?? codeBlockEndPos);
         const lineCount = lastCodeBlockLine - firstCodeBlockLine + 1;
 
         const hideFenceLines = hideFences && !isCursorInsideThisBlock && lineCount > 2;
@@ -114,9 +114,19 @@ export function hideFenceLinesExtension(plugin: CodeBlockCustomizerPlugin, setti
             const lastLine = view.state.doc.lineAt(codeBlockEndPos);
             decorations.push(collapsedFenceDecoration.range(lastLine.from));
           }
+
+          // <pre> and </pre> lines of HTML code blocks, when they are not on the line of <code> and </code>
+          if (pos.htmlBlock) {
+            for (let line = view.state.doc.lineAt(pos.htmlBlock.from).number; line < firstCodeBlockLine; line++) {
+              decorations.push(collapsedFenceDecoration.range(view.state.doc.line(line).from));
+            }
+            for (let line = lastCodeBlockLine + 1; line <= view.state.doc.lineAt(pos.htmlBlock.to).number; line++) {
+              decorations.push(collapsedFenceDecoration.range(view.state.doc.line(line).from));
+            }
+          }
         }
 
-        const buttonLineStartPos = view.state.doc.lineAt(codeBlockStartPos).from;
+        const buttonLineStartPos = view.state.doc.lineAt(pos.htmlBlock?.from ?? codeBlockStartPos).from;
         const buttonConfigs = createButtonConfigs(codeBlockStartPos, codeBlockEndPos, view.state, parameters);
         const modifierKey = plugin.settings.pluginSettings.codeblock.buttons.modifierKey;
         decorations.push(Decoration.widget({ widget: new buttonWidget(buttonConfigs, pos, modifierKey), side: -1 }).range(buttonLineStartPos));

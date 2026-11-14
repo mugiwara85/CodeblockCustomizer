@@ -3,6 +3,7 @@ import { defaultPrompts, PromptLines } from "./PromptManager";
 import { getPromptDefinition } from "./PromptUtils";
 import { CodeblockCustomizerSettings, HighlightStyle } from "./Settings";
 import { getBorderColorByLanguage, getCurrentMode, getDisplayLanguageName, getPropertyFromLanguageSpecificColors } from "./Utils";
+import { htmlLineToFenceLine } from "./HtmlCodeBlocks";
 
 export interface ParsedParams {
   [key: string]: string;
@@ -166,6 +167,11 @@ export interface InlineCodeHighlightParameters {
 }
 
 export function getAllParameters(originalLineText: string, settings: CodeblockCustomizerSettings, isReadingView = false): CBCParameters {
+  // HTML code blocks
+  if (settings.pluginSettings.common.enableHtmlCodeBlocks) {
+    originalLineText = htmlLineToFenceLine(originalLineText) ?? originalLineText;
+  }
+
   const lineText = originalLineText.trim();
   const parsedParameters = parseParameters(lineText);
 

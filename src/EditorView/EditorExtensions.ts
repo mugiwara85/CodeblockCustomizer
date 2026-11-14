@@ -19,7 +19,7 @@ import { executeCodeExtension } from "./ExecuteCodePlugin";
 import { admonitionExtension } from "./Admonitions";
 import { wrapExtension } from "./Wrapping";
 import { prismHighlightExtension } from "./PrismHighlight";
-
+import { htmlCodeBlockWidgetsExtension } from "./HtmlCodeBlockWidgets";
 
 export function extensions(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const codeBlockPositionsField = createCodeBlockPositionsField(plugin, settings);
@@ -32,12 +32,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   const { headerField, buttonWidget, createButtonConfigs } = headerExtension(plugin, settings, codeBlockPositionsField, collapseField, activeGroupTabField, groupedCodeBlocksField, hiddenLinesUnhiddenField, unwrappedCodeBlocksField, getFoldingState, toggleCodeBlockFold, addTabs, getHiddenRanges);
   const { viewPlugin, liveUpdateExtension, forceRefreshListener } = mainViewPluginExtension(plugin, settings, codeBlockPositionsField, collapseField, foldCommandField, hiddenLinesUnhiddenField, getHiddenRanges);
   const { hideFencesPlugin } = hideFenceLinesExtension(plugin, settings, codeBlockPositionsField, hiddenLinesUnhiddenField, createButtonConfigs, buttonWidget);
-  const { inlineCodeViewPlugin } = inlineCodeExtension(plugin, settings);
+  const { inlineCodeViewPlugin, htmlInlineCodeWidgetPlugin } = inlineCodeExtension(plugin, settings);
   const { linkViewPlugin } = linksExtension(plugin, settings, codeBlockPositionsField);
   const { annotationViewPlugin } = annotationsExtension(plugin, settings, codeBlockPositionsField);
   const { executeCodeViewPlugin } = executeCodeExtension(plugin, settings, codeBlockPositionsField);
   const { admonitionViewPlugin } = admonitionExtension(plugin, settings, codeBlockPositionsField);
   const { prismHighlightPlugin } = prismHighlightExtension(plugin, settings, codeBlockPositionsField);
+  const { htmlCodeBlockWidgetPlugin } = htmlCodeBlockWidgetsExtension(plugin, settings, codeBlockPositionsField);
 
   /* Extensions */
 
@@ -83,11 +84,13 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     viewPlugin,
     linkViewPlugin,
     inlineCodeViewPlugin,
+    htmlInlineCodeWidgetPlugin,
     annotationViewPlugin,
     hideFencesPlugin,
     executeCodeViewPlugin,
     admonitionViewPlugin,
     prismHighlightPlugin,
+    htmlCodeBlockWidgetPlugin,
     scrollSyncPlugin,
     liveUpdateExtension(),
     forceRefreshListener,
