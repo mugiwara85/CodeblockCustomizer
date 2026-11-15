@@ -431,7 +431,8 @@ export class PromptManager {
 
       this.promptEnv = this.parsePromptCommands(commandText, this.context.promptDef, this.promptEnv);
 
-      const lineClassName = `codeblock-customizer-prompt-${this.context.promptType}`;
+      const promptClassKey = this.context.isCustom ? this.context.promptDef.name : this.context.promptType.toLowerCase();
+      const lineClassName = `codeblock-customizer-prompt-${promptClassKey}`;
 
       return { styledParts, output, matchedLength: matchedPromptText.length, lineClassName, isRoot };
     }
