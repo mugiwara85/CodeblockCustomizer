@@ -1,4 +1,4 @@
-import { editorEditorField, editorInfoField } from "obsidian";
+import { editorEditorField, editorInfoField, MarkdownView, TFile } from "obsidian";
 
 import { EditorState, Transaction, Range, RangeSet, Line } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
@@ -9,14 +9,64 @@ import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters, HighlightedWord } from "../Parsing";
 import { HighlightRules, createHighlightRules } from "../HighlightRules";
 import { PromptLineRenderResult, PromptManager } from "../PromptManager";
-import { getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, findAllOccurrences, getPropertyFromLanguageSpecificColors, filterOccurrences } from "../Utils";
+import { getBorderColorByLanguage, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, findAllOccurrences, getPropertyFromLanguageSpecificColors, filterOccurrences, HighlightMarkRange, layerHighlightRanges } from "../Utils";
+import { htmlLineToFenceLine } from "../HtmlCodeBlocks";
 import { ANNOTATION_PATTERN, DEFAULT_TEXT_SEPARATOR } from "../Const";
-import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
+import { CodeBlockPositions, getHtmlCodeBlockRange, getHtmlCodeBlocks, getVisibleCodeBlocks } from "./CodeBlockPositions";
 import { HiddenLinesWidget } from "./HideLines";
 import { FoldingState, FoldCommand, setFoldState, UnCollapse, semiUnCollapse, unhideEffect } from "./EditorEffects";
 
 export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>, collapseField: StateField<RangeSet<Decoration>>, foldCommandField: StateField<FoldCommand>,
   hiddenLinesUnhiddenField: StateField<Set<number>>, getHiddenRanges: (state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number) => { startLine: number, endLine: number, lineCount: number, from: number, to: number }[]) {
+
+  const INLINE_CODE_PATTERN = /`|<code[\s>]/i;
+  const readingViewSyncTimers = new Map<string, number>();
+
+  function scheduleReadingViewSync(view: EditorView, file: TFile) {
+    const timer = readingViewSyncTimers.get(file.path);
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+    }
+
+    readingViewSyncTimers.set(file.path, window.setTimeout(() => {
+      readingViewSyncTimers.delete(file.path);
+      syncReadingViews(view.state, file);
+    }, 250));
+  }// scheduleReadingViewSync
+
+  function syncReadingViews(state: EditorState, file: TFile) {
+    const editorLines = state.doc.toJSON();
+
+    for (const leaf of plugin.app.workspace.getLeavesOfType('markdown')) {
+      const markdownView = leaf.view;
+      if (!(markdownView instanceof MarkdownView) || markdownView.file?.path !== file.path || markdownView.getMode() !== 'preview') {
+        continue;
+      }
+
+      const previewLines = markdownView.previewMode.get().split('\n');
+      // lines added or removed ==> wait until the file is saved
+      if (previewLines.length !== editorLines.length) {
+        continue;
+      }
+
+      const changedLines = editorLines.flatMap((line, index) => line !== previewLines[index] ? [index] : []);
+      if (changedLines.length > 0 && canUpdateLinesBeforeSave(state, changedLines)) {
+        markdownView.previewMode.set(editorLines.join('\n'), false);
+      }
+    }
+  }// syncReadingViews
+
+  function canUpdateLinesBeforeSave(state: EditorState, lineIndexes: number[]): boolean {
+    const codeBlockRanges = [
+      ...(state.field(codeBlockPositionsField, false) ?? []).map(block => ({ from: block.htmlBlock?.from ?? block.codeBlockStartPos, to: block.htmlBlock?.to ?? block.codeBlockEndPos })),
+      ...getHtmlCodeBlocks(state).map(block => getHtmlCodeBlockRange(state, block)),
+    ];
+
+    return lineIndexes.every(index => {
+      const line = state.doc.line(index + 1);
+      return !/^\s*>/.test(line.text) && !codeBlockRanges.some(range => line.from <= range.to && line.to >= range.from);
+    });
+  }// canUpdateLinesBeforeSave
 
   const liveUpdateExtension = () => {
     return EditorView.updateListener.of((update) => {
@@ -35,16 +85,25 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       }
 
       const linesToUpdate = new Map<number, string>();
+      let inlineCodeChanged = false;
 
-      update.changes.iterChanges((fromA) => {
-        const changedLineNumber = update.startState.doc.lineAt(fromA).number;
+      update.changes.iterChanges((fromA, toA, fromB, toB) => {
+        const startChangedLine = update.startState.doc.lineAt(fromA).number;
+        const endChangedLine = update.startState.doc.lineAt(toA).number;
+
+        if (!inlineCodeChanged) {
+          const oldText = update.startState.doc.sliceString(update.startState.doc.lineAt(fromA).from, update.startState.doc.lineAt(toA).to);
+          const newText = update.state.doc.sliceString(update.state.doc.lineAt(fromB).from, update.state.doc.lineAt(toB).to);
+          inlineCodeChanged = INLINE_CODE_PATTERN.test(oldText) || INLINE_CODE_PATTERN.test(newText);
+        }
 
         for (const block of codeBlockPositions) {
           const firstLineNumber = update.startState.doc.lineAt(block.codeBlockStartPos).number;
 
-          if (changedLineNumber === firstLineNumber) {
+          if (firstLineNumber >= startChangedLine && firstLineNumber <= endChangedLine) {
             const zeroBasedLineNumber = firstLineNumber - 1;
-            const newLineContent = update.state.doc.line(firstLineNumber).text;
+            const rawLine = update.state.doc.line(firstLineNumber).text;
+            const newLineContent = block.htmlBlock ? (htmlLineToFenceLine(rawLine) ?? rawLine) : rawLine;
             linesToUpdate.set(zeroBasedLineNumber, newLineContent);
           }
         }
@@ -57,6 +116,10 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
           plugin.rerenderCodeblock(fileName, lineStart, lineContent); // paralell open
         }
+      }
+
+      if (inlineCodeChanged) {
+        scheduleReadingViewSync(update.view, fileName);
       }
     });
   };// liveUpdateExtension
@@ -115,7 +178,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       return;
     }
 
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       const blockEndPositions = new Set<number>();
 
       for (const range of unfoldedRanges) {
@@ -138,7 +201,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
             const pos = update.state.doc.line(i).from;
             const lineDom = update.view.domAtPos(pos);
             if (lineDom?.node) {
-              const el = lineDom.node instanceof HTMLElement ? lineDom.node : lineDom.node.parentElement;
+              const el = lineDom.node.instanceOf(HTMLElement) ? lineDom.node : lineDom.node.parentElement;
               if (el && !el.closest('.cm-line')?.classList.contains('HyperMD-codeblock')) {
                 needsFix = true;
                 break;
@@ -243,8 +306,16 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
         if (parameters.exclude)
           continue;
 
+        const firstLineText = view.state.doc.line(firstCodeBlockLine).text;
+        const lastLineText = view.state.doc.line(lastCodeBlockLine).text;
+        const openTagMatch = htmlBlock ? firstLineText.match(/<code(?=[\s>])[^>]*>/i) : null;
+        const htmlCodeStartCol = openTagMatch && openTagMatch.index !== undefined ? openTagMatch.index + openTagMatch[0].length : 0;
+        const htmlStartHasCode = Boolean(htmlBlock && openTagMatch && htmlCodeStartCol < firstLineText.length);
+        const closeTagIdx = htmlBlock ? lastLineText.toLowerCase().lastIndexOf('</code>') : -1;
+        const htmlEndHasCode = Boolean(htmlBlock && closeTagIdx > 0);
+
         let lineNumber = parameters.lineNumberOffset;
-        const rawLineCount = lastCodeBlockLine - firstCodeBlockLine - 1;
+        const rawLineCount = (lastCodeBlockLine - firstCodeBlockLine - 1) + (htmlStartHasCode ? 1 : 0) + (htmlEndHasCode ? 1 : 0);
         const gutterStyle = getGutterStyle(parameters, rawLineCount, defaultCharWidth);
         const prompt = new PromptManager(parameters, rawLineCount, settings);
         const hiddenRanges = getHiddenRanges(view.state, parameters, codeBlockStartPos, codeBlockEndPos);
@@ -257,10 +328,14 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
         const blockLastLine = htmlBlock ? view.state.doc.lineAt(htmlBlock.to).number : lastCodeBlockLine;
 
         for (let line = firstCodeBlockLine; line <= lastCodeBlockLine; line++) {
-          const startLine = line === firstCodeBlockLine;
-          const endLine = line === lastCodeBlockLine;
+          const isOpenLine = line === firstCodeBlockLine;
+          const isCloseLine = line === lastCodeBlockLine;
+          const startLine = isOpenLine && !htmlStartHasCode;
+          const endLine = isCloseLine && !htmlEndHasCode;
           const currentLine = view.state.doc.line(line);
           const lineStartPos = currentLine.from;
+          const codeSliceStart = (isOpenLine && htmlStartHasCode) ? htmlCodeStartCol : 0;
+          const codeSliceEnd = (isCloseLine && htmlEndHasCode) ? closeTagIdx : currentLine.text.length;
           let promptRenderResult: PromptLineRenderResult = { styledParts: [], output: [], matchedLength: 0, lineClassName: null, isRoot: false };
 
           // line number jumps
@@ -271,7 +346,8 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
               lineNumber = jumps[jumpIdx].newStartNumber;
               jumpIdx++;
 
-              if (previousLineEndPos !== null && previousLineStartPos !== null && line > firstCodeBlockLine + 1) {
+              const firstContentLine = htmlStartHasCode ? firstCodeBlockLine : firstCodeBlockLine + 1;
+              if (previousLineEndPos !== null && previousLineStartPos !== null && line > firstContentLine) {
                 decorations.push(Decoration.widget({ widget: new LineSeparatorWidget(), side: 1 }).range(previousLineEndPos));
                 decorations.push(Decoration.line({ attributes: { class: "codeblock-customizer-line-with-jump" } }).range(previousLineStartPos));
               }
@@ -284,7 +360,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
           }
 
           // lines
-          let lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations, highlightRules, promptRenderResult);
+          let lineClass = getLineClass(parameters, lineNumber, startLine, endLine, currentLine, decorations, highlightRules, promptRenderResult, codeSliceStart, codeSliceEnd);
           if (htmlBlock) {
             lineClass += ` ${getHtmlCodeBlockLineClass(line === blockFirstLine, line === blockLastLine)}`;
           }
@@ -551,21 +627,18 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     return lineClass;
   }// getHtmlCodeBlockLineClass
 
-  function getLineClass(parameters: CBCParameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, rules: HighlightRules, promptRenderResult: PromptLineRenderResult) {
-    let codeblockLanguageClass = "";
-    let codeblockLanguageSpecificClass = "";
-    let borderColor = "";
+  function getLineClass(parameters: CBCParameters, lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, rules: HighlightRules, promptRenderResult: PromptLineRenderResult, codeSliceStart = 0, codeSliceEnd?: number) {
     const languageSpecificColors = settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors;
     const languageBorderColors = getPropertyFromLanguageSpecificColors("codeblock.borderColor", settings);
     const language = parameters.language.length > 0 ? parameters.language : "nolang";
 
-    codeblockLanguageClass = "codeblock-customizer-language-" + language.toLowerCase();
-    codeblockLanguageSpecificClass = getLanguageSpecificColorClass(language, languageSpecificColors);
-    borderColor = getBorderColorByLanguage(parameters.language, languageBorderColors); // handles nolang
+    const codeblockLanguageClass = "codeblock-customizer-language-" + language.toLowerCase();
+    const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(language, languageSpecificColors);
+    const borderColor = getBorderColorByLanguage(parameters.language, languageBorderColors); // handles nolang
 
     let lineClass = `codeblock-customizer-line`;
     const textSeparator = parameters.textSeparator || settings.pluginSettings.textHighlight.textSeparator || DEFAULT_TEXT_SEPARATOR;
-    lineClass = highlightLinesOrWords(lineNumber, startLine, endLine, line, decorations, lineClass, rules, textSeparator);
+    lineClass = highlightLinesOrWords(lineNumber, startLine, endLine, line, decorations, lineClass, rules, textSeparator, codeSliceStart, codeSliceEnd);
     lineClass = lineClass + " " + codeblockLanguageClass + " " + codeblockLanguageSpecificClass;
 
     if (borderColor.length > 0) {
@@ -587,18 +660,23 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     return lineClass;
   }// getLineClass
 
-  function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, lineClass: string, rules: HighlightRules, textSeparator: string) {
-    const caseInsensitiveLineText = (line.text ?? '').toLowerCase();
+  function highlightLinesOrWords(lineNumber: number, startLine: boolean, endLine: boolean, line: Line, decorations: Array<Range<Decoration>>, lineClass: string, rules: HighlightRules, textSeparator: string, codeSliceStart = 0, codeSliceEnd?: number) {
+    const sliceEnd = codeSliceEnd ?? line.text.length;
+    const effectiveLine = (codeSliceStart > 0 || sliceEnd < line.text.length)
+      ? { from: line.from + codeSliceStart, text: line.text.slice(codeSliceStart, sliceEnd) }
+      : { from: line.from, text: line.text };
+    const caseInsensitiveLineText = (effectiveLine.text ?? '').toLowerCase();
+    const lineMarks: HighlightMarkRange[] = [];
 
     const addHighlightClass = (name = '') => {
       const className = `codeblock-customizer-line-highlighted${name ? `-${name.replace(/\s+/g, '-').toLowerCase()}` : ''}`;
       return className;
     };
 
-    const highlighText = (words: HighlightedWord[], name = '') => {
+    const highlighText = (words: HighlightedWord[], name = '', order = 0) => {
       for (const highlightedWord of words) {
         const word = highlightedWord.text.toLowerCase();
-        setClass(line, decorations, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase(), highlightedWord.occurrences);
+        setClass(effectiveLine, lineMarks, caseInsensitiveLineText, word, textSeparator, name.replace(/\s+/g, '-').toLowerCase(), highlightedWord.occurrences, order);
       }
     };
 
@@ -657,8 +735,10 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
     // highlight all words in specified line hlt:1,3-5
     if (rules.defaultTextAllWordsInLine.has(lineNumber)) {
-      setClass(line, decorations, caseInsensitiveLineText, '', textSeparator, '');
+      setClass(effectiveLine, lineMarks, caseInsensitiveLineText, '', textSeparator, '', undefined, 0);
     }
+
+    let altOrder = 1;
 
     // highlight line by line number imp:1,3-5
     const altColorNames = rules.alternativeLinesToHighlight.get(lineNumber);
@@ -687,14 +767,14 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
 
     // highlight text in every line if linetext contains the specified word impt:test
     for (const entry of rules.alternativeTextToHighlight) {
-      highlighText(entry.words, entry.colorName);
+      highlighText(entry.words, entry.colorName, altOrder++);
     }
 
     // highlight text in specific lines if linetext contains the specified word impt:1|test,3-5|test
     const altTextLineSpecific = rules.alternativeTextLineSpecificWords.get(lineNumber);
     if (altTextLineSpecific) {
       for (const rule of altTextLineSpecific) {
-        highlighText(rule.words, rule.colorName);
+        highlighText(rule.words, rule.colorName, altOrder++);
       }
     }
 
@@ -703,7 +783,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       if (caseInsensitiveLineText.includes(fromLower) && caseInsensitiveLineText.includes(toLower)) {
         const highlightText = `${from}${textSeparator}${to}`;
         const word: HighlightedWord = { text: highlightText, occurrences: occurrences };
-        highlighText([word], colorName);
+        highlighText([word], colorName, altOrder++);
       }
     }
 
@@ -714,7 +794,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
         if (caseInsensitiveLineText.includes(rule.fromLower) && caseInsensitiveLineText.includes(rule.toLower)) {
           const highlightText = `${rule.from}${textSeparator}${rule.to}`;
           const word: HighlightedWord = { text: highlightText, occurrences: rule.occurrences };
-          highlighText([word], rule.colorName);
+          highlighText([word], rule.colorName, altOrder++);
         }
       }
     }
@@ -722,13 +802,17 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
     // highlight all words in specified line impt:1,3-5
     const altAllWordsColor = rules.alternativeTextAllWordsInLine.get(lineNumber);
     if (altAllWordsColor !== undefined) {
-      setClass(line, decorations, caseInsensitiveLineText, '', textSeparator, altAllWordsColor);
+      setClass(effectiveLine, lineMarks, caseInsensitiveLineText, '', textSeparator, altAllWordsColor, undefined, altOrder);
+    }
+
+    for (const mark of layerHighlightRanges(lineMarks)) {
+      decorations.push(Decoration.mark({ class: mark.className }).range(mark.from, mark.to));
     }
 
     return lineClass;
   }// highlightLinesOrWords
 
-  function setClass(line: Line, decorations: Array<Range<Decoration>>, caseInsensitiveLineText: string, word: string, textSeparator: string, customClass = '', occurrencesFilter?: number[]) {
+  function setClass(line: { from: number; text: string }, lineMarks: HighlightMarkRange[], caseInsensitiveLineText: string, word: string, textSeparator: string, customClass = '', occurrencesFilter?: number[], order = 0) {
     const classToUse = customClass ? `codeblock-customizer-highlighted-text-${customClass}` : 'codeblock-customizer-highlighted-text';
 
     if (word.includes(textSeparator)) {
@@ -783,7 +867,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       }
       const matchesToHighlight = isFiltered ? allMatches : filterOccurrences(allMatches, occurrencesFilter);
       matchesToHighlight.forEach(match => {
-        decorations.push(Decoration.mark({ class: classToUse }).range(match.from, match.to));
+        lineMarks.push({ from: match.from, to: match.to, className: classToUse, order });
       });
     } else if (word === '') {
       const lineText = line.text;
@@ -807,14 +891,14 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       const endRange = line.from + trimmedEndPosInLine;
 
       if (endRange > startRange) {
-        decorations.push(Decoration.mark({ class: classToUse }).range(startRange, endRange));
+        lineMarks.push({ from: startRange, to: endRange, className: classToUse, order });
       }
     } else {
       const allOccurrences = findAllOccurrences(caseInsensitiveLineText, word);
       const allMatches = allOccurrences.map(index => ({ from: line.from + index, to: line.from + index + word.length }));
       const matchesToHighlight = filterOccurrences(allMatches, occurrencesFilter);
       matchesToHighlight.forEach(match => {
-        decorations.push(Decoration.mark({ class: classToUse }).range(match.from, match.to));
+        lineMarks.push({ from: match.from, to: match.to, className: classToUse, order });
       });
     }
   }// setClass

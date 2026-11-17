@@ -94,9 +94,9 @@ export function addClassesToPrompt(promptData: string | { text: string; class?: 
   const meta = getPromptDetails(promptType, settings);
   const { kind, baseClass } = meta;
   const promptWrapper = createSpan({ cls: `codeblock-customizer-prompt ${baseClass}` });
-  const fragment = document.createDocumentFragment();
+  const fragment = createFragment();
 
-  const endsWithSpace = Array.isArray(promptData) ? promptData.length > 0 && promptData[promptData.length - 1].text?.endsWith(" ") : (promptData as string).endsWith(" ");
+  const endsWithSpace = Array.isArray(promptData) ? promptData.length > 0 && promptData[promptData.length - 1].text?.endsWith(" ") : (promptData).endsWith(" ");
 
   if (Array.isArray(promptData)) {
     if (isRoot && promptDef?.supportsRootStyling) {
@@ -116,7 +116,7 @@ export function addClassesToPrompt(promptData: string | { text: string; class?: 
     return promptWrapper;
   }
 
-  const promptStr = promptData as string;
+  const promptStr = promptData;
 
   if (kind === PromptKind.Predefined) {
     if (!promptDef) promptDef = defaultPrompts[promptType];

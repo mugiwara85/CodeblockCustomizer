@@ -128,6 +128,10 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed {
   display: none;
 }
 
+.codeblock-customizer-edit-button-hidden {
+  display: none !important;
+}
+
 /* output separator widget */
 .has-output-separator {
   position: relative;

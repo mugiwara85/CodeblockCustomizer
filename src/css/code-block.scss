@@ -393,8 +393,7 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 
 /* hide scrollbar when code block is collapsed/semi-collapsed */
-.codeblock-customizer-header-container-specific.collapsed ~ .codeblock-customizer-scrollbar,
-.codeblock-customizer-header-container-specific.semi-collapsed ~ .codeblock-customizer-scrollbar {
+.codeblock-customizer-scrollbar:not(.HyperMD-codeblock + .codeblock-customizer-scrollbar) {
   display: none;
 }
 
@@ -425,4 +424,26 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
       background: transparent;
     }
   }
+}
+
+.codeblock-customizer-print-avoid-break {
+  break-inside: avoid;
+}
+
+.codeblock-customizer-grouped-block-hidden {
+  display: none !important;
+}
+
+.codeblock-customizer-snapshot-offscreen {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+
+  .codeblock-customizer-nowrap {
+    overflow-x: hidden !important;
+  }
+}
+
+.codeblock-customizer-snapshot-restore-tab-padding {
+  padding-right: var(--header-spacing) !important;
 }

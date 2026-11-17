@@ -1,4 +1,4 @@
-import { MarkdownRenderer, editorInfoField } from "obsidian";
+import { MarkdownRenderer, editorInfoField, Component } from "obsidian";
 
 import { EditorState, Range, RangeSet, StateField } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
@@ -54,6 +54,8 @@ export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: Code
   });// linkViewPlugin
 
   class createLink extends WidgetType {
+    private component = new Component();
+
     constructor(private link: string, private sourcePath: string, private plugin: CodeBlockCustomizerPlugin) {
       super();
     }
@@ -64,8 +66,13 @@ export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: Code
 
     toDOM(view: EditorView): HTMLElement {
       const span = createSpan({ cls: "codeblock-customizer-link" });
-      MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.plugin);
+      this.component.load();
+      void MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.component);
       return span;
+    }
+
+    destroy() {
+      this.component.unload();
     }
   }// createLink
 

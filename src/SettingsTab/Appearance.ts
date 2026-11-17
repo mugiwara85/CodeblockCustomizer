@@ -12,7 +12,7 @@ import CodeBlockCustomizerPlugin from "src/main";
 import Pickr from "@simonwep/pickr";
 
 export class AppearanceSettings {
-  debounceTimer: NodeJS.Timeout | null = null;
+  debounceTimer: number | null = null;
   syntaxThemeSettings: SyntaxThemeSettingsUI;
 
   constructor(private plugin: CodeBlockCustomizerPlugin, private containerEl: HTMLElement, private pickerInstances: Pickr[], private getSearchQuery: () => string) {
@@ -54,10 +54,7 @@ export class AppearanceSettings {
           }
         })
       );
-    const warningEl = prismSetting.descEl.createDiv({ cls: "mod-warning" });
-    warningEl.style.color = "var(--text-error)";
-    warningEl.style.marginTop = "4px";
-    warningEl.style.fontWeight = "bold";
+    const warningEl = prismSetting.descEl.createDiv({ cls: "mod-warning codeblock-customizer-setting-warning" });
     warningEl.setText("Experimental: This feature is still being tested. Please report any issues you encounter.");
 
     new Setting(appearanceDiv)
@@ -68,7 +65,7 @@ export class AppearanceSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.common.disableEditorSyntaxHighlight = value;
           await this.plugin.saveSettings();
-          updateSettingClasses(this.plugin.settings.pluginSettings);
+          updateSettingClasses(this.plugin.settings.pluginSettings, this.plugin.app);
         })
       );
 
@@ -164,9 +161,9 @@ export class AppearanceSettings {
       .setDesc('If enabled, the active line number will be highlighted with a separate color.')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr)
-        .onChange((value) => {
+        .onChange(async (value) => {
           this.plugin.settings.pluginSettings.gutter.highlightActiveLineNr = value;
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
           highlightActiveLineNrSetting.settingEl.toggleClass('codeblock-customizer-setting-hidden', !value);
         })
       );
@@ -260,11 +257,13 @@ export class AppearanceSettings {
           this.plugin.settings.pluginSettings.header.collapsedCodeText = value;
           await this.plugin.saveSettings();
           if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
+            window.clearTimeout(this.debounceTimer);
           }
-          this.debounceTimer = setTimeout(async () => {
-            await this.plugin.saveSettings();
-            this.plugin.renderReadingViews();
+          this.debounceTimer = window.setTimeout(() => {
+            void (async () => {
+              await this.plugin.saveSettings();
+              this.plugin.renderReadingViews();
+            })();
           }, 750);
         })
       );
@@ -428,9 +427,9 @@ export class AppearanceSettings {
       .addDropdown((dropdown) => dropdown
         .addOptions({ "disable": "Disable", "left": "Left", "right": "Right" })
         .setValue(this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition)
-        .onChange((value) => {
+        .onChange(async (value) => {
           this.plugin.settings.pluginSettings.codeblock.codeBlockBorderStylingPosition = value;
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
         })
       );
     const languageSpecificContainer = langSpecificDetails.createDiv({ cls: "codeblock-customizer-languageSpecificColorContainer" });

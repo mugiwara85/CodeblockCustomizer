@@ -1,11 +1,9 @@
-import { loadPrism } from "obsidian";
-
 import { StateField, RangeSet, Range } from "@codemirror/state";
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 
 import { CodeblockCustomizerSettings } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
-import { getLanguageConfig, isSourceMode, loadCustomPrismLanguages } from "../Utils";
+import { getLanguageConfig, getPrism, isSourceMode, loadCustomPrismLanguages, PrismInstance, PrismToken, tokenizeWithHooks } from "../Utils";
 import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 
 export interface PrismTokenRange {
@@ -20,8 +18,7 @@ interface CachedBlock {
   tokenRanges: PrismTokenRange[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function walkPrismTokens(tokens: any[], offset: number, result: PrismTokenRange[]): number {
+export function walkPrismTokens(tokens: Array<string | PrismToken>, offset: number, result: PrismTokenRange[]): number {
   for (const token of tokens) {
     if (typeof token === "string") {
       offset += token.length;
@@ -59,43 +56,17 @@ export function getTokenRangesFromPrismHighlighedtHTML(code: string, language: s
     return null;
   }
 
-  const html = prismInstance.highlight(code, prismInstance.languages[language], language);
-  const container = createSpan();
-  container.innerHTML = html;
-
+  const tokens = tokenizeWithHooks(prismInstance, code, prismInstance.languages[language], language);
   const result: PrismTokenRange[] = [];
-  let offset = 0;
-
-  function walk(node: Node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      offset += (node.textContent ?? "").length;
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as HTMLElement;
-      const classes = el.className;
-      const start = offset;
-      for (const child of Array.from(el.childNodes)) {
-        walk(child);
-      }
-      if (classes && offset > start) {
-        result.push({ from: start, to: offset, classes });
-      }
-    }
-  }
-
-  for (const child of Array.from(container.childNodes)) {
-    walk(child);
-  }
-
+  walkPrismTokens(tokens, 0, result);
   return result;
 }// getTokenRangesFromPrismHighlighedtHTML
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let prismInstance: any = null;
+let prismInstance: PrismInstance | null = null;
 let isPrismLoading = false;
 const pendingPrismCallbacks: Array<() => void> = [];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getPrismInstance(): any {
+export function getPrismInstance(): PrismInstance | null {
   return prismInstance;
 }// getPrismInstance
 
@@ -116,7 +87,7 @@ export function ensurePrismLoaded(onLoaded?: () => void): void {
 
   isPrismLoading = true;
 
-  loadPrism().then(p => {
+  void getPrism().then(p => {
     prismInstance = p;
     loadCustomPrismLanguages(p);
     isPrismLoading = false;
@@ -212,6 +183,9 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
 
     buildDecorationsForBlocks(view: EditorView, blocks: CodeBlockPositions[]): Range<Decoration>[] {
       const decorations: Range<Decoration>[] = [];
+      if (!prismInstance) {
+        return decorations;
+      }
 
       for (const block of blocks) {
         // syntax highlight HTML code blocks, because Obsidian doesn't highlight the code
@@ -221,14 +195,63 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
 
         const firstLine = view.state.doc.lineAt(block.codeBlockStartPos);
         const lastLine = view.state.doc.lineAt(block.codeBlockEndPos);
-        const codeStartLineNum = firstLine.number + 1;
-        const codeEndLineNum = lastLine.number - 1;
-        if (codeStartLineNum > codeEndLineNum) {
-          continue;
+
+        let codeStartPos: number;
+        let codeEndPos: number;
+        let cbcPrismRanges: Range<Decoration>[] = [];
+
+        if (block.htmlBlock) {
+          const openMatch = firstLine.text.match(/<code(?=[\s>])[^>]*>/i);
+          codeStartPos = openMatch && openMatch.index !== undefined
+            ? firstLine.from + openMatch.index + openMatch[0].length
+            : firstLine.to;
+          if (codeStartPos === firstLine.to && firstLine.number < lastLine.number) {
+            codeStartPos = view.state.doc.line(firstLine.number + 1).from;
+          }
+
+          const closeIdx = lastLine.text.toLowerCase().lastIndexOf('</code>');
+          codeEndPos = closeIdx !== -1 ? lastLine.from + closeIdx : lastLine.from;
+          if (codeEndPos === lastLine.from && lastLine.number > firstLine.number) {
+            codeEndPos = view.state.doc.line(lastLine.number - 1).to;
+          }
+
+          if (codeEndPos <= codeStartPos) {
+            continue;
+          }
+
+          const startLineNum = view.state.doc.lineAt(codeStartPos).number;
+          const endLineNum = view.state.doc.lineAt(codeEndPos).number;
+          for (let lineNum = startLineNum; lineNum <= endLineNum; lineNum++) {
+            const docLine = view.state.doc.line(lineNum);
+            if (lineNum === firstLine.number && codeStartPos > docLine.from) {
+              const markEnd = Math.min(docLine.to, codeEndPos);
+              if (markEnd > codeStartPos) {
+                cbcPrismRanges.push(Decoration.mark({ class: "cbc-prism" }).range(codeStartPos, markEnd));
+              }
+            } else if (lineNum === lastLine.number && codeEndPos < docLine.to) {
+              const markStart = Math.max(docLine.from, codeStartPos);
+              if (codeEndPos > markStart) {
+                cbcPrismRanges.push(Decoration.mark({ class: "cbc-prism" }).range(markStart, codeEndPos));
+              }
+            } else {
+              cbcPrismRanges.push(Decoration.line({ class: "cbc-prism" }).range(docLine.from));
+            }
+          }
+        } else {
+          const codeStartLineNum = firstLine.number + 1;
+          const codeEndLineNum = lastLine.number - 1;
+          if (codeStartLineNum > codeEndLineNum) {
+            continue;
+          }
+
+          codeStartPos = view.state.doc.line(codeStartLineNum).from;
+          codeEndPos = view.state.doc.line(codeEndLineNum).to;
+          for (let lineNum = codeStartLineNum; lineNum <= codeEndLineNum; lineNum++) {
+            const linePos = view.state.doc.line(lineNum).from;
+            cbcPrismRanges.push(Decoration.line({ class: "cbc-prism" }).range(linePos));
+          }
         }
 
-        const codeStartPos = view.state.doc.line(codeStartLineNum).from;
-        const codeEndPos = view.state.doc.line(codeEndLineNum).to;
         const code = view.state.sliceDoc(codeStartPos, codeEndPos);
 
         let language = block.parameters.language?.toLowerCase() ?? "";
@@ -249,7 +272,7 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
           tokenRanges = cached.tokenRanges;
         } else {
           const grammar = prismInstance.languages[prismLanguage];
-          const tokens = prismInstance.tokenize(code, grammar);
+          const tokens = tokenizeWithHooks(prismInstance, code, grammar, prismLanguage);
 
           tokenRanges = [];
           walkPrismTokens(tokens, 0, tokenRanges);
@@ -271,10 +294,7 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
           decorations.push(Decoration.mark({ class: range.classes }).range(from, to));
         }
 
-        for (let lineNum = codeStartLineNum; lineNum <= codeEndLineNum; lineNum++) {
-          const linePos = view.state.doc.line(lineNum).from;
-          decorations.push(Decoration.line({ class: "cbc-prism" }).range(linePos));
-        }
+        decorations.push(...cbcPrismRanges);
       }
 
       return decorations;

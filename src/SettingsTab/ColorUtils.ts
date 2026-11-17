@@ -7,34 +7,34 @@ import { PickerOptions, updateColorContainer, updateLanguageSpecificColorContain
 
 import Pickr from "@simonwep/pickr";
 
-export function getColorFromPickrClass(selectedTheme: ColorTheme, currentMode: 'dark' | 'light', pickrClass: string, resolveCSSVar: boolean): Colors | string {
+export function getColorFromPickrClass(selectedTheme: ColorTheme, currentMode: 'dark' | 'light', pickrClass: string, resolveCSSVar: boolean): string {
   const properties = pickrClass.split('.');
-  let colorValue: Colors | string = selectedTheme.colors[currentMode];
+  let colorValue: unknown = selectedTheme.colors[currentMode];
 
   for (const prop of properties) {
-    // @ts-ignore
-    colorValue = colorValue?.[prop];
-    if (colorValue === undefined) {
+    if (colorValue && typeof colorValue === 'object' && prop in colorValue) {
+      colorValue = (colorValue as Record<string, unknown>)[prop];
+    } else {
       return '#000000'; // return default black
     }
-    if (resolveCSSVar && colorValue.toString().startsWith("--")) {
-      colorValue = getColorOfCssVariable(colorValue.toString());
+    if (typeof colorValue === 'string' && resolveCSSVar && colorValue.startsWith("--")) {
+      colorValue = getColorOfCssVariable(colorValue);
     }
     if (!colorValue) {
       break;
     }
   }
 
-  return colorValue || '';
+  return typeof colorValue === 'string' ? colorValue : '';
 }// getColorFromPickrClass
 
-export function setNestedValue(obj: Record<string, any>, path: string, value: any): void {
+export function setNestedValue(obj: Colors | Record<string, unknown>, path: string, value: string): void {
   const keys = path.split('.');
-  let current = obj;
+  let current = obj as Record<string, unknown>;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    current = current[key];
+    current = current[key] as Record<string, unknown>;
     if (current === undefined) {
       console.error("Invalid path provided to setNestedValue:", path);
       return;
@@ -51,13 +51,13 @@ export function setAndSavePickrSetting(className: string, savedColor: string, pl
 
   setNestedValue(colors, className, savedColor);
 
-  plugin.saveSettings();
+  void plugin.saveSettings();
 }// setAndSavePickrSetting
 
 // (Hopefully temporary) Fix for Pickr 1.10.2. Fixes dragging
 const forwardedDocuments = new WeakSet<Document>();
-function forwardPickrDragEvents(doc: Document): void {
-  if (doc === document || forwardedDocuments.has(doc)) {
+function forwardPickrDragEvents(doc: Document, mainDoc: Document): void {
+  if (doc === mainDoc || forwardedDocuments.has(doc)) {
     return;
   }
   forwardedDocuments.add(doc);
@@ -67,7 +67,7 @@ function forwardPickrDragEvents(doc: Document): void {
       return;
     }
 
-    const forward = (event: MouseEvent) => document.dispatchEvent(new MouseEvent(event.type, event));
+    const forward = (event: MouseEvent) => mainDoc.dispatchEvent(new MouseEvent(event.type, event));
     const stop = (event: MouseEvent) => {
       forward(event);
       doc.removeEventListener('mousemove', forward);
@@ -82,11 +82,12 @@ function forwardPickrDragEvents(doc: Document): void {
 function addPopoutWindowListeners(pickr: Pickr): (() => void) | null {
   const { app, button } = pickr.getRoot() as { app: HTMLElement; button: HTMLElement };
   const doc = app.ownerDocument;
-  if (doc === document) {
+  const mainDoc = window.document;
+  if (doc === mainDoc) {
     return null;
   }
 
-  forwardPickrDragEvents(doc);
+  forwardPickrDragEvents(doc, mainDoc);
 
   const onMouseDown = (e: MouseEvent) => {
     if (!e.composedPath().some(el => el === app || el === button)) {
@@ -138,9 +139,9 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
         instance.hide();
         return;
       }
-      const { result } = (instance.getRoot() as any).interaction;
+      const { result } = (instance.getRoot() as { interaction: { result: HTMLInputElement } }).interaction;
       removePopoutWindowListeners = addPopoutWindowListeners(instance);
-      requestAnimationFrame(() => requestAnimationFrame(() => result.select()));
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => result.select()));
     })
     .on('hide', () => {
       removePopoutWindowListeners?.();
@@ -229,11 +230,11 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setName('Use background color')
     .addToggle(toggle => toggle
       .setValue(style.useBackgroundColor)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').useBackgroundColor = value;
         getStyle('dark').useBackgroundColor = value;
         bgPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -245,7 +246,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     initialColor: style.backgroundColor,
     onSave: (color: string) => {
       getStyle(getCurrentMode()).backgroundColor = color;
-      plugin.saveSettings();
+      void plugin.saveSettings();
       onChanged();
     },
     onReset: onResetBackground,
@@ -256,7 +257,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setName('Use text color')
     .addToggle(toggle => toggle
       .setValue(style.useTextColor ?? false)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').useTextColor = value;
         getStyle('dark').useTextColor = value;
         if (value && !getStyle('light').textColor) {
@@ -264,7 +265,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
           getStyle('dark').textColor = '#000000';
         }
         textColorPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !value);
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -276,7 +277,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     initialColor: style.textColor || '#000000',
     onSave: (color: string) => {
       getStyle(getCurrentMode()).textColor = color;
-      plugin.saveSettings();
+      void plugin.saveSettings();
       onChanged();
     },
     i18n: { 'btn:toggle': 'select text color' }
@@ -288,10 +289,10 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .addText(text => text
       .setPlaceholder('e.g. monospace')
       .setValue(style.fontFamily ?? '')
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').fontFamily = value;
         getStyle('dark').fontFamily = value;
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -300,10 +301,10 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setName('Bold')
     .addToggle(toggle => toggle
       .setValue(style.bold ?? false)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').bold = value;
         getStyle('dark').bold = value;
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -312,10 +313,10 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setName('Italic')
     .addToggle(toggle => toggle
       .setValue(style.italic ?? false)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').italic = value;
         getStyle('dark').italic = value;
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -324,10 +325,10 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setName('Underline')
     .addToggle(toggle => toggle
       .setValue(style.underline ?? false)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').underline = value;
         getStyle('dark').underline = value;
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -336,10 +337,10 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setName('Strikethrough')
     .addToggle(toggle => toggle
       .setValue(style.strikethrough ?? false)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').strikethrough = value;
         getStyle('dark').strikethrough = value;
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -349,10 +350,10 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     .setDesc('Smaller text, slightly below the baseline. Only applies to highlighted text (e.g. hlt:word).')
     .addToggle(toggle => toggle
       .setValue(style.subscript ?? false)
-      .onChange((value) => {
+      .onChange(async (value) => {
         getStyle('light').subscript = value;
         getStyle('dark').subscript = value;
-        plugin.saveSettings();
+        await plugin.saveSettings();
         onChanged();
       })
     );
@@ -375,7 +376,8 @@ export function createAlternatePickr(containerEl: HTMLElement, colorContainer: H
       delete plugin.settings.SelectedTheme.colors.light.codeblock.alternateHighlightColors[name];
       delete plugin.settings.SelectedTheme.colors.dark.codeblock.alternateHighlightColors[name];
       updateColorContainer(colorContainer, pickerInstances, plugin);
-      plugin.saveSettings();
+      void plugin.saveSettings();
+      plugin.renderReadingViews();
       new Notice(`Removed color "${name}".`);
     });
 
@@ -402,13 +404,13 @@ export function createAlternatePickr(containerEl: HTMLElement, colorContainer: H
     initialColor,
     onSave: (savedColor: string) => {
       plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors[languageName][colorKey] = savedColor;
-      plugin.saveSettings();
+      void plugin.saveSettings();
     },
     onDelete: () => {
       delete plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][colorKey];
       delete plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][colorKey];
       updateLanguageSpecificColorContainer(colorContainer, pickerInstances, plugin, languageName);
-      plugin.saveSettings();
+      void plugin.saveSettings();
       new Notice(`Removed color "${name}".`);
     },
     i18n: { 'btn:toggle': 'select color for light theme' }

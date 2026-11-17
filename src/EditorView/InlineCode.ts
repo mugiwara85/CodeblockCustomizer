@@ -33,11 +33,11 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     update(update: ViewUpdate) {
       // since Prism loads async, rebuild once it is available. Otherwise the CM5 tokens stay until the next change/interaction (#168)
       const prismLoaded = getPrismInstance() !== null;
-      if (update.docChanged || update.viewportChanged || update.selectionSet ||
-          this.prevEnableSyntaxHighlight != settings.pluginSettings.inlineCode.enableSyntaxHighlight ||
-          this.prevUsePrismHighlight != settings.pluginSettings.codeblock.usePrismHighlight ||
-          this.prevDisableEditorSyntaxHighlight != settings.pluginSettings.common.disableEditorSyntaxHighlight ||
-          this.prevPrismLoaded != prismLoaded) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet || plugin.settingsUpdated ||
+        this.prevEnableSyntaxHighlight != settings.pluginSettings.inlineCode.enableSyntaxHighlight ||
+        this.prevUsePrismHighlight != settings.pluginSettings.codeblock.usePrismHighlight ||
+        this.prevDisableEditorSyntaxHighlight != settings.pluginSettings.common.disableEditorSyntaxHighlight ||
+        this.prevPrismLoaded != prismLoaded) {
         this.decorations = this.buildDecorations(update.view);
         this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
         this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
@@ -51,6 +51,8 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
         return Decoration.none;
 
       const decorations: Array<Range<Decoration>> = [];
+      // a line can belong to more than one visible range (CodeMirror splits them at bigger widgets, e.g. a rendered HTML inline code) ==> decorate each HTML inline code only once
+      const decoratedHtmlInlineCodes = new Set<number>();
 
       for (const { from, to } of view.visibleRanges) {
         syntaxTree(view.state).iterate({
@@ -66,9 +68,10 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
         if (settings.pluginSettings.common.enableHtmlCodeBlocks) {
           for (const node of findHtmlInlineCodesInRange(view.state, from, to)) {
-            if (node.from >= node.to) {
+            if (node.from >= node.to || decoratedHtmlInlineCodes.has(node.from)) {
               continue;
             }
+            decoratedHtmlInlineCodes.add(node.from);
 
             decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper codeblock-customizer-html-inline-code" }).range(node.from, node.to));
             const { codeFrom, hasIcon } = decorateInlineCode(view, node, decorations, node.parameters, true);
@@ -109,7 +112,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
           const line = view.state.doc.lineAt(pos);
           const node = findHtmlInlineCodesInRange(view.state, line.from, line.to).find(n => pos >= n.from && pos <= n.to);
           if (node) {
-            addTextToClipboard(getInlineCodeToCopy(view.state.sliceDoc(node.from, node.to), true));
+            void addTextToClipboard(getInlineCodeToCopy(view.state.sliceDoc(node.from, node.to), true));
           }
           return true;
         }
@@ -127,7 +130,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
                 return;
               }
 
-              addTextToClipboard(getInlineCodeToCopy(text));
+              void addTextToClipboard(getInlineCodeToCopy(text));
               found = true;
 
               return false;
@@ -143,19 +146,53 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
   const htmlInlineCodeWidgetPlugin = ViewPlugin.fromClass(class {
     private observer: MutationObserver;
+    private frame: number | null = null;
+    private settingsChanged = false;
 
     constructor(private view: EditorView) {
       this.observer = new MutationObserver((mutations) => {
-        if (settings.pluginSettings.common.enableHtmlCodeBlocks && mutations.some(mutation => Array.from(mutation.addedNodes).some(isOrContainsCode))) {
+        if (!settings.pluginSettings.common.enableHtmlCodeBlocks) {
+          return;
+        }
+        if (mutations.some(mutation => Array.from(mutation.addedNodes).some(isOrContainsCode))) {
           this.styleWidgets();
+        } else if (mutations.some(mutation =>
+          mutation.type === 'attributes' &&
+          mutation.target.instanceOf(HTMLElement) &&
+          mutation.target.tagName === 'CODE' &&
+          (mutation.attributeName === 'data-cbc' || !mutation.target.classList.contains('codeblock-customizer-inline-code'))
+        )) {
+          this.scheduleStyling();
         }
       });
-      this.observer.observe(view.contentDOM, { childList: true, subtree: true });
+      this.observer.observe(view.contentDOM, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-cbc'] });
     }
 
-    private styleWidgets() {
+    update(update: ViewUpdate) {
+      if (plugin.settingsUpdated) {
+        this.settingsChanged = true;
+      }
+      if (settings.pluginSettings.common.enableHtmlCodeBlocks && (update.docChanged || update.viewportChanged || update.selectionSet || plugin.settingsUpdated)) {
+        this.scheduleStyling();
+      }
+    }
+
+    private scheduleStyling() {
+      if (this.frame !== null) {
+        return;
+      }
+
+      this.frame = window.requestAnimationFrame(() => {
+        this.frame = null;
+        const force = this.settingsChanged;
+        this.settingsChanged = false;
+        this.styleWidgets(force);
+      });
+    }
+
+    private styleWidgets(force = false) {
       const state = this.view.state;
-      if (isSourceMode(state)) {
+      if (!settings.pluginSettings.common.enableHtmlCodeBlocks || isSourceMode(state)) {
         return;
       }
 
@@ -163,20 +200,36 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
       const context = { sourcePath, docId: "", frontmatter: undefined, addChild: () => { }, getSectionInfo: () => null } as unknown as MarkdownPostProcessorContext;
 
       for (const codeElement of Array.from(this.view.contentDOM.querySelectorAll<HTMLElement>('code'))) {
-        if (codeElement.closest('pre') || codeElement.dataset.cbcProcessed || codeElement.classList.contains('codeblock-customizer-inline-code')) {
+        if (codeElement.closest('pre')) {
           continue;
         }
 
-        const parameters = this.getSourceParameters(codeElement);
-        if (parameters === null) {
+        const sourceCode = this.getSourceCode(codeElement);
+        if (!sourceCode) {
           continue;
         }
 
-        new InlineCodeRenderer(codeElement, plugin, context, parameters).load();
+        const paramsChanged = codeElement.dataset.cbcParams !== undefined && codeElement.dataset.cbcParams !== sourceCode.parameters;
+        if (!force && !paramsChanged && (codeElement.dataset.cbcProcessed || codeElement.classList.contains('codeblock-customizer-inline-code'))) {
+          continue;
+        }
+
+        if ((force || paramsChanged) && (codeElement.dataset.cbcProcessed || codeElement.classList.contains('codeblock-customizer-inline-code'))) {
+          delete codeElement.dataset.cbcProcessed;
+          for (const cls of Array.from(codeElement.classList)) {
+            if (cls === 'codeblock-customizer-inline-code' || cls.startsWith('codeblock-customizer-inline-code-highlighted')) {
+              codeElement.classList.remove(cls);
+            }
+          }
+          codeElement.textContent = decodeHtmlEntities(state.sliceDoc(sourceCode.from, sourceCode.to));
+        }
+
+        codeElement.dataset.cbcParams = sourceCode.parameters;
+        new InlineCodeRenderer(codeElement, plugin, context, sourceCode.parameters).load();
       }
     }// styleWidgets
 
-    private getSourceParameters(codeElement: HTMLElement): string | null {
+    private getSourceCode(codeElement: HTMLElement): { from: number, to: number, tagTo: number, parameters: string } | null {
       let pos: number;
       try {
         pos = this.view.posAtDOM(codeElement);
@@ -187,18 +240,23 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
       const line = this.view.state.doc.lineAt(pos);
       const widget = getWidgetRoot(codeElement);
       const index = widget ? Array.from(widget.querySelectorAll('code')).indexOf(codeElement) : 0;
-      const sourceCodes = findHtmlInlineCodesInRange(this.view.state, line.from, line.to).filter(code => code.tagTo > pos);
+      const allInLine = findHtmlInlineCodesInRange(this.view.state, line.from, line.to);
+      const gtPos = allInLine.filter(code => code.tagTo > pos);
+      const sourceCodes = gtPos.length > 0 ? gtPos : allInLine.filter(code => code.tagTo >= pos);
 
-      return sourceCodes[index]?.parameters ?? null;
-    }// getSourceParameters
+      return sourceCodes[index] ?? null;
+    }// getSourceCode
 
     destroy() {
       this.observer.disconnect();
+      if (this.frame !== null) {
+        window.cancelAnimationFrame(this.frame);
+      }
     }
   });// htmlInlineCodeWidgetPlugin
 
   function isOrContainsCode(node: Node): boolean {
-    return node instanceof HTMLElement && (node.tagName === 'CODE' || node.querySelector('code') !== null);
+    return node.instanceOf(HTMLElement) && (node.tagName === 'CODE' || node.querySelector('code') !== null);
   }// isOrContainsCode
 
   function getWidgetRoot(element: HTMLElement): HTMLElement | null {
@@ -379,8 +437,10 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     const tokens: CM5Token[] = [];
     //const mode = window.CodeMirror.getMode({}, modeSpec);
 
-    // @ts-ignore
-    const mode = window.CodeMirror.getMode(window.CodeMirror.defaults, window.CodeMirror.findModeByName(modeSpec)?.mime);
+    type CM5WithFindMode = typeof window.CodeMirror & {
+      findModeByName: (name: string) => { mime?: string } | undefined;
+    };
+    const mode = window.CodeMirror.getMode(window.CodeMirror.defaults, (window.CodeMirror as CM5WithFindMode).findModeByName(modeSpec)?.mime as string);
     if (!mode || mode.name === 'null') {
       return [{ text: code, style: null }];
     }
@@ -447,7 +507,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
           break;
         }
       }
-      
+
       const filtered = occurrences.length > 0 ? allMatches.filter((_, i) => occurrences.includes(i + 1)) : allMatches;
       for (const r of filtered) {
         decorations.push(Decoration.mark({ class: className }).range(codeStartPos + r.from, codeStartPos + r.to));

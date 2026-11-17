@@ -8,8 +8,18 @@ import { fadeOutLineCount } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
 import { createUncollapseCodeButton, isPluginLoaded, isSpecificHeader, determineDefaultFoldState, isSourceMode } from "../Utils";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
-import { FoldingState, FoldCommand, setFoldCommandState, setFoldState, CollapsedDecoration, Collapse, UnCollapse, semiCollapse, semiUnCollapse, semiFade, semiUnFade, CodeBlockFoldEffect, SemiUncollapseEffect } from "./EditorEffects";
+import { FoldingState, FoldCommand, FoldStateAnnotation, setFoldCommandState, setFoldState, CollapsedDecoration, Collapse, UnCollapse, semiCollapse, semiUnCollapse, semiFade, semiUnFade, CodeBlockFoldEffect, SemiUncollapseEffect } from "./EditorEffects";
 import { compareCodeBlockPositions } from "./CompareUtils";
+
+interface FoldDecorationSpec {
+  attributes?: Record<string, string | undefined>;
+  block?: boolean;
+  widget?: unknown;
+}
+
+function getSpec(deco: Decoration): FoldDecorationSpec {
+  return deco.spec as FoldDecorationSpec;
+}
 
 export interface ReplaceFadeOutRanges {
   replaceStart: Line;
@@ -220,7 +230,8 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
           const { filterFrom, filterTo } = effect.value;
           value = value.update({
             filter: (from, to, value) => {
-              const isCollapsedDeco = value.spec.attributes?.['code-folded'] === 'true';
+              const spec = getSpec(value);
+              const isCollapsedDeco = spec.attributes?.['code-folded'] === 'true';
               const isInRange = from >= filterFrom && to <= filterTo;
               return !isInRange || !isCollapsedDeco;
             },
@@ -233,7 +244,8 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
           const { filterFrom, filterTo } = effect.value;
           value = value.update({
             filter: (from: number, to: number, value: Decoration) => {
-              const isSemiCollapseReplaceDeco = value.spec.block === true && !value.spec.attributes?.['code-folded'];
+              const spec = getSpec(value);
+              const isSemiCollapseReplaceDeco = spec.block === true && !spec.attributes?.['code-folded'];
               const isInRange = from >= filterFrom && to <= filterTo;
               return !isInRange || !isSemiCollapseReplaceDeco;
             },
@@ -246,9 +258,10 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
           const { filterFrom, filterTo } = effect.value;
           value = value.update({
             filter: (from, to, value) => {
-              const isFadeOutLineDeco = value.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line');
-              const isSemiFoldClassDeco = value.spec.attributes?.class?.includes('semi-folded');
-              const isUncollapseWidgetDeco = value.spec.widget instanceof uncollapseCodeWidget;
+              const spec = getSpec(value);
+              const isFadeOutLineDeco = spec.attributes?.class?.includes('codeblock-customizer-fade-out-line');
+              const isSemiFoldClassDeco = spec.attributes?.class?.includes('semi-folded');
+              const isUncollapseWidgetDeco = spec.widget instanceof uncollapseCodeWidget;
               const isSemiFadeRelatedDeco = isFadeOutLineDeco || isSemiFoldClassDeco || isUncollapseWidgetDeco;
               const isInRange = from >= filterFrom && to <= filterTo;
               return !isInRange || !isSemiFadeRelatedDeco;
@@ -371,12 +384,13 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
   function isBlockCurrentlyFoldedInSet(decorations: DecorationSet, startPos: number, endPos: number): boolean {
     let folded = false;
     decorations.between(startPos, endPos, (decoFrom, decoTo, decoration) => {
-      if (decoration.spec.attributes?.['code-folded'] === 'true' || decoration.spec.block === true) {
+      const spec = getSpec(decoration);
+      if (spec.attributes?.['code-folded'] === 'true' || spec.block === true) {
         folded = true;
         return false;
       }
 
-      if (decoration.spec.widget instanceof uncollapseCodeWidget || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
+      if (spec.widget instanceof uncollapseCodeWidget || spec.attributes?.class?.includes('semi-folded') || spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
         folded = true;
       }
       return undefined;
@@ -384,9 +398,9 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
     return folded;
   }// isBlockCurrentlyFoldedInSet
 
-  function toggleCodeBlockFold(view: EditorView, pos: CodeBlockPositions): { effects: CodeBlockFoldEffect[], annotations: Annotation<any>[] } {
+  function toggleCodeBlockFold(view: EditorView, pos: CodeBlockPositions): { effects: CodeBlockFoldEffect[], annotations: Annotation<FoldStateAnnotation>[] } {
     const effects: CodeBlockFoldEffect[] = [];
-    const annotations: Annotation<any>[] = [];
+    const annotations: Annotation<FoldStateAnnotation>[] = [];
     const { codeBlockStartPos, codeBlockEndPos } = pos;
     const start = view.state.doc.lineAt(codeBlockStartPos);
     const end = view.state.doc.lineAt(codeBlockEndPos);
@@ -452,14 +466,15 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
     let isSemiFolded = false;
 
     decorations.between(startPos, endPos, (decoFrom, decoTo, decoration) => {
+      const spec = getSpec(decoration);
       // check if it is fully folded
-      if (decoration.spec.attributes?.['code-folded'] === 'true') {
+      if (spec.attributes?.['code-folded'] === 'true') {
         isFullyFolded = true;
         return false;
       }
 
       // check if it is semi-folded
-      if (decoration.spec.widget instanceof uncollapseCodeWidget || decoration.spec.attributes?.class?.includes('semi-folded') || decoration.spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
+      if (spec.widget instanceof uncollapseCodeWidget || spec.attributes?.class?.includes('semi-folded') || spec.attributes?.class?.includes('codeblock-customizer-fade-out-line')) {
         isSemiFolded = true;
         return undefined;
       }
@@ -483,7 +498,6 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
     effects.push(semiFade.of(semiFoldClass.range(ranges.firstLine.from, ranges.firstLine.from)));
 
     let fadeIdx = 0;
-    let lastFadeOutLine = ranges.fadeOutStart;
     const fadeOutStartNumber = state.doc.lineAt(ranges.fadeOutStart.from).number;
     const fadeOutEndNumber = state.doc.lineAt(ranges.fadeOutEnd.from).number;
 
@@ -495,12 +509,11 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
       const fadeOutLine = state.doc.line(i);
       const fadeOutDecoration = Decoration.line({ attributes: { class: `codeblock-customizer-fade-out-line${fadeIdx}` } });
       effects.push(semiFade.of(fadeOutDecoration.range(fadeOutLine.from, fadeOutLine.from)));
-      lastFadeOutLine = fadeOutLine;
       fadeIdx++;
       if (fadeIdx === fadeOutLineCount) {
         const uncollapseWidget = new uncollapseCodeWidget(pos);
         const deco = Decoration.widget({ widget: uncollapseWidget });
-        const widgetPos = lastFadeOutLine.to;
+        const widgetPos = fadeOutLine.to;
         effects.push(semiFade.of(deco.range(widgetPos, widgetPos)));
       }
     }

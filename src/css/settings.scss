@@ -8,8 +8,32 @@
   display: none;
 }
 
-.codeblock-customizer-setting-hidden {
+.codeblock-customizer-setting-hidden,
+.cbc-search-hidden {
   display: none !important;
+}
+
+.codeblock-customizer-setting-warning {
+  margin-top: 4px;
+  color: var(--text-error);
+  font-weight: bold;
+}
+
+.codeblock-customizer-syntax-theme-note {
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  color: var(--text-error);
+}
+
+.codeblock-customizer-syntax-lang-desc {
+  margin-bottom: 8px;
+}
+
+.codeblock-customizer-syntax-editor-header {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-weight: bold;
 }
 
 .codeblock-customizer-settingspage {
@@ -261,6 +285,10 @@
 .cb-settings-section h3 {
   margin-top: 0;
   margin-bottom: 1em;
+
+  &.cbc-search-clickable {
+    cursor: pointer;
+  }
 }
 
 .codeblock-customizer-readme-link {

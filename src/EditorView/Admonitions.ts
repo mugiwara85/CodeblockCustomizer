@@ -29,7 +29,7 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
       for (const mutation of mutations) {
         for (const node of Array.from(mutation.addedNodes)) {
-          if (node instanceof HTMLElement) {
+          if (node.instanceOf(HTMLElement)) {
             if (node.matches('.cm-preview-code-block, .admonition')) {
               this.processAllAdmonitions(node, view);
             }
@@ -71,7 +71,7 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
           return;
         }
 
-        const renderedPreElements = Array.from(admonitionEl.querySelectorAll('div.admonition-content pre:not(.frontmatter)')) as HTMLElement[];
+        const renderedPreElements = Array.from(admonitionEl.querySelectorAll<HTMLElement>('div.admonition-content pre:not(.frontmatter)'));
         if (renderedPreElements.length !== innerCodeBlocks.length) {
           return;
         }
@@ -88,7 +88,7 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
           const absoluteLineStart = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.startLine;
           const absoluteLineEnd = view.state.doc.lineAt(admonitionBlockData.codeBlockStartPos).number + blockData.endLine;
           const sectionInfo = { lineStart: absoluteLineStart - 1, lineEnd: absoluteLineEnd - 1, text: blockData.contentLines.join('\n') };
-          renderer.renderExternal(blockData.firstLine, blockData.contentLines, sectionInfo, fileContentLines);
+          void renderer.renderExternal(blockData.firstLine, blockData.contentLines, sectionInfo, fileContentLines);
         }
       });
     }

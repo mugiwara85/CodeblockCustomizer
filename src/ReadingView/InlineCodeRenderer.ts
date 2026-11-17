@@ -1,13 +1,13 @@
-import { MarkdownPostProcessorContext, loadPrism, MarkdownRenderChild } from "obsidian";
+import { MarkdownPostProcessorContext, MarkdownRenderChild } from "obsidian";
 
-import { getLanguageIcon, getInlineCodeIcon, addTextToClipboard, loadCustomPrismLanguages } from "../Utils";
+import { getLanguageIcon, getInlineCodeIcon, addTextToClipboard, loadCustomPrismLanguages, getPrism, PrismInstance, setTrustedHtml } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { INLINE_CODE_LANG_REGEX } from "../Const";
 import { InlineCodeModifierKeys } from "../Settings";
 import { getDisplayLanguageName } from "../Utils";
 import { parseInlineCodeHighlightParams, getInlineCodeBgClass, InlineCodeHighlightParameters, HighlightedWord } from "../Parsing";
 import { HighlightRules, TextBetweenRule, AltTextBetweenRule } from "../HighlightRules";
-import { getHighlightedLineHtml } from "./ReadingViewUtils";
+import { applyHighlightsToElement } from "./ReadingViewUtils";
 import { combineInlineCodeParameters, getInlineCodeAttributeParameters } from "../HtmlCodeBlocks";
 
 export class InlineCodeRenderer extends MarkdownRenderChild {
@@ -24,9 +24,17 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     this.attributeParameters = attributeParameters;
   }
 
-  async onload() {
+  onload() {
+    void this.render();
+  }// onload
+
+  private async render() {
     if (this.containerEl.dataset.cbcProcessed) {
       return;
+    }
+
+    if (this.containerEl.className.includes('language-')) {
+      void getPrism().then(() => this.containerEl.classList.remove('is-loaded'));
     }
 
     this.containerEl.classList.add('codeblock-customizer-inline-code');
@@ -59,8 +67,8 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     const hasTextHighlight = !!(inlineParams && (inlineParams.textHighlight.words.length > 0 || inlineParams.textHighlight.textBetween.length > 0 || inlineParams.textHighlight.lineSpecificWords.length > 0 || inlineParams.textHighlight.allWordsInLine.length > 0 || inlineParams.alternativeTextHighlights.length > 0));
     const hasBackgroundHighlight = inlineParams?.backgroundColorClass != null;
 
-    if (isValidMatch && ((settings.enableSyntaxHighlight && hasLanguage) || hasTextHighlight || hasBackgroundHighlight)) {
-      const prism = await loadPrism();
+    if (isValidMatch && (hasLanguage || hasTextHighlight || hasBackgroundHighlight)) {
+      const prism = await getPrism();
       loadCustomPrismLanguages(prism);
       this.processInlineCodeElement(prism, match, inlineParams!);
     } else {
@@ -71,7 +79,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     }
 
     this.containerEl.dataset.cbcProcessed = 'true';
-  }// onload
+  }// render
 
   private getMatch(text: string): RegExpMatchArray | null {
     const prefixMatch = text.match(INLINE_CODE_LANG_REGEX);
@@ -98,7 +106,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     }
   }// onunload
 
-  private processInlineCodeElement(prism: any, match: RegExpMatchArray, inlineParams: InlineCodeHighlightParameters) {
+  private processInlineCodeElement(prism: PrismInstance, match: RegExpMatchArray, inlineParams: InlineCodeHighlightParameters) {
     const text = this.containerEl.textContent?.trim();
     if (!text) {
       return;
@@ -141,7 +149,7 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
       event.preventDefault();
       event.stopImmediatePropagation();
 
-      addTextToClipboard(getTextToCopy());
+      void addTextToClipboard(getTextToCopy());
     };
   }// createInlineCodeClickHandler
 
@@ -153,21 +161,21 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     return null;
   }// createInlineCodeIcon
 
-  private createCodeContentSpan(code: string, language: string, prism: any, inlineParams?: InlineCodeHighlightParameters): HTMLSpanElement {
+  private createCodeContentSpan(code: string, language: string, prism: PrismInstance, inlineParams?: InlineCodeHighlightParameters): HTMLSpanElement {
     const langClass = language ? `language-${language} codeblock-customizer-language-${language.toLowerCase()}` : '';
     const codeContentSpan = createSpan({ cls: `codeblock-customizer-inline-code-content${langClass ? ' ' + langClass : ''}` });
     const isLanguageSupportedByPrism = language && prism.languages[language];
 
     if (isLanguageSupportedByPrism) {
       const highlightedHtml = prism.highlight(code, prism.languages[language], language);
-      codeContentSpan.innerHTML = highlightedHtml;
+      setTrustedHtml(codeContentSpan, highlightedHtml);
     } else {
       codeContentSpan.textContent = code;
     }
 
     if (inlineParams && (inlineParams.textHighlight.words.length > 0 || inlineParams.textHighlight.textBetween.length > 0 || inlineParams.textHighlight.lineSpecificWords.length > 0 || inlineParams.textHighlight.allWordsInLine.length > 0 || inlineParams.alternativeTextHighlights.length > 0)) {
       const rules = buildInlineHighlightRules(inlineParams);
-      codeContentSpan.innerHTML = getHighlightedLineHtml(codeContentSpan.innerHTML, rules, 1);
+      applyHighlightsToElement(codeContentSpan, rules, 1);
     }
 
     return codeContentSpan;

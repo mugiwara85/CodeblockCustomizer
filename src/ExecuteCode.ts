@@ -106,7 +106,7 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
       if (!outputElement.classList.contains('codeblock-customizer-execute-code-output')) {
         outputElement.classList.add('codeblock-customizer-execute-code-output');
       }
-      processExecuteCodeOutput(outputElement as HTMLElement, executionObserver, preElement, parameters, plugin);
+      void processExecuteCodeOutput(outputElement, executionObserver, preElement, parameters, plugin);
     }
   });
 
@@ -121,7 +121,7 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
 }// setupExecuteCodeObserver
 
 export function verifyAndRevealExecuteButtons(scope?: HTMLElement) {
-  const searchEl = scope || document;
+  const searchEl = scope || activeDocument;
   const buttonsToVerify = searchEl.querySelectorAll('.codeblock-customizer-execute-code-button-pending-verification');
 
   buttonsToVerify.forEach((button: HTMLElement) => {
@@ -139,7 +139,7 @@ export function verifyAndRevealExecuteButtons(scope?: HTMLElement) {
 }// verifyAndRevealExecuteButtons
 
 function createExecuteCodeRunButton(): HTMLElement {
-  const button = document.createElement("button");
+  const button = createEl("button");
   button.classList.add(`codeblock-customizer-execute-code-button`);
   button.classList.add(`codeblock-customizer-execute-code-button-pending-verification`);
   button.setAttribute("aria-label", "Execute code");
@@ -160,7 +160,7 @@ function executeCode(event: Event, parentContainer: HTMLElement, parameters: CBC
 }// executeCode
 
 function createExecuteCodeClearButton(): HTMLElement {
-  const button = document.createElement("button");
+  const button = createEl("button");
   button.classList.add(`codeblock-customizer-execute-code-clear-button`);
   button.classList.add(`codeblock-customizer-execute-code-clear-button-hidden`);
   button.setAttribute("aria-label", "Clear output");
@@ -180,7 +180,7 @@ function clearOutput(event: Event, parentContainer: HTMLElement) {
 }// clearOutput
 
 export function createExecuteCodeEditButton(): HTMLElement {
-  const button = document.createElement("button");
+  const button = createEl("button");
   button.classList.add(`codeblock-customizer-execute-code-edit-button`);
   button.setAttribute("aria-label", "Edit this block");
   setIcon(button, "code-xml");
@@ -213,9 +213,9 @@ const ExecuteCodeSeparatorOutputClass = 'codeblock-customizer-execute-code-outpu
 function ExecuteCodeSeparatorWidget(): HTMLElement {
   const container = createDiv({ cls: ExecuteCodeSeparatorOutputClass });
   const content = createSpan({ cls: `codeblock-customizer-execute-code-output-separator-content`, text: 'Execute code output' });
-  
+
   container.appendChild(content);
-  
+
   return container;
 }// ExecuteCodeSeparatorWidget
 

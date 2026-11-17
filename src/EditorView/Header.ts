@@ -1,6 +1,6 @@
-import { editorInfoField, Notice, setIcon } from "obsidian";
+import { Component, editorInfoField, Notice, setIcon } from "obsidian";
 
-import { StateField, EditorState, Transaction, Extension, Range, RangeSet, EditorSelection } from "@codemirror/state";
+import { StateField, EditorState, Transaction, Extension, Range, RangeSet, EditorSelection, Annotation } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
@@ -9,9 +9,9 @@ import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters, getAllParameters } from "../Parsing";
 import { DEFAULT_COLLAPSE_TEXT } from "../Const";
 import { PromptManager } from "../PromptManager";
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, normalizeIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons } from "../Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, removeFenceIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons, removeAnnotationRangesFromCode } from "../Utils";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
-import { FoldingState, rehideEffect, CodeBlockFoldEffect, wrapEffect } from "./EditorEffects";
+import { FoldingState, FoldStateAnnotation, rehideEffect, CodeBlockFoldEffect, wrapEffect } from "./EditorEffects";
 import { areGroupMembersEqual, areObjectsEqual } from "./CompareUtils";
 import { getHtmlCodeBlockCode } from "../HtmlCodeBlocks";
 
@@ -26,7 +26,7 @@ export interface ButtonConfig {
 
 export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>, collapseField: StateField<RangeSet<Decoration>>, activeGroupTabField: StateField<Record<string, number>>,
   groupedCodeBlocksField: StateField<GroupedCodeBlocks>, hiddenLinesUnhiddenField: StateField<Set<number>>, unwrappedCodeBlocksField: StateField<Set<number>>, getFoldingState: (state: EditorState, startPos: number, endPos: number) => FoldingState,
-  toggleCodeBlockFold: (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, addTabs: (view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) => void,
+  toggleCodeBlockFold: (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: Annotation<FoldStateAnnotation>[] }, addTabs: (view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) => void,
   getHiddenRanges: (state: EditorState, parameters: CBCParameters, codeBlockStartPos: number, codeBlockEndPos: number) => { startLine: number, endLine: number, lineCount: number, from: number, to: number }[]) {
 
   const headerField = StateField.define<DecorationSet>({
@@ -82,6 +82,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
   });// headerField
 
   class HeaderWidget extends WidgetType {
+    private component = new Component(); // owner of the rendered header text, unloaded when the widget is removed
     enableLinks: boolean;
     languageSpecificColors: Record<string, string>;
     parameters: CBCParameters;
@@ -154,7 +155,8 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
 
       const isCollapsed = this.foldingState === FoldingState.FullyFolded || this.foldingState === FoldingState.SemiFolded;
       const displayText = (!this.parameters.hasTitle && isCollapsed) ? (this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT) : this.parameters.headerDisplayText;
-      container.appendChild(createFileName(displayText, this.enableLinks, this.sourcePath, this.plugin));
+      this.component.load();
+      container.appendChild(createFileName(displayText, this.enableLinks, this.sourcePath, this.plugin, this.component));
 
       // header buttons
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
@@ -189,8 +191,8 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       }
 
       container.onclick = (event) => {
-        // don't collapse/uncollapse if a tab was clicked
-        if (!event.target || ((event.target as HTMLElement).closest('.codeblock-customizer-header-group-tab') ||
+        // don't collapse/uncollapse if a tab, a button or a link in the title was clicked
+        if (!event.target || ((event.target as HTMLElement).closest('a') || (event.target as HTMLElement).closest('.codeblock-customizer-header-group-tab') ||
           (event.target as HTMLElement).closest('.codeblock-customizer-button-container') ||
           (event.target as HTMLElement).closest('.codeblock-customizer-uncollapse-button'))) {
           return;
@@ -209,6 +211,10 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       //EditorView.requestMeasure;
 
       return container;
+    }
+
+    destroy() {
+      this.component.unload();
     }
   }// HeaderWidget
 
@@ -361,7 +367,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
             for (let i = firstLineNumber; i <= lastLineNumber; i++) {
               lines.push(state.doc.line(i).text);
             }
-            addTextToClipboard(includeFences ? view.state.sliceDoc(htmlBlock.from, htmlBlock.to) : getHtmlCodeBlockCode(lines));
+            void addTextToClipboard(includeFences ? view.state.sliceDoc(htmlBlock.from, htmlBlock.to) : getHtmlCodeBlockCode(lines));
             return;
           }
 
@@ -369,7 +375,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
           const to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
 
           if (from > to) {
-            addTextToClipboard("");
+            void addTextToClipboard("");
             return;
           }
 
@@ -407,10 +413,10 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
               initialLines = content.split('\n');
             }
 
-            const processedLines = normalizeIndentation(initialLines);
+            const processedLines = removeFenceIndentation(initialLines, state.doc.lineAt(codeBlockStartPos).text);
             blockContent = processedLines.join('\n');
           }
-          addTextToClipboard(blockContent);
+          void addTextToClipboard(blockContent);
         },
         icon: "copy",
         text: parameters.displayLanguage,
@@ -419,8 +425,8 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       {
         class: `codeblock-customizer-snapshot-button`,
         displayText: "Copy as image",
-        action: async (view: EditorView, container?: HTMLElement) => {
-          await createSnapshot(container, view, codeBlockStartPos, codeBlockEndPos, state);
+        action: (view: EditorView, container?: HTMLElement) => {
+          void createSnapshot(container, view, codeBlockStartPos, codeBlockEndPos, state);
         },
         icon: "camera",
         enabled: settings.pluginSettings.codeblock.buttons.enableSnapshotButton && showButton
@@ -530,7 +536,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
             break;
           }
 
-          elementsToSnapshot.push(nextEl as HTMLElement);
+          elementsToSnapshot.push(nextEl);
           currentEl = nextEl;
         }
       } else {
@@ -553,7 +559,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
         }
       }
 
-      const cloneContainer = document.createElement('div');
+      const cloneContainer = createDiv();
       elementsToSnapshot.forEach(el => {
         cloneContainer.appendChild(el.cloneNode(true));
       });
@@ -642,6 +648,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       enter: (node) => {
         if (node.type.name.includes("comment")) {
           const commentText = view.state.sliceDoc(node.from, node.to);
+          // only annotations ([!type]) are removed, regular comments are always copied (even if "Convert all comments to annotations" is enabled)
           if (ANNOTATION_PATTERN.test(commentText)) {
             rangesToRemove.push({ from: node.from - from, to: node.to - from });
           }
@@ -649,18 +656,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       }
     });
 
-    if (rangesToRemove.length > 0) {
-      let newContent = "";
-      let lastIndex = 0;
-      for (const range of rangesToRemove) {
-        newContent += codeText.substring(lastIndex, range.from);
-        lastIndex = range.to;
-      }
-      newContent += codeText.substring(lastIndex);
-      return newContent;
-    }
-
-    return codeText;
+    return removeAnnotationRangesFromCode(codeText, rangesToRemove);
   }// getCodeWithoutAnnotation
 
   return {

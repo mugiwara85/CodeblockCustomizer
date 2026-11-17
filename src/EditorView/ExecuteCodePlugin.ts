@@ -30,13 +30,26 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
 
       for (const mutation of mutations) {
         for (const node of Array.from(mutation.addedNodes)) {
-          if (!(node instanceof HTMLElement)) {
+          if (!(node.instanceOf(HTMLElement))) {
             continue;
           }
 
           const runButtons = node.querySelectorAll<HTMLElement>('.run-code-button');
           runButtons.forEach(button => this.processRunButton(button, view));
+
+          if (node.matches('.edit-block-button')) {
+            this.hideEditButtonIfProcessed(node);
+          } else {
+            node.querySelectorAll<HTMLElement>('.edit-block-button').forEach(btn => this.hideEditButtonIfProcessed(btn));
+          }
         }
+      }
+    }
+
+    private hideEditButtonIfProcessed(editButton: HTMLElement) {
+      const blockContainer = editButton.closest('.cm-preview-code-block');
+      if (blockContainer && blockContainer.querySelector('pre[data-cbc-processed], .run-code-button')) {
+        editButton.classList.add('codeblock-customizer-edit-button-hidden');
       }
     }
 
@@ -51,7 +64,7 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
       if (blockContainer) {
         const editButton = blockContainer.querySelector<HTMLElement>('.edit-block-button');
         if (editButton) {
-          editButton.style.display = 'none';
+          editButton.classList.add('codeblock-customizer-edit-button-hidden');
         }
       }
 
@@ -64,7 +77,7 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
       const block = codeBlocks.find(b => pos >= b.codeBlockStartPos && pos <= b.codeBlockEndPos);
       if (block && block.parameters.language.startsWith('run-')) {
         const rawLines = view.state.sliceDoc(block.codeBlockStartPos, block.codeBlockEndPos);
-        styleExecuteCodeWidget(preElement, rawLines);
+        void styleExecuteCodeWidget(preElement, rawLines);
       }
     }
 
@@ -81,7 +94,7 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
 
     if (Array.from(codeElement.classList).some(className => /^language-\S+/.test(className))) {
       while (!codeElement.classList.contains("is-loaded")) {
-        await new Promise(resolve => setTimeout(resolve, 2));
+        await new Promise(resolve => window.setTimeout(resolve, 2));
       }
     }
 
@@ -139,6 +152,8 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
     const parent = preElement.parentElement;
     if (parent)
       verifyAndRevealExecuteButtons(parent);
+    const blockContainer = preElement.closest('.cm-preview-code-block');
+    blockContainer?.querySelectorAll<HTMLElement>('.edit-block-button').forEach(btn => btn.classList.add('codeblock-customizer-edit-button-hidden'));
     //}, 50);
   }// styleExecuteCodeWidget
 

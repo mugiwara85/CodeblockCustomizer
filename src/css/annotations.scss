@@ -54,7 +54,7 @@
 
 /* ln */
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) .codeblock-customizer-annotation-icon {
-  left: calc(var(--gutter-padding, var(--gutter-width, 0px)) + 2px);
+  left: calc(var(--gutter-padding, var(--gutter-width, var(--line-number-gutter-width))) + 2px);
 }
 
 /* popup tooltip */
@@ -75,11 +75,13 @@
   line-height: 1.5;
   opacity: 0;
   transform: scale(0.95);
-  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
+  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out, visibility 150ms;
+  visibility: hidden;
 
   &.is-visible {
     opacity: 1;
     transform: scale(1);
+    visibility: visible;
   }
 }
 

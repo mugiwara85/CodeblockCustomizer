@@ -1,4 +1,4 @@
-import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView, loadPrism, Component } from "obsidian";
 
 import { EditorState } from "@codemirror/state";
 
@@ -13,14 +13,38 @@ import { CBCParameters } from "./Parsing";
 import { toBlob } from 'html-to-image';
 
 let cachedMode: "light" | "dark" | null = null;
+const SETTING_STYLE_ID = 'codeblock-customizer-styles';
+
+export function clearSettingStyles(app?: App): void {
+  for (const doc of getTargetDocuments(app)) {
+    doc.getElementById(SETTING_STYLE_ID)?.remove();
+  }
+}// clearSettingStyles
+
+export function getTargetDocuments(app?: App): Document[] {
+  const docs = new Set<Document>([document, activeDocument]);
+  const rootDoc = app?.workspace?.rootSplit?.doc;
+  if (rootDoc) {
+    docs.add(rootDoc);
+  }
+  app?.workspace?.iterateAllLeaves((leaf) => {
+    const leafDoc = leaf.view?.containerEl?.doc;
+    if (leafDoc) {
+      docs.add(leafDoc);
+    }
+  });
+  return Array.from(docs);
+}// getTargetDocuments
 
 function retrieveCurrentMode(): "light" | "dark" {
-  const body = document.querySelector('body');
-  if (body !== null) {
-    if (body.classList.contains('theme-light')) {
-      return "light";
-    } else if (body.classList.contains('theme-dark')) {
-      return "dark";
+  for (const doc of getTargetDocuments()) {
+    const body = doc.querySelector('body');
+    if (body !== null) {
+      if (body.classList.contains('theme-light')) {
+        return "light";
+      } else if (body.classList.contains('theme-dark')) {
+        return "dark";
+      }
     }
   }
   return 'dark'; // fall back to dark
@@ -197,7 +221,7 @@ export function getLanguageIcon(DisplayName: string) {
   if (!DisplayName)
     return "";
 
-  if (Icons.hasOwnProperty(DisplayName)) {
+  if (Object.prototype.hasOwnProperty.call(Icons, DisplayName)) {
     return Icons[DisplayName];
   }
 
@@ -255,7 +279,7 @@ async function loadCustomIcons(plugin: CodeBlockCustomizerPlugin) {
       }
     }
     for (const language of lang.codeblockLanguages) {
-      manualLang[language] = lang.displayName as string;
+      manualLang[language] = lang.displayName;
     }
   }
 
@@ -278,18 +302,57 @@ export function loadSyntaxHighlightForCustomLanguages(plugin: CodeBlockCustomize
 const CUSTOM_PRISM_LANGUAGES_FILE = "customPrismLanguages.json";
 let registeredCustomPrismLanguages: string[] = [];
 let customPrismLanguageNames: Set<string> = new Set();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let customPrismDefinitions: Record<string, any> | null = null;
+let customPrismDefinitions: Record<string, unknown> | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertRegexStrings(value: any): any {
+export interface PrismToken {
+  type: string;
+  content: string | PrismToken | Array<string | PrismToken>;
+  alias?: string | string[];
+}
+
+export interface PrismInstance {
+  languages: Record<string, unknown>;
+  highlight: (text: string, grammar: unknown, language: string) => string;
+  tokenize: (text: string, grammar: unknown) => Array<string | PrismToken>;
+  hooks: { run: (name: string, env: object) => void };
+}
+
+// returns the same tokens as highlight() uses. tokenize() alone skips the hooks, which languages embedded in HTML need (PHP, Handlebars, Django, EJS, ...)
+export function tokenizeWithHooks(prism: PrismInstance, code: string, grammar: unknown, language: string): Array<string | PrismToken> {
+  const env: { code: string; grammar: unknown; language: string; tokens: Array<string | PrismToken> } = { code, grammar, language, tokens: [] };
+  prism.hooks.run('before-tokenize', env);
+  env.tokens = prism.tokenize(env.code, env.grammar);
+  prism.hooks.run('after-tokenize', env);
+  return env.tokens;
+}// tokenizeWithHooks
+
+export async function getPrism(): Promise<PrismInstance> {
+  return (await loadPrism()) as PrismInstance;
+}// getPrism
+
+// replacement for "element.innerHTML = html"
+export function parseTrustedHtmlBatch(htmls: string[]): DocumentFragment[] {
+  const wrapped = htmls.map(html => `<template>${html}</template>`).join('');
+  const body = new DOMParser().parseFromString(`<!DOCTYPE html><body>${wrapped}`, 'text/html').body;
+  return Array.from(body.children, template => (template as HTMLTemplateElement).content);
+}// parseTrustedHtmlBatch
+
+export function parseTrustedHtml(html: string): DocumentFragment {
+  return parseTrustedHtmlBatch([html])[0];
+}// parseTrustedHtml
+
+export function setTrustedHtml(targetEl: HTMLElement, html: string): void {
+  targetEl.replaceChildren(parseTrustedHtml(html));
+}// setTrustedHtml
+
+function convertRegexStrings(value: unknown): unknown {
   if (typeof value === "string") {
     const regexMatch = value.match(/^\/(.+)\/([gimsuy]*)$/);
     if (regexMatch) {
       try {
         return new RegExp(regexMatch[1], regexMatch[2]);
       } catch (e) {
-        new Notice(`Invalid regex "${value}" in ${CUSTOM_PRISM_LANGUAGES_FILE}: ${e}`);
+        new Notice(`Invalid regex "${value}" in ${CUSTOM_PRISM_LANGUAGES_FILE}: ${String(e)}`);
         return value;
       }
     }
@@ -301,10 +364,9 @@ function convertRegexStrings(value: any): any {
   }
 
   if (value !== null && typeof value === "object") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = {};
-    for (const key of Object.keys(value)) {
-      result[key] = convertRegexStrings(value[key]);
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value)) {
+      result[key] = convertRegexStrings(val);
     }
     return result;
   }
@@ -323,25 +385,24 @@ export async function parseCustomPrismLanguages(plugin: CodeBlockCustomizerPlugi
   try {
     jsonContent = await plugin.app.vault.adapter.read(path);
   } catch (e) {
-    new Notice(`Failed to read ${CUSTOM_PRISM_LANGUAGES_FILE}: ${e}`);
+    new Notice(`Failed to read ${CUSTOM_PRISM_LANGUAGES_FILE}: ${String(e)}`);
     return;
   }
 
   let definitions: Record<string, unknown>;
   try {
-    definitions = JSON.parse(jsonContent);
+    definitions = JSON.parse(jsonContent) as Record<string, unknown>;
   } catch (e) {
-    new Notice(`Invalid JSON in ${CUSTOM_PRISM_LANGUAGES_FILE}: ${e}`);
+    new Notice(`Invalid JSON in ${CUSTOM_PRISM_LANGUAGES_FILE}: ${String(e)}`);
     return;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const converted: Record<string, any> = {};
+  const converted: Record<string, unknown> = {};
   for (const [name, definition] of Object.entries(definitions)) {
     try {
       converted[name] = convertRegexStrings(definition);
     } catch (e) {
-      new Notice(`Failed to parse language "${name}": ${e}`);
+      new Notice(`Failed to parse language "${name}": ${String(e)}`);
     }
   }
 
@@ -349,8 +410,7 @@ export async function parseCustomPrismLanguages(plugin: CodeBlockCustomizerPlugi
   customPrismLanguageNames = new Set(Object.keys(converted));
 }// parseCustomPrismLanguages
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function loadCustomPrismLanguages(prism: any): void {
+export function loadCustomPrismLanguages(prism: PrismInstance): void {
   if (!customPrismDefinitions) {
     return;
   }
@@ -360,7 +420,7 @@ export function loadCustomPrismLanguages(prism: any): void {
       prism.languages[name] = definition;
       registeredCustomPrismLanguages.push(name);
     } catch (e) {
-      new Notice(`Failed to register language "${name}": ${e}`);
+      new Notice(`Failed to register language "${name}": ${String(e)}`);
     }
   }
 
@@ -368,8 +428,7 @@ export function loadCustomPrismLanguages(prism: any): void {
 }// loadCustomPrismLanguages
 
 export function unloadCustomPrismLanguages() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const prism = (window as any).Prism;
+  const prism = (window as Window & { Prism?: PrismInstance }).Prism;
   if (prism) {
     for (const name of registeredCustomPrismLanguages) {
       delete prism.languages[name];
@@ -476,7 +535,7 @@ export function createCodeblockLang(lang: string, langClass?: string, tabName?: 
 
 export function createCodeblockIcon(displayLang: string, cls?: string) {
   const div = createDiv({ cls: `codeblock-customizer-icon-container` });
-  const img = document.createElement("img");
+  const img = createEl("img");
   img.classList.add(cls ? cls : "codeblock-customizer-icon");
   img.width = 28; //32
   img.src = BLOBS[displayLang.replace(/\s/g, "_")];
@@ -519,11 +578,14 @@ export function createCodeblockCollapse(defaultFold: boolean, style: CollapseIco
   return collapse;
 }// createCodeblockLang
 
-export function createFileName(text: string, enableLinks: boolean, sourcePath: string, plugin: CodeBlockCustomizerPlugin) {
+export function createFileName(text: string, enableLinks: boolean, sourcePath: string, plugin: CodeBlockCustomizerPlugin, owner: Component) {
   const fileName = createDiv({ cls: "codeblock-customizer-header-text" });
 
   if (enableLinks) {
-    MarkdownRenderer.render(plugin.app, text, fileName, sourcePath, plugin);
+    const component = new Component();
+    component.load();
+    owner.addChild(component);
+    void MarkdownRenderer.render(plugin.app, text, fileName, sourcePath, component);
   }
   else {
     fileName.innerText = text;
@@ -599,13 +661,6 @@ const stylesDict: StylesDict = {
 }// stylesDict
 
 export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
-  const styleId = 'codeblock-customizer-styles';
-  let styleTag = document.getElementById(styleId);
-  if (typeof (styleTag) == 'undefined' || styleTag == null) {
-    styleTag = document.createElement('style');
-    styleTag.id = styleId;
-    document.getElementsByTagName('head')[0].appendChild(styleTag);
-  }
   const currentMode = getCurrentMode();
 
   const codeblockBackgroundColor = settings.SelectedTheme.colors[currentMode].codeblock.backgroundColor;
@@ -785,9 +840,8 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
   `;
 
-  // @ts-ignore
-  const theme = app.vault.getConfig("cssTheme");
-  let minimalSpecificStyling = "";
+  const theme = ((app.vault as typeof app.vault & { getConfig: (key: string) => string | undefined }).getConfig("cssTheme")) ?? "";
+  let minimalSpecificStyling: string;
   if (theme.toLowerCase() === "minimal") {
     minimalSpecificStyling = `
     .markdown-source-view.is-readable-line-width .indented-line {
@@ -832,7 +886,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
   `;
 
-  let printRules = '';
+  let printRules: string;
   if (settings.pluginSettings.printing.printAnnotationsAsComments) {
     printRules = `
       .print .codeblock-customizer-annotation-icon {
@@ -897,223 +951,247 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
   }
 
-  styleTag.innerText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + altHighlightStyling + mainHighlightExtraRules + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles + inlineCodeExtraRules).trim().replace(/[\r\n\s]+/g, ' ');
+  const cssText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + mainHighlightExtraRules + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles + inlineCodeExtraRules).trim().replace(/[\r\n\s]+/g, ' ');
 
-  updateSettingClasses(settings.pluginSettings);
+  for (const doc of getTargetDocuments(app)) {
+    let styleTag = doc.getElementById(SETTING_STYLE_ID);
+    if (!styleTag) {
+      const head = doc.head || doc.getElementsByTagName('head')[0];
+      if (!head) {
+        continue;
+      }
+      // Dynamic user CSS variables, highlights, language rules, and syntax themes require a <style> tag so Obsidian's Export to PDF preserves styling (adoptedStyleSheets is ignored by PDF export)
+      styleTag = head.createEl('style', { attr: { id: SETTING_STYLE_ID } });
+    }
+    styleTag.textContent = cssText;
+  }
+
+  updateSettingClasses(settings.pluginSettings, app);
 }// updateSettingStyles
 
-export function updateSettingClasses(settings: PluginSettings) {
-  document.body.classList.remove("codeblock-customizer-active-line-highlight", "codeblock-customizer-active-line-highlight-codeblock", "codeblock-customizer-active-line-highlight-editor")
+export function updateSettingClasses(settings: PluginSettings, app?: App) {
+  for (const doc of getTargetDocuments(app)) {
+    const body = doc.body;
+    if (!body) {
+      continue;
+    }
+    applySettingClassesToBody(body, settings);
+  }
+}// updateSettingClasses
+
+function applySettingClassesToBody(body: HTMLElement, settings: PluginSettings) {
+  body.classList.add('codeblock-customizer');
+  body.classList.remove("codeblock-customizer-active-line-highlight", "codeblock-customizer-active-line-highlight-codeblock", "codeblock-customizer-active-line-highlight-editor")
   if (settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
     // Inside and outside of codeblocks with different colors
-    document.body.classList.add("codeblock-customizer-active-line-highlight");
+    body.classList.add("codeblock-customizer-active-line-highlight");
   } else if (settings.enableEditorActiveLineHighlight && !settings.codeblock.enableActiveLineHighlight) {
     // Only outside codeblocks
-    document.body.classList.add("codeblock-customizer-active-line-highlight-editor");
+    body.classList.add("codeblock-customizer-active-line-highlight-editor");
   } else if (!settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
     // Only inside codeblocks
-    document.body.classList.add("codeblock-customizer-active-line-highlight-codeblock");
+    body.classList.add("codeblock-customizer-active-line-highlight-codeblock");
   }
 
   if (settings.codeblock.enableLineNumbers) {
-    document.body.classList.add("codeblock-customizer-show-line-numbers");
+    body.classList.add("codeblock-customizer-show-line-numbers");
   } else {
-    document.body.classList.remove("codeblock-customizer-show-line-numbers");
+    body.classList.remove("codeblock-customizer-show-line-numbers");
   }
 
-  document.body.classList.remove("codeblock-customizer-show-langnames", "codeblock-customizer-show-langnames-always");
+  body.classList.remove("codeblock-customizer-show-langnames", "codeblock-customizer-show-langnames-always");
   if (settings.header.alwaysDisplayCodeblockLang && settings.header.displayCodeBlockLanguage) {
-    document.body.classList.add("codeblock-customizer-show-langnames-always");
+    body.classList.add("codeblock-customizer-show-langnames-always");
   } else if (settings.header.displayCodeBlockLanguage) {
-    document.body.classList.add("codeblock-customizer-show-langnames");
+    body.classList.add("codeblock-customizer-show-langnames");
   }
 
-  document.body.classList.remove("codeblock-customizer-show-langicons", "codeblock-customizer-show-langicons-always");
+  body.classList.remove("codeblock-customizer-show-langicons", "codeblock-customizer-show-langicons-always");
   if (settings.header.alwaysDisplayCodeblockIcon && settings.header.displayCodeBlockIcon) {
-    document.body.classList.add("codeblock-customizer-show-langicons-always");
+    body.classList.add("codeblock-customizer-show-langicons-always");
   } else if (settings.header.displayCodeBlockIcon) {
-    document.body.classList.add("codeblock-customizer-show-langicons");
+    body.classList.add("codeblock-customizer-show-langicons");
   }
 
   if (settings.gutter.enableHighlight) {
-    document.body.classList.add('codeblock-customizer-gutter-highlight');
+    body.classList.add('codeblock-customizer-gutter-highlight');
   } else {
-    document.body.classList.remove('codeblock-customizer-gutter-highlight');
+    body.classList.remove('codeblock-customizer-gutter-highlight');
   }
 
   if (settings.gutter.highlightActiveLineNr)
-    document.body.classList.add('codeblock-customizer-gutter-active-line');
+    body.classList.add('codeblock-customizer-gutter-active-line');
   else
-    document.body.classList.remove('codeblock-customizer-gutter-active-line');
+    body.classList.remove('codeblock-customizer-gutter-active-line');
 
   if (settings.header.collapseIconPosition === "hide") {
-    document.body.classList.add('codeblock-customizer-collapseIconNone');
-    document.body.classList.remove('codeblock-customizer-collapseIconMiddle');
-    document.body.classList.remove('codeblock-customizer-collapseIconRight');
+    body.classList.add('codeblock-customizer-collapseIconNone');
+    body.classList.remove('codeblock-customizer-collapseIconMiddle');
+    body.classList.remove('codeblock-customizer-collapseIconRight');
   } else if (settings.header.collapseIconPosition === "middle") {
-    document.body.classList.remove('codeblock-customizer-collapseIconNone');
-    document.body.classList.remove('codeblock-customizer-collapseIconRight');
-    document.body.classList.add('codeblock-customizer-collapseIconMiddle');
+    body.classList.remove('codeblock-customizer-collapseIconNone');
+    body.classList.remove('codeblock-customizer-collapseIconRight');
+    body.classList.add('codeblock-customizer-collapseIconMiddle');
   } else if (settings.header.collapseIconPosition === "right") {
-    document.body.classList.remove('codeblock-customizer-collapseIconNone');
-    document.body.classList.remove('codeblock-customizer-collapseIconMiddle');
-    document.body.classList.add('codeblock-customizer-collapseIconRight');
+    body.classList.remove('codeblock-customizer-collapseIconNone');
+    body.classList.remove('codeblock-customizer-collapseIconMiddle');
+    body.classList.add('codeblock-customizer-collapseIconRight');
   }
 
   if (settings.codeblock.buttons.enableDeleteCodeButton)
-    document.body.classList.add('codeblock-customizer-show-delete-code-button');
+    body.classList.add('codeblock-customizer-show-delete-code-button');
   else
-    document.body.classList.remove('codeblock-customizer-show-delete-code-button');
+    body.classList.remove('codeblock-customizer-show-delete-code-button');
 
   if (settings.inlineCode.enableInlineCodeStyling) {
-    document.body.classList.add('codeblock-customizer-style-inline-code');
+    body.classList.add('codeblock-customizer-style-inline-code');
   } else {
-    document.body.classList.remove('codeblock-customizer-style-inline-code');
+    body.classList.remove('codeblock-customizer-style-inline-code');
   }
 
   if (settings.codeblock.codeBlockBorderStylingPosition === "disable") {
-    document.body.classList.remove('codeblock-customizer-style-codeblock-border-left');
-    document.body.classList.remove('codeblock-customizer-style-codeblock-border-right');
+    body.classList.remove('codeblock-customizer-style-codeblock-border-left');
+    body.classList.remove('codeblock-customizer-style-codeblock-border-right');
   } else if (settings.codeblock.codeBlockBorderStylingPosition === "left") {
-    document.body.classList.remove('codeblock-customizer-style-codeblock-border-right');
-    document.body.classList.add('codeblock-customizer-style-codeblock-border-left');
+    body.classList.remove('codeblock-customizer-style-codeblock-border-right');
+    body.classList.add('codeblock-customizer-style-codeblock-border-left');
   } else if (settings.codeblock.codeBlockBorderStylingPosition === "right") {
-    document.body.classList.remove('codeblock-customizer-style-codeblock-border-left');
-    document.body.classList.add('codeblock-customizer-style-codeblock-border-right');
+    body.classList.remove('codeblock-customizer-style-codeblock-border-left');
+    body.classList.add('codeblock-customizer-style-codeblock-border-right');
   }
 
   if (settings.semiFold.enableSemiFold) {
-    document.body.classList.add('codeblock-customizer-use-semifold');
+    body.classList.add('codeblock-customizer-use-semifold');
   } else {
-    document.body.classList.remove('codeblock-customizer-use-semifold');
+    body.classList.remove('codeblock-customizer-use-semifold');
   }
 
-  document.body.classList.remove('codeblock-customizer-semifold-effect-opacity');
-  document.body.classList.remove('codeblock-customizer-semifold-effect-blur');
+  body.classList.remove('codeblock-customizer-semifold-effect-opacity');
+  body.classList.remove('codeblock-customizer-semifold-effect-blur');
   if (settings.semiFold.semifoldEffect === SemiFoldEffect.Opacity) {
-    document.body.classList.add('codeblock-customizer-semifold-effect-opacity');
+    body.classList.add('codeblock-customizer-semifold-effect-opacity');
   } else if (settings.semiFold.semifoldEffect === SemiFoldEffect.Blur) {
-    document.body.classList.add('codeblock-customizer-semifold-effect-blur');
+    body.classList.add('codeblock-customizer-semifold-effect-blur');
   } else {
-    document.body.classList.add('codeblock-customizer-semifold-effect-opacity');
-    document.body.classList.add('codeblock-customizer-semifold-effect-blur');
+    body.classList.add('codeblock-customizer-semifold-effect-opacity');
+    body.classList.add('codeblock-customizer-semifold-effect-blur');
   }
 
   if (settings.semiFold.showAdditionalUncollapseButon) {
-    document.body.classList.add('codeblock-customizer-show-uncollapse-code-button');
+    body.classList.add('codeblock-customizer-show-uncollapse-code-button');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-uncollapse-code-button');
+    body.classList.remove('codeblock-customizer-show-uncollapse-code-button');
   }
 
   if (settings.codeblock.showIndentationLines) {
-    document.body.classList.add('codeblock-customizer-show-indentation-lines');
+    body.classList.add('codeblock-customizer-show-indentation-lines');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-indentation-lines');
+    body.classList.remove('codeblock-customizer-show-indentation-lines');
   }
 
   if (settings.codeblock.buttons.enableSelectCodeButton) {
-    document.body.classList.add('codeblock-customizer-show-select-code-button');
+    body.classList.add('codeblock-customizer-show-select-code-button');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-select-code-button');
+    body.classList.remove('codeblock-customizer-show-select-code-button');
   }
 
   if (settings.codeblock.buttons.enableWrapCodeButton) {
-    document.body.classList.add('codeblock-customizer-show-wrap-code-button');
+    body.classList.add('codeblock-customizer-show-wrap-code-button');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-wrap-code-button');
+    body.classList.remove('codeblock-customizer-show-wrap-code-button');
   }
 
   if (settings.codeblock.buttons.alwaysShowCopyCodeButton) {
-    document.body.classList.add('codeblock-customizer-always-show-copy-code-button');
+    body.classList.add('codeblock-customizer-always-show-copy-code-button');
   } else {
-    document.body.classList.remove('codeblock-customizer-always-show-copy-code-button');
+    body.classList.remove('codeblock-customizer-always-show-copy-code-button');
   }
 
   if (settings.inlineCode.showIcons) {
-    document.body.classList.add('codeblock-customizer-show-inline-code-icons');
+    body.classList.add('codeblock-customizer-show-inline-code-icons');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-inline-code-icons');
+    body.classList.remove('codeblock-customizer-show-inline-code-icons');
   }
 
   if (settings.plugins.executeCode.styleOutput) {
-    document.body.classList.add('codeblock-customizer-style-execute-code-output');
+    body.classList.add('codeblock-customizer-style-execute-code-output');
   } else {
-    document.body.classList.remove('codeblock-customizer-style-execute-code-output');
+    body.classList.remove('codeblock-customizer-style-execute-code-output');
   }
 
   if (settings.codeblock.buttons.enableSnapshotButton) {
-    document.body.classList.add('codeblock-customizer-show-snapshot-code-button');
+    body.classList.add('codeblock-customizer-show-snapshot-code-button');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-snapshot-code-button');
+    body.classList.remove('codeblock-customizer-show-snapshot-code-button');
   }
 
   if (settings.groupedCodeBlocks.showAddRemoveButtons) {
-    document.body.classList.add('codeblock-customizer-show-grouped-add-remove-buttons');
+    body.classList.add('codeblock-customizer-show-grouped-add-remove-buttons');
   } else {
-    document.body.classList.remove('codeblock-customizer-show-grouped-add-remove-buttons');
+    body.classList.remove('codeblock-customizer-show-grouped-add-remove-buttons');
   }
 
   if (settings.plugins.executeCode.enabled) {
-    document.body.classList.add('codeblock-customizer-support-execute-code');
+    body.classList.add('codeblock-customizer-support-execute-code');
   } else {
-    document.body.classList.remove('codeblock-customizer-support-execute-code');
+    body.classList.remove('codeblock-customizer-support-execute-code');
   }
 
   if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Zigzag) {
-    document.body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
-    document.body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
-    document.body.classList.add('codeblock-customizer-linenumberseparator-zigzag');
+    body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
+    body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
+    body.classList.add('codeblock-customizer-linenumberseparator-zigzag');
   } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.DoubleLine) {
-    document.body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
-    document.body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
-    document.body.classList.add('codeblock-customizer-linenumberseparator-doubleline');
+    body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
+    body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
+    body.classList.add('codeblock-customizer-linenumberseparator-doubleline');
   } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Dashed) {
-    document.body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
-    document.body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
-    document.body.classList.add('codeblock-customizer-linenumberseparator-dashed');
+    body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
+    body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
+    body.classList.add('codeblock-customizer-linenumberseparator-dashed');
   }
 
   if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.Zigzag) {
-    document.body.classList.remove('codeblock-customizer-hidden-lines-dashed');
-    document.body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
-    document.body.classList.add('codeblock-customizer-hidden-lines-zigzag');
+    body.classList.remove('codeblock-customizer-hidden-lines-dashed');
+    body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
+    body.classList.add('codeblock-customizer-hidden-lines-zigzag');
   } else if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.DoubleLine) {
-    document.body.classList.remove('codeblock-customizer-hidden-lines-dashed');
-    document.body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
-    document.body.classList.add('codeblock-customizer-hidden-lines-doubleline');
+    body.classList.remove('codeblock-customizer-hidden-lines-dashed');
+    body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
+    body.classList.add('codeblock-customizer-hidden-lines-doubleline');
   } else if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.Dashed) {
-    document.body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
-    document.body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
-    document.body.classList.add('codeblock-customizer-hidden-lines-dashed');
+    body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
+    body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
+    body.classList.add('codeblock-customizer-hidden-lines-dashed');
   }
 
   if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.Zigzag) {
-    document.body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
-    document.body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
-    document.body.classList.add('codeblock-customizer-execute-code-separator-zigzag');
+    body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
+    body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
+    body.classList.add('codeblock-customizer-execute-code-separator-zigzag');
   } else if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.DoubleLine) {
-    document.body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
-    document.body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
-    document.body.classList.add('codeblock-customizer-execute-code-separator-doubleline');
+    body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
+    body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
+    body.classList.add('codeblock-customizer-execute-code-separator-doubleline');
   } else if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.Dashed) {
-    document.body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
-    document.body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
-    document.body.classList.add('codeblock-customizer-execute-code-separator-dashed');
+    body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
+    body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
+    body.classList.add('codeblock-customizer-execute-code-separator-dashed');
   }
 
   if (settings.frontmatter.enableFrontmatterStyling) {
-    document.body.classList.add('codeblock-customizer-style-frontmatter');
+    body.classList.add('codeblock-customizer-style-frontmatter');
   } else {
-    document.body.classList.remove('codeblock-customizer-style-frontmatter');
+    body.classList.remove('codeblock-customizer-style-frontmatter');
   }
 
   if (settings.common.disableEditorSyntaxHighlight) {
-    document.body.classList.add('codeblock-customizer-disable-editor-syntax-highlight');
+    body.classList.add('codeblock-customizer-disable-editor-syntax-highlight');
   } else {
-    document.body.classList.remove('codeblock-customizer-disable-editor-syntax-highlight');
+    body.classList.remove('codeblock-customizer-disable-editor-syntax-highlight');
   }
 
-}// updateSettingClasses
+}// applySettingClassesToBody
 
 function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurrentColorUse: boolean) {
   return `
@@ -1154,8 +1232,8 @@ function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurren
 }// formatStyles
 
 export function getColorOfCssVariable(cssVariable: string) {
-  const body = document.body;
-  const computedStyle = getComputedStyle(body);
+  const body = getTargetDocuments()[0]?.body ?? activeDocument.body;
+  const computedStyle = (body.ownerDocument?.defaultView ?? window).getComputedStyle(body);
   const colorValue = computedStyle.getPropertyValue(cssVariable).trim();
 
   if (colorValue.startsWith("rgb"))
@@ -1296,17 +1374,17 @@ function addAltHighlightColors(alternateColors: Record<string, HighlightStyle>) 
   }, '');
 }// addAltHighlightColors
 
-function accessSetting(key: string, settings: Colors) {
+function accessSetting(key: string, settings: Colors): string | null {
   const keys = key.split('.');
-  let value: any = settings;
+  let value: Record<string, unknown> | Colors = settings;
   for (const k of keys) {
     if (value && k in value) {
-      value = value[k];
+      value = (value as Record<string, unknown>)[k] as Record<string, unknown>;
     } else {
       return null;
     }
   }
-  return value;
+  return value as unknown as string | null;
 }// accessSetting
 
 export function removeCharFromStart(input: string, charToRemove: string): string {
@@ -1433,7 +1511,7 @@ export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomiz
     delete settings.SelectedTheme.colors.light.codeblock.languageBorderColors[languageName];
     delete settings.SelectedTheme.colors.dark.codeblock.languageBorderColors[languageName];
   });
-  (async () => { await app.saveSettings() })();
+  void app.saveSettings();
 
 }// mergeBorderColorsToLanguageSpecificColors
 
@@ -1442,8 +1520,8 @@ export function getPropertyFromLanguageSpecificColors(propertyName: string, sett
   const result: Record<string, string> = {};
 
   Object.entries(languageColors).forEach(([languageName, properties]) => {
-    if ((properties as Record<string, string>)[propertyName]) {
-      result[languageName] = (properties as Record<string, string>)[propertyName];
+    if ((properties)[propertyName]) {
+      result[languageName] = (properties)[propertyName];
     }
   });
 
@@ -1459,13 +1537,13 @@ export async function getFileCacheAndContentLines(plugin: CodeBlockCustomizerPlu
     return { cache: null, fileContentLines: null };
 
   const file = plugin.app.vault.getAbstractFileByPath(filePath);
-  if (!file) {
+  if (!(file instanceof TFile)) {
     console.error(`File not found: ${filePath}`);
     return { cache, fileContentLines: null };
   }
 
-  const fileContent = await plugin.app.vault.cachedRead(<TFile>file).catch((error) => {
-    console.error(`Error reading file: ${error.message}`);
+  const fileContent = await plugin.app.vault.cachedRead(file).catch((error: unknown) => {
+    console.error(`Error reading file: ${error instanceof Error ? error.message : String(error)}`);
     return '';
   });
 
@@ -1486,44 +1564,52 @@ export function removeIndentation(input: string[]): string[] {
   return input.map(removeSpaces);
 }// removeIndentation
 
-export async function indentCodeBlock(editor: Editor, view: MarkdownView) {
-  const cursorPos = editor.getCursor();
-  const { cache, fileContentLines } = await getFileCacheAndContentLines(this, view.file?.path ?? '')
-  if (!cache || !fileContentLines)
-    return;
+function findCodeBlockLinesInEditor(editor: Editor, line: number): { start: number, end: number } | null {
+  let openFence: { line: number, fence: string } | null = null;
 
-  if (cache?.sections) {
-    for (const sections of cache.sections) {
-      if (sections.type === "code" && cursorPos.line >= sections.position.start.line && cursorPos.line <= sections.position.end.line) {
-        const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
-        const indentedLines = addIndentation(codeBlockLines);
-        const pos: EditorPosition = { line: sections.position.start.line, ch: 0 };
-        const endPos: EditorPosition = { line: sections.position.end.line, ch: sections.position.end.col };
-        editor.replaceRange(indentedLines.join('\n'), pos, endPos);
-        view.save();
+  for (let i = 0; i < editor.lineCount(); i++) {
+    const lineText = editor.getLine(i);
+    const fence = lineText.match(/^\s*(`{3,}|~{3,})/)?.[1];
+    if (!fence) {
+      continue;
+    }
+
+    if (!openFence) {
+      openFence = { line: i, fence };
+    } else if (fence[0] === openFence.fence[0] && fence.length >= openFence.fence.length && lineText.trim() === fence) {
+      if (line >= openFence.line && line <= i) {
+        return { start: openFence.line, end: i };
       }
+      openFence = null;
     }
   }
+
+  return null;
+}// findCodeBlockLinesInEditor
+
+async function changeCodeBlockIndentation(editor: Editor, view: MarkdownView, changeIndentation: (lines: string[]) => string[]) {
+  const block = findCodeBlockLinesInEditor(editor, editor.getCursor().line);
+  if (!block) {
+    return;
+  }
+
+  const codeBlockLines: string[] = [];
+  for (let i = block.start; i <= block.end; i++) {
+    codeBlockLines.push(editor.getLine(i));
+  }
+
+  const pos: EditorPosition = { line: block.start, ch: 0 };
+  const endPos: EditorPosition = { line: block.end, ch: editor.getLine(block.end).length };
+  editor.replaceRange(changeIndentation(codeBlockLines).join('\n'), pos, endPos);
+  await view.save();
+}// changeCodeBlockIndentation
+
+export async function indentCodeBlock(editor: Editor, view: MarkdownView) {
+  await changeCodeBlockIndentation(editor, view, addIndentation);
 }// indentCodeBlock
 
 export async function unIndentCodeBlock(editor: Editor, view: MarkdownView) {
-  const cursorPos = editor.getCursor();
-  const { cache, fileContentLines } = await getFileCacheAndContentLines(this, view.file?.path ?? '')
-  if (!cache || !fileContentLines)
-    return;
-
-  if (cache?.sections) {
-    for (const sections of cache.sections) {
-      if (sections.type === "code" && cursorPos.line >= sections.position.start.line && cursorPos.line <= sections.position.end.line) {
-        const codeBlockLines = fileContentLines.slice(sections.position.start.line, sections.position.end.line + 1);
-        const indentedLines = removeIndentation(codeBlockLines);
-        const pos: EditorPosition = { line: sections.position.start.line, ch: 0 };
-        const endPos: EditorPosition = { line: sections.position.end.line, ch: sections.position.end.col };
-        editor.replaceRange(indentedLines.join('\n'), pos, endPos);
-        view.save();
-      }
-    }
-  }
+  await changeCodeBlockIndentation(editor, view, removeIndentation);
 }// unIndentCodeBlock
 
 export function getInlineCodeIcon(displayLanguage: string, additionalClass?: string) {
@@ -1542,8 +1628,8 @@ export function getInlineCodeIcon(displayLanguage: string, additionalClass?: str
 }// getInlineCodeIcon
 
 export function isPluginLoaded(pluginId: string, plugin: CodeBlockCustomizerPlugin) {
-  // @ts-expect-error
-  if (plugin?.app?.plugins?.plugins[pluginId])
+  type AppWithPlugins = App & { plugins?: { plugins?: Record<string, unknown> } };
+  if ((plugin?.app as AppWithPlugins | undefined)?.plugins?.plugins?.[pluginId])
     return true;
 
   return false;
@@ -1582,15 +1668,26 @@ export function normalizeIndentation(lines: string[]): string[] {
   return lines;
 }// normalizeIndentation
 
-export async function generateSnapshot(elementToSnapshot: HTMLElement, originalElement: HTMLElement, appendTo: HTMLElement, settings: CodeblockCustomizerSettings, parameters: CBCParameters, options?: any): Promise<void> {
-  const offscreenWrapper = document.createElement('div');
+export function removeFenceIndentation(lines: string[], fenceLine: string): string[] {
+  const fenceIndent = fenceLine.match(/^[ \t]*/)?.[0].length ?? 0;
+  if (fenceIndent === 0) {
+    return lines;
+  }
+
+  return lines.map(line => {
+    let i = 0;
+    while (i < fenceIndent && (line[i] === ' ' || line[i] === '\t')) {
+      i++;
+    }
+    return line.substring(i);
+  });
+}// removeFenceIndentation
+
+export async function generateSnapshot(elementToSnapshot: HTMLElement, originalElement: HTMLElement, appendTo: HTMLElement, settings: CodeblockCustomizerSettings, parameters: CBCParameters, options?: Parameters<typeof toBlob>[1]): Promise<void> {
+  const offscreenWrapper = createDiv({ cls: 'codeblock-customizer-snapshot-offscreen' });
   const { gutterBgColor, codeBgColor } = getSnapshotColors(settings, parameters.language);
 
   try {
-    offscreenWrapper.style.position = 'absolute';
-    offscreenWrapper.style.top = '-9999px';
-    offscreenWrapper.style.left = '-9999px';
-
     const userMaxWidth = settings.pluginSettings.codeblock.buttons.snapshotMaxWidth;
     elementToSnapshot.style.width = `${userMaxWidth ?? originalElement.clientWidth}px`;
 
@@ -1603,16 +1700,11 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
       '.codeblock-customizer-tab-add'
     ).forEach(el => el.remove());
 
-    // hide per-line scrollbars for unwrapped code blocks
-    elementToSnapshot.querySelectorAll<HTMLElement>('.codeblock-customizer-nowrap').forEach(line => {
-      line.style.overflowX = 'hidden';
-    });
-
     // restore original padding
     if (settings.pluginSettings.groupedCodeBlocks.showAddRemoveButtons) {
       elementToSnapshot.querySelectorAll('.codeblock-customizer-header-group-tab')
         .forEach(tab => {
-          (tab as HTMLElement).style.paddingRight = 'var(--header-spacing)';
+          tab.classList.add('codeblock-customizer-snapshot-restore-tab-padding');
         });
     }
 
@@ -1657,7 +1749,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
 
     const canvasWidth = width * pixelRatio;
     const canvasHeight = height * pixelRatio;
-    const canvas = document.createElement('canvas');
+    const canvas = createEl('canvas');
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
@@ -1690,7 +1782,7 @@ export async function generateSnapshot(elementToSnapshot: HTMLElement, originalE
 
   } catch (error) {
     console.error("Snapshot creation failed:", error);
-    new Notice(`Error: Could not create snapshot. ${error.message || error}`);
+    new Notice(`Error: Could not create snapshot. ${(error as Error).message || String(error)}`);
   } finally {
     if (offscreenWrapper.parentElement) {
       offscreenWrapper.parentElement.removeChild(offscreenWrapper);
@@ -1738,9 +1830,9 @@ export function getDisplayLanguageName(code: string | null) {
 
   code = code.toLowerCase();
 
-  if (Languages.hasOwnProperty(code)) {
+  if (Object.prototype.hasOwnProperty.call(Languages, code)) {
     return Languages[code];
-  } else if (manualLang.hasOwnProperty(code)) {
+  } else if (Object.prototype.hasOwnProperty.call(manualLang, code)) {
     return manualLang[code];
   } else if (code) {
     return code.charAt(0).toUpperCase() + code.slice(1);
@@ -1748,3 +1840,95 @@ export function getDisplayLanguageName(code: string | null) {
 
   return "";
 }// getDisplayLanguageName
+
+export interface HighlightMarkRange {
+  from: number;
+  to: number;
+  className: string;
+  order: number;
+}
+
+// resolves overlapping text-highlight mark ranges on a line into sorted segments
+export function layerHighlightRanges(ranges: HighlightMarkRange[]): { from: number; to: number; className: string }[] {
+  const valid = ranges.filter(r => r.to > r.from);
+  if (valid.length === 0) {
+    return [];
+  }
+
+  const boundaries = Array.from(new Set(valid.flatMap(r => [r.from, r.to]))).sort((a, b) => a - b);
+  const result: { from: number; to: number; className: string }[] = [];
+
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const segFrom = boundaries[i];
+    const segTo = boundaries[i + 1];
+    let winner: HighlightMarkRange | null = null;
+
+    for (const r of valid) {
+      if (r.from <= segFrom && r.to >= segTo) {
+        if (!winner || r.order >= winner.order) {
+          winner = r;
+        }
+      }
+    }
+
+    if (winner) {
+      const prev = result[result.length - 1];
+      if (prev && prev.to === segFrom && prev.className === winner.className) {
+        prev.to = segTo;
+      } else {
+        result.push({ from: segFrom, to: segTo, className: winner.className });
+      }
+    }
+  }
+
+  return result;
+}// layerHighlightRanges
+
+export function removeAnnotationRangesFromCode(codeText: string, rangesToRemove: { from: number; to: number }[]): string {
+  if (rangesToRemove.length === 0) {
+    return codeText;
+  }
+
+  const sortedRanges = [...rangesToRemove]
+    .filter(r => r.to > r.from)
+    .sort((a, b) => a.from - b.from);
+  if (sortedRanges.length === 0) {
+    return codeText;
+  }
+
+  const eol = codeText.includes('\r\n') ? '\r\n' : '\n';
+  const rawLines = codeText.split(/\r?\n/);
+  const keptLines: string[] = [];
+  let offset = 0;
+
+  for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+    const line = rawLines[lineIdx];
+    const lineStart = offset;
+    const lineEnd = lineStart + line.length;
+    offset = lineEnd + (codeText.slice(lineEnd, lineEnd + 2) === '\r\n' ? 2 : 1);
+
+    const overlapping = sortedRanges.filter(r => r.from < lineEnd && r.to > lineStart);
+    if (overlapping.length === 0) {
+      keptLines.push(line);
+      continue;
+    }
+
+    let cleaned = '';
+    let localCursor = 0;
+    for (const range of overlapping) {
+      const localFrom = Math.max(range.from, lineStart) - lineStart;
+      const localTo = Math.min(range.to, lineEnd) - lineStart;
+      if (localFrom > localCursor) {
+        cleaned += line.slice(localCursor, localFrom).replace(/[ \t]+$/, '');
+      }
+      localCursor = Math.max(localCursor, localTo);
+    }
+    if (localCursor < line.length) {
+      cleaned += line.slice(localCursor);
+    }
+
+    keptLines.push(cleaned.trim().length > 0 ? cleaned : '');
+  }
+
+  return keptLines.join(eol);
+}// removeAnnotationRangesFromCode

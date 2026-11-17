@@ -58,6 +58,11 @@ test('blocks after fenced blocks and paragraphs are found', () => {
   assert.deepEqual(blocks.map(b => [b.codeOpenLine, b.codeCloseLine, b.firstLine]), [[3, 5, '```'], [8, 10, '```css']]);
 });
 
+test('a block directly after the closing line of another block (no empty line between them) is found', () => {
+  const blocks = find('<pre><code class="language-css">\na\n</code></pre>\n<pre><code class="language-js">\nb\n</code></pre>');
+  assert.deepEqual(blocks.map(b => [b.preStartLine, b.preEndLine, b.firstLine]), [[0, 2, '```css'], [3, 5, '```js']]);
+});
+
 test('code is extracted as displayed: tags removed, entities decoded, newlines after <code> and before </code> trimmed', () => {
   assert.equal(getHtmlCodeBlockCode(['<pre><code class="language-python">', 'if a &lt; b:', '    print(&quot;x&quot;)', '</code></pre>']), 'if a < b:\n    print("x")');
   assert.equal(getHtmlCodeBlockCode(['<pre><code>a = 0', 'print(a)</code></pre>']), 'a = 0\nprint(a)');
@@ -82,7 +87,7 @@ test('inline code elements are found with their content range and attribute para
   assert.equal(line.substring(codes[0].contentFrom, codes[0].contentTo), 'print(a)');
   assert.equal(codes[0].parameters, '');
   assert.equal(line.substring(codes[1].contentFrom, codes[1].contentTo), 'a = 0');
-  assert.equal(codes[1].parameters, 'hl:a c');
+  assert.equal(codes[1].parameters, 'c hl:a');
 
   assert.equal(findHtmlInlineCodes('<code>{cpp} x</code>')[0].parameters, '');
   assert.equal(findHtmlInlineCodes('<code></code>').length, 1);
@@ -92,9 +97,10 @@ test('inline code elements are found with their content range and attribute para
 });
 
 test('inline code parameters of the prefix and the attributes are combined, the language of the prefix comes first', () => {
-  assert.equal(getInlineCodeAttributeParameters('language-c', 'impt:hello'), 'impt:hello c');
+  assert.equal(getInlineCodeAttributeParameters('language-c', 'impt:hello'), 'c impt:hello');
+  assert.equal(getInlineCodeAttributeParameters('language-js', 'i mpt:html_inline'), 'js i mpt:html_inline');
   assert.equal(getInlineCodeAttributeParameters('foo', ''), '');
-  assert.equal(combineInlineCodeParameters('cpp', 'impt:hello c'), 'cpp impt:hello c');
-  assert.equal(combineInlineCodeParameters(null, 'impt:hello c'), 'impt:hello c');
+  assert.equal(combineInlineCodeParameters('cpp', 'c impt:hello'), 'cpp c impt:hello');
+  assert.equal(combineInlineCodeParameters(null, 'c impt:hello'), 'c impt:hello');
   assert.equal(combineInlineCodeParameters(' cpp ', ''), 'cpp');
 });

@@ -1,4 +1,4 @@
-import { editorInfoField, loadPrism, MarkdownPostProcessorContext, MarkdownSectionInformation } from "obsidian";
+import { editorInfoField, MarkdownPostProcessorContext, MarkdownSectionInformation } from "obsidian";
 
 import { EditorState, StateField } from "@codemirror/state";
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
@@ -6,7 +6,7 @@ import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { CodeblockCustomizerSettings } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
 import { getAllParameters } from "../Parsing";
-import { getLanguageConfig, isSourceMode, loadCustomPrismLanguages } from "../Utils";
+import { getLanguageConfig, getPrism, isSourceMode, loadCustomPrismLanguages, setTrustedHtml } from "../Utils";
 import { HtmlCodeBlock } from "../HtmlCodeBlocks";
 import { CodeBlockRenderer } from "../ReadingView/CodeBlockRenderer";
 import { getHtmlCodeBlockData, prepareHtmlCodeElement } from "../ReadingView/ReadingViewUtils";
@@ -15,7 +15,7 @@ import { CodeBlockPositions, getHtmlCodeBlockRange, getHtmlCodeBlocks, htmlCodeB
 const HEADER_AND_BUTTONS_SELECTOR = '.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific, .codeblock-customizer-button-container';
 
 function isOrContainsPre(node: Node): boolean {
-  return node instanceof HTMLElement && (node.tagName === 'PRE' || node.querySelector('pre') !== null);
+  return node.instanceOf(HTMLElement) && (node.tagName === 'PRE' || node.querySelector('pre') !== null);
 }// isOrContainsPre
 
 function isSelectionInside(state: EditorState, from: number, to: number): boolean {
@@ -26,6 +26,7 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
   const htmlCodeBlockWidgetPlugin = ViewPlugin.fromClass(class {
     private observer: MutationObserver;
     private frame: number | null = null;
+    private settingsChanged = false;
 
     constructor(private view: EditorView) {
       // mutation observer callbacks run before the next paint, so the widget is styled before the unstyled version is visible
@@ -39,6 +40,9 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
     }
 
     update(update: ViewUpdate) {
+      if (plugin.settingsUpdated) {
+        this.settingsChanged = true;
+      }
       if (update.docChanged || update.viewportChanged || plugin.settingsUpdated) {
         this.scheduleStyling();
       }
@@ -49,13 +53,15 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
         return;
       }
 
-      this.frame = requestAnimationFrame(() => {
+      this.frame = window.requestAnimationFrame(() => {
         this.frame = null;
-        this.styleWidgets();
+        const force = this.settingsChanged;
+        this.settingsChanged = false;
+        this.styleWidgets(force);
       });
     }
 
-    private styleWidgets() {
+    private styleWidgets(force = false) {
       const state = this.view.state;
       if (!settings.pluginSettings.common.enableHtmlCodeBlocks || isSourceMode(state)) {
         return;
@@ -71,12 +77,12 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
       const renderedHtmlBlocks: number[] = [];
 
       for (const preElement of Array.from(this.view.contentDOM.querySelectorAll<HTMLElement>('pre'))) {
-        if (preElement.closest('.cm-line') || preElement.classList.contains('codeblock-customizer-pre') && decoratedHtmlBlocks.size === 0) {
+        if (preElement.closest('.cm-line') || (!force && preElement.classList.contains('codeblock-customizer-pre') && decoratedHtmlBlocks.size === 0)) {
           continue;
         }
 
         const codeElement = preElement.querySelector<HTMLElement>(':scope > code');
-        if (!codeElement || preElement.dataset.cbcHtmlProcessed && decoratedHtmlBlocks.size === 0) {
+        if (!codeElement || (!force && preElement.dataset.cbcHtmlProcessed && decoratedHtmlBlocks.size === 0)) {
           continue;
         }
 
@@ -100,14 +106,14 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
           renderedHtmlBlocks.push(blockFrom);
         }
 
-        if (preElement.dataset.cbcHtmlProcessed || preElement.classList.contains('codeblock-customizer-pre')) {
+        if (!force && (preElement.dataset.cbcHtmlProcessed || preElement.classList.contains('codeblock-customizer-pre'))) {
           continue;
         }
 
         preElement.dataset.cbcHtmlProcessed = 'true';
         // hidden until it is styled, in case styling takes longer than a frame
         preElement.classList.add('codeblock-customizer-html-pending');
-        renderWidget(this.view, preElement, codeElement, block).finally(() => preElement.classList.remove('codeblock-customizer-html-pending'));
+        void renderWidget(this.view, preElement, codeElement, block).finally(() => preElement.classList.remove('codeblock-customizer-html-pending'));
       }
 
       // Obsidian rendered the widget ==> the source is not visible anymore, so its decorations can be removed
@@ -119,7 +125,7 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
     destroy() {
       this.observer.disconnect();
       if (this.frame !== null) {
-        cancelAnimationFrame(this.frame);
+        window.cancelAnimationFrame(this.frame);
       }
     }
   });// htmlCodeBlockWidgetPlugin
@@ -142,11 +148,14 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
     preElement.closest('.cm-embed-block')?.classList.add('codeblock-customizer-html-embed');
 
     // clicking the header or the buttons must not move the cursor into the block
-    preElement.addEventListener('mousedown', (event) => {
-      if ((event.target as HTMLElement).closest(HEADER_AND_BUTTONS_SELECTOR)) {
-        event.stopPropagation();
-      }
-    });
+    if (!preElement.dataset.cbcMousedownAttached) {
+      preElement.dataset.cbcMousedownAttached = 'true';
+      preElement.addEventListener('mousedown', (event) => {
+        if ((event.target as HTMLElement).closest(HEADER_AND_BUTTONS_SELECTOR)) {
+          event.stopPropagation();
+        }
+      });
+    }
 
     const { from } = getHtmlCodeBlockRange(view.state, block);
     const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
@@ -162,12 +171,12 @@ export function htmlCodeBlockWidgetsExtension(plugin: CodeBlockCustomizerPlugin,
     const hasLanguageClass = /(^|\s)language-\S+/.test(codeElement.className);
 
     if (language && !codeElement.classList.contains('is-loaded') && !codeElement.querySelector('.token')) {
-      const prism = await loadPrism();
+      const prism = await getPrism();
       loadCustomPrismLanguages(prism);
       const prismLanguage = getLanguageConfig(language, plugin)?.format ?? language.toLowerCase();
       const grammar = prism.languages[prismLanguage];
       if (grammar) {
-        codeElement.innerHTML = prism.highlight(codeElement.textContent ?? "", grammar, prismLanguage);
+        setTrustedHtml(codeElement, prism.highlight(codeElement.textContent ?? "", grammar, prismLanguage));
       }
     }
 

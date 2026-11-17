@@ -287,12 +287,12 @@ export class PromptSettings {
         textarea.setValue(JSON.stringify(currentPromptData.highlightGroups ?? {}, null, 2));
         textarea.onChange(async (value) => {
           try {
-            const parsed = JSON.parse(value);
+            const parsed = JSON.parse(value) as Record<string, string>;
             const { def: currentPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
             currentPromptData.highlightGroups = parsed;
             await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
             updatePreview();
-          } catch (e) {
+          } catch {
             new Notice("⚠️ Invalid JSON, not saved");
           }
         });
@@ -311,7 +311,7 @@ export class PromptSettings {
             currentPromptData.parsePromptRegex = compiled; // live version for runtime use!
             await this.savePromptData(isCustom, selectedPromptId, currentPromptData);
             new Notice(`Regex saved for prompt "${selectedPromptId}"`);
-          } catch (e) {
+          } catch {
             new Notice("⚠️ Invalid regex, not saved");
           }
         }).inputEl.classList.add("codeblock-customizer-regex-input"));
@@ -608,7 +608,7 @@ export class PromptSettings {
 
   createPromptColorSettings(promptColorSettingsContainer: HTMLElement, selectedPromptId: string, previewEl: HTMLElement, pickerInstances: Pickr[], showRootColor = false) {
     promptColorSettingsContainer.empty();
-    promptColorSettingsContainer.appendChild(document.createElement("br"));
+    promptColorSettingsContainer.appendChild(createEl("br"));
 
     this.promptPickers.clear();
 
@@ -677,7 +677,7 @@ export class PromptSettings {
         initialColor: currentColor,
         onSave: (savedColor: string) => {
           this.setPromptColorDiff(selectedPromptId, partClass, savedColor, editingRootColors);
-          this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         },
         onReset: isDefaultPrompt ? () => {
           return this.getDefaultPromptColor(selectedPromptId, partClass, editingRootColors);

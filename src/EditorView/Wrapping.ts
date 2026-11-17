@@ -19,8 +19,8 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
 
       const unwrapped = tr.state.field(unwrappedCodeBlocksField);
       if (tr.docChanged || tr.reconfigured ||
-          unwrapped !== tr.startState.field(unwrappedCodeBlocksField, false) ||
-          tr.state.field(codeBlockPositionsField) !== tr.startState.field(codeBlockPositionsField, false)) {
+        unwrapped !== tr.startState.field(unwrappedCodeBlocksField, false) ||
+        tr.state.field(codeBlockPositionsField) !== tr.startState.field(codeBlockPositionsField, false)) {
         return buildDecorations(tr.state, unwrapped, codeBlockPositionsField);
       }
 
@@ -40,7 +40,7 @@ export function wrapExtension(codeBlockPositionsField: StateField<CodeBlockPosit
   const unwrappedCodeBlocksField = StateField.define<Set<number>>({
     create(state) {
       if (!settings.pluginSettings.codeblock.unwrapcode ||
-          (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))) {
+        (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))) {
         return new Set<number>();
       }
       return new Set((state.field(codeBlockPositionsField, false) ?? [])
@@ -247,7 +247,7 @@ class ScrollbarWidget extends WidgetType {
 
     scrollbarCallbacks.set(wrapper, updateVisibility);
     sharedResizeObserver.observe(wrapper);
-    requestAnimationFrame(updateVisibility);
+    window.requestAnimationFrame(updateVisibility);
 
     return wrapper;
   }
@@ -332,7 +332,7 @@ function getCodeblockSiblingLines(line: HTMLElement): HTMLElement[] {
     }
     el = el.previousElementSibling as HTMLElement | null;
   }
-  
+
   before.reverse();
 
   const lines: HTMLElement[] = [...before, line];

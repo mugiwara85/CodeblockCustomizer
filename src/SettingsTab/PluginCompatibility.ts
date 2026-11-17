@@ -108,7 +108,7 @@ export class PluginCompatibilitySettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.plugins.executeCode.styleOutput = value;
           await this.plugin.saveSettings();
-          updateSettingClasses(this.plugin.settings.pluginSettings);
+          updateSettingClasses(this.plugin.settings.pluginSettings, this.plugin.app);
           this.plugin.renderReadingViews();
         })
       );
@@ -126,10 +126,7 @@ export class PluginCompatibilitySettings {
           await this.plugin.saveSettings();
         })
       );
-    const reloadWarningEl = additionalLanguagesSetting.descEl.createDiv({ cls: "mod-warning" });
-    reloadWarningEl.style.color = "var(--text-error)";
-    reloadWarningEl.style.marginTop = "4px";
-    reloadWarningEl.style.fontWeight = "bold";
+    const reloadWarningEl = additionalLanguagesSetting.descEl.createDiv({ cls: "mod-warning codeblock-customizer-setting-warning" });
     reloadWarningEl.setText("Reload the plugin after changing this option.");
 
     additionalLanguagesSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);

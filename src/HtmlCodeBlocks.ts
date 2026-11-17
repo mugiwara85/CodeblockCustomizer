@@ -48,7 +48,7 @@ export function getInlineCodeAttributeParameters(className: string, dataCbc: str
   const languageClass = className.split(/\s+/).find(cls => cls.toLowerCase().startsWith('language-'));
   const language = languageClass ? languageClass.substring('language-'.length) : '';
 
-  return [dataCbc.trim(), language].filter(s => s.length > 0).join(' ');
+  return [language, dataCbc.trim()].filter(s => s.length > 0).join(' ');
 }// getInlineCodeAttributeParameters
 
 export function combineInlineCodeParameters(prefixParameters: string | null, attributeParameters: string): string {
@@ -183,7 +183,8 @@ export function findHtmlCodeBlocks(getLine: (index: number) => string, lineCount
     }
 
     const previousLine = i > 0 ? getLine(i - 1).trim() : '';
-    if (previousLine.length > 0 && previousLine.startsWith('<')) {
+    const previousBlockEndsBefore = blocks.length > 0 && blocks[blocks.length - 1].preEndLine === i - 1;
+    if (previousLine.length > 0 && previousLine.startsWith('<') && !previousBlockEndsBefore) {
       continue;
     }
 

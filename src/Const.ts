@@ -14,7 +14,11 @@ export const INLINE_CODE_LANG_REGEX = /^{\s*([^}]+?)\s*}\s*(.*)$/s;
 
 export const ANNOTATION_PATTERN = /\[!(?<type>\w+)(?:\|(?<title>[^\]]+))?\]\s*(?<content>.*)/s;
 export const LINK_REGEX = /(?:\[\[([^[\]]+?)(?:\|([^\]]+?))?]]|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
-export const rhombusSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2-10 10 10 10 10-10Z"/></svg>`;
+export function createRhombusSvg(): SVGSVGElement {
+  return createSvg('svg', { attr: { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'currentColor', stroke: 'none' } }, (svg) => {
+    svg.createSvg('path', { attr: { d: 'm12 2-10 10 10 10 10-10Z' } });
+  });
+}
 
 /* directly from execute code */
 const languageAliases = ["javascript", "typescript", "bash", "csharp", "wolfram", "nb", "wl", "hs", "py", "tex"];

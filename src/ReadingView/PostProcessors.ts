@@ -1,4 +1,4 @@
-import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView } from "obsidian";
+import { MarkdownPostProcessorContext, MarkdownSectionInformation } from "obsidian";
 
 import { getFileCacheAndContentLines } from "../Utils";
 import { CodeBlockRenderer } from "./CodeBlockRenderer";
@@ -8,13 +8,15 @@ import { getAllParameters } from "../Parsing";
 
 export async function calloutPostProcessor(codeBlockElement: HTMLElement, context: MarkdownPostProcessorContext, plugin: CodeBlockCustomizerPlugin) {
   // this only handles callouts in editing mode, because in reading mode callouts are styled by default
-  const callouts: HTMLElement | null = codeBlockElement.querySelector('.callout:not(.admonition)');
+  const callouts: HTMLElement | null = codeBlockElement.matches('.callout:not(.admonition)')
+    ? codeBlockElement
+    : codeBlockElement.querySelector('.callout:not(.admonition)');
   if (!callouts) {
     return;
   }
 
-  const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-  if (markdownView?.getMode() !== "source") {
+  const firstCodeEl = callouts.querySelector('pre > code');
+  if (codeBlockElement.closest('.markdown-preview-view, .print, .cm-callout') || (firstCodeEl && context.getSectionInfo(firstCodeEl as HTMLElement))) {
     return;
   }
 
@@ -28,8 +30,17 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
     return;
   }
 
-  // @ts-ignore
-  const calloutText = context?.containerEl?.cmView?.widget?.text?.split("\n") || null;
+  type ContextWithContainerEl = MarkdownPostProcessorContext & {
+    containerEl?: HTMLElement & {
+      cmView?: {
+        widget?: {
+          text?: string;
+        };
+      };
+    };
+  };
+
+  const calloutText = (context as ContextWithContainerEl)?.containerEl?.cmView?.widget?.text?.split("\n") || null;
   if (!calloutText) {
     return;
   }
@@ -57,25 +68,24 @@ export async function calloutPostProcessor(codeBlockElement: HTMLElement, contex
 }// calloutPostProcessor
 
 function waitForCmView(context: MarkdownPostProcessorContext, maxFrames = 10): Promise<boolean> {
-  // @ts-ignore
-  if (context?.containerEl?.cmView) {
+  type ContextWithContainerEl = MarkdownPostProcessorContext & { containerEl?: HTMLElement & { cmView?: unknown } };
+  if ((context as ContextWithContainerEl)?.containerEl?.cmView) {
     return Promise.resolve(true);
   }
 
   return new Promise<boolean>((resolve) => {
     let frames = 0;
     function check() {
-      // @ts-ignore
-      if (context?.containerEl?.cmView) {
+      if ((context as ContextWithContainerEl)?.containerEl?.cmView) {
         resolve(true);
       } else if (frames >= maxFrames) {
         resolve(false);
       } else {
         frames++;
-        requestAnimationFrame(check);
+        window.requestAnimationFrame(check);
       }
     }
-    requestAnimationFrame(check);
+    window.requestAnimationFrame(check);
   });
 }// waitForCmView
 
@@ -112,29 +122,31 @@ export async function admonitionPostProcessor(containerElement: HTMLElement, con
     return;
   }
 
-  const initiallyRenderedElements = Array.from(containerElement.querySelectorAll('div.admonition-content pre:not(.frontmatter)')) as HTMLElement[];
+  const initiallyRenderedElements = Array.from(containerElement.querySelectorAll<HTMLElement>('div.admonition-content pre:not(.frontmatter)'));
   if (initiallyRenderedElements.length >= innerCodeBlocks.length) {
     await processAdmonitionCodeBlocks(initiallyRenderedElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
     return;
   }
 
-  const timeoutId = setTimeout(() => {
+  const timeoutId = window.setTimeout(() => {
     // MutationObserver for admonition never fired
   }, 2000);
 
-  const observer = new MutationObserver(async (mutations, obs) => {
-    const renderedPreElements = Array.from(containerElement.querySelectorAll('div.admonition-content pre:not(.frontmatter)')) as HTMLElement[];
+  const observer = new MutationObserver((mutations, obs) => {
+    const renderedPreElements = Array.from(containerElement.querySelectorAll<HTMLElement>('div.admonition-content pre:not(.frontmatter)'));
 
     if (renderedPreElements.length >= innerCodeBlocks.length) {
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
       obs.disconnect();
-      await processAdmonitionCodeBlocks(renderedPreElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
-      if (plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut) {
-        setTimeout(async () => {
-          const finalRenderedElements = Array.from(containerElement.querySelectorAll('div.admonition-content pre:not(.frontmatter)')) as HTMLElement[];
-          await processAdmonitionCodeBlocks(finalRenderedElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
-        }, plugin.settings.pluginSettings.plugins.admonitions.timeOut);
-      }
+      void (async () => {
+        await processAdmonitionCodeBlocks(renderedPreElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
+        if (plugin.settings.pluginSettings.plugins.admonitions.enableTimeOut) {
+          window.setTimeout(() => {
+            const finalRenderedElements = Array.from(containerElement.querySelectorAll<HTMLElement>('div.admonition-content pre:not(.frontmatter)'));
+            void processAdmonitionCodeBlocks(finalRenderedElements, innerCodeBlocks, sectionInfo, plugin, context, fileContentLines);
+          }, plugin.settings.pluginSettings.plugins.admonitions.timeOut);
+        }
+      })();
     }
   });
 

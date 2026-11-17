@@ -17,7 +17,7 @@ export interface PickerOptions {
   onReset?: () => string;
   onDelete?: () => void;
   shouldShow?: () => boolean;
-  i18n?: Record<string, any>;
+  i18n?: Pickr.Options['i18n'];
 }
 
 export const SettingsPage = {
@@ -90,13 +90,13 @@ export const COLOR_OPTIONS: ColorOptions = {
   "gutter.activeLineNrColor": "Gutter active line number color"
 };
 
-export function createDetailsGroup(container: HTMLElement, title: string, key: string, settings: any, getCurrentSearch: () => string, ...extraClasses: string[]): HTMLElement {
+export function createDetailsGroup(container: HTMLElement, title: string, key: string, settings: object, getCurrentSearch: () => string, ...extraClasses: string[]): HTMLElement {
   const details = container.createEl('details');
 
   details.addClasses(['settings-group', ...extraClasses]);
-  details.dataset.settingsKey = key as string;
+  details.dataset.settingsKey = key;
 
-  if (settings[key]) {
+  if ((settings as Record<string, boolean>)[key]) {
     details.open = true;
   }
   details.createEl('summary', { text: title });
@@ -104,7 +104,7 @@ export function createDetailsGroup(container: HTMLElement, title: string, key: s
     if (getCurrentSearch()) {
       return;
     }
-    settings[key] = details.open;
+    (settings as Record<string, boolean>)[key] = details.open;
   });
   return details;
 }// createDetailsGroup
@@ -133,7 +133,7 @@ export function updateLanguageSpecificColorContainer(colorContainer: HTMLElement
   const filteredLanguages = language ? (languageColors[language] ? { [language]: languageColors[language] } : {}) : languageColors;
 
   Object.entries(filteredLanguages).forEach(([languageName, colorObject]) => {
-    const languageSettingsDiv = colorContainer.createEl("div", { cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });
+    const languageSettingsDiv = colorContainer.createDiv({ cls: `codeblock-customizer-languageSpecific-${languageName}-settings` });
     languageSettingsDiv.createEl('h4', { text: `${languageName} specific color settings` });
 
     createDropdown(languageSettingsDiv, languageName, pickerInstances, plugin, () => {
@@ -160,9 +160,9 @@ export function createDropdown(languageSettingsDiv: HTMLElement, languageName: s
     .addDropdown((dropdown) => dropdown
       .addOptions(dropdownOptions)
       .setValue(plugin.settings.langSpecificSettingsType)
-      .onChange((value) => {
+      .onChange(async (value) => {
         plugin.settings.langSpecificSettingsType = value;
-        (async () => { await plugin.saveSettings() })();
+        await plugin.saveSettings();
       })
     )
     .addExtraButton(async (button) => {
@@ -182,11 +182,11 @@ export function createDropdown(languageSettingsDiv: HTMLElement, languageName: s
             } else {
               const defaultDarkColor = getColorFromPickrClass(plugin.settings.SelectedTheme, "dark", plugin.settings.langSpecificSettingsType, true);
               const defaultLightColor = getColorFromPickrClass(plugin.settings.SelectedTheme, "light", plugin.settings.langSpecificSettingsType, true);
-              createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, getCurrentMode() === "dark" ? defaultDarkColor as string : defaultLightColor as string, "langSpecific", pickerInstances, plugin, plugin.settings.langSpecificSettingsType, languageName);
-              plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][plugin.settings.langSpecificSettingsType] = defaultLightColor as string;
-              plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][plugin.settings.langSpecificSettingsType] = defaultDarkColor as string;
+              createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, getCurrentMode() === "dark" ? defaultDarkColor : defaultLightColor, "langSpecific", pickerInstances, plugin, plugin.settings.langSpecificSettingsType, languageName);
+              plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName][plugin.settings.langSpecificSettingsType] = defaultLightColor;
+              plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName][plugin.settings.langSpecificSettingsType] = defaultDarkColor;
             }
-            (async () => { await plugin.saveSettings() })();
+            await plugin.saveSettings();
             plugin.renderReadingViews();
             //refreshView();
           }
@@ -202,7 +202,7 @@ export function createDropdown(languageSettingsDiv: HTMLElement, languageName: s
         delete plugin.settings.SelectedTheme.colors.light.languageSpecificColors[languageName];
         delete plugin.settings.SelectedTheme.colors.dark.languageSpecificColors[languageName];
         refreshView();
-        (async () => { await plugin.saveSettings() })();
+        await plugin.saveSettings();
       });
     });
 }// createDropdown

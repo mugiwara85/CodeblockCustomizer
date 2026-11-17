@@ -25,7 +25,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     this.debouncedProcess = debounce(() => this.processGroupedCodeBlocks(), 50, false);
   }
 
-  async onload() {
+  onload() {
     this.processGroupedCodeBlocks();
     this.setupMutationObserver(['class', 'groupname']);
   }// onload
@@ -69,7 +69,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         this.processGroup(group, groupName);
       } else {
         group.forEach(blockElement => {
-          blockElement.style.display = ''; // is this needed?
+          blockElement.classList.remove('codeblock-customizer-grouped-block-hidden'); // is this needed?
         });
       }
     });
@@ -100,7 +100,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const sourcePath = firstBlock.getAttribute('sourcepath') || '';
     const lineCount = firstBlock.querySelectorAll('code > div').length;
     const header = this.createHeader(parameters, groupName, lineCount)
-    const frag = document.createDocumentFragment();
+    const frag = createFragment();
 
     let languageIconElement: HTMLElement;
     if (parameters.displayLanguage) {
@@ -115,7 +115,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     header.appendChild(languageIconElement);
 
     let collapseIconElement: HTMLElement | null = null;
-    const fileNameContainer = createFileName(parameters.headerDisplayText, this.plugin.settings.pluginSettings.codeblock.enableLinks, sourcePath, this.plugin);
+    const fileNameContainer = createFileName(parameters.headerDisplayText, this.plugin.settings.pluginSettings.codeblock.enableLinks, sourcePath, this.plugin, this);
     const groupButtonsContainer = createDiv({ cls: `codeblock-customizer-button-container` });
 
     const updateGroupHeader = (currentBlock: HTMLPreElement) => {
@@ -261,8 +261,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
   private addHeaderClickHandler(headerContainer: HTMLElement, tabsContainer: HTMLElement, buttonsContainer: HTMLElement, group: HTMLPreElement[]) {
     const headerClickHandler = (event: MouseEvent) => {
-      if (!tabsContainer.contains(event.target as Node) && !buttonsContainer.contains(event.target as Node)) {
-        const activeBlock = group.find(block => block.style.display !== 'none');
+      if (!tabsContainer.contains(event.target as Node) && !buttonsContainer.contains(event.target as Node) && !(event.target as HTMLElement).closest('a')) {
+        const activeBlock = group.find(block => !block.classList.contains('codeblock-customizer-grouped-block-hidden'));
         if (!activeBlock)
           return;
 
@@ -304,8 +304,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         existingButtons.remove();
       }
 
-      blockElement.style.display = 'none';
-      blockElement.classList.add('displayedInGroup');
+      blockElement.classList.add('codeblock-customizer-grouped-block-hidden', 'displayedInGroup');
     });
   }// hideGroupedCodeBlocks
 
@@ -412,7 +411,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
     for (let i = 0; i < containerArray.length; i++) {
       const currentContainer = containerArray[i];
-      const currentPreElement = currentContainer.querySelector('pre.codeblock-customizer-grouped') as HTMLPreElement | null;
+      const currentPreElement = currentContainer.querySelector<HTMLPreElement>('pre.codeblock-customizer-grouped');
 
       if (!currentPreElement) {
         if (currentConsecutiveGroup.length > 0) {
@@ -509,7 +508,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// setStoredTabIndex
 
   private addTabs(frag: DocumentFragment, groupMembers: HTMLPreElement[], updateGroupHeader: (currentBlock: HTMLPreElement, tabsContainer: HTMLElement) => void, groupName: string, documentPath: string): HTMLElement {
-    const tabsContainer = document.createElement('div');
+    const tabsContainer = createDiv();
     tabsContainer.classList.add('codeblock-customizer-header-group-tabs');
 
     let activeTabIndex = this.getStoredTabIndex(groupName, documentPath);
@@ -530,10 +529,10 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
       if (blockElement === activeBlock) {
         tab.classList.add('active');
-        blockElement.style.display = '';
+        blockElement.classList.remove('codeblock-customizer-grouped-block-hidden');
       } else {
         tab.classList.remove('active');
-        blockElement.style.display = 'none';
+        blockElement.classList.add('codeblock-customizer-grouped-block-hidden');
       }
 
       tabsContainer.appendChild(tab);
@@ -547,7 +546,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
 
   private addTabClickHandler(tabsContainer: HTMLElement, groupMembers: HTMLPreElement[], updateGroupHeader: (currentBlock: HTMLPreElement, tabsContainer: HTMLElement) => void, groupName: string, documentPath: string) {
     const tabClickHandler = (event: MouseEvent) => {
-      const clickedTab = (event.target as HTMLElement).closest('.codeblock-customizer-header-group-tab') as HTMLElement | null;
+      const clickedTab = (event.target as HTMLElement).closest<HTMLElement>('.codeblock-customizer-header-group-tab');
       if (!clickedTab)
         return;
 
@@ -581,7 +580,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const semiFoldSettings = this.plugin.settings.pluginSettings.semiFold;
     const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
 
-    const currentCollapseIcon = header.querySelector('.codeblock-customizer-header-collapse') as HTMLElement | null;
+    const currentCollapseIcon = header.querySelector<HTMLElement>('.codeblock-customizer-header-collapse');
     if (!currentCollapseIcon)
       return;
 
@@ -604,7 +603,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         header.classList.toggle("semi-collapsed");
       }
       if (activeBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed')) {
-        reassignFadeOutClasses(activeBlock, activeBlock.querySelector('code') as HTMLElement, this.plugin.settings.pluginSettings);
+        reassignFadeOutClasses(activeBlock, activeBlock.querySelector('code:not(.language-output):not(.codeblock-customizer-hidden-code)') as HTMLElement, this.plugin.settings.pluginSettings);
       }
     } else {
       toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-collapsed', collapseStyle);
@@ -627,8 +626,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// foldCodeBlcok
 
   private switchTab(clickedTab: HTMLElement, targetBlock: HTMLPreElement, allGroupBlocks: HTMLPreElement[], tabsContainer: HTMLElement, updateHeaderCallback: (currentBlock: HTMLPreElement, tabsContainer: HTMLElement) => void) {
-    allGroupBlocks.forEach(b => b.style.display = 'none');
-    targetBlock.style.display = '';
+    allGroupBlocks.forEach(b => b.classList.add('codeblock-customizer-grouped-block-hidden'));
+    targetBlock.classList.remove('codeblock-customizer-grouped-block-hidden');
 
     tabsContainer.querySelectorAll('.codeblock-customizer-header-group-tab').forEach(btn => btn.classList.remove('active'));
     clickedTab.classList.add('active');
@@ -649,8 +648,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const paramsJson = element.dataset.parameters;
     if (paramsJson) {
       try {
-        return JSON.parse(paramsJson);
-      } catch (e) {
+        return JSON.parse(paramsJson) as CBCParameters;
+      } catch {
         //console.error("Failed to parse parameters from element:", element, e);
         return getDefaultParameters();
       }
@@ -659,23 +658,25 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   }// getParametersFromElement
 }// GroupedCodeBlockRenderChild
 
-function debounce<T extends (...args: any[]) => void>(func: T, wait: number, immediate: boolean) {
-  let timeout: NodeJS.Timeout | null;
+function debounce<T extends (...args: never[]) => void>(func: T, wait: number, immediate: boolean): T {
+  let timeout: number | null;
   let result: ReturnType<T> | undefined;
 
-  return function (this: any, ...args: any[]) {
-    const later = function () {
+  return function (this: unknown, ...args: Parameters<T>) {
+    const later = function (this: unknown) {
       timeout = null;
       if (!immediate) {
-        result = func.apply(this, args);
+        result = func.apply(this, args) as ReturnType<T>;
       }
     };
 
     const callNow = immediate && !timeout;
-    clearTimeout(timeout as NodeJS.Timeout);
-    timeout = setTimeout(later, wait);
+    if (timeout !== null) {
+      window.clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(later, wait);
     if (callNow) {
-      result = func.apply(this, args);
+      result = func.apply(this, args) as ReturnType<T>;
     }
     return result;
   } as T;

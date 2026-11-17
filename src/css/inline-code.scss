@@ -107,7 +107,7 @@ body:not(.codeblock-customizer-show-inline-code-icons) {
   font-size: var(--code-size);
 }
 
-.codeblock-customizer.codeblock-customizer-style-inline-code :is(.markdown-rendered, .markdown-source-view) :not(pre)>code.codeblock-customizer-inline-code{
+.codeblock-customizer.codeblock-customizer-style-inline-code :is(.markdown-rendered, .markdown-source-view) :not(pre)>code.codeblock-customizer-inline-code {
   background-color: var(--codeblock-customizer-inline-code-background-color);
   color: var(--codeblock-customizer-inline-code-text-color);
 }

@@ -823,7 +823,7 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
 
 /* ln */
 .codeblock-customizer .markdown-source-view .HyperMD-codeblock:has(.codeblock-customizer-line-number-specific) .codeblock-customizer-annotation-icon {
-  left: calc(var(--gutter-padding, var(--gutter-width, 0px)) + 2px);
+  left: calc(var(--gutter-padding, var(--gutter-width, var(--line-number-gutter-width))) + 2px);
 }
 
 /* popup tooltip */
@@ -844,11 +844,13 @@ body.codeblock-customizer-style-codeblock-border-left .codeblock-customizer-head
   line-height: 1.5;
   opacity: 0;
   transform: scale(0.95);
-  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
+  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out, visibility 150ms;
+  visibility: hidden;
 }
 .codeblock-customizer-annotation-tooltip.is-visible {
   opacity: 1;
   transform: scale(1);
+  visibility: visible;
 }
 
 .codeblock-customizer-popup-header {
@@ -981,6 +983,10 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   display: none;
 }
 
+.codeblock-customizer-edit-button-hidden {
+  display: none !important;
+}
+
 /* output separator widget */
 .has-output-separator {
   position: relative;
@@ -1057,6 +1063,10 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
 
 .codeblock-customizer-line-number-hide {
   display: none;
+}
+
+.codeblock-customizer-gutter-sized {
+  box-sizing: content-box !important;
 }
 
 .markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number, .markdown-rendered .codeblock-customizer-pre > code > div:first-child > .codeblock-customizer-line-number-specific, .markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number, .markdown-rendered .codeblock-customizer-pre > code > .codeblock-customizer-lines-below-collapsed > .codeblock-customizer-line-number-specific {
@@ -1677,8 +1687,7 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 
 /* hide scrollbar when code block is collapsed/semi-collapsed */
-.codeblock-customizer-header-container-specific.collapsed ~ .codeblock-customizer-scrollbar,
-.codeblock-customizer-header-container-specific.semi-collapsed ~ .codeblock-customizer-scrollbar {
+.codeblock-customizer-scrollbar:not(.HyperMD-codeblock + .codeblock-customizer-scrollbar) {
   display: none;
 }
 
@@ -1706,6 +1715,27 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 .codeblock-customizer-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.codeblock-customizer-print-avoid-break {
+  break-inside: avoid;
+}
+
+.codeblock-customizer-grouped-block-hidden {
+  display: none !important;
+}
+
+.codeblock-customizer-snapshot-offscreen {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+}
+.codeblock-customizer-snapshot-offscreen .codeblock-customizer-nowrap {
+  overflow-x: hidden !important;
+}
+
+.codeblock-customizer-snapshot-restore-tab-padding {
+  padding-right: var(--header-spacing) !important;
 }
 
 /* Inline code editor */
@@ -2434,8 +2464,32 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
   display: none;
 }
 
-.codeblock-customizer-setting-hidden {
+.codeblock-customizer-setting-hidden,
+.cbc-search-hidden {
   display: none !important;
+}
+
+.codeblock-customizer-setting-warning {
+  margin-top: 4px;
+  color: var(--text-error);
+  font-weight: bold;
+}
+
+.codeblock-customizer-syntax-theme-note {
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  color: var(--text-error);
+}
+
+.codeblock-customizer-syntax-lang-desc {
+  margin-bottom: 8px;
+}
+
+.codeblock-customizer-syntax-editor-header {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-weight: bold;
 }
 
 .codeblock-customizer-settingspage .setting-item .is-disabled,
@@ -2673,6 +2727,9 @@ body.codeblock-customizer-collapseIconRight .codeblock-customizer-header-collaps
 .cb-settings-section h3 {
   margin-top: 0;
   margin-bottom: 1em;
+}
+.cb-settings-section h3.cbc-search-clickable {
+  cursor: pointer;
 }
 
 .codeblock-customizer-readme-link {

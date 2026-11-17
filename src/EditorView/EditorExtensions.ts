@@ -17,6 +17,7 @@ import { linksExtension } from "./Links";
 import { annotationsExtension } from "./Annotations";
 import { executeCodeExtension } from "./ExecuteCodePlugin";
 import { admonitionExtension } from "./Admonitions";
+import { calloutExtension } from "./Callouts";
 import { wrapExtension } from "./Wrapping";
 import { prismHighlightExtension } from "./PrismHighlight";
 import { htmlCodeBlockWidgetsExtension } from "./HtmlCodeBlockWidgets";
@@ -37,6 +38,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   const { annotationViewPlugin } = annotationsExtension(plugin, settings, codeBlockPositionsField);
   const { executeCodeViewPlugin } = executeCodeExtension(plugin, settings, codeBlockPositionsField);
   const { admonitionViewPlugin } = admonitionExtension(plugin, settings, codeBlockPositionsField);
+  const { calloutViewPlugin } = calloutExtension(plugin, settings);
   const { prismHighlightPlugin } = prismHighlightExtension(plugin, settings, codeBlockPositionsField);
   const { htmlCodeBlockWidgetPlugin } = htmlCodeBlockWidgetsExtension(plugin, settings, codeBlockPositionsField);
 
@@ -89,6 +91,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     hideFencesPlugin,
     executeCodeViewPlugin,
     admonitionViewPlugin,
+    calloutViewPlugin,
     prismHighlightPlugin,
     htmlCodeBlockWidgetPlugin,
     scrollSyncPlugin,

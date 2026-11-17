@@ -12,6 +12,10 @@
   display: none;
 }
 
+.codeblock-customizer-gutter-sized {
+  box-sizing: content-box !important;
+}
+
 .markdown-rendered .codeblock-customizer-pre>code {
   &>div:first-child,
   &>.codeblock-customizer-lines-below-collapsed {

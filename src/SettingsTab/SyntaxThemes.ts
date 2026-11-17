@@ -28,10 +28,6 @@ export class SyntaxThemeSettingsUI {
   public display(parentEl: HTMLElement): void {
     const syntaxDetails = createDetailsGroup(parentEl, 'Syntax Themes', 'syntaxThemesOpen', this, this.getSearchQuery);
     const noteEl = syntaxDetails.createDiv({ cls: 'setting-item-description codeblock-customizer-syntax-theme-note' });
-    noteEl.style.marginBottom = '12px';
-    noteEl.style.padding = '8px';
-    noteEl.style.borderRadius = '4px';
-    noteEl.style.color = 'var(--text-error)';
     noteEl.setText('Note: Syntax themes apply to reading mode only. To also apply it for editor mode, enable the "Use PrismJS syntax highlighting in editor mode" setting above.');
     noteEl.toggleClass('codeblock-customizer-setting-hidden', this.plugin.settings.pluginSettings.codeblock.usePrismHighlight);
 
@@ -67,7 +63,7 @@ export class SyntaxThemeSettingsUI {
   private destroySyntaxPickrs(): void {
     for (let i = this.pickerInstances.length - 1; i >= 0; i--) {
       const pickr = this.pickerInstances[i];
-      if (pickr && this.tokenEditorContainer?.contains((pickr.getRoot() as any).button)) {
+      if (pickr && this.tokenEditorContainer?.contains((pickr.getRoot() as { button: HTMLElement }).button)) {
         pickr.destroy();
         this.pickerInstances.splice(i, 1);
       }
@@ -227,8 +223,7 @@ export class SyntaxThemeSettingsUI {
 
   private addPerLanguageOverride(containerEl: HTMLElement): void {
     const langDetails = createDetailsGroup(containerEl, 'Per-Language Overrides', 'syntaxLangOverridesOpen', this, this.getSearchQuery);
-    const langDesc = langDetails.createDiv({ cls: 'setting-item-description' });
-    langDesc.style.marginBottom = '8px';
+    const langDesc = langDetails.createDiv({ cls: 'setting-item-description codeblock-customizer-syntax-lang-desc' });
     langDesc.setText('Assign a different syntax theme for specific languages. These override the global syntax theme.');
 
     let langInput: TextComponent;
@@ -306,10 +301,7 @@ export class SyntaxThemeSettingsUI {
     const currentMode = getCurrentMode();
     const tokenColors = theme.colors[currentMode];
 
-    const editorHeader = containerEl.createDiv({ cls: 'setting-item-description' });
-    editorHeader.style.marginTop = '12px';
-    editorHeader.style.marginBottom = '4px';
-    editorHeader.style.fontWeight = 'bold';
+    const editorHeader = containerEl.createDiv({ cls: 'setting-item-description codeblock-customizer-syntax-editor-header' });
     editorHeader.setText(`Editing: ${themeName}`);
 
     const groupKeys: Record<string, string> = {
@@ -338,7 +330,7 @@ export class SyntaxThemeSettingsUI {
             initialColor: currentColor,
             onSave: (savedColor: string) => {
               theme.colors[currentMode][token] = savedColor;
-              this.plugin.saveSettings();
+              void this.plugin.saveSettings();
             },
             onReset: () => {
               if (themeName in DEFAULT_SYNTAX_THEMES) {
@@ -350,7 +342,7 @@ export class SyntaxThemeSettingsUI {
             onDelete: () => {
               delete theme.colors.light[token];
               delete theme.colors.dark[token];
-              this.plugin.saveSettings();
+              void this.plugin.saveSettings();
               this.rebuildTokenEditor();
             },
           }, this.pickerInstances, this.plugin);

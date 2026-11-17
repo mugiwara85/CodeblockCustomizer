@@ -46,7 +46,7 @@ export class StateStore<K extends string | number, V> {
       if (!record) {
         return undefined;
       }
-      return new Map(Object.entries(record).map(([k, v]) => [this.keyParser(k), v as V]));
+      return new Map(Object.entries(record).map(([k, v]) => [this.keyParser(k), v]));
     }
     return this.session.get(filePath);
   }// getAll

@@ -194,7 +194,7 @@ export class BehaviorSettings {
       .addDropdown((dropdown) => {
         semiFoldLines = dropdown
         dropdown.selectEl.empty();
-        dropdown.addOptions(Object.fromEntries([...Array(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
+        dropdown.addOptions(Object.fromEntries([...Array<unknown>(50)].map((_, index) => [`${index + 1}`, `${index + 1}`])))
         dropdown.setValue(this.plugin.settings.pluginSettings.semiFold.visibleLines.toString())
         dropdown.onChange(async (value) => {
           const number = parseInt(value);

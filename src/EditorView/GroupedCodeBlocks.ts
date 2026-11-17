@@ -1,6 +1,6 @@
 import { editorInfoField, setIcon } from "obsidian";
 
-import { StateField, EditorState, Transaction, EditorSelection } from "@codemirror/state";
+import { StateField, EditorState, Transaction, EditorSelection, Annotation } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { CodeblockCustomizerSettings, TabPersistence } from "../Settings";
@@ -8,10 +8,10 @@ import CodeBlockCustomizerPlugin from "../main";
 import { createCodeblockLang, isSourceMode, getDisplayLanguageName } from "../Utils";
 import { CBCParameters } from "../Parsing";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
-import { setGroupTab, CodeBlockFoldEffect, FoldingState } from "./EditorEffects";
+import { setGroupTab, CodeBlockFoldEffect, FoldingState, FoldStateAnnotation } from "./EditorEffects";
 
 export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings, codeBlockPositionsField: StateField<CodeBlockPositions[]>,
-  getToggleCodeBlockFold: () => (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: any[] }, getFoldingState?: (state: EditorState, startPos: number, endPos: number) => FoldingState) {
+  getToggleCodeBlockFold: () => (view: EditorView, pos: CodeBlockPositions) => { effects: CodeBlockFoldEffect[], annotations: Annotation<FoldStateAnnotation>[] }, getFoldingState?: (state: EditorState, startPos: number, endPos: number) => FoldingState) {
 
   const groupedCodeBlocksField = StateField.define<GroupedCodeBlocks>({
     create(state: EditorState): GroupedCodeBlocks {
@@ -319,7 +319,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
     const activeStartPos = activeGroup?.[parameters.group];
     const isClickedTabActive = member.codeBlockStartPos === activeStartPos;
 
-    const annotations = [setGroupTab.of({ group: groupName, startPos: member.codeBlockStartPos })];
+    const annotations: Annotation< { group: string; startPos: number } | FoldStateAnnotation >[] = [setGroupTab.of({ group: groupName, startPos: member.codeBlockStartPos })];
     const effects: CodeBlockFoldEffect[] = [];
 
     if (isClickedTabActive) {

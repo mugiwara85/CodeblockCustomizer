@@ -7,7 +7,7 @@ import { syntaxTree } from "@codemirror/language";
 import { isSourceMode } from "../Utils";
 import { TooltipManager } from "../TooltipManager";
 import { CodeblockCustomizerSettings } from "../Settings";
-import { ANNOTATION_PATTERN, rhombusSVG } from "../Const";
+import { ANNOTATION_PATTERN, createRhombusSvg } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeBlockPositions, getVisibleCodeBlocks } from "./CodeBlockPositions";
 
@@ -102,7 +102,7 @@ export function annotationsExtension(plugin: CodeBlockCustomizerPlugin, settings
     toDOM(view: EditorView): HTMLElement {
       const iconContainer = createSpan({ cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${this.type}` });
       //iconContainer.setAttribute("aria-label", `Annotation: ${this.type}`);
-      iconContainer.innerHTML = rhombusSVG;
+      iconContainer.appendChild(createRhombusSvg());
 
       const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";
 

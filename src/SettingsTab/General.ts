@@ -6,7 +6,7 @@ import { ColorTheme, DEFAULT_THEMES } from "src/Settings";
 
 export class GeneralSettings {
   printToPDFDetailsOpen: boolean = false;
-  debounceTimer: NodeJS.Timeout | null = null;
+  debounceTimer: number | null = null;
 
   constructor(private plugin: CodeBlockCustomizerPlugin, private containerEl: HTMLElement, private getSearchQuery: () => string, private refreshSettings: () => void) { }
 
@@ -38,10 +38,7 @@ export class GeneralSettings {
           this.plugin.renderReadingViews();
         })
       );
-    const htmlCodeBlocksWarningEl = htmlCodeBlocksSetting.descEl.createDiv({ cls: "mod-warning" });
-    htmlCodeBlocksWarningEl.style.color = "var(--text-error)";
-    htmlCodeBlocksWarningEl.style.marginTop = "4px";
-    htmlCodeBlocksWarningEl.style.fontWeight = "bold";
+    const htmlCodeBlocksWarningEl = htmlCodeBlocksSetting.descEl.createDiv({ cls: "mod-warning codeblock-customizer-setting-warning" });
     htmlCodeBlocksWarningEl.setText("Experimental: This feature is still being tested. Please report any issues you encounter.");
 
     new Setting(generalDiv)
@@ -53,11 +50,13 @@ export class GeneralSettings {
         .onChange(async (value) => {
           this.plugin.settings.ExcludeLangs = value;
           if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
+            window.clearTimeout(this.debounceTimer);
           }
-          this.debounceTimer = setTimeout(async () => {
-            await this.plugin.saveSettings(true);
-            this.plugin.renderReadingViews();
+          this.debounceTimer = window.setTimeout(() => {
+            void (async () => {
+              await this.plugin.saveSettings(true);
+              this.plugin.renderReadingViews();
+            })();
           }, 750);
         })
       );

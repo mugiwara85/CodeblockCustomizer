@@ -17,8 +17,9 @@ export type FoldCommand = (typeof FoldCommand)[keyof typeof FoldCommand];
 
 /* annotations, effects */
 
+export type FoldStateAnnotation = { docPath: string; startPos: number; state: FoldingState | null };
 export const setFoldCommandState = StateEffect.define<FoldCommand>();
-export const setFoldState = Annotation.define<{ docPath: string; startPos: number; state: FoldingState | null }>();
+export const setFoldState = Annotation.define<FoldStateAnnotation>();
 export const setGroupTab = Annotation.define<{ group: string; startPos: number }>();
 export const CollapsedDecoration = Decoration.replace({ block: true, attributes: { "code-folded": "true" } });
 export const Collapse = StateEffect.define<Range<Decoration>>();

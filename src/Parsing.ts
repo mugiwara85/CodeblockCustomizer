@@ -572,10 +572,10 @@ function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: st
     processRange(range, word, result.lineSpecificWords);
   } else { // number with text
     const lineNum = Number(line);
-    const lineSpecificWords = (result as any).lineSpecificWords;
+    const lineSpecificWords = result.lineSpecificWords as { lineNumber: number; words: (string | HighlightedWord)[] }[];
     const existingEntry = lineSpecificWords.find((entry: { lineNumber: number; }) => entry.lineNumber === lineNum);
 
-    let wordsToAdd: any[];
+    let wordsToAdd: (string | HighlightedWord)[];
     if (typeof word === 'string') {
       wordsToAdd = word.split(',');
     } else {
@@ -585,7 +585,7 @@ function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: st
     if (existingEntry) {
       existingEntry.words.push(...wordsToAdd);
     } else {
-      result.lineSpecificWords.push({ lineNumber: lineNum, words: wordsToAdd });
+      (result.lineSpecificWords as { lineNumber: number; words: (string | HighlightedWord)[] }[]).push({ lineNumber: lineNum, words: wordsToAdd });
     }
   }
 }// getLineSpecificWords
@@ -612,12 +612,12 @@ function processRange<T>(segment: string, segmentValue: string | HighlightedWord
   }
 
   range.forEach((num) => {
-    const existingEntry = (result as { lineNumber: number, words: any[] }[]).find(entry => entry.lineNumber === num);
+    const existingEntry = (result as { lineNumber: number, words: (string | HighlightedWord)[] }[]).find(entry => entry.lineNumber === num);
 
     if (existingEntry) {
       existingEntry.words.push(...wordsToAdd);
     } else {
-      (result as { lineNumber: number, words: any[] }[]).push({ lineNumber: num, words: wordsToAdd, });
+      (result as { lineNumber: number, words: (string | HighlightedWord)[] }[]).push({ lineNumber: num, words: wordsToAdd, });
     }
   });
 }// processRange
@@ -1031,7 +1031,7 @@ function getCodeBlockLanguage(str: string, isReadingView = false): string {
     const fence = fenceMatch[0];
     const startIndex = fence.length;
     const endIndex = str.indexOf(" ", startIndex);
-    let word = "";
+    let word: string;
     if (endIndex !== -1) {
       word = originalStr.substring(startIndex, endIndex);
     } else {

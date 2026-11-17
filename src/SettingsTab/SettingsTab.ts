@@ -43,7 +43,8 @@ export class SettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.classList.add(`codeblock-customizer-settingspage`);
-    containerEl.createEl('h3', { text: 'Codeblock Customizer Settings' });
+    updateSettingStyles(this.plugin.settings, this.app);
+    new Setting(containerEl).setName('Codeblock Customizer').setHeading();
 
     this.createFirstRowElements(containerEl);
 
@@ -54,30 +55,30 @@ export class SettingsTab extends PluginSettingTab {
       .setDesc("Select which theme to use")
       .addDropdown((dropdownObj) => {
         this.refreshDropdown(dropdownObj, this.plugin.settings);
-        dropdownObj.onChange(value => {
+        dropdownObj.onChange(async value => {
           this.plugin.settings.ThemeName = value;
           this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[this.plugin.settings.ThemeName]);
           this.display();
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
         });// onChange
         dropdown = dropdownObj;
       })// addDropdown
       .addExtraButton(button => {
         button.setTooltip("Update theme");
         button.setIcon('save');
-        button.onClick(() => {
+        button.onClick(async () => {
           this.plugin.settings.Themes[this.plugin.settings.ThemeName] = structuredClone(this.plugin.settings.SelectedTheme);
           new Notice(`Theme "${this.plugin.settings.ThemeName}" updated successfully!`);
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
         });
       })// addExtraButton
       .addExtraButton(button => {
         button.setTooltip("Restore default theme to its original state");
         button.setIcon('reset');
-        button.onClick(() => {
+        button.onClick(async () => {
           this.generalSettings.restoreThemes(this.plugin.settings.ThemeName, false);
           this.display();
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
           new Notice(`Theme "${this.plugin.settings.ThemeName}" restored to its original state!`);
         });
         button.setDisabled(!(this.plugin.settings.ThemeName in DEFAULT_THEMES))
@@ -86,7 +87,7 @@ export class SettingsTab extends PluginSettingTab {
       .addExtraButton(button => {
         button.setTooltip("Delete theme");
         button.setIcon('trash');
-        button.onClick(() => {
+        button.onClick(async () => {
           if (this.plugin.settings.ThemeName.trim().length === 0) {
             new Notice('Select a theme first to delete');
           } else if (this.plugin.settings.ThemeName in DEFAULT_SETTINGS.Themes) {
@@ -98,7 +99,7 @@ export class SettingsTab extends PluginSettingTab {
             this.plugin.settings.SelectedTheme = structuredClone(this.plugin.settings.Themes[this.plugin.settings.ThemeName]);
             this.refreshDropdown(dropdown, this.plugin.settings);
             this.display();
-            (async () => { await this.plugin.saveSettings() })();
+            await this.plugin.saveSettings();
           }
         });// onClick
         button.setDisabled(this.plugin.settings.ThemeName in DEFAULT_THEMES);
@@ -120,7 +121,7 @@ export class SettingsTab extends PluginSettingTab {
       .addExtraButton(button => {
         button.setTooltip("Save theme");
         button.setIcon('plus');
-        button.onClick(() => {
+        button.onClick(async () => {
           if (this.plugin.settings.newThemeName.trim().length === 0)
             new Notice('Set a name for your theme!');
           else if (this.plugin.settings.newThemeName in DEFAULT_SETTINGS.Themes) {
@@ -138,7 +139,7 @@ export class SettingsTab extends PluginSettingTab {
             restoreButton.setDisabled(true);
             this.plugin.settings.newThemeName = "";
             text.setValue("");
-            (async () => { await this.plugin.saveSettings() })();
+            await this.plugin.saveSettings();
             this.display();
           }
         });
@@ -153,11 +154,11 @@ export class SettingsTab extends PluginSettingTab {
           return acc;
         }, {} as Record<string, string>))
         .setValue(this.plugin.settings.settingsType)
-        .onChange((value) => {
+        .onChange(async (value) => {
           this.plugin.settings.settingsType = value;
           this.searchQuery = "";
           this.searchSettings("");
-          (async () => { await this.plugin.saveSettings() })();
+          await this.plugin.saveSettings();
         })
       );
 
@@ -213,19 +214,19 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     const hideOnSearchElements = this.containerEl.querySelectorAll(".cbc-hide-on-search"); // for now only for hiding prompt preview
-    hideOnSearchElements.forEach(el => (el as HTMLElement).style.display = "none");
+    hideOnSearchElements.forEach(el => (el as HTMLElement).classList.add("cbc-search-hidden"));
 
     let anyCategoryVisible = false;
     settingsCategories.forEach(div => {
       Object.values(SettingsPage).forEach(section => {
         (div as HTMLElement).classList.remove(SettingsPageData[section].hideClass);
       });
-      (div as HTMLElement).style.display = "";
+      (div as HTMLElement).classList.remove("cbc-search-hidden");
 
       // make header clickable
       const header = div.querySelector("h3");
       if (header) {
-        header.style.cursor = "pointer";
+        header.classList.add("cbc-search-clickable");
         header.title = "Click to open this settings page";
         header.onclick = () => {
           let targetType: SettingsPage = SettingsPage.General;
@@ -245,7 +246,7 @@ export class SettingsTab extends PluginSettingTab {
             dropdown.value = targetType;
           }
 
-          (async () => { await this.plugin.saveSettings() })();
+          void this.plugin.saveSettings();
           this.display();
         };
       }
@@ -259,7 +260,7 @@ export class SettingsTab extends PluginSettingTab {
         const isElementHidden = isHidden || isRevealed;
 
         if (matches) {
-          settingEl.style.display = "";
+          settingEl.classList.remove("cbc-search-hidden");
           // if the setting was hidden, show it as disabled
           if (isElementHidden) {
             if (isHidden) {
@@ -280,7 +281,7 @@ export class SettingsTab extends PluginSettingTab {
             });
           }
         } else {
-          settingEl.style.display = "none";
+          settingEl.classList.add("cbc-search-hidden");
         }
       };// changeVisibility
 
@@ -334,17 +335,17 @@ export class SettingsTab extends PluginSettingTab {
         });
 
         if (detailsHasMatch) {
-          (details as HTMLElement).style.display = "";
-          (details as HTMLDetailsElement).open = true;
+          (details as HTMLElement).classList.remove("cbc-search-hidden");
+          (details).open = true;
           hasVisibleItems = true;
         } else {
-          (details as HTMLElement).style.display = "none";
+          (details as HTMLElement).classList.add("cbc-search-hidden");
         }
       });
 
       // hide category if nothing visible
       if (!hasVisibleItems) {
-        (div as HTMLElement).style.display = "none";
+        (div as HTMLElement).classList.add("cbc-search-hidden");
       } else {
         anyCategoryVisible = true;
       }
@@ -370,7 +371,7 @@ export class SettingsTab extends PluginSettingTab {
 
   applyTheme() {
     updateSettingStyles(this.plugin.settings, this.app);
-    this.plugin.saveSettings();
+    void this.plugin.saveSettings();
   }// applyTheme
 
   hide(): void {
@@ -389,7 +390,12 @@ export class SettingsTab extends PluginSettingTab {
     const a = createEl("a");
     a.setAttribute("href", link);
     a.addClass("buymeacoffee-ThePirateKing-img");
-    a.innerHTML = `<img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=🥤&slug=ThePirateKing&button_colour=5F7FFF&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00" height="40px" />`;
+    a.createEl("img", {
+      attr: {
+        src: "https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=🥤&slug=ThePirateKing&button_colour=5F7FFF&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00",
+        height: "40px",
+      },
+    });
     return a;
   };// createDonateButton
 }// SettingsTab

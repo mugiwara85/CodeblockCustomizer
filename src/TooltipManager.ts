@@ -1,4 +1,4 @@
-import { setIcon, MarkdownRenderer } from "obsidian";
+import { setIcon, MarkdownRenderer, Component } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "./main";
 
@@ -22,6 +22,7 @@ export const ANNOTATION_TYPE_DISPLAY_TEXT: Record<string, string> = {
 
 export class TooltipManager {
   private tooltip: HTMLElement | null = null;
+  private tooltipComponent: Component | null = null;
   private hideTimer: number | null = null;
   private tooltipAbortController: AbortController | null = null;
 
@@ -51,7 +52,7 @@ export class TooltipManager {
 
   private show = () => {
     if (this.hideTimer) {
-      clearTimeout(this.hideTimer);
+      window.clearTimeout(this.hideTimer);
       this.hideTimer = null;
     }
 
@@ -68,11 +69,11 @@ export class TooltipManager {
     headerContainer.createSpan({ cls: `codeblock-customizer-popup-type-text codeblock-customizer-annotation-title-${this.type}`, text: headerText });
 
     const textContentEl = this.tooltip.createDiv({ cls: 'codeblock-customizer-popup-content' });
-    MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.plugin);
+    this.tooltipComponent = new Component();
+    this.tooltipComponent.load();
+    void MarkdownRenderer.render(this.plugin.app, this.content, textContentEl, this.sourcePath, this.tooltipComponent);
 
-    this.tooltip.style.position = 'fixed';
-    this.tooltip.style.visibility = 'hidden';
-    document.body.appendChild(this.tooltip);
+    (this.iconEl.ownerDocument ?? activeDocument).body.appendChild(this.tooltip);
 
     this.tooltipAbortController = new AbortController();
     const signal = this.tooltipAbortController.signal;
@@ -83,11 +84,10 @@ export class TooltipManager {
 
     const tooltip = this.tooltip;
     const iconEl = this.iconEl;
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       const iconRect = iconEl.getBoundingClientRect();
       tooltip.style.left = `${iconRect.right + 8}px`;
       tooltip.style.top = `${iconRect.top + (iconRect.height / 2) - (tooltip.offsetHeight / 2)}px`;
-      tooltip.style.visibility = '';
       tooltip.classList.add('is-visible');
     });
   };// show
@@ -97,7 +97,9 @@ export class TooltipManager {
       this.tooltipAbortController?.abort();
       this.tooltipAbortController = null;
       this.tooltip.classList.remove('is-visible');
-      setTimeout(() => {
+      window.setTimeout(() => {
+        this.tooltipComponent?.unload();
+        this.tooltipComponent = null;
         this.tooltip?.remove();
         this.tooltip = null;
       }, this.ANIMATION_DURATION);
@@ -110,7 +112,7 @@ export class TooltipManager {
 
   private cancelHide = () => {
     if (this.hideTimer) {
-      clearTimeout(this.hideTimer);
+      window.clearTimeout(this.hideTimer);
       this.hideTimer = null;
     }
   };// cancelHide
@@ -122,7 +124,7 @@ export class TooltipManager {
       e.preventDefault();
       const href = link.getAttribute('href');
       if (href) {
-        this.plugin.app.workspace.openLinkText(href, this.sourcePath);
+        void this.plugin.app.workspace.openLinkText(href, this.sourcePath);
       }
     }
   };// handleLinkClick

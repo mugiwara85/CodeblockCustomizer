@@ -1,13 +1,13 @@
-import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownPreviewRenderer, loadPrism, CachedMetadata, SectionCache } from "obsidian";
+import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownPreviewRenderer, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, loadCustomPrismLanguages, isCustomPrismLanguage } from "../Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, removeFenceIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, loadCustomPrismLanguages, isCustomPrismLanguage, getPrism, setTrustedHtml } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
 import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount } from "../Const";
 import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses, getHtmlCodeBlockData, prepareHtmlCodeElement } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "../Parsing";
-import { countHtmlCodeElements, findHtmlCodeBlock, findHtmlCodeBlocks, isHtmlCodeBlockStart } from "../HtmlCodeBlocks";
+import { countHtmlCodeElements, findHtmlCodeBlocks, isHtmlCodeBlockStart } from "../HtmlCodeBlocks";
 
 const DataSource = {
   Dataset: 'dataset',
@@ -31,8 +31,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     this.context = context;
   }
 
-  async onload() {
-    await this.render();
+  onload() {
+    void this.render();
   }// onload
 
   onunload() {
@@ -126,8 +126,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   private async getSectionInfo(codeBlockElement: HTMLElement): Promise<{ codeBlockSectionInfo: MarkdownSectionInformation | null, source: DataSource | null }> {
     if (codeBlockElement.dataset.sectioninfo) {
       try {
-        return { codeBlockSectionInfo: JSON.parse(codeBlockElement.dataset.sectioninfo), source: DataSource.Dataset };
-      } catch (e) {
+        return { codeBlockSectionInfo: JSON.parse(codeBlockElement.dataset.sectioninfo) as MarkdownSectionInformation, source: DataSource.Dataset };
+      } catch {
         /* ignore */
       }
     }
@@ -174,10 +174,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           resolve(null);
         } else {
           frames++;
-          requestAnimationFrame(check);
+          window.requestAnimationFrame(check);
         }
       }
-      requestAnimationFrame(check);
+      window.requestAnimationFrame(check);
     });
   }// waitForExecuteCodeToFinish
 
@@ -214,13 +214,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   }// isHtmlCodeBlockSection
 
   private getHtmlCodeBlocks(sectionContent: string[]): CodeBlockData[] {
-    const startLine = sectionContent.findIndex(line => line.trim() !== '');
-    const block = findHtmlCodeBlock(i => sectionContent[i], sectionContent.length, startLine);
-    if (!block || this.allPreElements?.length !== 1) {
+    const blocks = findHtmlCodeBlocks(i => sectionContent[i], sectionContent.length);
+    if (blocks.length === 0 || blocks.length !== this.allPreElements?.length) {
       return [];
     }
 
-    return [getHtmlCodeBlockData(block, i => sectionContent[i])];
+    return blocks.map(block => getHtmlCodeBlockData(block, i => sectionContent[i]));
   }// getHtmlCodeBlocks
 
   private async getFileContentLines() {
@@ -285,19 +284,26 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// processCodeBlockFirstLines
 
-  private waitForClass(targetElement: HTMLElement, className: string): Promise<void> {
+  private waitForClass(targetElement: HTMLElement, className: string, timeoutMs = 1000): Promise<void> {
     return new Promise((resolve) => {
       if (targetElement.classList.contains(className)) {
         resolve();
         return;
       }
 
+      const finish = () => {
+        window.clearTimeout(timer);
+        observer.disconnect();
+        resolve();
+      };
+
       const observer = new MutationObserver(() => {
         if (targetElement.classList.contains(className)) {
-          observer.disconnect();
-          resolve();
+          finish();
         }
       });
+
+      const timer = window.setTimeout(finish, timeoutMs);
 
       observer.observe(targetElement, {
         attributes: true,
@@ -315,7 +321,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    if (/(^|\s)language-\S+/.test(originalCodeEl.className)) {
+    if (!blockData.isHtmlBlock && /(^|\s)language-\S+/.test(originalCodeEl.className)) {
+      await getPrism();
       await this.waitForClass(originalCodeEl, "is-loaded");
     }
 
@@ -378,7 +385,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     await this.checkCustomSyntaxHighlight(contentLines, parameters, originalCodeEl, isRerender);
 
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, this.plugin.settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
-    await this.addClasses(preElement, parameters, contentLines, codeElToProcess, codeblockLanguageSpecificClass, originalCodeEl, charPos, isIndentedBlock || false, isRerender, isPrinting);
+    await this.addClasses(preElement, parameters, contentLines, codeElToProcess, codeblockLanguageSpecificClass, originalCodeEl, charPos, isIndentedBlock || false, isRerender, isPrinting, blockData.isHtmlBlock ?? false);
   }// processSingleCodeBlock
 
   private handleRerenderOverride(lineStart: number, initialFirstLine: string, initialIsRerender: boolean): { firstLine: string; isRerender: boolean } {
@@ -418,7 +425,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (customFormat) {
       const highlightedLines = await this.addCustomSyntaxHighlight(codeblockLines, customFormat);
       if (highlightedLines.length > 0 && !isRerender) {
-        preCodeElm.innerHTML = highlightedLines;
+        setTrustedHtml(preCodeElm, highlightedLines);
       }
     }
   }// checkCustomSyntaxHighlight
@@ -433,17 +440,20 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (codeblockLines.length === 0)
       return "";
 
-    const prism = await loadPrism();
+    const prism = await getPrism();
     loadCustomPrismLanguages(prism);
     const langDefinition = prism.languages[language];
+    if (!langDefinition) {
+      return "";
+    }
 
-    const html = await prism.highlight(codeblockLines.join('\n'), langDefinition, language);
+    const html = prism.highlight(codeblockLines.join('\n'), langDefinition, language);
 
     return html || "";
   }// addCustomSyntaxHighlight
 
-  private async addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], preCodeElm: HTMLElement, codeblockLanguageSpecificClass: string, htmlSourceEl: HTMLElement, charPos?: number, isIndentedBlock = false, isParameterRerender = false, isPrinting = false) {
-    const frag = document.createDocumentFragment();
+  private async addClasses(preElement: HTMLElement, parameters: CBCParameters, codeblockLines: string[], preCodeElm: HTMLElement, codeblockLanguageSpecificClass: string, htmlSourceEl: HTMLElement, charPos?: number, isIndentedBlock = false, isParameterRerender = false, isPrinting = false, isHtmlBlock = false) {
+    const frag = createFragment();
 
     this.applyBaseStyling(preElement, parameters, codeblockLanguageSpecificClass, isPrinting);
 
@@ -475,12 +485,15 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     preElement.insertBefore(frag, preElement.firstChild);
 
     await this.applyInitialFoldState(preElement, parameters, charPos, codeblockLines);
-    await this.highlightLines(preCodeElm, parameters, codeblockLines, isIndentedBlock || false, isParameterRerender, isPrinting, htmlSourceEl);
+    await this.highlightLines(preCodeElm, parameters, codeblockLines, isIndentedBlock || false, isParameterRerender, isPrinting, htmlSourceEl, isHtmlBlock);
   }// addClasses
 
   private applyBaseStyling(preElement: HTMLElement, parameters: CBCParameters, codeblockLanguageSpecificClass: string, isPrinting: boolean) {
     preElement.classList.add(`codeblock-customizer-pre`);
     preElement.classList.add(`codeblock-customizer-language-` + (parameters.language.length > 0 ? parameters.language.toLowerCase() : "nolang"));
+    if (parameters.language.length > 0 && !Array.from(preElement.classList).some(cls => /^language-\S+$/i.test(cls))) {
+      preElement.classList.add(`language-${parameters.language.toLowerCase()}`);
+    }
 
     if (codeblockLanguageSpecificClass) {
       preElement.classList.add(codeblockLanguageSpecificClass);
@@ -488,7 +501,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     if (isPrinting && this.plugin.settings.pluginSettings.printing.avoidPageBreaks) {
       if (preElement.parentElement) {
-        preElement.parentElement.style.breakInside = 'avoid';
+        preElement.parentElement.classList.add('codeblock-customizer-print-avoid-break');
       }
     }
 
@@ -514,7 +527,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    const previewView = preParent.closest('.markdown-preview-view') as HTMLElement | null;
+    const previewView = preParent.closest<HTMLElement>('.markdown-preview-view');
     if (!previewView) {
       // reading view renders sections before attaching them, so wait until the block is in the DOM
       if (!preParent.isConnected) {
@@ -576,7 +589,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       rememberedState = rememberedFolds ? rememberedFolds.get(keyToUse) : undefined;
     }
 
-    let foldByDefault = false;
+    let foldByDefault: boolean;
     let useSemiFold = false;
     const globalCommand = this.plugin.foldCommandTrigger;
 
@@ -631,7 +644,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   private HeaderWidget(preElement: HTMLElement, parameters: CBCParameters, settings: CodeblockCustomizerSettings, specificHeader: boolean, contentLineCount: number, charPos?: number) {
     const codeblockLanguageSpecificClass = getLanguageSpecificColorClass(parameters.language, settings.SelectedTheme.colors[getCurrentMode()].languageSpecificColors);
     const container = createContainer(specificHeader, parameters.language, false, codeblockLanguageSpecificClass); // hasLangBorderColor must be always false in reading mode, because how the doc is generated
-    const frag = document.createDocumentFragment();
+    const frag = createFragment();
 
     if (parameters.displayLanguage) {
       const Icon = getLanguageIcon(parameters.displayLanguage)
@@ -641,7 +654,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       }
       frag.appendChild(createCodeblockLang(parameters.displayLanguage));
     }
-    const fileNameEl = createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin);
+    const fileNameEl = createFileName(parameters.headerDisplayText, settings.pluginSettings.codeblock.enableLinks, this.context.sourcePath, this.plugin, this);
     frag.appendChild(fileNameEl);
 
     const collapseStyle = settings.pluginSettings.header.collapseIconStyle;
@@ -658,7 +671,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const semiFold = settings.pluginSettings.semiFold.enableSemiFold;
     const visibleLines = settings.pluginSettings.semiFold.visibleLines;
 
-    container.addEventListener("click", () => {
+    container.addEventListener("click", (event) => {
+      if ((event.target as HTMLElement).closest('a')) {
+        return;
+      }
+
       if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
         (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
         return;
@@ -692,7 +709,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           fileNameEl.textContent = this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
         }
         if (useSemiFold) {
-          reassignFadeOutClasses(preElement, preElement.querySelector('code') as HTMLElement, settings.pluginSettings);
+          reassignFadeOutClasses(preElement, preElement.querySelector('code:not(.language-output):not(.codeblock-customizer-hidden-code)') as HTMLElement, settings.pluginSettings);
         }
       }
 
@@ -709,18 +726,19 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     return container
   }// HeaderWidget
 
-  private async highlightLines(preCodeElm: HTMLElement, parameters: CBCParameters, rawCodeLines: string[], isIndentedBlock: boolean, isRerender = false, isPrinting = false, htmlSourceEl: HTMLElement) {
+  private async highlightLines(preCodeElm: HTMLElement, parameters: CBCParameters, rawCodeLines: string[], isIndentedBlock: boolean, isRerender = false, isPrinting = false, htmlSourceEl: HTMLElement, isHtmlBlock = false) {
     if (!preCodeElm) {
       return;
     }
 
     const sourceEl = htmlSourceEl || preCodeElm;
-    const isAlreadyProcessed = preCodeElm.innerHTML.includes('codeblock-customizer-line');
+    const isAlreadyProcessed = preCodeElm.innerHTML.includes('codeblock-customizer-line') || sourceEl.innerHTML.includes('codeblock-customizer-line');
     const isRunLanguage = Array.from(htmlSourceEl.classList).some(cls => cls.startsWith('language-run-'));
     const isNotHighlighted = isRunLanguage && !htmlSourceEl.innerHTML.includes('<span') && this.plugin.settings.pluginSettings.plugins.executeCode.enabled;
     const isCustomLanguage = isCustomPrismLanguage(parameters.language);
-    const rebuild = isRerender || isAlreadyProcessed || isNotHighlighted || isCustomLanguage;
-    const tempCodeElm = document.createElement('div');
+    const isUnhighlightedHtmlBlock = isHtmlBlock && parameters.language.length > 0 && !htmlSourceEl.querySelector('.token');
+    const rebuild = isRerender || isAlreadyProcessed || isNotHighlighted || isCustomLanguage || isUnhighlightedHtmlBlock;
+    const tempCodeElm = createDiv();
     const settings = this.plugin.settings.pluginSettings;
 
     if (rebuild) {
@@ -729,22 +747,23 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       //let codeLinesToProcess = rawCodeLines.slice(1, -1);
       let codeLinesToProcess = isIndentedBlock ? rawCodeLines : rawCodeLines.slice(1, -1);
 
-      codeLinesToProcess = normalizeIndentation(codeLinesToProcess);
+      codeLinesToProcess = isIndentedBlock ? normalizeIndentation(codeLinesToProcess) : removeFenceIndentation(codeLinesToProcess, rawCodeLines[0] ?? '');
 
       const codeContentToHighlight = codeLinesToProcess.join('\n');
-      const prism = await loadPrism();
+      const prism = await getPrism();
       loadCustomPrismLanguages(prism);
       const language = parameters.language;
       const langDefinition = prism.languages[customFormat ? customFormat : language];
 
       if (langDefinition) {
-        tempCodeElm.innerHTML = await prism.highlight(codeContentToHighlight, langDefinition, language);
+        setTrustedHtml(tempCodeElm, prism.highlight(codeContentToHighlight, langDefinition, language));
       } else {
         tempCodeElm.textContent = codeContentToHighlight;
       }
     } else {
       // initial render
-      tempCodeElm.innerHTML = sourceEl.innerHTML;
+      const targetDoc = tempCodeElm.ownerDocument ?? activeDocument;
+      tempCodeElm.replaceChildren(...Array.from(sourceEl.childNodes, (node) => targetDoc.importNode(node, true)));
     }
 
     preCodeElm.innerHTML = '';
@@ -807,7 +826,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   }// handlePDFExport
 
   private isValidPdfExportElement(pre: HTMLElement): boolean {
-    const codeEl = pre.querySelector("code");
+    const codeEl = pre.querySelector("code:not(.language-output)");
     if (!codeEl) {
       return false;
     }
@@ -815,14 +834,32 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     // admonitions must be excluded only when the admonition plugin is installed
     if (isPluginLoaded('obsidian-admonition', this.plugin)) {
       const isAdmonition = Array.from(codeEl.classList).some(cls => cls.startsWith('language-ad-'));
-      // const isOutput = codeEl.classList.contains('language-output');
       if (isAdmonition) {
         return false;
       }
     }
 
-    return true; // !isAdmonition// && !isOutput
+    const processorWrapper = pre.closest<HTMLElement>('[class*="block-language-"]');
+    if (processorWrapper) {
+      const processorClass = Array.from(processorWrapper.classList).find(cls => cls.startsWith('block-language-'));
+      const blockLang = processorClass ? processorClass.substring('block-language-'.length) : '';
+      if (blockLang && this.isCodeBlockProcessor(blockLang) && !this.isExecuteCodeBlock(blockLang)) {
+        return false;
+      }
+    }
+
+    return true;
   }// isValidPdfExportElement
+
+  private isExecuteCodeBlock(language: string): boolean {
+    if (!this.plugin.settings.pluginSettings.plugins.executeCode.enabled || !isPluginLoaded('execute-code', this.plugin)) {
+      return false;
+    }
+
+    const normalized = language.toLowerCase();
+    const baseLang = normalized.startsWith('run-') ? normalized.substring(4) : normalized;
+    return this.plugin.executeCodeLanguages.includes(baseLang);
+  }// isExecuteCodeBlock
 
   private async processNativePdfBlocks(nativePreElements: HTMLElement[]): Promise<void> {
     const { cache, fileContentLines } = await getFileCacheAndContentLines(this.plugin, this.context.sourcePath);
@@ -910,8 +947,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   }// processBlocks
 
   private isCodeBlockProcessor(language: string): boolean {
-    // @ts-expect-error: undocumented Obsidian API
-    const processors: Record<string, unknown> | undefined = MarkdownPreviewRenderer.codeBlockPostProcessors;
+    const processors = (MarkdownPreviewRenderer as unknown as { codeBlockPostProcessors?: Record<string, unknown> }).codeBlockPostProcessors;
     if (!processors) {
       return false;
     }
@@ -969,7 +1005,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       // filter out code blocks, which have registered code block processors ==> won't produce <pre> elements and this would lead to mismatch
       return extractedBlocks.filter(block => {
         const blockLang = block.firstLine.replace(/^(?:`|~){3,}/, '').trim().split(' ')[0] || '';
-        if (blockLang && this.isCodeBlockProcessor(blockLang)) {
+        if (blockLang && this.isCodeBlockProcessor(blockLang) && !this.isExecuteCodeBlock(blockLang)) {
           //console.log(`[extractCodeBlocksFromSections] skipping code block with language "${blockLang}" (isCodeBlockProcessor)`);
           return false;
         }

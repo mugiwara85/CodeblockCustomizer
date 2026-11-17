@@ -599,7 +599,7 @@ export class PromptManager {
         cdTarget = cdTarget.slice(1, -1);
       }
 
-      let newDir = env.dir;
+      let newDir: string;
       if (cdTarget === "" || cdTarget === "~") {
         newDir = env.homeDir;
       } else if (cdTarget === "-") {
