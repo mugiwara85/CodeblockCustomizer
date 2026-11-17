@@ -50,7 +50,7 @@
 		"@codemirror/language": "^6.8.0",
 		"@codemirror/search": "^6.5.6",
 		"@codemirror/state": "^6.7.6",
-		"@codemirror/view": "^6.43.15",
+		"@codemirror/view": "^6.43.13",
 		"@lezer/common": "^1.1.0",
 		"@simonwep/pickr": "^1.10.2",
 		"es-toolkit": "^1.53.2",
