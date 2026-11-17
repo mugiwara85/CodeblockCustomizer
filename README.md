@@ -315,6 +315,8 @@ All the above options can be prepended with an optional number or range and a `|
 > - For every alternative highlight color a new text highlight parameter can be used. For example, if you created an alternative highlight color called `error`, then you can use the `error` parameter for line highlighting. To highlight text simply append a `t` after the alternative color name. This means that if you want to highlight text using the `error` color, you'll have to use the `errort` (note the `t` at the end) of the parameter.
 > - If you want to highlight text which contains a `"` or `'` you'll have to escape it with a backslash. For example: `hlt:start\"text:end\"text` or `hlt:"start \" text:end \" text"`
 > - If you want to highlight text which contains default line separator `|` or the default text separator `:`, you can redefine them, with the `lsep` and `tsep` parameters. For example: `hlt:5^|ˇ: lsep:^ tsep:ˇ` would highlight text from `|` to `:`. You can also globally define them
+> - If you want to highlight a number or a number range as text instead of a line, escape it with a backslash. For example: `hlt:\5` highlights the text `5` and `hlt:\1-3` highlights the text `1-3`
+> - If you want to highlight a `,` put it between quotes. For example: `hlt:","`
 
 An example code block with text highlight, using three different colors is shown below:  
 

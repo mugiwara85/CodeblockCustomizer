@@ -9,7 +9,8 @@
 		"css": "sass src/css/main.scss styles.css --no-source-map",
 		"lint:css": "stylelint \"src/css/**/*.scss\"",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"lint": "eslint ."
+		"lint": "eslint .",
+		"test": "node --test \"tests/*.cjs\""
 	},
 	"keywords": [],
 	"author": "",

@@ -442,7 +442,7 @@ function getHighlightedLines(parsedParameters: ParsedParams, parameter: string, 
 
   // backward compatibility (hl="1,2,3")
   const segments = quoteAwareSplit(rawValue.trim()).flatMap(
-    seg => /^[\d\s,-]+$/.test(seg) && seg.includes(',') ? seg.split(',').map(s => s.trim()).filter(Boolean) : [seg]
+    seg => /^[\d\s,-]+$/.test(seg) && /\d/.test(seg) && seg.includes(',') ? seg.split(',').map(s => s.trim()).filter(Boolean) : [seg]
   );
 
   for (const segment of segments) {
@@ -526,7 +526,10 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
 
     word = val;
   } else { // does not contains : nor |
-    if (segment.includes("-"))
+    const escapedNumber = segment.match(/^\\(\d+(?:\s*-\s*\d+)?)$/); // \5 or \1-3 is text, not a line or range
+    if (escapedNumber)
+      word = escapedNumber[1];
+    else if (/^\d+\s*-\s*\d+$/.test(segment))
       range = segment.trim();
     else if (isWholeNumber(segment))
       line = segment.trim();
@@ -575,12 +578,7 @@ function getLineSpecificWords(result: TextHighlight | LinesToHighlight, line: st
     const lineSpecificWords = result.lineSpecificWords as { lineNumber: number; words: (string | HighlightedWord)[] }[];
     const existingEntry = lineSpecificWords.find((entry: { lineNumber: number; }) => entry.lineNumber === lineNum);
 
-    let wordsToAdd: (string | HighlightedWord)[];
-    if (typeof word === 'string') {
-      wordsToAdd = word.split(',');
-    } else {
-      wordsToAdd = [word];
-    }
+    const wordsToAdd = [word];
 
     if (existingEntry) {
       existingEntry.words.push(...wordsToAdd);
@@ -604,12 +602,7 @@ function sortAndRemoveDuplicates(numbers: number[]): number[] {
 
 function processRange<T>(segment: string, segmentValue: string | HighlightedWord, result: T): void {
   const range = getLineRanges(segment);
-  let wordsToAdd: string[] | HighlightedWord[];
-  if (typeof segmentValue === 'string') {
-    wordsToAdd = segmentValue.split(',');
-  } else {
-    wordsToAdd = [segmentValue];
-  }
+  const wordsToAdd = [segmentValue];
 
   range.forEach((num) => {
     const existingEntry = (result as { lineNumber: number, words: (string | HighlightedWord)[] }[]).find(entry => entry.lineNumber === num);
