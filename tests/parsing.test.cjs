@@ -1,43 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Use Node built-in test runner with bundled TypeScript helpers. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const esbuild = require('esbuild');
-const Module = require('node:module');
-const path = require('node:path');
+const { load } = require('./helpers/load.cjs');
 
-// getCurrentMode() reads the theme class from these documents
-globalThis.document = { querySelector: () => null };
-globalThis.activeDocument = globalThis.document;
-
-async function loadParsing() {
-  const result = await esbuild.build({
-    stdin: {
-      contents: 'export { getAllParameters, parseInlineCodeHighlightParams, getInlineCodeBgClass } from "./src/Parsing";',
-      resolveDir: process.cwd(),
-    },
-    bundle: true,
-    write: false,
-    platform: 'node',
-    format: 'cjs',
-    packages: 'external',
-    plugins: [{
-      name: 'obsidian-stub',
-      setup(build) {
-        build.onResolve({ filter: /^obsidian$/ }, () => ({ path: 'obsidian', namespace: 'stub' }));
-        build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'module.exports = {};' }));
-      },
-    }],
-  });
-
-  const filename = path.join(process.cwd(), 'parsing-test.cjs');
-  const mod = new Module(filename, module);
-  mod.filename = filename;
-  mod.paths = module.paths;
-  mod._compile(result.outputFiles[0].text, filename);
-  return mod.exports;
-}
-
-const parsingPromise = loadParsing();
+const parsingPromise = Promise.resolve(load('src/Parsing.ts'));
 
 function makeSettings({ altColors = ['info', 'Warn'], excludeLangs = '', lineSeparator = '', textSeparator = '', html = false, customPrompts = {} } = {}) {
   const colors = {

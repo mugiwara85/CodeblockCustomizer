@@ -1,18 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- CommonJS test file, same as wrapping.test.cjs. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const esbuild = require('esbuild');
-const Module = require('node:module');
-const path = require('node:path');
+const { load } = require('./helpers/load.cjs');
 
-function loadCustomSvg() {
-  const result = esbuild.buildSync({ entryPoints: ['src/CustomSvg.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' });
-  const mod = new Module(path.join(process.cwd(), 'customSvg-test.cjs'), module);
-  mod.filename = path.join(process.cwd(), 'customSvg-test.cjs');
-  mod._compile(result.outputFiles[0].text, mod.filename);
-  return mod.exports;
-}
-const { buildSvg, svgToDataUri } = loadCustomSvg();
+const { buildSvg, svgToDataUri } = load('src/CustomSvg.ts');
 const WRAPPER_START = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">';
 const wrapped = content => `${WRAPPER_START}${content}</svg>`;
 

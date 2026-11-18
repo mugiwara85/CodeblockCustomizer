@@ -1,38 +1,52 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Use Node built-in test runner with bundled TypeScript helpers. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const esbuild = require('esbuild');
-const Module = require('node:module');
-const path = require('node:path');
+const { load } = require('./helpers/load.cjs');
 
-async function loadUtilsHelpers() {
-  const result = await esbuild.build({
-    stdin: {
-      contents: 'export { layerHighlightRanges, removeAnnotationRangesFromCode } from "./src/Utils";',
-      resolveDir: process.cwd(),
-    },
-    bundle: true,
-    write: false,
-    platform: 'node',
-    format: 'cjs',
-    packages: 'external',
-    plugins: [{
-      name: 'obsidian-stub',
-      setup(build) {
-        build.onResolve({ filter: /^obsidian$/ }, () => ({ path: 'obsidian', namespace: 'stub' }));
-        build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'module.exports = {};' }));
-      },
-    }],
-  });
+const helpersPromise = Promise.resolve(load('src/Utils.ts'));
+const { getAllParameters, createHighlightRules, filterOccurrences, findAllOccurrences, ANNOTATION_PATTERN, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/HighlightRules.ts', 'src/Utils.ts', 'src/Const.ts', 'src/Settings.ts');
 
-  const mod = new Module(path.join(process.cwd(), 'highlighting-annotations-test.cjs'), module);
-  mod.filename = path.join(process.cwd(), 'highlighting-annotations-test.cjs');
-  mod.paths = module.paths;
-  mod._compile(result.outputFiles[0].text, mod.filename);
-  return mod.exports;
+function rules(line) {
+  const s = structuredClone(DEFAULT_SETTINGS);
+  s.SelectedTheme.colors.dark.codeblock.alternateHighlightColors = { info: {}, warn: {} };
+  return createHighlightRules(getAllParameters(line, s));
 }
 
-const helpersPromise = loadUtilsHelpers();
+test('highlight rules: line highlight by number, word and line specific word, lower-cased for matching', () => {
+  const r = rules('```js hl:1,3,Foo,4|Bar,4|baz info:2,5|Qux warn:2');
+  assert.deepEqual([...r.defaultLinesToHighlight], [1, 3]);
+  assert.deepEqual(r.defaultLinesToHighlightByWords, ['foo']);
+  assert.deepEqual([...r.defaultLineSpecificWords], [[4, ['bar', 'baz']]]);
+  assert.deepEqual([...r.alternativeLinesToHighlight], [[2, ['info', 'warn']]], 'one line can get several alternative colors');
+  assert.deepEqual([...r.alternativeLineSpecificWords], [[5, [{ words: ['qux'], colorName: 'info' }]]]);
+});
+
+test('highlight rules: text highlight words, text between, all words in line, alternative colors', () => {
+  const r = rules('```js hlt:x,A:B,7,2|y,2|C:D infot:3,z,4|E:F');
+  assert.deepEqual(r.defaultTextToHighlight.map(w => w.text), ['x']);
+  assert.deepEqual(r.defaultTextBetween, [{ from: 'A', to: 'B', fromLower: 'a', toLower: 'b', occurrences: [] }]);
+  assert.deepEqual([...r.defaultTextAllWordsInLine], [7]);
+  assert.deepEqual([...r.defaultTextLineSpecificWords.keys()], [2]);
+  assert.deepEqual(r.defaultTextLineSpecificBetween.get(2).map(t => [t.fromLower, t.toLower]), [['c', 'd']]);
+  assert.deepEqual([...r.alternativeTextAllWordsInLine], [[3, 'info']]);
+  assert.deepEqual(r.alternativeTextToHighlight.map(e => [e.colorName, e.words.map(w => w.text)]), [['info', ['z']]]);
+  assert.deepEqual(r.alternativeTextLineSpecificBetween.get(4).map(t => [t.colorName, t.from, t.to]), [['info', 'E', 'F']]);
+});
+
+test('occurrences: positive from start, negative from end, 0 and out of range ignored, original order kept', () => {
+  const matches = [0, 1, 2, 3, 4].map(i => ({ from: i * 10, to: i * 10 + 1 }));
+  assert.deepEqual(filterOccurrences(matches, []), matches);
+  assert.deepEqual(filterOccurrences(matches, [3, 1]), [matches[0], matches[2]]);
+  assert.deepEqual(filterOccurrences(matches, [-1, 5, 0, 9, -9]), [matches[4]]);
+  assert.deepEqual(findAllOccurrences('aaaa', 'aa'), [0, 2], 'matches do not overlap');
+  assert.deepEqual(findAllOccurrences('abc', 'x'), []);
+});
+
+test('annotation pattern: type, optional title, content', () => {
+  assert.deepEqual({ ...'[!note] Some text'.match(ANNOTATION_PATTERN).groups }, { type: 'note', title: undefined, content: 'Some text' });
+  assert.deepEqual({ ...'[!warn|Careful] Two\nlines'.match(ANNOTATION_PATTERN).groups }, { type: 'warn', title: 'Careful', content: 'Two\nlines' });
+  assert.equal('[note] text'.match(ANNOTATION_PATTERN), null);
+});
 
 test('layerHighlightRanges resolves overlapping default and alternate highlights consistently', async () => {
   const { layerHighlightRanges } = await helpersPromise;

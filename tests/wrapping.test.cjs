@@ -1,32 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Use the same CommonJS CodeMirror instance as the bundled module under test. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const esbuild = require('esbuild');
-const Module = require('node:module');
-const path = require('node:path');
 const { EditorState, StateField, StateEffect } = require('@codemirror/state');
+const { load, obsidian, setLivePreview } = require('./helpers/load.cjs');
 
 global.ResizeObserver = class { observe() {} unobserve() {} };
-const sourceMode = StateField.define({ create: () => false, update: (v, tr) => tr.effects.find(e => e.is(modeEffect))?.value ?? v });
-const modeEffect = StateEffect.define();
-global.__cbcSourceMode = state => state.field(sourceMode);
+// source mode on/off
+const modeEffect = { of: source => setLivePreview.of(!source) };
 
-async function loadWrapping() {
-  const result = await esbuild.build({
-    stdin: { contents: 'export { wrapExtension } from "./src/EditorView/Wrapping"; export { wrapEffect } from "./src/EditorView/EditorEffects";', resolveDir: process.cwd() },
-    bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external',
-    plugins: [{ name: 'obsidian-source-mode-seam', setup(build) {
-      build.onResolve({ filter: /^\.\.\/Utils$/ }, () => ({ path: 'utils', namespace: 'test' }));
-      build.onLoad({ filter: /.*/, namespace: 'test' }, () => ({ contents: 'export const isSourceMode = state => globalThis.__cbcSourceMode(state);' }));
-    } }]
-  });
-  const mod = new Module(path.join(process.cwd(), 'wrapping-test.cjs'), module);
-  mod.filename = path.join(process.cwd(), 'wrapping-test.cjs');
-  mod.paths = module.paths;
-  mod._compile(result.outputFiles[0].text, mod.filename);
-  return mod.exports;
-}
-const loaded = loadWrapping();
+const loaded = Promise.resolve(load('src/EditorView/Wrapping.ts', 'src/EditorView/EditorEffects.ts'));
 const block = '```js\nconst longLine = "abcdefghijklmnopqrstuvwxyz";\n```';
 function scan(state) {
   const out = []; let start;
@@ -44,7 +26,7 @@ async function fixture(unwrap = true, delayed = false, doc = block) {
   const positions = StateField.define({ create: s => delayed ? [] : scan(s), update: (v, tr) => tr.docChanged || tr.effects.some(e => e.is(discover)) ? scan(tr.state) : v });
   const settings = { pluginSettings: { common: { enableInSourceMode: false }, codeblock: { unwrapcode: unwrap } } };
   const fields = wrapExtension(positions, settings);
-  let state = EditorState.create({ doc, extensions: [sourceMode, positions, fields.wrappingField, fields.unwrappedCodeBlocksField] });
+  let state = EditorState.create({ doc, extensions: [obsidian.editorLivePreviewField, positions, fields.wrappingField, fields.unwrappedCodeBlocksField] });
   return { ...fields, settings, wrapEffect, discover, get state() { return state; }, update(spec) { state = state.update(spec).state; } };
 }
 function lines(f) {

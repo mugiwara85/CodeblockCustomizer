@@ -1,18 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- CommonJS test file, same as wrapping.test.cjs. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const esbuild = require('esbuild');
-const Module = require('node:module');
-const path = require('node:path');
+const { load } = require('./helpers/load.cjs');
 
-function loadHtmlCodeBlocks() {
-  const result = esbuild.buildSync({ entryPoints: ['src/HtmlCodeBlocks.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' });
-  const mod = new Module(path.join(process.cwd(), 'htmlCodeBlocks-test.cjs'), module);
-  mod.filename = path.join(process.cwd(), 'htmlCodeBlocks-test.cjs');
-  mod._compile(result.outputFiles[0].text, mod.filename);
-  return mod.exports;
-}
-const { htmlLineToFenceLine, findHtmlCodeBlocks, getHtmlCodeBlockCode, decodeHtmlEntities, countHtmlCodeElements, findHtmlInlineCodes, combineInlineCodeParameters, getInlineCodeAttributeParameters } = loadHtmlCodeBlocks();
+const { htmlLineToFenceLine, findHtmlCodeBlocks, getHtmlCodeBlockCode, decodeHtmlEntities, countHtmlCodeElements, findHtmlInlineCodes, combineInlineCodeParameters, getInlineCodeAttributeParameters } = load('src/HtmlCodeBlocks.ts');
 
 function find(text) {
   const lines = text.split('\n');
