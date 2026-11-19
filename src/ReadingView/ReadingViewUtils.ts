@@ -174,12 +174,10 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
 
     if (isGrouped) {
       const wrapper = createDiv();
-      const groupName = preEl.getAttribute('groupname');
-      if (groupName) {
-        const headerEl = (preEl.ownerDocument ?? activeDocument).querySelector(`.codeblock-customizer-header-group-container[group="${groupName}"]`);
-        if (headerEl) {
-          wrapper.appendChild(headerEl.cloneNode(true));
-        }
+      // the header of this group, not the first header with the same group name in the window
+      const headerEl = getGroupHeader(preEl);
+      if (headerEl) {
+        wrapper.appendChild(headerEl.cloneNode(true));
       }
       wrapper.appendChild(preEl.cloneNode(true));
       elementToClone = wrapper;
@@ -844,7 +842,8 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
       jumpIdx++;
     }
 
-    const isHidden = hiddenLines.has(physicalLineNumber) || hiddenLines.has(jumpCounter);
+    // hide uses displayed line numbers, like the hidden-line rendering below and the editor
+    const isHidden = hiddenLines.has(jumpCounter);
     if (!isHidden) {
       currentVisibleCount++;
     }
@@ -1671,16 +1670,14 @@ function handleUncollapseClick(event: Event) {
     return;
   }
 
-  const pre = button.closest('pre.codeblock-customizer-pre');
+  const pre = button.closest<HTMLElement>('pre.codeblock-customizer-pre');
   if (!pre) {
     return;
   }
 
   let header: HTMLElement | null;
   if (pre.classList.contains("displayedInGroup")) {
-    // grouped code blocks
-    const group = pre.getAttribute("groupname");
-    header = (pre.ownerDocument ?? activeDocument).querySelector(`.markdown-rendered .codeblock-customizer-pre-parent .codeblock-customizer-header-group-container[group="${group}"]`);
+    header = getGroupHeader(pre);
   } else {
     // ungrouped code blocks
     header = pre.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');

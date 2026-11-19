@@ -128,9 +128,8 @@ export async function admonitionPostProcessor(containerElement: HTMLElement, con
     return;
   }
 
-  const timeoutId = window.setTimeout(() => {
-    // MutationObserver for admonition never fired
-  }, 2000);
+  // stop waiting if not all code blocks get rendered (e.g. one of them is a dataview block)
+  const timeoutId = window.setTimeout(() => observer.disconnect(), 2000);
 
   const observer = new MutationObserver((mutations, obs) => {
     const renderedPreElements = Array.from(containerElement.querySelectorAll<HTMLElement>('div.admonition-content pre:not(.frontmatter)'));

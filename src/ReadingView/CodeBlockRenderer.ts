@@ -918,9 +918,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
         const nextHeading = headings.find(h => h.position.start.line > startLine && h.level <= targetHeading.level);
         const endLine = nextHeading ? nextHeading.position.start.line - 1 : content.length - 1;
 
-        const sectionLines = content.slice(startLine, endLine + 1);
         const sections = cache.sections?.filter(s => s.position.start.line >= startLine && s.position.end.line <= endLine) ?? [];
-        return this.extractCodeBlocksFromSections(sections, sectionLines);
+        return this.extractCodeBlocksFromSections(sections, content);
       }
     } else {
       // full file embed

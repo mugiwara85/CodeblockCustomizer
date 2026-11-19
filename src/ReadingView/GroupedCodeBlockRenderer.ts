@@ -1,4 +1,4 @@
-import { MarkdownRenderChild, MarkdownView } from "obsidian";
+import { debounce, Debouncer, MarkdownRenderChild, MarkdownView } from "obsidian";
 
 import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, determineDefaultFoldState, getDisplayLanguageName } from "../Utils";
 import { createButtons, toggleFold, reassignFadeOutClasses } from "./ReadingViewUtils";
@@ -13,7 +13,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private listenerAbortController: AbortController | null = null;
   private childMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
   private observer: MutationObserver | null = null;
-  private debouncedProcess: () => void;
+  private debouncedProcess: Debouncer<[], void>;
   private plugin: CodeBlockCustomizerPlugin;
   private activeExecuteCodeObserver: MutationObserver | null = null;
 
@@ -22,16 +22,17 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     this.view = view;
     this.childMap = childMap;
     this.plugin = plugin;
-    this.debouncedProcess = debounce(() => this.processGroupedCodeBlocks(), 50, false);
+    this.debouncedProcess = debounce(() => this.processGroupedCodeBlocks(), 50, true);
   }
 
   onload() {
     this.processGroupedCodeBlocks();
-    this.setupMutationObserver(['class', 'groupname']);
+    this.setupMutationObserver(['groupname']);
   }// onload
 
   onunload() {
     this.childMap.delete(this.view);
+    this.debouncedProcess.cancel();
     this.cleanupListeners();
     this.disconnectObserver();
     if (this.activeExecuteCodeObserver) {
@@ -375,7 +376,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private reconnectObserver() {
     if (this.observer) {
       this.observer.observe(this.containerEl, {
-        childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'groupname'], attributeOldValue: true
+        childList: true, subtree: true, attributes: true, attributeFilter: ['groupname'], attributeOldValue: true
       });
     }
   }// reconnectObserver
@@ -657,27 +658,3 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     return getDefaultParameters();
   }// getParametersFromElement
 }// GroupedCodeBlockRenderChild
-
-function debounce<T extends (...args: never[]) => void>(func: T, wait: number, immediate: boolean): T {
-  let timeout: number | null;
-  let result: ReturnType<T> | undefined;
-
-  return function (this: unknown, ...args: Parameters<T>) {
-    const later = function (this: unknown) {
-      timeout = null;
-      if (!immediate) {
-        result = func.apply(this, args) as ReturnType<T>;
-      }
-    };
-
-    const callNow = immediate && !timeout;
-    if (timeout !== null) {
-      window.clearTimeout(timeout);
-    }
-    timeout = window.setTimeout(later, wait);
-    if (callNow) {
-      result = func.apply(this, args) as ReturnType<T>;
-    }
-    return result;
-  } as T;
-}// debounce
