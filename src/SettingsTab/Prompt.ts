@@ -3,7 +3,7 @@ import { DropdownComponent, ExtraButtonComponent, Notice, Setting, TextComponent
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
 import { DEFAULT_PROMPT_COLOR, defaultPrompts, promptClassDisplayNames, PromptDefinition, PromptEnvironment } from "src/PromptManager";
-import { addClassesToPrompt, collectAllPromptClasses, getPromptDefinition, getPromptType, replacePromptTemplate } from "src/PromptUtils";
+import { addClassesToPrompt, collectAllPromptClasses, getPromptDefinition, getPromptType, isPromptLanguage, replacePromptTemplate } from "src/PromptUtils";
 import { getCurrentMode } from "src/Utils";
 import { addPickerControlsToSetting } from "./ColorUtils";
 
@@ -416,7 +416,7 @@ export class PromptSettings {
               if (promptId === selectedPromptId)
                 continue;
               const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
-              if (pDef.autoUsePrompt && pDef.autoUseLanguages?.includes(lang)) {
+              if (pDef.autoUsePrompt && isPromptLanguage(pDef.autoUseLanguages, lang)) {
                 new Notice(`⚠️ Can't save. Language '${lang}' is already set for auto-use by prompt '${pDef.name}'.`);
                 // revert to last saved value
                 const { def: currentDef } = getPromptDefinition(selectedPromptId, this.plugin.settings);
@@ -492,7 +492,7 @@ export class PromptSettings {
 
           const allPrompts = { ...defaultPrompts, ...this.plugin.settings.pluginSettings.prompts.customPrompts };
           for (const lang of newLangs) {
-            if (updatedPromptData.autoUsePrompt && updatedPromptData.autoUseLanguages?.includes(lang)) {
+            if (updatedPromptData.autoUsePrompt && isPromptLanguage(updatedPromptData.autoUseLanguages, lang)) {
               new Notice(`⚠️ Can't save. Language '${lang}' is already set for 'Auto-use' by this same prompt.`);
               parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
               return;
@@ -500,7 +500,7 @@ export class PromptSettings {
             for (const promptId in allPrompts) {
               if (promptId === selectedPromptId) continue;
               const { def: pDef } = getPromptDefinition(promptId, this.plugin.settings);
-              if ((pDef.autoUsePrompt && pDef.autoUseLanguages?.includes(lang)) || (pDef.autoParsePrompt && pDef.autoParseLanguages?.includes(lang))) {
+              if ((pDef.autoUsePrompt && isPromptLanguage(pDef.autoUseLanguages, lang)) || (pDef.autoParsePrompt && isPromptLanguage(pDef.autoParseLanguages, lang))) {
                 new Notice(`⚠️ Can't save. Language '${lang}' is already in use by prompt '${pDef.name}'.`);
                 parseLanguagesTextComponent.setValue((updatedPromptData.autoParseLanguages ?? []).join(', '));
                 return;

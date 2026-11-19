@@ -1,6 +1,6 @@
 import { DEFAULT_LINE_SEPARATOR, DEFAULT_TEXT_SEPARATOR } from "./Const";
 import { defaultPrompts, PromptLines } from "./PromptManager";
-import { getPromptDefinition } from "./PromptUtils";
+import { getPromptDefinition, isPromptLanguage } from "./PromptUtils";
 import { CodeblockCustomizerSettings, HighlightStyle } from "./Settings";
 import { getBorderColorByLanguage, getCurrentMode, getDisplayLanguageName, getPropertyFromLanguageSpecificColors } from "./Utils";
 import { htmlLineToFenceLine } from "./HtmlCodeBlocks";
@@ -265,7 +265,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
     for (const promptId in allPrompts) {
       const { def: promptDef } = getPromptDefinition(promptId, settings);
 
-      if (promptDef.autoParsePrompt && promptDef.autoParseLanguages?.includes(language)) {
+      if (promptDef.autoParsePrompt && isPromptLanguage(promptDef.autoParseLanguages, language)) {
         parsePromptId = promptId;
         break;
       }
@@ -321,7 +321,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
 }// getParameters
 
 const parseFenceRegexCache = new Map<string, RegExp>();
-const PARAM_REGEX_PATTERN = /(\S+?)([:=])((?:(?:\\.|[^\\\s"'])+|["'](?:\\.|[^\\])*?["'])+)/g;
+const PARAM_REGEX_PATTERN = /(\S+?)([:=])((?:(?:\\.|[^\\\s"'])+|"(?:\\.|[^\\"])*"|'(?:\\.|[^\\'])*')+)/g;
 
 function parseParameters(input: string): ParsedParams {
   const params: ParsedParams = {};
@@ -540,6 +540,9 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
   return { line, range, word, from, to, occurrences };
 }// parseSegment
 
+// longer ranges than MAX_RANGE_SIZE are ignored
+const MAX_RANGE_SIZE = 10000;
+
 function getLineRanges(params: string | null): number[] {
   if (!params) {
     return [];
@@ -553,7 +556,7 @@ function getLineRanges(params: string | null): number[] {
       const range = line.split("-");
       const start = parseInt(range[0], 10);
       const end = parseInt(range[1], 10);
-      if (isNaN(start) || isNaN(end)) {
+      if (isNaN(start) || isNaN(end) || end - start > MAX_RANGE_SIZE) {
         return [];
       }
       return Array.from({ length: end - start + 1 }, (_, i) => start + i);
@@ -752,7 +755,7 @@ function getOccurrences(params: string | null): number[] {
       const start = parseInt(rangeMatch[1], 10);
       const end = parseInt(rangeMatch[2], 10);
 
-      if (!isNaN(start) && !isNaN(end) && start <= end) {
+      if (!isNaN(start) && !isNaN(end) && start <= end && end - start <= MAX_RANGE_SIZE) {
         for (let i = start; i <= end; i++) {
           occurrences.push(i);
         }
@@ -1062,7 +1065,8 @@ function isExcluded(lineText: string, excludeLangs: string): boolean {
   if (excludeLangs === excludeRegexCacheKey) {
     regexLangs = excludeRegexCacheValue;
   } else {
-    regexLangs = splitAndTrimString(excludeLangs).map(lang => new RegExp(`^${lang.replace(/\*/g, '.*')}$`, 'i'));
+    regexLangs = (excludeLangs ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      .map(lang => new RegExp(`^${lang.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`, 'i'));
     excludeRegexCacheKey = excludeLangs;
     excludeRegexCacheValue = regexLangs;
   }
@@ -1075,21 +1079,6 @@ function isExcluded(lineText: string, excludeLangs: string): boolean {
 
   return false;
 }// isExcluded
-
-function splitAndTrimString(str: string) {
-  if (!str) {
-    return [];
-  }
-
-  // Replace * with .*
-  str = str.replace(/\*/g, '.*');
-
-  if (!str.includes(",")) {
-    return [str];
-  }
-
-  return str.split(",").map(s => s.trim());
-}// splitAndTrimString
 
 function getPromptLines(parsedParameters: ParsedParams, parameter: string, textSeparator: string, lineSeparator: string) {
   const result: PromptLines = {

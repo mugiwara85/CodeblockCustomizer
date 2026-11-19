@@ -1,4 +1,4 @@
-import { addClassesToPrompt, getCachedHighlightMap, getMatchRanges, getPromptDefinition, getPromptType, getPWD, replacePromptTemplate } from "./PromptUtils";
+import { addClassesToPrompt, getCachedHighlightMap, getMatchRanges, getPromptDefinition, getPromptType, getPWD, isPromptLanguage, replacePromptTemplate } from "./PromptUtils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { CBCParameters } from "./Parsing";
 
@@ -529,7 +529,7 @@ export class PromptManager {
       const allPrompts = { ...defaultPrompts, ...settings.pluginSettings.prompts.customPrompts };
       for (const promptId in allPrompts) {
         const { def: promptDef } = getPromptDefinition(promptId, settings);
-        if (promptDef.autoUsePrompt && promptDef.autoUseLanguages?.includes(parameters.language)) {
+        if (promptDef.autoUsePrompt && isPromptLanguage(promptDef.autoUseLanguages, parameters.language)) {
           promptText = promptId;
           parameters.prompt.text = promptId;
           break;

@@ -115,9 +115,40 @@ test('exclude flag and excluded languages with wildcards', async () => {
   assert.equal((await parse('```JS', { excludeLangs: 'py*, js' })).exclude, true);
   assert.equal((await parse('```cpp', { excludeLangs: 'py*, js' })).exclude, false);
   assert.equal((await parse('```', { excludeLangs: '*' })).exclude, false);
+  // wildcard also matches the bare prefix, a single entry is trimmed
+  assert.equal((await parse('```py', { excludeLangs: 'py*' })).exclude, true);
+  assert.equal((await parse('```ad-info', { excludeLangs: 'ad-*' })).exclude, true);
+  assert.equal((await parse('```py', { excludeLangs: ' py ' })).exclude, true);
+  assert.equal((await parse('```py', { excludeLangs: '*py' })).exclude, true);
+  // regex characters are literal and do not throw
+  assert.equal((await parse('```c++', { excludeLangs: 'c++' })).exclude, true);
+  assert.equal((await parse('```cpp', { excludeLangs: 'c++, c#' })).exclude, false);
+  assert.equal((await parse('```c#', { excludeLangs: 'c++, c#' })).exclude, true);
+  assert.equal((await parse('```js', { excludeLangs: 'py|js' })).exclude, false);
+  assert.equal((await parse('```pyx', { excludeLangs: 'p.x' })).exclude, false);
+  assert.equal((await parse('```cpp', { excludeLangs: ',, ,' })).exclude, false);
 });
 
 // ---------------------------------------------------------------- file / title
+
+test('a quoted value ends on its own quote character (apostrophes)', async () => {
+  let p = await parse(`\`\`\`cpp title:"Don't panic" hl:2`);
+  assert.equal(p.headerDisplayText, "Don't panic");
+  assert.deepEqual(p.defaultLinesToHighlight.lineNumbers, [2]);
+
+  p = await parse(`\`\`\`cpp title:"it's" file:'a "b"' hl:1`);
+  assert.equal(p.headerDisplayText, 'a "b"');
+  assert.deepEqual(p.defaultLinesToHighlight.lineNumbers, [1]);
+
+  p = await parse(`\`\`\`cpp hlt:"don't",'say "hi"' hl:4`);
+  assert.deepEqual(p.defaultTextToHighlight.words, [w("don't"), w('say "hi"')]);
+  assert.deepEqual(p.defaultLinesToHighlight.lineNumbers, [4]);
+
+  // escaped quote of the same kind still works
+  p = await parse(`\`\`\`cpp title:'it\\'s' hl:5`);
+  assert.equal(p.headerDisplayText, "it's");
+  assert.deepEqual(p.defaultLinesToHighlight.lineNumbers, [5]);
+});
 
 test('file and title', async () => {
   let p = await parse('```cpp');
@@ -374,6 +405,27 @@ test('parse, auto-parse by language, noparse', async () => {
 
   p = await parse('```shell noparse:1-2', { customPrompts });
   assert.deepEqual(p.noParseLines, [1, 2]);
+
+  // case-insensitive, run- prefix ignored in both views
+  assert.equal((await parse('```Shell', { customPrompts })).parsePromptId, 'myshell');
+  assert.equal((await parse('```run-shell', { customPrompts })).parsePromptId, 'myshell');
+  assert.equal((await parse('```run-shell', { customPrompts }, true)).parsePromptId, 'myshell');
+  const upper = { myshell: { ...customPrompts.myshell, autoParseLanguages: ['SHELL'] } };
+  assert.equal((await parse('```shell', { customPrompts: upper })).parsePromptId, 'myshell');
+  assert.equal((await parse('```shellx', { customPrompts: upper })).parsePromptId, null);
+});
+
+test('huge ranges are ignored instead of freezing', async () => {
+  const start = Date.now();
+  let p = await parse('```cpp hl:1-50000000,3 hide:1-50000000 noprompt:1-50000000 noparse:1-50000000 prompt:1-50000000|bash');
+  assert.deepEqual(p.defaultLinesToHighlight.lineNumbers, [3]);
+  assert.deepEqual([p.hideLines, p.noPromptLines, p.noParseLines, p.prompt.lineNumbers], [[], [], [], []]);
+  p = await parse('```cpp hlt:[1-50000000]|foo info:2-50000000|bar');
+  assert.deepEqual(p.defaultTextToHighlight.words, [w('foo')]);
+  assert.deepEqual(p.alternativeTextToHighlight.lineSpecificWords, []);
+  assert.ok(Date.now() - start < 1000);
+  // the limit itself still works
+  assert.equal((await parse('```cpp hl:1-10001')).defaultLinesToHighlight.lineNumbers.length, 10001);
 });
 
 test('noprompt with and without lines', async () => {

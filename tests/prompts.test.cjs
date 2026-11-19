@@ -37,6 +37,12 @@ test('auto-use prompt by language', () => {
   const s = settings({ customPrompts: custom('auto', { autoUsePrompt: true, autoUseLanguages: ['shell'] }) });
   assert.deepEqual([...manager('```shell', 2, s).promptLines], [1, 2]);
   assert.deepEqual([...manager('```bash', 2, s).promptLines], []);
+  // case-insensitive, run- prefix ignored in Live Preview too
+  assert.deepEqual([...manager('```Shell', 2, s).promptLines], [1, 2]);
+  assert.deepEqual([...manager('```run-shell', 2, s).promptLines], [1, 2]);
+  const upper = settings({ customPrompts: custom('auto', { autoUsePrompt: true, autoUseLanguages: ['Shell', 'run-zsh'] }) });
+  assert.deepEqual([...manager('```shell', 2, upper).promptLines], [1, 2]);
+  assert.deepEqual([...manager('```zsh', 2, upper).promptLines], [1, 2]);
 });
 
 test('bash: cd, cd -, pwd, su, whoami, exit, root prompt', () => {

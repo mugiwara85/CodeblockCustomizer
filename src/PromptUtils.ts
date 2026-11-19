@@ -435,6 +435,12 @@ export function getPromptDefinition(promptId: string, settings: CodeblockCustomi
   return { def, isCustom };
 }// getPromptDefinition
 
+export function isPromptLanguage(languages: string[] | undefined, language: string): boolean {
+  const normalize = (lang: string) => lang.trim().toLowerCase().replace(/^run-/, '');
+  const target = normalize(language);
+  return !!target && !!languages?.some(lang => normalize(lang) === target);
+}// isPromptLanguage
+
 export function getPWD(env: PromptEnvironment) {
   let path = env.dir ?? "~";
 
