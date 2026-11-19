@@ -212,11 +212,10 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const headerDisplayText = extractFileTitle(parsedParameters);
   const hasTitle = !!headerDisplayText;
 
-  // fold
-  const fold = isFoldDefined(lineText);
-
-  // unfold
-  const unfold = isUnFoldDefined(lineText);
+  // flags (fold, unfold, exclude, noprompt, noparse, output, expand)
+  const flags = getFlagWords(lineText);
+  const fold = flags.has("fold");
+  const unfold = flags.has("unfold");
 
   // language
   const language = getCodeBlockLanguage(lineText, isReadingView);
@@ -225,7 +224,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   const displayLanguage = getDisplayLanguageName(language) || "Plain text";
 
   // isExcluded
-  const exclude = isExcluded(lineText, settings.ExcludeLangs);
+  const exclude = flags.has("exclude") || isExcluded(lineText, settings.ExcludeLangs);
 
   // group 
   const group = extractParameter(parsedParameters, "group") ?? '';
@@ -253,11 +252,11 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   let parsePromptId = extractParameter(parsedParameters, "parse");
 
   // noprompt
-  const noPrompt = isParameterDefined("noprompt", lineText);
+  const noPrompt = flags.has("noprompt");
   const noPromptLines = getLineRanges(extractParameter(parsedParameters, "noprompt"));
 
   // noparse
-  const noParse = isParameterDefined("noparse", lineText);
+  const noParse = flags.has("noparse");
   const noParseLines = getLineRanges(extractParameter(parsedParameters, "noparse"));
 
   if (!parsePromptId && language && !noParse) {
@@ -273,13 +272,13 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   }
 
   // output
-  const output = isParameterDefined("output", lineText);
+  const output = flags.has("output");
 
   // hide
   const hideLines = getLineRanges(extractParameter(parsedParameters, "hide"));
 
   // expand
-  const expand = isParameterDefined("expand", lineText);
+  const expand = flags.has("expand");
 
   return {
     defaultLinesToHighlight: defaultLinesToHighlight,
@@ -965,50 +964,10 @@ function determineLineNumberDisplay(parsedParameters: ParsedParams) {
   return { isSpecificNumber, showNumbers, lineNumberOffset, lineNumberJumps };
 }// determineLineNumberDisplay
 
-function isFoldDefined(str: string): boolean {
-  return isParameterDefined("fold", str);
-}// isFoldDefined
-
-function isUnFoldDefined(str: string): boolean {
-  return isParameterDefined("unfold", str);
-}// isUnFoldDefined
-
-const isParamDefinedCache = new Map<string, { mid: RegExp, end: RegExp }>();
-function getParamDefinedRegexes(term: string): { mid: RegExp, end: RegExp } {
-  let cached = isParamDefinedCache.get(term);
-  if (!cached) {
-    cached = {
-      mid: new RegExp(`^(?:\`|~){3,}\\w*\\s*${term}\\s`),
-      end: new RegExp(`^(?:\`|~){3,}\\w*\\s*${term}$`)
-    };
-    isParamDefinedCache.set(term, cached);
-  }
-  return cached;
-}// getParamDefinedRegexes
-
-function isParameterDefined(searchTerm: string, str: string): boolean {
-  str = str.toLowerCase();
-  searchTerm = searchTerm.toLowerCase();
-
-  if (str.includes(` ${searchTerm} `)) {
-    return true;
-  }
-
-  // check if parameter is at end of string with space before it
-  if (str.endsWith(' ' + searchTerm)) {
-    return true;
-  }
-
-  const { mid: fenceAndLangRegex, end: fenceAndLangEndRegex } = getParamDefinedRegexes(searchTerm);
-  if (fenceAndLangRegex.test(str)) {
-    return true;
-  }
-
-  if (fenceAndLangEndRegex.test(str)) {
-    return true;
-  }
-  return false;
-}// isParameterDefined
+function getFlagWords(lineText: string): Set<string> {
+  const withoutFence = lineText.replace(/^[\s>]*(?:`|~)*/, '');
+  return new Set(withoutFence.replace(PARAM_REGEX_PATTERN, ' ').toLowerCase().split(/\s+/).filter(Boolean));
+}// getFlagWords
 
 function getCodeBlockLanguage(str: string, isReadingView = false): string {
   const originalStr = str;
@@ -1057,9 +1016,6 @@ let excludeRegexCacheKey = '';
 let excludeRegexCacheValue: RegExp[] = [];
 
 function isExcluded(lineText: string, excludeLangs: string): boolean {
-  if (isParameterDefined("exclude", lineText))
-    return true;
-
   const codeBlockLang = getCodeBlockLanguage(lineText);
   let regexLangs: RegExp[];
   if (excludeLangs === excludeRegexCacheKey) {

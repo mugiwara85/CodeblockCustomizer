@@ -108,6 +108,45 @@ test('fold, unfold, expand, output flags', async () => {
   assert.equal((await parse('```cpp folded')).fold, false);
 });
 
+test('flags count only as whole words outside key:value pairs', async () => {
+  const flags = p => [p.fold, p.unfold, p.exclude, p.output, p.expand, p.noPrompt, p.noParse];
+  const none = [false, false, false, false, false, false, false];
+
+  // words inside a quoted value are not flags
+  assert.deepEqual(flags(await parse('```cpp title:"how to fold paper"')), none);
+  assert.deepEqual(flags(await parse('```cpp title:"do not exclude me"')), none);
+  assert.deepEqual(flags(await parse('```cpp title:"fold unfold exclude output expand noprompt noparse"')), none);
+  assert.deepEqual(flags(await parse("```cpp hlt:'fold' file:\"x expand\"")), none);
+
+  // a flag is not part of a longer word (```unfold is not fold, ```manifold is not fold)
+  let p = await parse('```unfold');
+  assert.deepEqual([p.fold, p.unfold], [false, true]);
+  p = await parse('```cpp unfold');
+  assert.deepEqual([p.fold, p.unfold], [false, true]);
+  assert.equal((await parse('```manifold')).fold, false);
+  assert.equal((await parse('```cpp noexclude')).exclude, false);
+
+  // still found after a quoted value, between parameters, at the start and the end, with tabs, with ~~~
+  assert.equal((await parse('```cpp title:"how to fold paper" fold')).fold, true);
+  assert.equal((await parse('```cpp hl:1 fold title:x')).fold, true);
+  assert.equal((await parse('```exclude')).exclude, true);
+  assert.equal((await parse('~~~cpp\texpand')).expand, true);
+  assert.equal((await parse('````cpp output')).output, true);
+  p = await parse('```bash noprompt noparse:2');
+  assert.deepEqual([p.noPrompt, p.noParse, p.noParseLines], [true, false, [2]]);
+
+  // a parameter with a value is not a flag
+  assert.deepEqual([(await parse('```bash noprompt:1-3')).noPrompt, (await parse('```bash noparse:1')).noParse], [false, false]);
+
+  // an unquoted value ends at a space, so the rest are words (documented: titles with spaces need quotes)
+  assert.equal((await parse('```cpp title:how to fold')).fold, true);
+
+  // works when the line does not start with the fence (code block inside a quote)
+  assert.equal((await parse('> ```cpp fold')).fold, true);
+  assert.equal((await parse('> > ```fold')).fold, true);
+  assert.equal((await parse('> ```cpp title:"fold"')).fold, false);
+});
+
 test('exclude flag and excluded languages with wildcards', async () => {
   assert.equal((await parse('```cpp exclude')).exclude, true);
   assert.equal((await parse('```cpp')).exclude, false);
