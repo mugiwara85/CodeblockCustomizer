@@ -1,4 +1,4 @@
-import { DropdownComponent, Notice, Platform, Setting, TextComponent, ToggleComponent } from "obsidian";
+import { debounce, DropdownComponent, Notice, Platform, Setting, TextComponent, ToggleComponent } from "obsidian";
 
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
@@ -200,6 +200,7 @@ export class BehaviorSettings {
           const number = parseInt(value);
           this.plugin.settings.pluginSettings.semiFold.visibleLines = number;
           await this.plugin.saveSettings(true);
+          this.plugin.renderReadingViews();
         })
       })
       .addToggle(toggle => semiFoldShowButton = toggle
@@ -227,6 +228,10 @@ export class BehaviorSettings {
     semiFoldEffect.settingEl.toggleClass('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.semiFold.enableSemiFold);
 
     let longCodeblockLinesInput: TextComponent;
+    // wait until typing stops
+    const saveLongCodeBlockLines = debounce(() => {
+      void this.plugin.saveSettings(true).then(() => this.plugin.renderReadingViews());
+    }, 750, true);
     const autoFold = new Setting(foldDetails)
       .setName('Auto semi-fold long code blocks')
       .setDesc('If enabled, code blocks longer than a specified number of lines will be semi-folded when a note is opened.')
@@ -237,6 +242,7 @@ export class BehaviorSettings {
           longCodeblockLinesInput.setDisabled(!value);
           longCodeblockLinesInput.inputEl.classList.toggle('is-disabled', !value);
           await this.plugin.saveSettings(true);
+          this.plugin.renderReadingViews();
         })
       )
       .addText(text => {
@@ -251,7 +257,7 @@ export class BehaviorSettings {
           const lines = parseInt(value);
           if (!isNaN(lines)) {
             this.plugin.settings.pluginSettings.semiFold.longCodeBlockLines = lines;
-            await this.plugin.saveSettings();
+            saveLongCodeBlockLines();
           }
         });
       });

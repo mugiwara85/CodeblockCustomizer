@@ -128,6 +128,7 @@ export class HighlightingSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.textHighlight.lineSeparator = value.charAt(0);
           await this.plugin.saveSettings();
+          this.plugin.renderReadingViewsDebounced();
         })
       );
 
@@ -140,6 +141,7 @@ export class HighlightingSettings {
         .onChange(async (value) => {
           this.plugin.settings.pluginSettings.textHighlight.textSeparator = value.charAt(0);
           await this.plugin.saveSettings();
+          this.plugin.renderReadingViewsDebounced();
         })
       );
 

@@ -20,8 +20,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
   plugin: CodeBlockCustomizerPlugin;
   context: MarkdownPostProcessorContext;
   observer: MutationObserver | null = null;
-  expandObserver: ResizeObserver | null = null;
-  expandInsertedListener: (() => void) | null = null;
+  expandCleanups: Map<HTMLElement, () => void> = new Map();
   allPreElements: HTMLElement[] | null = null;
   codeBlockSectionInfo: MarkdownSectionInformation | null = null;
 
@@ -40,15 +39,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       this.observer.disconnect();
     }
 
-    if (this.expandObserver) {
-      this.expandObserver.disconnect();
-      this.expandObserver = null;
-    }
-
-    if (this.expandInsertedListener) {
-      this.expandInsertedListener();
-      this.expandInsertedListener = null;
-    }
+    this.expandCleanups.forEach(cleanup => cleanup());
+    this.expandCleanups.clear();
 
     if (this.allPreElements) {
       for (const preElement of this.allPreElements) {
@@ -531,11 +523,11 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (!previewView) {
       // reading view renders sections before attaching them, so wait until the block is in the DOM
       if (!preParent.isConnected) {
-        this.expandInsertedListener?.();
-        this.expandInsertedListener = preParent.onNodeInserted(() => {
-          this.expandInsertedListener = null;
+        this.expandCleanups.get(preElement)?.();
+        this.expandCleanups.set(preElement, preParent.onNodeInserted(() => {
+          this.expandCleanups.delete(preElement);
           this.setupExpandObserver(preElement);
-        }, true);
+        }, true));
       }
       return;
     }
@@ -561,12 +553,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       preParent.style.setProperty('--cbc-expand-margin', `${expandLeft - (preParentRect.left - currentMargin)}px`);
     };
 
-    if (this.expandObserver) {
-      this.expandObserver.disconnect();
-    }
-
-    this.expandObserver = new ResizeObserver(update);
-    this.expandObserver.observe(previewView);
+    this.expandCleanups.get(preElement)?.();
+    const expandObserver = new ResizeObserver(update);
+    expandObserver.observe(previewView);
+    this.expandCleanups.set(preElement, () => expandObserver.disconnect());
 
     update();
   }// setupExpandObserver

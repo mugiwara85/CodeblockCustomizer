@@ -1,4 +1,4 @@
-import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice, Editor } from "obsidian";
+import { Plugin, MarkdownView, WorkspaceLeaf, TAbstractFile, TFile, getLinkpath, Vault, Notice, Editor, debounce } from "obsidian";
 
 import { ChangeSet, Extension, StateField } from "@codemirror/state";
 import { EditorView, DecorationSet } from "@codemirror/view";
@@ -84,6 +84,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   modifiedBlocks: Map<string, string> = new Map();
   executeCodeObservers: WeakMap<HTMLElement, MutationObserver> = new WeakMap();
   executeCodeLanguages: string[] = [];
+  renderReadingViewsDebounced = debounce(() => this.renderReadingViews(), 750, true);
 
   async onload() {
     for (const doc of getTargetDocuments(this.app)) {
@@ -311,6 +312,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     if (this.debounceTimer)
       window.clearTimeout(this.debounceTimer);
+    this.renderReadingViewsDebounced.cancel();
 
     void this.savePermanentData();
   }// onunload
