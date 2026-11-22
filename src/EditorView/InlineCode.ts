@@ -16,14 +16,16 @@ import { InlineCodeRenderer } from "../ReadingView/InlineCodeRenderer";
 
 export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const inlineCodeViewPlugin = ViewPlugin.fromClass(class {
-    decorations: DecorationSet;
+    decorations: DecorationSet = Decoration.none;
+    // separate set with higher precedence ==> text highlight spans are nested inside the syntax token spans and their text style wins (fix for #162)
+    textHighlights: DecorationSet = Decoration.none;
     prevEnableSyntaxHighlight: boolean;
     prevUsePrismHighlight: boolean;
     prevDisableEditorSyntaxHighlight: boolean;
     prevPrismLoaded: boolean;
 
     constructor(view: EditorView) {
-      this.decorations = this.buildDecorations(view);
+      this.buildDecorations(view);
       this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
       this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
       this.prevDisableEditorSyntaxHighlight = settings.pluginSettings.common.disableEditorSyntaxHighlight;
@@ -38,7 +40,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
         this.prevUsePrismHighlight != settings.pluginSettings.codeblock.usePrismHighlight ||
         this.prevDisableEditorSyntaxHighlight != settings.pluginSettings.common.disableEditorSyntaxHighlight ||
         this.prevPrismLoaded != prismLoaded) {
-        this.decorations = this.buildDecorations(update.view);
+        this.buildDecorations(update.view);
         this.prevEnableSyntaxHighlight = settings.pluginSettings.inlineCode.enableSyntaxHighlight;
         this.prevUsePrismHighlight = settings.pluginSettings.codeblock.usePrismHighlight;
         this.prevDisableEditorSyntaxHighlight = settings.pluginSettings.common.disableEditorSyntaxHighlight;
@@ -46,11 +48,13 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
       }
     }
 
-    buildDecorations(view: EditorView): DecorationSet {
+    buildDecorations(view: EditorView) {
+      this.decorations = this.textHighlights = Decoration.none;
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(view.state))
-        return Decoration.none;
+        return;
 
       const decorations: Array<Range<Decoration>> = [];
+      const highlights: Array<Range<Decoration>> = [];
       // a line can belong to more than one visible range (CodeMirror splits them at bigger widgets, e.g. a rendered HTML inline code) ==> decorate each HTML inline code only once
       const decoratedHtmlInlineCodes = new Set<number>();
 
@@ -62,7 +66,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
               return;
 
             decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper" }).range(node.from, node.to));
-            decorateInlineCode(view, node, decorations);
+            decorateInlineCode(view, node, decorations, highlights);
           },
         });
 
@@ -74,7 +78,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
             decoratedHtmlInlineCodes.add(node.from);
 
             decorations.push(Decoration.mark({ class: "codeblock-customizer-inline-code-wrapper codeblock-customizer-html-inline-code" }).range(node.from, node.to));
-            const { codeFrom, hasIcon } = decorateInlineCode(view, node, decorations, node.parameters, true);
+            const { codeFrom, hasIcon } = decorateInlineCode(view, node, decorations, highlights, node.parameters, true);
             // the content of the HTML element is not formatted as code by Obsidian. Only the visible code, so the icon (which replaces the prefix) is next to it, as for backticks
             if (codeFrom < node.to) {
               decorations.push(Decoration.mark({ class: `cm-inline-code${hasIcon ? ' codeblock-customizer-html-inline-code-after-icon' : ''}` }).range(codeFrom, node.to));
@@ -82,10 +86,12 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
           }
         }
       }
-      return RangeSet.of(decorations, true);
+      this.decorations = RangeSet.of(decorations, true);
+      this.textHighlights = RangeSet.of(highlights, true);
     }
   }, {
-    decorations: v => v.decorations,
+    decorations: v => v.textHighlights,
+    provide: p => EditorView.decorations.of(view => view.plugin(p)?.decorations ?? Decoration.none),
     eventHandlers: {
       // use mousedown instead of click (#185)
       mousedown: (event, view) => {
@@ -299,7 +305,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
     return result;
   }// findHtmlInlineCodesInRange
 
-  function decorateInlineCode(view: EditorView, node: { from: number, to: number }, decorations: Array<Range<Decoration>>, attributeParameters = '', isHtml = false): { codeFrom: number, hasIcon: boolean } {
+  function decorateInlineCode(view: EditorView, node: { from: number, to: number }, decorations: Array<Range<Decoration>>, highlights: Array<Range<Decoration>>, attributeParameters = '', isHtml = false): { codeFrom: number, hasIcon: boolean } {
     const selection = view.state.selection.main;
     const inlineCodeText = view.state.sliceDoc(node.from, node.to);
     let match = inlineCodeText.match(INLINE_CODE_LANG_REGEX);
@@ -369,7 +375,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
     if (!settings.pluginSettings.inlineCode.enableSyntaxHighlight || settings.pluginSettings.common.disableEditorSyntaxHighlight) {
       const prefixHidden = addPrefixDecoration(false);
-      addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
+      addTextHighlightDecorations(code, codeStartPos, inlineParams, highlights);
       return { codeFrom: prefixHidden ? codeStartPos : node.from, hasIcon };
     }
 
@@ -402,7 +408,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
       }
     }
 
-    addTextHighlightDecorations(code, codeStartPos, inlineParams, decorations);
+    addTextHighlightDecorations(code, codeStartPos, inlineParams, highlights);
     return { codeFrom: prefixHidden ? codeStartPos : node.from, hasIcon };
   }// decorateInlineCode
 
