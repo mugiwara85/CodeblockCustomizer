@@ -10,6 +10,7 @@ import { createUncollapseCodeButton, isPluginLoaded, isSpecificHeader, determine
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
 import { FoldingState, FoldCommand, FoldStateAnnotation, setFoldCommandState, setFoldState, CollapsedDecoration, Collapse, UnCollapse, semiCollapse, semiUnCollapse, semiFade, semiUnFade, CodeBlockFoldEffect, SemiUncollapseEffect } from "./EditorEffects";
 import { compareCodeBlockPositions } from "./CompareUtils";
+import { mapStoredPos } from "../StateStore";
 
 interface FoldDecorationSpec {
   attributes?: Record<string, string | undefined>;
@@ -103,10 +104,20 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
       }
 
       const docPath = transaction.state.field(editorInfoField)?.file?.path;
-      const newFoldedState = { ...value };
+      let newFoldedState = { ...value };
 
-      if (transaction.docChanged && docPath) {
-        plugin.remapFolds(docPath, transaction.changes);
+      if (transaction.docChanged) {
+        newFoldedState = {};
+        for (const [posStr, state] of Object.entries(value)) {
+          const newPos = mapStoredPos(Number(posStr), transaction.changes);
+          if (newPos !== null) {
+            newFoldedState[newPos] = state;
+          }
+        }
+
+        if (docPath) {
+          plugin.remapFolds(docPath, transaction.changes);
+        }
       }
 
       // handle a fold/unfold action
@@ -156,13 +167,9 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
       if (transaction.docChanged) {
         const newUnfolded = new Set<number>();
         for (const pos of newValue) {
-          //fix for #144
-          if (pos > transaction.changes.length)
-            continue;
-
-          const mappedPos = transaction.changes.mapPos(pos);
+          const mappedPos = mapStoredPos(pos, transaction.changes);
           const newCodeBlocks = transaction.state.field(codeBlockPositionsField, false) || [];
-          if (newCodeBlocks.some(block => block.codeBlockStartPos === mappedPos)) {
+          if (mappedPos !== null && newCodeBlocks.some(block => block.codeBlockStartPos === mappedPos)) {
             newUnfolded.add(mappedPos);
           }
         }

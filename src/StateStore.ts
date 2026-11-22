@@ -1,6 +1,14 @@
-import { ChangeSet } from "@codemirror/state";
+import { ChangeSet, MapMode } from "@codemirror/state";
 
 type PermanentData<V> = Record<string, Record<string, V>>;
+
+export function mapStoredPos(pos: number, changes: ChangeSet): number | null {
+  // fix for #144
+  if (pos > changes.length) {
+    return null;
+  }
+  return changes.mapPos(pos, 1, MapMode.TrackAfter);
+}// mapStoredPos
 
 export class StateStore<K extends string | number, V> {
   isPermanent: boolean;
@@ -90,17 +98,11 @@ export class StateStore<K extends string | number, V> {
       const newRecord: Record<string, V> = {};
       for (const oldKeyStr in record) {
         const oldPos = Number(oldKeyStr);
-        // fix for #144
-        if (oldPos > changes.length) {
-          changed = true;
-          continue;
-        }
-
-        const newPos = changes.mapPos(oldPos);
+        const newPos = mapStoredPos(oldPos, changes);
         if (newPos !== oldPos) {
           changed = true;
         }
-        if (newPos !== -1) {
+        if (newPos !== null) {
           newRecord[String(newPos)] = record[oldKeyStr];
         }
       }
@@ -115,17 +117,11 @@ export class StateStore<K extends string | number, V> {
       const newMap = new Map<K, V>();
       for (const [oldKey, value] of map.entries()) {
         const oldPos = Number(oldKey);
-        // fix for #144
-        if (oldPos > changes.length) {
-          changed = true;
-          continue;
-        }
-
-        const newPos = changes.mapPos(oldPos);
+        const newPos = mapStoredPos(oldPos, changes);
         if (newPos !== oldPos) {
           changed = true;
         }
-        if (newPos !== -1) {
+        if (newPos !== null) {
           newMap.set(this.keyParser(String(newPos)), value);
         }
       }
@@ -145,15 +141,11 @@ export class StateStore<K extends string | number, V> {
     let changed = false;
     for (const [key, value] of Array.from(entries)) {
       const oldPos = Number(value);
-      // fix for #144
-      if (oldPos > changes.length) {
+      const newPos = mapStoredPos(oldPos, changes);
+      if (newPos === null) {
         this.delete(filePath, key);
         changed = true;
-        continue;
-      }
-
-      const newPos = changes.mapPos(oldPos);
-      if (newPos !== oldPos) {
+      } else if (newPos !== oldPos) {
         this.set(filePath, key, newPos as V);
         changed = true;
       }

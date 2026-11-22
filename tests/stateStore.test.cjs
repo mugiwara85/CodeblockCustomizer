@@ -36,9 +36,31 @@ for (const isPermanent of [false, true]) {
     assert.deepEqual([...store.getAll('a.md')], [[7, 'first'], [25, 'second']]);
 
     store.remap('a.md', deleteRange(10, 30, 105));
-    assert.deepEqual([...store.getAll('a.md')], [[7, 'first'], [10, 'second']], 'mapPos maps a deleted position to the start of the deletion');
+    assert.deepEqual([...store.getAll('a.md')], [[7, 'first']], 'a deleted block start is dropped, not moved to the next block');
     store.remap('missing.md', insertAt(0, 'x', 1));
     assert.equal(store.getAll('missing.md'), undefined);
+  });
+
+  test(`${kind}: deleting a folded block doesn't pass its state to the next block, Enter before a block keeps its state`, () => {
+    // block A starts at 0 (```\na\n```\n = 10 characters), block B at 10
+    const store = new StateStore(isPermanent, Number);
+    store.set('a.md', 0, 'A folded');
+    store.remap('a.md', deleteRange(0, 10, 30));
+    assert.deepEqual([...store.getAll('a.md')], [], 'B now starts at 0, but must not get the state of A');
+
+    store.set('a.md', 10, 'B folded');
+    store.remap('a.md', insertAt(10, '\n', 30));
+    assert.deepEqual([...store.getAll('a.md')], [[11, 'B folded']], 'a line inserted right before the block start moves the state with the block');
+
+    store.remap('a.md', deleteRange(10, 11, 31));
+    assert.deepEqual([...store.getAll('a.md')], [[10, 'B folded']], 'deleting the empty line before the block again keeps it');
+  });
+
+  test(`${kind}: remapValues drops a tab whose block was deleted`, () => {
+    const store = new StateStore(isPermanent, String);
+    store.set('a.md', 'group', 10);
+    store.remapValues('a.md', deleteRange(10, 20, 30));
+    assert.equal(store.get('a.md', 'group'), undefined);
   });
 
   test(`${kind}: remap reports whether anything moved, so unchanged notes don't trigger a save`, () => {
