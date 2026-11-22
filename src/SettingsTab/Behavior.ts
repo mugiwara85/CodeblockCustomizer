@@ -91,6 +91,7 @@ export class BehaviorSettings {
               await this.plugin.clearAllTabData();
             }
             this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value;
+            this.plugin.configurePersistence();
             await this.plugin.saveSettings();
 
             clearTabCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', value !== TabPersistence.Permanent);
@@ -319,6 +320,7 @@ export class BehaviorSettings {
               }
             }
             this.plugin.settings.pluginSettings.codeblock.folding.persistence = value;
+            this.plugin.configurePersistence();
             await this.plugin.saveSettings();
             clearFoldCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', value !== FoldingPersistence.Permanent);
           });

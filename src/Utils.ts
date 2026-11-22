@@ -21,6 +21,10 @@ export function clearSettingStyles(app?: App): void {
   }
 }// clearSettingStyles
 
+export function escapeRegex(text: string): string {
+  return text.replace(/[-/\\^$*+?.()|[\]{}%]/g, '\\$&');
+}// escapeRegex
+
 export function getTargetDocuments(app?: App): Document[] {
   const docs = new Set<Document>([document, activeDocument]);
   const rootDoc = app?.workspace?.rootSplit?.doc;

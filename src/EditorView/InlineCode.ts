@@ -4,7 +4,7 @@ import { EditorState, Range, RangeSet } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
-import { getLanguageIcon, isSourceMode, addTextToClipboard, getInlineCodeIcon, getDisplayLanguageName } from "../Utils";
+import { getLanguageIcon, isSourceMode, addTextToClipboard, getInlineCodeIcon, getDisplayLanguageName, escapeRegex } from "../Utils";
 import { CodeblockCustomizerSettings, InlineCodeModifierKeys } from "../Settings";
 import { INLINE_CODE_LANG_REGEX } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
@@ -462,7 +462,6 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
   }// getCM5Tokens
 
   function addTextHighlightDecorations(code: string, codeStartPos: number, inlineParams: InlineCodeHighlightParameters, decorations: Array<Range<Decoration>>) {
-    const escapeRegex = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}%]/g, '\\$&');
 
     const addWordMatches = (words: HighlightedWord[], className: string) => {
       for (const { text, occurrences } of words) {

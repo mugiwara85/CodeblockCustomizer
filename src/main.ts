@@ -80,6 +80,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   foldCommandTrigger: { command: FoldCommand; path: string } | null = null;
   rerenderQueue: Map<string, { content: string; count: number }> = new Map();
   modifiedBlocks: Map<string, string> = new Map();
+  private renameQueue: Promise<void> = Promise.resolve();
   executeCodeObservers: WeakMap<HTMLElement, MutationObserver> = new WeakMap();
   executeCodeLanguages: string[] = [];
   renderReadingViewsDebounced = debounce(() => this.renderReadingViews(), 750, true);
@@ -367,7 +368,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           }
         }
         for (const codeBlock of codeBlocks) {
-          const ret = this.findAllCodeBlockLinks(mdFile, codeBlock, oldPath, file);
+          const ret = await this.findAllCodeBlockLinks(mdFile, codeBlock, oldPath, file);
           linkUpdateCount += ret;
           if (ret > 0) {
             linkUpdate++;
@@ -383,7 +384,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
   }// handleFileRename
 
-  findAllCodeBlockLinks(currentFile: TFile, currentCodeBlock: codeBlock, oldPath: string, newPath: TAbstractFile) {
+  async findAllCodeBlockLinks(currentFile: TFile, currentCodeBlock: codeBlock, oldPath: string, newPath: TAbstractFile) {
     const linkRegex = /\[\[(.*?)\]\]/g;
     const matches: IterableIterator<RegExpMatchArray> = currentCodeBlock.codeBlockText.matchAll(linkRegex);
     let modifiedCodeBlockText = currentCodeBlock.codeBlockText;
@@ -401,7 +402,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }
     if (modifiedCodeBlockText !== currentCodeBlock.codeBlockText) {
-      void this.updateLinksInFiles(this.app.vault, currentFile, currentCodeBlock.from, currentCodeBlock.to, currentCodeBlock.codeBlockText, modifiedCodeBlockText);
+      await this.updateLinksInFiles(this.app.vault, currentFile, currentCodeBlock.from, currentCodeBlock.to, currentCodeBlock.codeBlockText, modifiedCodeBlockText);
     }
     return linkUpdateCount;
   }// findAllCodeBlockLinks
@@ -416,7 +417,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       return { updatedCodeBlockText, updated: false };
     }
 
-    return { updatedCodeBlockText: updatedCodeBlockText.replace(match[0], '[[' + newLinkText + ']]'), updated: true };
+    return { updatedCodeBlockText: updatedCodeBlockText.replace(match[0], () => '[[' + newLinkText + ']]'), updated: true };
   }// updateCodeBlockContent
 
   async updateLinksInFiles(vault: Vault, file: TFile, startLine: number, endLine: number, originalText: string, newText: string): Promise<void> {
@@ -433,7 +434,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       });
     } catch (error) {
       console.error("Error modifying file:", error);
-      throw error;
     }
   }// updateLinksInFiles
 
@@ -694,7 +694,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       this.updateStoredPaths(store => store.renamePath(oldPath, file.path));
 
       if (this.settings.pluginSettings.codeblock.enableLinks && this.settings.pluginSettings.codeblock.enableLinkUpdate) {
-        void this.handleFileRename(file, oldPath); // until Obsidian doesn't adds code block links to metadatacache
+        // until Obsidian doesn't adds code block links to metadatacache
+        this.renameQueue = this.renameQueue
+          .then(() => this.handleFileRename(file, oldPath))
+          .catch(error => console.error("Error updating code block links:", error));
       }
     }, this));
 

@@ -1,6 +1,6 @@
 import { setIcon, MarkdownRenderer, Notice, Component } from "obsidian";
 
-import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, generateSnapshot, filterOccurrences, getCollapseIcons, getVisibleLineCount, parseTrustedHtmlBatch, HighlightMarkRange, layerHighlightRanges } from "../Utils";
+import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderOptions, removeCharFromStart, generateSnapshot, filterOccurrences, getCollapseIcons, getVisibleLineCount, parseTrustedHtmlBatch, HighlightMarkRange, layerHighlightRanges, escapeRegex } from "../Utils";
 import { TooltipManager } from "../TooltipManager";
 import { PromptManager } from "../PromptManager";
 import CodeBlockCustomizerPlugin from "../main";
@@ -573,7 +573,6 @@ export function applyHighlightsToElement(containerEl: HTMLElement, rules: Highli
   }
 
   const lineTextContent = containerEl.textContent || '';
-  const escapeRegex = (str: string) => str.replace(/[-/\\^$*+?.()|[\]{}%]/g, '\\$&');
 
   type HighlightPoint = {
     index: number;
@@ -1424,7 +1423,6 @@ function getLineClass(visualLineNumber: number, displayedLineNumber: number, cas
 
 function findHighlightRanges(fullText: string, from: string, to: string, occurrences: number[] = []): { from: number, to: number }[] {
   const ranges: { from: number, to: number }[] = [];
-  const escapeRegex = (str: string) => str.replace(/[-/\\^$*+?.()|[\]{}%]/g, '\\$&');
 
   if (!from && !to) { // neither is specified -> highlight entire line
     const trimmedText = fullText.trim();

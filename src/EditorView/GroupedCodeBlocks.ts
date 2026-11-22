@@ -5,7 +5,7 @@ import { EditorView } from "@codemirror/view";
 
 import { CodeblockCustomizerSettings, TabPersistence } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
-import { createCodeblockLang, isSourceMode, getDisplayLanguageName, isFoldDisabled } from "../Utils";
+import { createCodeblockLang, isSourceMode, getDisplayLanguageName, isFoldDisabled, escapeRegex } from "../Utils";
 import { CBCParameters } from "../Parsing";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
 import { setGroupTab, CodeBlockFoldEffect, FoldingState, FoldStateAnnotation } from "./EditorEffects";
@@ -280,7 +280,7 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
       event.stopPropagation();
 
       const line = view.state.doc.lineAt(member.codeBlockStartPos);
-      const regex = new RegExp(`\\s*group([:=])(["']?${groupName}["']?)\\s*`);
+      const regex = new RegExp(`\\s*group([:=])(["']?${escapeRegex(groupName)}["']?)\\s*`);
       const newLineText = line.text.replace(regex, ' ').trim();
 
       view.dispatch({ changes: { from: line.from, to: line.to, insert: newLineText } });

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
 const helpersPromise = Promise.resolve(load('src/Utils.ts'));
-const { getAllParameters, createHighlightRules, createInlineHighlightRules, parseInlineCodeHighlightParams, filterOccurrences, findAllOccurrences, ANNOTATION_PATTERN, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/HighlightRules.ts', 'src/Utils.ts', 'src/Const.ts', 'src/Settings.ts');
+const { getAllParameters, createHighlightRules, createInlineHighlightRules, parseInlineCodeHighlightParams, filterOccurrences, findAllOccurrences, escapeRegex, ANNOTATION_PATTERN, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/HighlightRules.ts', 'src/Utils.ts', 'src/Const.ts', 'src/Settings.ts');
 
 function rules(line) {
   const s = structuredClone(DEFAULT_SETTINGS);
@@ -129,4 +129,11 @@ test('removeAnnotationRangesFromCode clears standalone annotation lines to empty
     '',
     'const c = 3;',
   ].join('\n'));
+});
+
+test('escapeRegex: special characters match literally (group names, highlighted words)', () => {
+  for (const name of ['c++', 'my (tabs)', 'a.b', 'Price $$', '[x]*']) {
+    assert.equal(new RegExp(`^${escapeRegex(name)}$`).test(name), true, name);
+  }
+  assert.equal(new RegExp(escapeRegex('a.b')).test('aXb'), false);
 });
