@@ -1701,6 +1701,8 @@ body.codeblock-customizer .markdown-source-view :not(pre.codeblock-customizer-pr
 }
 
 .codeblock-customizer-scrollbar {
+  /* reset scrollbar-color inherited from body, otherwise ::-webkit-scrollbar is ignored (overlay scrollbar on macOS) */
+  scrollbar-color: auto;
   overflow: auto hidden;
   height: 12px;
   background-color: var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color));
