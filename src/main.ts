@@ -13,7 +13,7 @@ import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRende
 import { fadeOutLineCount } from "./Const";
 import { CodeBlockRenderer } from "./ReadingView/CodeBlockRenderer";
 import { InlineCodeRenderer } from "./ReadingView/InlineCodeRenderer";
-import { admonitionPostProcessor, calloutPostProcessor } from "./ReadingView/PostProcessors";
+import { admonitionPostProcessor } from "./ReadingView/PostProcessors";
 import { CBCParameters } from "./Parsing";
 import { StateStore } from "./StateStore";
 import { FoldCommand, FoldingState } from "./EditorView/EditorEffects";
@@ -710,11 +710,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       el.querySelectorAll("code:not(pre > code)").forEach((codeEl) => {
         ctx.addChild(new InlineCodeRenderer(codeEl as HTMLElement, this, ctx));
       });
-    });
-
-    // callouts
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      await calloutPostProcessor(el, ctx, this)
     });
 
     // admonitions

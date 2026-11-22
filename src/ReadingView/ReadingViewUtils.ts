@@ -4,7 +4,7 @@ import { createUncollapseCodeButton, addTextToClipboard, isPluginLoaded, RenderO
 import { TooltipManager } from "../TooltipManager";
 import { PromptManager } from "../PromptManager";
 import CodeBlockCustomizerPlugin from "../main";
-import { ANNOTATION_PATTERN, LINK_REGEX, fadeOutLineCount, createRhombusSvg } from "../Const";
+import { ANNOTATION_PATTERN, LINK_REGEX, fadeOutLineCount, createRhombusSvg, UNCOLLAPSE_EVENT } from "../Const";
 import { addAndObserveExecuteCodeButtons } from "../ExecuteCode";
 import { PluginSettings, CollapseIconStyle } from "../Settings";
 import { CBCParameters, HighlightedWord } from "../Parsing";
@@ -1683,20 +1683,13 @@ function handleUncollapseClick(event: Event) {
     header = pre.querySelector('.codeblock-customizer-header-container, .codeblock-customizer-header-container-specific');
   }
 
-  if (header) {
-    const collapseIcon = header.querySelector(".codeblock-customizer-header-collapse") as HTMLElement;
-    if (collapseIcon) {
-      collapseIcon.click();
-    }
-  }
+  header?.dispatchEvent(new Event(UNCOLLAPSE_EVENT));
 }// handleUncollapseClick
 
-export function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement, toggleClass: string, style: CollapseIconStyle = CollapseIconStyle.Chevrons) {
+export function toggleFold(pre: HTMLElement, collapseIcon: HTMLElement | null, toggleClass: string, style: CollapseIconStyle = CollapseIconStyle.Chevrons) {
   const icons = getCollapseIcons(style);
-  if (pre?.classList.contains(toggleClass)) {
-    setIcon(collapseIcon, icons.uncollapsed);
-  } else {
-    setIcon(collapseIcon, icons.collapsed);
+  if (collapseIcon) {
+    setIcon(collapseIcon, pre?.classList.contains(toggleClass) ? icons.uncollapsed : icons.collapsed);
   }
   pre?.classList.toggle(toggleClass);
 }// toggleFold

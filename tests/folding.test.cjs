@@ -4,13 +4,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
-const { getAllParameters, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/Utils.ts', 'src/Settings.ts');
+const { getAllParameters, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, isFoldDisabled, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/Utils.ts', 'src/Settings.ts');
 
-function settings({ inverseFold = false, ignoreShort = false, semiFold = false, visibleLines = 5, autoFold = false, longLines = 30, alwaysLang = false, alwaysIcon = false } = {}) {
+function settings({ inverseFold = false, ignoreShort = false, semiFold = false, visibleLines = 5, autoFold = false, longLines = 30, alwaysLang = false, alwaysIcon = false, disableFold = false } = {}) {
   const s = structuredClone(DEFAULT_SETTINGS);
   Object.assign(s.pluginSettings.codeblock.folding, { inverseFold, ignoreShortBlocksOnInverseFold: ignoreShort });
   Object.assign(s.pluginSettings.semiFold, { enableSemiFold: semiFold, visibleLines, autoFoldLongCodeblocks: autoFold, longCodeBlockLines: longLines });
-  Object.assign(s.pluginSettings.header, { alwaysDisplayCodeblockLang: alwaysLang, alwaysDisplayCodeblockIcon: alwaysIcon });
+  Object.assign(s.pluginSettings.header, { alwaysDisplayCodeblockLang: alwaysLang, alwaysDisplayCodeblockIcon: alwaysIcon, disableFoldUnlessSpecified: disableFold });
   return s;
 }
 const params = (line, s) => getAllParameters(line, s);
@@ -70,4 +70,23 @@ test('header is shown for title, group member, fold, and language with always di
   assert.equal(header('```js', settings({ alwaysLang: true })), true);
   assert.equal(header('```js', settings({ alwaysIcon: true })), true);
   assert.equal(header('```', settings({ alwaysLang: true, alwaysIcon: true })), false, 'no language, nothing to display');
+});
+
+test('disable folding unless specified: only fold (or unfold with inverse fold) makes a block foldable', () => {
+  const disabled = (line, opts) => { const s = settings(opts); return isFoldDisabled(params(line, s), s); };
+  // setting off: everything is foldable
+  for (const line of ['```js', '```js fold', '```js unfold']) {
+    assert.equal(disabled(line, {}), false);
+    assert.equal(disabled(line, { inverseFold: true }), false);
+  }
+  // inverse fold off: only fold
+  assert.equal(disabled('```js', { disableFold: true }), true);
+  assert.equal(disabled('```js fold', { disableFold: true }), false);
+  assert.equal(disabled('```js unfold', { disableFold: true }), true);
+  // inverse fold on: only unfold
+  assert.equal(disabled('```js', { disableFold: true, inverseFold: true }), true);
+  assert.equal(disabled('```js fold', { disableFold: true, inverseFold: true }), true);
+  assert.equal(disabled('```js unfold', { disableFold: true, inverseFold: true }), false);
+  // auto semi-fold doesn't make a block foldable
+  assert.equal(disabled('```js title:x', { disableFold: true, semiFold: true, autoFold: true }), true);
 });

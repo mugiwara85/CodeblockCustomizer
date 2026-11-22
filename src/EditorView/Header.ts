@@ -9,7 +9,7 @@ import CodeBlockCustomizerPlugin from "../main";
 import { CBCParameters, getAllParameters } from "../Parsing";
 import { DEFAULT_COLLAPSE_TEXT } from "../Const";
 import { PromptManager } from "../PromptManager";
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, removeFenceIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, getCollapseIcons, removeAnnotationRangesFromCode } from "../Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, isSourceMode, getLanguageSpecificColorClass, addTextToClipboard, removeFenceIndentation, isPluginLoaded, generateSnapshot, isSpecificHeader, isFoldDisabled, getCollapseIcons, removeAnnotationRangesFromCode } from "../Utils";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
 import { FoldingState, FoldStateAnnotation, rehideEffect, CodeBlockFoldEffect, wrapEffect } from "./EditorEffects";
 import { areGroupMembersEqual, areObjectsEqual } from "./CompareUtils";
@@ -162,8 +162,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       const buttonContainer = createButtonContainer(this.buttonConfigs, view, `codeblock-customizer-header-button-container`)
       container.appendChild(buttonContainer);
 
-      if ((this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold) ||
-        (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
+      if (isFoldDisabled(this.parameters, this.plugin.settings)) {
         container.classList.add(`noCollapseIcon`);
       } else {
         const icons = getCollapseIcons(this.collapseIconStyle);
@@ -198,8 +197,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
           return;
         }
 
-        if ((this.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.fold) ||
-          (this.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !this.parameters.unfold)) {
+        if (isFoldDisabled(this.parameters, this.plugin.settings)) {
           return;
         }
 

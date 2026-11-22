@@ -2,6 +2,7 @@
 // https://prismjs.com/plugins/show-language/
 
 export const fadeOutLineCount = 4;
+export const UNCOLLAPSE_EVENT = 'codeblock-customizer-uncollapse';
 
 export const SVG_FOLDER_PATH = "/plugins/codeblock-customizer/customSVG/";
 export const SVG_FILE_PATH = SVG_FOLDER_PATH + "svg.json";

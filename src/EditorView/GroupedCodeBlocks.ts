@@ -5,7 +5,7 @@ import { EditorView } from "@codemirror/view";
 
 import { CodeblockCustomizerSettings, TabPersistence } from "../Settings";
 import CodeBlockCustomizerPlugin from "../main";
-import { createCodeblockLang, isSourceMode, getDisplayLanguageName } from "../Utils";
+import { createCodeblockLang, isSourceMode, getDisplayLanguageName, isFoldDisabled } from "../Utils";
 import { CBCParameters } from "../Parsing";
 import { CodeBlockPositions, GroupedCodeBlocks } from "./CodeBlockPositions";
 import { setGroupTab, CodeBlockFoldEffect, FoldingState, FoldStateAnnotation } from "./EditorEffects";
@@ -323,6 +323,9 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
     const effects: CodeBlockFoldEffect[] = [];
 
     if (isClickedTabActive) {
+      if (isFoldDisabled(member.parameters, plugin.settings)) {
+        return;
+      }
       const foldChanges = getToggleCodeBlockFold()(view, member);
       effects.push(...foldChanges.effects);
       annotations.push(...foldChanges.annotations);

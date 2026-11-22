@@ -180,6 +180,14 @@ export function determineDefaultFoldState(parameters: CBCParameters, settings: C
   return { foldByDefault: foldByDefault, useSemiFold: enableSemiFold };
 }// determineDefaultFoldState
 
+export function isFoldDisabled(parameters: CBCParameters, settings: CodeblockCustomizerSettings): boolean {
+  if (!settings.pluginSettings.header.disableFoldUnlessSpecified) {
+    return false;
+  }
+  
+  return settings.pluginSettings.codeblock.folding.inverseFold ? !parameters.unfold : !parameters.fold;
+}// isFoldDisabled
+
 export function filterOccurrences(allMatches: { from: number, to: number }[], occurrencesFilter?: number[]): { from: number, to: number }[] {
   if (!occurrencesFilter || occurrencesFilter.length === 0) {
     return allMatches;

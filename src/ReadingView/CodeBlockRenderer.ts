@@ -1,9 +1,9 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownPreviewRenderer, CachedMetadata, SectionCache } from "obsidian";
 
-import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, removeFenceIndentation, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, loadCustomPrismLanguages, isCustomPrismLanguage, getPrism, setTrustedHtml } from "../Utils";
+import { getLanguageIcon, createContainer, createCodeblockLang, createCodeblockIcon, createFileName, createCodeblockCollapse, getCurrentMode, getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, getLanguageConfig, getFileCacheAndContentLines, isPluginLoaded, normalizeIndentation, removeFenceIndentation, isSpecificHeader, determineDefaultFoldState, isFoldDisabled, getVisibleLineCount, loadCustomPrismLanguages, isCustomPrismLanguage, getPrism, setTrustedHtml } from "../Utils";
 import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
-import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount } from "../Const";
+import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount, UNCOLLAPSE_EVENT } from "../Const";
 import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
 import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses, getHtmlCodeBlockData, prepareHtmlCodeElement, getBlockLine } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "../Parsing";
@@ -570,6 +570,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const keyToUse = charPos ?? this.codeBlockSectionInfo?.lineStart;
     const settings = this.plugin.settings.pluginSettings;
     let rememberedState: FoldingState | undefined;
+    delete preElement.dataset.foldAsTab;
 
     if (settings.codeblock.folding.rememberFoldState && keyToUse !== undefined) {
       const rememberedFolds = this.plugin.foldStoreReading.getAll(this.context.sourcePath);
@@ -598,6 +599,14 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           const foldState = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
           foldByDefault = foldState.foldByDefault;
           useSemiFold = foldState.useSemiFold;
+
+          if (!foldByDefault && parameters.group) {
+            const tabFoldState = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, isSpecificHeader(parameters, this.plugin.settings, true, lineCount, "reading"), "reading");
+            if (tabFoldState.foldByDefault) {
+              const canSemiFold = getVisibleLineCount(parameters, lineCount) >= settings.semiFold.visibleLines + fadeOutLineCount;
+              preElement.dataset.foldAsTab = tabFoldState.useSemiFold && canSemiFold ? 'semi' : 'full';
+            }
+          }
         }
         break;
     }
@@ -646,8 +655,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     const collapseStyle = settings.pluginSettings.header.collapseIconStyle;
     const collapseEl = createCodeblockCollapse(parameters.fold, collapseStyle);
-    if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
-      (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
+    if (isFoldDisabled(parameters, this.plugin.settings)) {
       container.classList.add(`noCollapseIcon`);
     } else {
       frag.appendChild(collapseEl);
@@ -658,13 +666,13 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     const semiFold = settings.pluginSettings.semiFold.enableSemiFold;
     const visibleLines = settings.pluginSettings.semiFold.visibleLines;
 
-    container.addEventListener("click", (event) => {
+    const foldHandler = (event: Event) => {
       if ((event.target as HTMLElement).closest('a')) {
         return;
       }
 
-      if ((this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && !this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.fold) ||
-        (this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified && this.plugin.settings.pluginSettings.codeblock.folding.inverseFold && !parameters.unfold)) {
+      // allow uncollapse button to unfold even when unfold is disabled for the header
+      if (event.type !== UNCOLLAPSE_EVENT && isFoldDisabled(parameters, this.plugin.settings)) {
         return;
       }
 
@@ -708,7 +716,9 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           this.plugin.setFoldState(this.context.sourcePath, keyToUse, newState, 'reading', parameters, contentLineCount, false);
         }
       }
-    });
+    };
+    container.addEventListener("click", foldHandler);
+    container.addEventListener(UNCOLLAPSE_EVENT, foldHandler);
 
     return container
   }// HeaderWidget

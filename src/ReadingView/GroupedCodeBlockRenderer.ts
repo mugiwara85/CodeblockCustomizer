@@ -1,8 +1,8 @@
 import { debounce, Debouncer, MarkdownRenderChild, MarkdownView } from "obsidian";
 
-import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, determineDefaultFoldState, getDisplayLanguageName } from "../Utils";
+import { getLanguageIcon, createCodeblockIcon, createCodeblockLang, getLanguageSpecificColorClass, getDefaultParameters, getCurrentMode, createContainer, createFileName, createCodeblockCollapse, getBorderColorByLanguage, getPropertyFromLanguageSpecificColors, isSpecificHeader, isFoldDisabled, getDisplayLanguageName } from "../Utils";
 import { createButtons, toggleFold, reassignFadeOutClasses } from "./ReadingViewUtils";
-import { fadeOutLineCount } from "../Const";
+import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount, UNCOLLAPSE_EVENT } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
 import { FoldingState } from "../EditorView/EditorEffects";
 import { FoldingScope, TabPersistence } from "../Settings";
@@ -95,6 +95,14 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private processGroup(group: HTMLPreElement[], groupName: string) {
     const firstBlock = group[0];
 
+    for (const block of group) {
+      const foldAsTab = block.dataset.foldAsTab;
+      if (foldAsTab) {
+        delete block.dataset.foldAsTab;
+        block.classList.add(foldAsTab === 'semi' ? 'codeblock-customizer-codeblock-semi-collapsed' : 'codeblock-customizer-codeblock-collapsed', 'codeblock-customizer-codeblock-default-collapse');
+      }
+    }
+
     this.hideGroupedCodeBlocks(group);
 
     const parameters = this.getParametersFromElement(firstBlock);
@@ -125,8 +133,8 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       this.updateHeaderLanguageSpecificClasses(header, currentParameters.language);
       languageIconElement = this.updateHeaderLanguageIcon(header, languageIconElement, currentParameters.displayLanguage);
       this.updateHeaderButtons(groupButtonsContainer, currentParameters, currentBlock);
-      collapseIconElement = this.updateHeaderCollapseIcon(collapseIconElement, header, currentBlock, currentParameters, lineCount);
-      this.updateHeaderFileName(fileNameContainer, currentParameters.headerDisplayText);
+      collapseIconElement = this.updateHeaderCollapseIcon(collapseIconElement, header, currentBlock, currentParameters);
+      this.updateHeaderFileName(fileNameContainer, currentParameters, currentBlock);
     };
 
     const documentPath = this.view.file?.path || 'unknown_document';
@@ -222,18 +230,15 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     }
   }// updateHeaderButtons
 
-  private updateHeaderCollapseIcon(collapseIcon: HTMLElement | null, header: HTMLElement, currentBlock: HTMLPreElement, parameters: CBCParameters, lineCount: number): HTMLElement | null {
+  private updateHeaderCollapseIcon(collapseIcon: HTMLElement | null, header: HTMLElement, currentBlock: HTMLPreElement, parameters: CBCParameters): HTMLElement | null {
     if (collapseIcon && collapseIcon.parentElement === header) {
       header.removeChild(collapseIcon);
     }
 
-    const disableFoldUnlessSpecified = this.plugin.settings.pluginSettings.header.disableFoldUnlessSpecified;
-    const specificHeader = isSpecificHeader(parameters, this.plugin.settings, true, lineCount, "reading");
-    const { foldByDefault } = determineDefaultFoldState(parameters, this.plugin.settings, lineCount, specificHeader, "reading");
-    const isCollapseEnabled = !disableFoldUnlessSpecified || foldByDefault;
     let newCollapseIcon: HTMLElement | null = null;
 
-    if (isCollapseEnabled) {
+    if (!isFoldDisabled(parameters, this.plugin.settings)) {
+      header.classList.remove(`noCollapseIcon`); // the previous tab may have had no collapse icon
       const isFullyCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-collapsed');
       const isSemiCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
       const collapseStyle = this.plugin.settings.pluginSettings.header.collapseIconStyle;
@@ -255,22 +260,24 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     return newCollapseIcon;
   }// updateHeaderCollapseIcon
 
-  private updateHeaderFileName(fileNameElement: HTMLElement, headerDisplayText: string) {
+  private updateHeaderFileName(fileNameElement: HTMLElement, parameters: CBCParameters, currentBlock: HTMLPreElement) {
+    const isCollapsed = currentBlock.classList.contains('codeblock-customizer-codeblock-collapsed') || currentBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
     fileNameElement.empty();
-    fileNameElement.setText(headerDisplayText);
+    fileNameElement.setText(!parameters.hasTitle && isCollapsed ? (this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT) : parameters.headerDisplayText);
   }// updateHeaderFileName
 
   private addHeaderClickHandler(headerContainer: HTMLElement, tabsContainer: HTMLElement, buttonsContainer: HTMLElement, group: HTMLPreElement[]) {
-    const headerClickHandler = (event: MouseEvent) => {
+    const headerClickHandler = (event: Event) => {
       if (!tabsContainer.contains(event.target as Node) && !buttonsContainer.contains(event.target as Node) && !(event.target as HTMLElement).closest('a')) {
         const activeBlock = group.find(block => !block.classList.contains('codeblock-customizer-grouped-block-hidden'));
         if (!activeBlock)
           return;
 
-        this.foldCodeBlcok(activeBlock, headerContainer);
+        this.foldCodeBlcok(activeBlock, headerContainer, event.type === UNCOLLAPSE_EVENT);
       }
     };
     headerContainer.addEventListener('click', headerClickHandler, { signal: this.getListenerSignal() });
+    headerContainer.addEventListener(UNCOLLAPSE_EVENT, headerClickHandler, { signal: this.getListenerSignal() });
   }// addHeaderClickHandler
 
   private addHeaderHoverEffect(headerContainer: HTMLElement, groupedBlocks: HTMLPreElement[], buttonsContainer: HTMLElement) {
@@ -573,7 +580,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     tabsContainer.addEventListener('click', tabClickHandler, { signal: this.getListenerSignal() });
   }// addTabClickHandler
 
-  private foldCodeBlcok(activeBlock: HTMLPreElement, header: HTMLElement) {
+  private foldCodeBlcok(activeBlock: HTMLPreElement, header: HTMLElement, fromUncollapseButton = false) {
     const lines = Array.from(activeBlock.querySelectorAll('code > div'));
     const visibleLines = lines.filter(child => !child.classList.contains('codeblock-customizer-cmdoutput-line') && !child.classList.contains('hidden-line-hidden'));
     const parameters = this.getParametersFromElement(activeBlock);
@@ -582,7 +589,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     const foldSettings = this.plugin.settings.pluginSettings.codeblock.folding;
 
     const currentCollapseIcon = header.querySelector<HTMLElement>('.codeblock-customizer-header-collapse');
-    if (!currentCollapseIcon)
+    if (!currentCollapseIcon && !fromUncollapseButton)
       return;
 
     const isCollapsed = activeBlock.classList.contains('codeblock-customizer-codeblock-collapsed');
@@ -613,6 +620,11 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       }
     }
 
+    const fileNameElement = header.querySelector<HTMLElement>('.codeblock-customizer-header-text');
+    if (fileNameElement) {
+      this.updateHeaderFileName(fileNameElement, parameters, activeBlock);
+    }
+
     const sourcePath = activeBlock.getAttribute('sourcepath');
     const charPosStr = activeBlock.dataset.charPos;
     const remember = foldSettings.scope === FoldingScope.All || (foldSettings.scope === FoldingScope.NoFoldSpecified && !parameters.fold && !parameters.unfold);
@@ -620,8 +632,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
     if (remember && sourcePath && charPosStr) {
       const charPos = parseInt(charPosStr, 10);
       if (!isNaN(charPos)) {
-        // the initial fold state of grouped blocks is set by CodeBlockRenderer, which doesn't treat them as tabbed group members so isMemberOfTabbedGroup must be false
-        this.plugin.setFoldState(sourcePath, charPos, newState, 'reading', parameters, lines.length, false);
+        this.plugin.setFoldState(sourcePath, charPos, newState, 'reading', parameters, lines.length, true);
       }
     }
   }// foldCodeBlcok
