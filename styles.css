@@ -1481,6 +1481,8 @@ pre.codeblock-customizer-pre.codeblock-customizer-codeblock-semi-collapsed .code
   overflow-wrap: normal !important;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  /* ::-webkit-scrollbar is ignored when scrollbar-color/width is set (Obsidian sets it on body) */
+  scrollbar-width: none;
   white-space: pre !important;
   word-wrap: normal;
 }
