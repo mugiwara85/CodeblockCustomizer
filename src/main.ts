@@ -16,7 +16,7 @@ import { InlineCodeRenderer } from "./ReadingView/InlineCodeRenderer";
 import { admonitionPostProcessor } from "./ReadingView/PostProcessors";
 import { CBCParameters } from "./Parsing";
 import { StateStore } from "./StateStore";
-import { getRenamedLinkText } from "./CodeBlockLinks";
+import { getRenamedLinkText, replaceLinesIfUnchanged } from "./CodeBlockLinks";
 import { FoldCommand, FoldingState } from "./EditorView/EditorEffects";
 
 import { merge, difference } from 'es-toolkit/compat';
@@ -390,7 +390,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }
     if (modifiedCodeBlockText !== currentCodeBlock.codeBlockText) {
-      void this.updateLinksInFiles(this.app.vault, currentFile, currentCodeBlock.from, currentCodeBlock.to, modifiedCodeBlockText.split('\n'));
+      void this.updateLinksInFiles(this.app.vault, currentFile, currentCodeBlock.from, currentCodeBlock.to, currentCodeBlock.codeBlockText, modifiedCodeBlockText);
     }
     return linkUpdateCount;
   }// findAllCodeBlockLinks
@@ -408,17 +408,15 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     return { updatedCodeBlockText: updatedCodeBlockText.replace(match[0], '[[' + newLinkText + ']]'), updated: true };
   }// updateCodeBlockContent
 
-  async updateLinksInFiles(vault: Vault, file: TFile, startLine: number, endLine: number, newContent: string[]): Promise<void> {
+  async updateLinksInFiles(vault: Vault, file: TFile, startLine: number, endLine: number, originalText: string, newText: string): Promise<void> {
     try {
       await vault.process(file, (currentContent) => {
-        const lines = currentContent.split("\n");
-
-        for (let i = startLine; i <= endLine; i++) {
-          const index = i - startLine;
-          lines[i] = newContent[index];
+        const modifiedContent = replaceLinesIfUnchanged(currentContent, startLine, endLine, originalText, newText);
+        if (modifiedContent === null) {
+          // the file changed since it was read, so these lines may hold something else now
+          new Notice(`Code block links in "${file.path}" were not updated, because the file changed in the meantime.`);
+          return currentContent;
         }
-
-        const modifiedContent = lines.join("\n");
 
         return modifiedContent;
       });

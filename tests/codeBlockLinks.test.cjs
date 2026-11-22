@@ -4,7 +4,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
-const { getRenamedLinkText, getDisplayNameAndReference } = load('src/CodeBlockLinks.ts');
+const { getRenamedLinkText, getDisplayNameAndReference, replaceLinesIfUnchanged } = load('src/CodeBlockLinks.ts');
 
 test('display name and reference are split off the link text', () => {
   assert.deepEqual(getDisplayNameAndReference('Note'), { displayName: '', reference: '' });
@@ -41,4 +41,19 @@ test('renamed link: one row per link form, heading and alias kept, unrelated or 
   assert.equal(rename('Note', true), null, 'the link still points to an existing file, so it is not a link to the renamed one');
   assert.equal(getRenamedLinkText('Dir', 'Dir', 'Dir2', null, false), 'Dir2', 'a renamed folder has no extension');
   assert.equal(getRenamedLinkText('Dir/Note.md', 'Dir', 'Dir2', null, false), null);
+});
+
+test('rename writes the new block only if its lines still hold what was read (the file may have changed meanwhile)', () => {
+  const lines = text => text.join('\n');
+  const content = lines(['# Note', '```', '[[Old]]', '```', 'after']);
+  const block = lines(['```', '[[Old]]', '```']);
+  const updated = lines(['```', '[[New]]', '```']);
+  assert.equal(replaceLinesIfUnchanged(content, 1, 3, block, updated), lines(['# Note', '```', '[[New]]', '```', 'after']));
+
+  const edited = lines(['# Note', 'a line typed above', '```', '[[Old]]', '```', 'after']);
+  assert.equal(replaceLinesIfUnchanged(edited, 1, 3, block, updated), null, 'lines 1-3 hold other text now, so nothing is overwritten');
+
+  const crlf = content.split('\n').join('\r\n');
+  const crlfBlock = crlf.split('\n').slice(1, 4).join('\n'); // how handleFileRename builds the block text: every line keeps its \r
+  assert.equal(replaceLinesIfUnchanged(crlf, 1, 3, crlfBlock, crlfBlock.replace('Old', 'New')), crlf.replace('Old', 'New'), 'CRLF files: every line keeps its \\r');
 });

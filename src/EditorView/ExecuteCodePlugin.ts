@@ -94,6 +94,9 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
 
     if (Array.from(codeElement.classList).some(className => /^language-\S+/.test(className))) {
       while (!codeElement.classList.contains("is-loaded")) {
+        if (!preElement.isConnected) {
+          return;
+        }
         await new Promise(resolve => window.setTimeout(resolve, 2));
       }
     }

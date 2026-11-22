@@ -144,22 +144,8 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
   });// rememberedFoldField
 
   const defaultFoldUnfoldedField = StateField.define<Set<number>>({
-    create(state: EditorState): Set<number> {
-      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(state))
-        return new Set();
-
-      const initiallyUnfolded = new Set<number>();
-      const rememberedFolds = state.field(rememberedFoldField, false) ?? {};
-
-      for (const startPosStr in rememberedFolds) {
-        const startPos = Number(startPosStr);
-        const foldState = rememberedFolds[startPos];
-        if (foldState === null) {
-          initiallyUnfolded.add(startPos);
-        }
-      }
-
-      return initiallyUnfolded;
+    create(): Set<number> {
+      return new Set();
     },
     update(value: Set<number>, transaction: Transaction): Set<number> {
       if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(transaction.state))

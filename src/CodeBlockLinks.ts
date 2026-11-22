@@ -48,3 +48,14 @@ export function getRenamedLinkText(linkText: string, oldPath: string, newPath: s
 
   return isLinkToOldPath ? newTarget + reference + displayName : null;
 }// getRenamedLinkText
+
+export function replaceLinesIfUnchanged(content: string, startLine: number, endLine: number, originalText: string, newText: string): string | null {
+  const lines = content.split('\n');
+  if (lines.slice(startLine, endLine + 1).join('\n') !== originalText) {
+    return null;
+  }
+
+  lines.splice(startLine, endLine - startLine + 1, ...newText.split('\n'));
+  
+  return lines.join('\n');
+}// replaceLinesIfUnchanged
