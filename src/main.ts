@@ -16,11 +16,10 @@ import { InlineCodeRenderer } from "./ReadingView/InlineCodeRenderer";
 import { admonitionPostProcessor } from "./ReadingView/PostProcessors";
 import { CBCParameters } from "./Parsing";
 import { StateStore } from "./StateStore";
+import { getRenamedLinkText } from "./CodeBlockLinks";
 import { FoldCommand, FoldingState } from "./EditorView/EditorEffects";
 
 import { merge, difference } from 'es-toolkit/compat';
-
-// npm i @simonwep/pickr
 
 interface codeBlock {
   codeBlockText: string;
@@ -80,7 +79,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   debounceTimer: number | null = null;
   foldCommandTrigger: { command: FoldCommand; path: string } | null = null;
   rerenderQueue: Map<string, { content: string; count: number }> = new Map();
-  rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
   modifiedBlocks: Map<string, string> = new Map();
   executeCodeObservers: WeakMap<HTMLElement, MutationObserver> = new WeakMap();
   executeCodeLanguages: string[] = [];
@@ -97,7 +95,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     this.extensions = [];
     this.customLanguageConfig = null;
-    // npm install eslint@8.39.0 -g
 
     this.groupedChildrenMap = new Map<MarkdownView, GroupedCodeBlockRenderChild>();
 
@@ -340,6 +337,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     let fileCount = 0;
 
     for (const mdFile of markdownFiles) {
+      // skip files that don't contain any code blocks
+      if (!this.app.metadataCache.getCache(mdFile.path)?.sections?.some(section => section.type === "code"))
+        continue;
+
       let linkUpdate = 0;
       const { cache, fileContentLines } = await getFileCacheAndContentLines(this, mdFile.path);
       if (!cache || !fileContentLines)
@@ -396,44 +397,15 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
   updateCodeBlockContent(match: RegExpMatchArray, currentFile: TFile, oldPath: string, newPath: TAbstractFile, updatedCodeBlockText: string) {
     const linkText = match[1];
-    const displayNameRef = this.getDisplayNameAndReference(linkText);
     const linkTextWithoutDisplayName = linkText.split('|')[0].split('#')[0]; // Remove DisplayName
-    const oldPathWithoutExtension = oldPath.replace(/\.[^.]*$/, ''); // Remove extension
-    const oldPathWithoutDir = oldPath.split('/').slice(-1)[0]; // Extract last segment after '/'
-    const oldPathWithoutExtensionAndDir = oldPathWithoutDir.replace(/\.[^.]*$/, ''); // Remove extension from last segment
-    const linkPath = this.app.metadataCache.getFirstLinkpathDest(getLinkpath(linkTextWithoutDisplayName), currentFile.path);
-    // @ts-ignore
-    const newExtension = '.' + newPath.extension;
-    const displayNameAndRef = displayNameRef.reference + displayNameRef.displayName;
-    let updated = false;
-
-    if ((linkTextWithoutDisplayName.contains("/") && linkTextWithoutDisplayName.contains(newExtension)) && linkTextWithoutDisplayName.toLowerCase() === oldPath.toLowerCase()) { // SomeFolder/Untitled 22.md === SomeFolder/Untitled 22.md
-      if (!linkPath) {
-        //console.log("(+) Update 1 - In " + currentFile.path + " replace " + oldPath + " with " + newPath.path);
-        updatedCodeBlockText = updatedCodeBlockText.replace(match[0], '[[' + newPath.path + displayNameAndRef + ']]');
-        updated = true;
-      }
-    } else if ((!linkTextWithoutDisplayName.contains("/") && linkTextWithoutDisplayName.contains(newExtension)) && linkTextWithoutDisplayName.toLowerCase() === oldPathWithoutDir.toLowerCase()) { // Untitled 22.md === Untitled 22.md
-      if (!linkPath) {
-        //console.log("(+) Update 2 - In " + currentFile.path + " replace " + oldPathWithoutDir + " with " + newPath.path);
-        updatedCodeBlockText = updatedCodeBlockText.replace(match[0], '[[' + newPath.path + displayNameAndRef + ']]');
-        updated = true;
-      }
-    } else if ((linkTextWithoutDisplayName.contains("/") && !linkTextWithoutDisplayName.contains(newExtension)) && oldPathWithoutExtension.length > 0 && linkTextWithoutDisplayName.toLowerCase() === oldPathWithoutExtension.toLowerCase()) { // SomeFolder/Untitled 22 === SomeFolder/Untitled 22
-      if (!linkPath) {
-        //console.log("(+) Update 3 - In " + currentFile.path + " replace " + oldPathWithoutExtension + " with " + newPath.path.replace(/\.[^.]*$/, ''));
-        updatedCodeBlockText = updatedCodeBlockText.replace(match[0], '[[' + newPath.path.replace(/\.[^.]*$/, '') + displayNameAndRef + ']]');
-        updated = true;
-      }
-    } else if ((!linkTextWithoutDisplayName.contains("/") && !linkTextWithoutDisplayName.contains(newExtension)) && oldPathWithoutExtensionAndDir.length > 0 && linkTextWithoutDisplayName.toLowerCase() === oldPathWithoutExtensionAndDir.toLowerCase()) { // Untitled 22 === Untitled 22
-      if (!linkPath) {
-        //console.log("(+) Update 4 - In " + currentFile.path + " replace " + oldPathWithoutExtensionAndDir + " with " + newPath.path.replace(/\.[^.]*$/, ''));
-        updatedCodeBlockText = updatedCodeBlockText.replace(match[0], '[[' + newPath.path.replace(/\.[^.]*$/, '') + displayNameAndRef + ']]');
-        updated = true;
-      }
+    const linkResolves = !!this.app.metadataCache.getFirstLinkpathDest(getLinkpath(linkTextWithoutDisplayName), currentFile.path);
+    const newExtension = newPath instanceof TFile ? '.' + newPath.extension : null; // a folder has no extension
+    const newLinkText = getRenamedLinkText(linkText, oldPath, newPath.path, newExtension, linkResolves);
+    if (newLinkText === null) {
+      return { updatedCodeBlockText, updated: false };
     }
 
-    return { updatedCodeBlockText, updated };
+    return { updatedCodeBlockText: updatedCodeBlockText.replace(match[0], '[[' + newLinkText + ']]'), updated: true };
   }// updateCodeBlockContent
 
   async updateLinksInFiles(vault: Vault, file: TFile, startLine: number, endLine: number, newContent: string[]): Promise<void> {
@@ -455,29 +427,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       throw error;
     }
   }// updateLinksInFiles
-
-  getDisplayNameAndReference(input: string): { displayName: string, reference: string } {
-    const displayNameMarker = "|";
-    const referenceMarker = "#";
-
-    const displayNameIndex = input.lastIndexOf(displayNameMarker);
-    const referenceIndex = input.indexOf(referenceMarker);
-
-    const result: { displayName: string, reference: string } = {
-      displayName: '',
-      reference: ''
-    };
-
-    if (displayNameIndex !== -1) {
-      result.displayName = input.substring(displayNameIndex);
-    }
-
-    if (referenceIndex !== -1) {
-      result.reference = input.substring(referenceIndex, displayNameIndex !== -1 ? displayNameIndex : undefined);
-    }
-
-    return result;
-  }// getDisplayNameAndReference
 
   async loadSettings() {
     const loadedData = (await this.loadData()) as LoadedPluginData | null;

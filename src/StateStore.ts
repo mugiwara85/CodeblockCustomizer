@@ -3,37 +3,21 @@ import { ChangeSet } from "@codemirror/state";
 type PermanentData<V> = Record<string, Record<string, V>>;
 
 export class StateStore<K extends string | number, V> {
-  private _isPermanent: boolean;
+  isPermanent: boolean;
+  permanentData: PermanentData<V> = {};
   private keyParser: (raw: string) => K;
 
   private session: Map<string, Map<K, V>> = new Map();
-  private _permanentData: PermanentData<V> = {};
 
   constructor(isPermanent: boolean, keyParser: (raw: string) => K) {
-    this._isPermanent = isPermanent;
+    this.isPermanent = isPermanent;
     this.keyParser = keyParser;
-  }
-
-  get isPermanent(): boolean {
-    return this._isPermanent;
-  }
-
-  set isPermanent(value: boolean) {
-    this._isPermanent = value;
-  }
-
-  get permanentData(): PermanentData<V> {
-    return this._permanentData;
-  }
-
-  set permanentData(data: PermanentData<V>) {
-    this._permanentData = data;
   }
 
   // get single value
   get(filePath: string, key: K): V | undefined {
-    if (this._isPermanent) {
-      const record = this._permanentData[filePath];
+    if (this.isPermanent) {
+      const record = this.permanentData[filePath];
       return record ? record[String(key)] : undefined;
     }
     return this.session.get(filePath)?.get(key);
@@ -41,8 +25,8 @@ export class StateStore<K extends string | number, V> {
 
   // return all entries for a file as a Map. For permanent data, the record is converted to a Map
   getAll(filePath: string): Map<K, V> | undefined {
-    if (this._isPermanent) {
-      const record = this._permanentData[filePath];
+    if (this.isPermanent) {
+      const record = this.permanentData[filePath];
       if (!record) {
         return undefined;
       }
@@ -53,11 +37,11 @@ export class StateStore<K extends string | number, V> {
 
   // set single value
   set(filePath: string, key: K, value: V): void {
-    if (this._isPermanent) {
-      if (!this._permanentData[filePath]) {
-        this._permanentData[filePath] = {};
+    if (this.isPermanent) {
+      if (!this.permanentData[filePath]) {
+        this.permanentData[filePath] = {};
       }
-      this._permanentData[filePath][String(key)] = value;
+      this.permanentData[filePath][String(key)] = value;
     } else {
       let map = this.session.get(filePath);
       if (!map) {
@@ -70,12 +54,12 @@ export class StateStore<K extends string | number, V> {
 
   // delete a single entry. cleans up empty file records as well
   delete(filePath: string, key: K): void {
-    if (this._isPermanent) {
-      const record = this._permanentData[filePath];
+    if (this.isPermanent) {
+      const record = this.permanentData[filePath];
       if (record) {
         delete record[String(key)];
         if (Object.keys(record).length === 0) {
-          delete this._permanentData[filePath];
+          delete this.permanentData[filePath];
         }
       }
     } else {
@@ -92,13 +76,13 @@ export class StateStore<K extends string | number, V> {
   // wipe both session and permanent stores
   clear(): void {
     this.session.clear();
-    this._permanentData = {};
+    this.permanentData = {};
   }// clear
 
   remap(filePath: string, changes: ChangeSet): boolean {
     let changed = false;
-    if (this._isPermanent) {
-      const record = this._permanentData[filePath];
+    if (this.isPermanent) {
+      const record = this.permanentData[filePath];
       if (!record) {
         return false;
       }
@@ -121,7 +105,7 @@ export class StateStore<K extends string | number, V> {
         }
       }
 
-      this._permanentData[filePath] = newRecord;
+      this.permanentData[filePath] = newRecord;
     } else {
       const map = this.session.get(filePath);
       if (!map) {

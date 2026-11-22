@@ -8,8 +8,6 @@ export const SYNTAX_TOKEN_GROUPS: Record<string, string[]> = {
   Other: ['regex', 'url', 'char', 'symbol', 'important', 'bold', 'italic', 'prolog', 'cdata'],
 };
 
-export const ALL_SYNTAX_TOKENS: string[] = Object.values(SYNTAX_TOKEN_GROUPS).flat();
-
 export const SYNTAX_TOKEN_DISPLAY_NAMES: Record<string, string> = {
   'keyword': 'Keyword',
   'string': 'String',

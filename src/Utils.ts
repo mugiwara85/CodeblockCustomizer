@@ -1420,34 +1420,6 @@ export async function addTextToClipboard(content: string) {
   }
 }// addTextToClipboard
 
-export function getTextValues(rawText: string) {
-  let pipedText, displayText, linkText;
-  if (rawText.includes("|")) {
-    pipedText = extractText(rawText);
-    if (typeof pipedText === 'string') {
-      displayText = pipedText;
-      linkText = pipedText;
-    } else {
-      displayText = pipedText.after;
-      linkText = pipedText.before;
-    }
-  } else {
-    displayText = rawText;
-    linkText = rawText;
-  }
-
-  return { displayText, linkText };
-}// getTextValues
-
-function extractText(input: string): { before: string, after: string } | string {
-  if (input.includes('|')) {
-    const [before, after] = input.split('|');
-    return { before, after };
-  } else {
-    return input;
-  }
-}// extractText
-
 export function getLanguageSpecificColorClass(codeblockLanguage: string, languageSpecificColors: Record<string, Record<string, string>> | null, languageSpecificColor?: Record<string, string>) {
   let codeblockLanguageSpecificClass = "";
   const language = codeblockLanguage.length > 0 ? codeblockLanguage : "nolang";
@@ -1470,12 +1442,6 @@ export function getLanguageSpecificColorClass(codeblockLanguage: string, languag
   return codeblockLanguageSpecificClass;
 }// getLanguageSpecificColorClass
 
-export function getValueNameByLineNumber(lineNumber: number, altLineSpecificWords: { name: string; lineNumber: number; value?: string }[]): { extractedValues: { value: string | undefined, name: string }[] } {
-  const matchingItems = altLineSpecificWords.filter(item => item.lineNumber === lineNumber);
-  const extractedValues = matchingItems.map(item => ({ value: item.value, name: item.name }));
-  return { extractedValues };
-}// getValueNameByLineNumber
-
 export function findAllOccurrences(mainString: string, substring: string): number[] {
   const indices: number[] = [];
   let currentIndex = mainString.indexOf(substring);
@@ -1487,20 +1453,6 @@ export function findAllOccurrences(mainString: string, substring: string): numbe
 
   return indices;
 }// findAllOccurrences
-
-export function removeFirstLine(inputString: string): string {
-  const lines = inputString.split('\n');
-
-  if (lines.length > 1) {
-    const modifiedLines = lines.slice(1);
-    const resultString = modifiedLines.join('\n');
-
-    return resultString;
-  } else {
-    // If there's only one line or the input is empty, return an empty string
-    return '';
-  }
-}// removeFirstLine
 
 export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const borderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors;

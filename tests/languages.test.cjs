@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
 const {
-  getDisplayLanguageName, getLanguageIcon, getExecuteCodeLanguages, getTextValues, walkPrismTokens,
+  getDisplayLanguageName, getLanguageIcon, getExecuteCodeLanguages, walkPrismTokens,
   INLINE_CODE_LANG_REGEX, LINK_REGEX, EXECUTE_CODE_SUPPORTED_LANGUAGES,
 } = load('src/Utils.ts', 'src/Const.ts', 'src/EditorView/PrismHighlight.ts');
 
@@ -58,7 +58,4 @@ test('links: wiki links with alias, markdown links, URLs', () => {
   assert.deepEqual(links('see [[Note]] and [[Other|alias]]'), [['Note'], ['Other', 'alias']]);
   assert.deepEqual(links('[site](https://a.b) https://x.y/z?q=1 text'), [['site', 'https://a.b'], ['https://x.y/z?q=1']]);
   assert.deepEqual(links('plain [text] only'), []);
-
-  assert.deepEqual(getTextValues('Note|shown'), { displayText: 'shown', linkText: 'Note' });
-  assert.deepEqual(getTextValues('Note'), { displayText: 'Note', linkText: 'Note' });
 });
