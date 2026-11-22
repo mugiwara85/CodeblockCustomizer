@@ -2,7 +2,7 @@ import { Notice, setIcon } from "obsidian";
 
 import { CBCParameters } from "./Parsing";
 import CodeBlockCustomizerPlugin from "./main";
-import { renderCodeBlockLines } from "./ReadingView/ReadingViewUtils";
+import { escapeHtml, renderCodeBlockLines } from "./ReadingView/ReadingViewUtils";
 
 export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPreElement: HTMLElement | undefined, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin): MutationObserver | null {
   const executeButton = createExecuteCodeRunButton();
@@ -306,7 +306,7 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
           container.appendChild(lineWrapper);
         } else {
           const { fragment } = await renderCodeBlockLines({
-            htmlLines: lines,
+            htmlLines: lines.map(escapeHtml), // the output is plain text, not HTML
             textLines: lines,
             lineCount: lines.length,
             parameters,

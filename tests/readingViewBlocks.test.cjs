@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
-const { extractCodeBlocksFromSection, getBlockLine, getHtmlCodeBlockData, findHtmlCodeBlocks } = load('src/ReadingView/ReadingViewUtils.ts', 'src/HtmlCodeBlocks.ts');
+const { extractCodeBlocksFromSection, getBlockLine, getHtmlCodeBlockData, findHtmlCodeBlocks, escapeHtml } = load('src/ReadingView/ReadingViewUtils.ts', 'src/HtmlCodeBlocks.ts');
 
 test('blocks of a list section get their own line, not the section start', () => {
   const section = [
@@ -61,4 +61,11 @@ test('HTML blocks use the line of the opening <code> tag, like the editor', () =
   assert.equal(data.startLine, 0);
   assert.equal(data.firstLineOffset, 1);
   assert.equal(getBlockLine(20, data), 21);
+});
+
+test('escapeHtml: plain text (e.g. Execute Code output) stays text when parsed as HTML', () => {
+  assert.equal(escapeHtml('a<b & c>d'), 'a&lt;b &amp; c&gt;d');
+  assert.equal(escapeHtml('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
+  assert.equal(escapeHtml('&lt;'), '&amp;lt;', 'an entity in the output is shown as typed');
+  assert.equal(escapeHtml('a b'), 'a&nbsp;b');
 });

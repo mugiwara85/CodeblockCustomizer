@@ -372,13 +372,16 @@ function addIndentLine(inputString: string, insertCollapse = false, logicalInden
   return inputString.replace(indentRegex, finalReplacement);
 }// addIndentLine
 
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
+}// escapeHtml
+
 export function extractLinesFromHTML(container: HTMLElement): { htmlLines: string[]; textLines: string[] } {
   const lines: string[] = [''];
   const openTags: HTMLElement[] = [];
 
   // a " in an attribute value (possible in HTML code blocks) would otherwise end the attribute and inject new ones
   const escapeAttribute = (value: string): string => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  const escapeHtml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
 
   const walk = (node: Node) => {
     if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName.toLowerCase() === 'br') {
