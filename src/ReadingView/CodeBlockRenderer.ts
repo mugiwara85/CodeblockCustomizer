@@ -5,7 +5,7 @@ import CodeBlockCustomizerPlugin from "../main";
 import { CodeblockCustomizerSettings, FoldingScope } from "../Settings";
 import { DEFAULT_COLLAPSE_TEXT, fadeOutLineCount } from "../Const";
 import { FoldCommand, FoldingState } from "../EditorView/EditorEffects";
-import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses, getHtmlCodeBlockData, prepareHtmlCodeElement } from "./ReadingViewUtils";
+import { createButtons, toggleFold, extractLinesFromHTML, attachEventListeners, renderCodeBlockLines, CodeBlockData, extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, reassignFadeOutClasses, getHtmlCodeBlockData, prepareHtmlCodeElement, getBlockLine } from "./ReadingViewUtils";
 import { CBCParameters, getAllParameters } from "../Parsing";
 import { countHtmlCodeElements, findHtmlCodeBlocks, isHtmlCodeBlockStart } from "../HtmlCodeBlocks";
 
@@ -64,12 +64,12 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     this.allPreElements = [preElement];
 
-    const charPos = this.getCharPos(allFileLines);
+    const charPos = this.getCharPos(allFileLines, sectionInfo.lineStart);
     const blockData: CodeBlockData = {
       firstLine: firstLine,
       contentLines: contentLines,
-      startLine: sectionInfo.lineStart,
-      endLine: sectionInfo.lineEnd
+      startLine: 0,
+      endLine: sectionInfo.lineEnd - sectionInfo.lineStart
     };
     await this.processSingleCodeBlock(preElement, blockData, { charPos, isPrinting: false });
   }// renderExternal
@@ -196,9 +196,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return;
     }
 
-    const charPos = this.getCharPos(fileContentLines);
-
-    await this.processCodeBlockFirstLines(allBlocks, charPos);
+    await this.processCodeBlockFirstLines(allBlocks, fileContentLines);
   }// processCodeBlockSection
 
   private isHtmlCodeBlockSection(firstLine: string | undefined) {
@@ -232,13 +230,9 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
   }// getFileContentLines
 
-  private getCharPos(fileContentLines: string[]) {
-    if (!this.codeBlockSectionInfo) {
-      return -1;
-    }
-
+  private getCharPos(fileContentLines: string[], line: number) {
     let charPos = 0;
-    for (let i = 0; i < this.codeBlockSectionInfo.lineStart; i++) {
+    for (let i = 0; i < line; i++) {
       if (typeof fileContentLines[i] !== 'string') {
         console.error(`Inconsistent data for file ${this.context.sourcePath}. Could not calculate character position.`);
         charPos = -1;
@@ -250,8 +244,8 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     return charPos !== -1 ? charPos : undefined;
   }// getCharPos
 
-  private async processCodeBlockFirstLines(allBlocks: CodeBlockData[], charPos?: number) {
-    if (!this.allPreElements) {
+  private async processCodeBlockFirstLines(allBlocks: CodeBlockData[], fileContentLines: string[]) {
+    if (!this.allPreElements || !this.codeBlockSectionInfo) {
       return;
     }
 
@@ -261,17 +255,19 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     }
 
     for (const [key, preElement] of this.allPreElements.entries()) {
-      const isRerenderQueued = this.codeBlockSectionInfo && this.plugin.rerenderQueue.has(this.codeBlockSectionInfo.lineStart + (allBlocks[key]?.firstLineOffset ?? 0));
-
-      if (preElement.classList.contains('codeblock-customizer-pre') && !isRerenderQueued) {
-        continue;
-      }
-
       const currentBlock = allBlocks[key];
       if (!currentBlock) {
         continue;
       }
 
+      const blockLine = getBlockLine(this.codeBlockSectionInfo.lineStart, currentBlock);
+      const isRerenderQueued = this.plugin.rerenderQueue.has(this.plugin.getRerenderKey(this.context.sourcePath, blockLine));
+
+      if (preElement.classList.contains('codeblock-customizer-pre') && !isRerenderQueued) {
+        continue;
+      }
+
+      const charPos = this.getCharPos(fileContentLines, blockLine);
       await this.processSingleCodeBlock(preElement, currentBlock, { charPos, isPrinting: false });
     }
   }// processCodeBlockFirstLines
@@ -325,7 +321,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     let firstLine = codeBlockFirstLine;
     let isRerender = isParameterRerender;
     // for HTML code blocks the editor uses the line of the opening <code> tag as the first line (it can be after the <pre> line)
-    const lineStart = this.codeBlockSectionInfo ? this.codeBlockSectionInfo.lineStart + (blockData.firstLineOffset ?? 0) : undefined;
+    const lineStart = this.codeBlockSectionInfo ? getBlockLine(this.codeBlockSectionInfo.lineStart, blockData) : undefined;
 
     if (!isPrinting && lineStart !== undefined) {
       const result = this.handleRerenderOverride(lineStart, codeBlockFirstLine, isParameterRerender);
@@ -384,16 +380,17 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     let firstLine = initialFirstLine;
     let isRerender = initialIsRerender;
 
-    const override = this.plugin.rerenderQueue.get(lineStart);
+    const queueKey = this.plugin.getRerenderKey(this.context.sourcePath, lineStart);
+    const override = this.plugin.rerenderQueue.get(queueKey);
     if (override) {
       isRerender = true;
       firstLine = override.content;
       const newCount = override.count - 1;
 
       if (newCount > 0) {
-        this.plugin.rerenderQueue.set(lineStart, { content: override.content, count: newCount });
+        this.plugin.rerenderQueue.set(queueKey, { content: override.content, count: newCount });
       } else {
-        this.plugin.rerenderQueue.delete(lineStart);
+        this.plugin.rerenderQueue.delete(queueKey);
       }
     }
 

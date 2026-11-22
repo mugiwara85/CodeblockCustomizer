@@ -1798,6 +1798,10 @@ export function extractCodeBlocksFromSection(lines: string[]): CodeBlockData[] {
   return extractCodeBlocks(lines, { stripCalloutMarkers: true, handleIndentedBlocks: true });
 }// extractCodeBlocksFromSection
 
+export function getBlockLine(sectionLineStart: number, block: CodeBlockData): number {
+  return sectionLineStart + (block.firstLineOffset ?? block.startLine);
+}// getBlockLine
+
 // the code lines of an HTML code block are taken from the rendered element, and wrapped in fence lines like the lines of a fenced code block
 // the code is taken from the source, not from the rendered element (which might be already processed, e.g. when rerendering)
 export function getHtmlCodeBlockData(block: HtmlCodeBlock, getLine: (index: number) => string): CodeBlockData {

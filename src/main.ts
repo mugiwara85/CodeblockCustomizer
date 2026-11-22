@@ -79,7 +79,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   tabStoreReading: StateStore<string, number> = new StateStore(false, String);
   debounceTimer: number | null = null;
   foldCommandTrigger: { command: FoldCommand; path: string } | null = null;
-  rerenderQueue: Map<number, { content: string; count: number }> = new Map();
+  rerenderQueue: Map<string, { content: string; count: number }> = new Map();
   rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
   modifiedBlocks: Map<string, string> = new Map();
   executeCodeObservers: WeakMap<HTMLElement, MutationObserver> = new WeakMap();
@@ -630,6 +630,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }, 100);
   }// renderReadingView
 
+  getRerenderKey(path: string, line: number): string {
+    return `${path}|${line}`;
+  }// getRerenderKey
+
   getFoldCommand(path: string): FoldCommand {
     return this.foldCommandTrigger?.path === path ? this.foldCommandTrigger.command : FoldCommand.Default;
   }// getFoldCommand
@@ -832,7 +836,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
 
     if (targets.length > 0) {
       if (newParametersLine !== undefined) {
-        this.rerenderQueue.set(lineStart, { content: newParametersLine, count: targets.length });
+        this.rerenderQueue.set(this.getRerenderKey(file.path, lineStart), { content: newParametersLine, count: targets.length });
       }
 
       for (const target of targets) {
