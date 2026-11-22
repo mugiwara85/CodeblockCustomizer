@@ -151,13 +151,11 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
     buttons.appendChild(editButton);
     preElement.appendChild(buttons);
 
-    // setTimeout(() => {
     const parent = preElement.parentElement;
     if (parent)
       verifyAndRevealExecuteButtons(parent);
     const blockContainer = preElement.closest('.cm-preview-code-block');
     blockContainer?.querySelectorAll<HTMLElement>('.edit-block-button').forEach(btn => btn.classList.add('codeblock-customizer-edit-button-hidden'));
-    //}, 50);
   }// styleExecuteCodeWidget
 
   return { executeCodeViewPlugin };

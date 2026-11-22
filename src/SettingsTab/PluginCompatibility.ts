@@ -130,7 +130,5 @@ export class PluginCompatibilitySettings {
     reloadWarningEl.setText("Reload the plugin after changing this option.");
 
     additionalLanguagesSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !this.plugin.settings.pluginSettings.plugins.executeCode.enabled);
-
-    //return pluginsDiv;
   }// public
 }// PluginCompatibilitySettings

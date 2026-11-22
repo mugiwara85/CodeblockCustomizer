@@ -657,7 +657,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
       try {
         return JSON.parse(paramsJson) as CBCParameters;
       } catch {
-        //console.error("Failed to parse parameters from element:", element, e);
         return getDefaultParameters();
       }
     }

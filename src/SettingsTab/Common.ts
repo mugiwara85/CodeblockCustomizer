@@ -142,7 +142,6 @@ export function updateLanguageSpecificColorContainer(colorContainer: HTMLElement
 
     Object.entries(colorObject).forEach(([colorProp, color]) => {
       const propDisplayText = COLOR_OPTIONS[colorProp];
-      // this.createAlternatePickr(colorContainer, colorContainer, propDisplayText, color, "langSpecific", colorProp, languageName);
       createAlternatePickr(languageSettingsDiv, languageSettingsDiv, propDisplayText, color, "langSpecific", pickerInstances, plugin, colorProp, languageName);
     });
   });
@@ -188,7 +187,6 @@ export function createDropdown(languageSettingsDiv: HTMLElement, languageName: s
             }
             await plugin.saveSettings();
             plugin.renderReadingViews();
-            //refreshView();
           }
         } else {
           console.error("Selected color not found.");

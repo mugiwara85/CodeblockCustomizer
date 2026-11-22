@@ -400,18 +400,14 @@ export function getPromptDefinition(promptId: string, settings: CodeblockCustomi
   const base = defaultPrompts[lowercasedPromptId];
 
   let def: PromptDefinition;
-  //const isCustom = !!customs[promptId];
 
   if (isCustom && customKey) {
-    //def = structuredClone(customs[promptId]);
     def = { ...customs[customKey] };
   } else if (edits[lowercasedPromptId] && base) {
     // merge only the changed fields onto a clone of the base
-    //def = structuredClone({ ...base, ...edits[promptId] });
     const editData = edits[lowercasedPromptId];
     def = editData ? { ...base, ...editData } : { ...base };
   } else if (base) {
-    //def = structuredClone(base);
     def = { ...base };
   } else {
     // ultimate fallback

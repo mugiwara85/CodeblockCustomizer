@@ -101,7 +101,6 @@ export function annotationsExtension(plugin: CodeBlockCustomizerPlugin, settings
 
     toDOM(view: EditorView): HTMLElement {
       const iconContainer = createSpan({ cls: `codeblock-customizer-annotation-icon codeblock-customizer-annotation-icon-${this.type}` });
-      //iconContainer.setAttribute("aria-label", `Annotation: ${this.type}`);
       iconContainer.appendChild(createRhombusSvg());
 
       const sourcePath = view.state.field(editorInfoField)?.file?.path ?? "";

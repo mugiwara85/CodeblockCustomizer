@@ -740,7 +740,6 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     if (rebuild) {
       const customLangConfig = getLanguageConfig(parameters.language, this.plugin);
       const customFormat = customLangConfig?.format ?? undefined; // custom syntax highlight
-      //let codeLinesToProcess = rawCodeLines.slice(1, -1);
       let codeLinesToProcess = isIndentedBlock ? rawCodeLines : rawCodeLines.slice(1, -1);
 
       codeLinesToProcess = isIndentedBlock ? normalizeIndentation(codeLinesToProcess) : removeFenceIndentation(codeLinesToProcess, rawCodeLines[0] ?? '');
@@ -1001,7 +1000,6 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
       return extractedBlocks.filter(block => {
         const blockLang = block.firstLine.replace(/^(?:`|~){3,}/, '').trim().split(' ')[0] || '';
         if (blockLang && this.isCodeBlockProcessor(blockLang) && !this.isExecuteCodeBlock(blockLang)) {
-          //console.log(`[extractCodeBlocksFromSections] skipping code block with language "${blockLang}" (isCodeBlockProcessor)`);
           return false;
         }
         return true;

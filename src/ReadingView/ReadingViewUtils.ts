@@ -167,8 +167,6 @@ function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLE
 
     const parentContainer = preEl.parentElement;
 
-    //container.style.visibility = 'hidden';
-
     let elementToClone: HTMLElement;
     const isGrouped = preEl.classList.contains('displayedInGroup');
 
@@ -432,14 +430,6 @@ export function extractLinesFromHTML(container: HTMLElement): { htmlLines: strin
 
   const finalHtmlLines = lines;
   const finalTextLines = container.textContent?.split('\n') ?? [];
-
-  /*if (finalHtmlLines.length === 1 && container.textContent?.trim() === '') {
-    finalHtmlLines = ['', ''];
-    finalTextLines = ['', ''];
-  }*//* else if (finalHtmlLines.length === 1) {
-    finalHtmlLines.push('');
-    finalTextLines.push('');
-  }*/
 
   container.innerHTML = "";
 
@@ -803,7 +793,6 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
   }
 
   const frag = createFragment();
-  //const lineCount = textLines.length;
   const prompt = processPrompts ? new PromptManager(parameters, lineCount, plugin.settings) : null;
   const indentationLevels = addIndentationGuides ? trackIndentation(textLines) : null;
   const annotationsToProcess: AnnotationInfo[] = [];
@@ -875,10 +864,8 @@ export async function renderCodeBlockLines(options: RenderOptions): Promise<{ fr
       }
     }
 
-    //if (showLineNumbers) {
     const lineNumberEl = createLineNumberElement(displayedLineNumber, parameters.showNumbers, maxDigits);
     lineWrapper.appendChild(lineNumberEl);
-    //}
 
     if (annotationData) {
       const annotationIcon = createSpan({ cls: `codeblock-customizer-annotation-icon` });

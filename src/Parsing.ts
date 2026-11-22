@@ -499,7 +499,6 @@ function parseSegment(segment: string, textSeparator: string, lineSeparator: str
       else if (isWholeNumber(cleanedLineOrRange))
         line = cleanedLineOrRange;
 
-      //if (val.includes(":")) {
       const valFromToSeparatorIndex = val.indexOf(textSeparator);
       if (valFromToSeparatorIndex !== -1) {
         from = val.substring(0, valFromToSeparatorIndex).trim();
@@ -803,7 +802,6 @@ function extractAlternativeHighlights(parsedParameters: ParsedParams, textSepara
     outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: []
   };
 
-  //const alternativeLinesToHighlight: AlternativeLinesToHighlight[] = [];
   const alternativeLinesToHighlight: AlternativeLinesToHighlight = {
     lines: [], words: [], lineSpecificWords: [],
     outputLines: [], outputWords: [], outputLineSpecificWords: []

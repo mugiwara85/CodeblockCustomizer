@@ -64,7 +64,6 @@ export class PromptSettings {
           new Notice(`All settings and colors of prompt "${selectedPromptId}" restored to its original state!`);
         });
         button.setDisabled(!(selectedPromptId in defaultPrompts))
-        //restoreButton = button;
       })// addExtraButton
       .addExtraButton(button => {
         promptDeleteButton = button
@@ -169,12 +168,9 @@ export class PromptSettings {
 
     const promptEditorContainer = promptsDiv.createDiv({ cls: 'codeblock-customizer-prompt-editor-container' });
     this.createPromptSettings(promptEditorContainer, selectedPromptId, this.pickerInstances);
-
-    //return promptsDiv;
   }// display
 
   refreshPromptDropdown(promptDropdown: DropdownComponent, selectedPromptId: string) {
-    //promptDropdown.selectEl.innerHTML = "";
     promptDropdown.selectEl.empty();
 
     const allPrompts: { key: string; name: string; type: 'Default' | 'Custom' }[] = [];
@@ -427,7 +423,6 @@ export class PromptSettings {
             }
           }
 
-          //const { def: updatedPromptData, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
           updatedPromptData.autoUsePrompt = true;
           updatedPromptData.autoUseLanguages = newLangs;
           await this.savePromptData(isCustom, selectedPromptId, updatedPromptData);

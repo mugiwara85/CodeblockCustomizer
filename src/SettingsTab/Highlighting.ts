@@ -230,7 +230,5 @@ export class HighlightingSettings {
       picker.settingEl.toggleClass('codeblock-customizer-setting-hidden', !enabled);
       frontmatterColorPickers.push(picker);
     }
-
-    //return highlightingDiv;
   }// display
 }// HighlightingSettings

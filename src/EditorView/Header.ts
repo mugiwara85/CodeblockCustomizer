@@ -206,7 +206,6 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
           view.dispatch({ effects, annotations });
         }
       };
-      //EditorView.requestMeasure;
 
       return container;
     }
@@ -276,7 +275,6 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
 
       if (isMemberOfTabbedGroup) {
         const groupMembers = grouped[group];
-        //const currentActiveTab = state.field(activeGroupTabField)[group];
         const activeGroup = state.field(activeGroupTabField, false) ?? {};
         const currentActiveTab = activeGroup?.[group];
         const activeTabPos = (currentActiveTab !== undefined && groupMembers.some(member => member.codeBlockStartPos === currentActiveTab)) ? currentActiveTab : groupMembers[0].codeBlockStartPos;
@@ -518,77 +516,67 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       return;
     }
 
-    /*if (container) {
-      container.style.visibility = 'hidden';
-    }*/
+    const elementsToSnapshot: HTMLElement[] = [startingEl];
+    let currentEl: Element | null = startingEl;
 
-    try {
-      const elementsToSnapshot: HTMLElement[] = [startingEl];
-      let currentEl: Element | null = startingEl;
-
-      const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
-      if (currentFoldState === FoldingState.SemiFolded) {
-        while (currentEl && currentEl.nextElementSibling) {
-          const nextEl = currentEl.nextElementSibling as HTMLElement;
-          if (nextEl.classList.contains('codeblock-customizer-header-container-specific') || !nextEl.classList.contains('cm-line')) {
-            break;
-          }
-
-          elementsToSnapshot.push(nextEl);
-          currentEl = nextEl;
+    const currentFoldState = getFoldingState(view.state, codeBlockStartPos, codeBlockEndPos);
+    if (currentFoldState === FoldingState.SemiFolded) {
+      while (currentEl && currentEl.nextElementSibling) {
+        const nextEl = currentEl.nextElementSibling as HTMLElement;
+        if (nextEl.classList.contains('codeblock-customizer-header-container-specific') || !nextEl.classList.contains('cm-line')) {
+          break;
         }
-      } else {
-        const firstLine = view.state.doc.lineAt(codeBlockStartPos).text;
-        const parameters = getAllParameters(firstLine, plugin.settings, false);
-        const hiddenRanges = getHiddenRanges(state, parameters, codeBlockStartPos, codeBlockEndPos);
-        const hiddenLineCount = hiddenRanges.reduce((sum, r) => sum + r.lineCount, 0);
 
-        const lineCount = state.doc.lineAt(codeBlockEndPos).number - state.doc.lineAt(codeBlockStartPos).number + 1;
-        const visibleLines = lineCount - hiddenLineCount;
-        const loopIterations = (headerEl ? visibleLines : visibleLines - 1) + hiddenRanges.length;
-
-        for (let i = 0; i < loopIterations; i++) {
-          currentEl = currentEl.nextElementSibling;
-          if (currentEl) {
-            elementsToSnapshot.push(currentEl as HTMLElement);
-          } else {
-            break;
-          }
-        }
+        elementsToSnapshot.push(nextEl);
+        currentEl = nextEl;
       }
-
-      const cloneContainer = createDiv();
-      elementsToSnapshot.forEach(el => {
-        cloneContainer.appendChild(el.cloneNode(true));
-      });
-
-      const parent = view.contentDOM.parentElement;
-      if (!parent) {
-        new Notice("Error: Could not get contentDOM.parentElement.");
-        return;
-      }
-
-      const snapshotOptions = {
-        filter: (node: HTMLElement) => {
-          if (node.classList?.contains('codeblock-customizer-button-container') ||        // first-line button container
-            node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
-            node.classList?.contains('codeblock-customizer-header-collapse') ||           // header collapse icon
-            node.classList?.contains('codeblock-customizer-tab-remove') ||                // grouped code block 'x' button
-            node.classList?.contains('codeblock-customizer-tab-add')) {                   // grouped code block '+' button
-            return false;
-          }
-          return !(node.tagName === 'IMG' && node.classList.contains('cm-widgetBuffer'));
-        }
-      };
-
+    } else {
       const firstLine = view.state.doc.lineAt(codeBlockStartPos).text;
       const parameters = getAllParameters(firstLine, plugin.settings, false);
-      await generateSnapshot(cloneContainer, startingEl, parent, plugin.settings, parameters, snapshotOptions);
-    } finally {
-      /*if (container) {
-        container.style.visibility = 'visible';
-      }*/
+      const hiddenRanges = getHiddenRanges(state, parameters, codeBlockStartPos, codeBlockEndPos);
+      const hiddenLineCount = hiddenRanges.reduce((sum, r) => sum + r.lineCount, 0);
+
+      const lineCount = state.doc.lineAt(codeBlockEndPos).number - state.doc.lineAt(codeBlockStartPos).number + 1;
+      const visibleLines = lineCount - hiddenLineCount;
+      const loopIterations = (headerEl ? visibleLines : visibleLines - 1) + hiddenRanges.length;
+
+      for (let i = 0; i < loopIterations; i++) {
+        currentEl = currentEl.nextElementSibling;
+        if (currentEl) {
+          elementsToSnapshot.push(currentEl as HTMLElement);
+        } else {
+          break;
+        }
+      }
     }
+
+    const cloneContainer = createDiv();
+    elementsToSnapshot.forEach(el => {
+      cloneContainer.appendChild(el.cloneNode(true));
+    });
+
+    const parent = view.contentDOM.parentElement;
+    if (!parent) {
+      new Notice("Error: Could not get contentDOM.parentElement.");
+      return;
+    }
+
+    const snapshotOptions = {
+      filter: (node: HTMLElement) => {
+        if (node.classList?.contains('codeblock-customizer-button-container') ||        // first-line button container
+          node.classList?.contains('codeblock-customizer-header-button-container') ||   // header button container
+          node.classList?.contains('codeblock-customizer-header-collapse') ||           // header collapse icon
+          node.classList?.contains('codeblock-customizer-tab-remove') ||                // grouped code block 'x' button
+          node.classList?.contains('codeblock-customizer-tab-add')) {                   // grouped code block '+' button
+          return false;
+        }
+        return !(node.tagName === 'IMG' && node.classList.contains('cm-widgetBuffer'));
+      }
+    };
+
+    const firstLine = view.state.doc.lineAt(codeBlockStartPos).text;
+    const parameters = getAllParameters(firstLine, plugin.settings, false);
+    await generateSnapshot(cloneContainer, startingEl, parent, plugin.settings, parameters, snapshotOptions);
   }// createSnapshot
 
   function compareButtonConfigs(configs1: Array<ButtonConfig>, configs2: Array<ButtonConfig>): boolean {

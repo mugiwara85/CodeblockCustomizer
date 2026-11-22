@@ -441,7 +441,6 @@ const DarkPromptColors: Record<string, Record<string, string>> = {
     "prompt-user": "#61afef",
     "prompt-host": "#d19a66",
     "prompt-path": "#56b6c2",
-    //"prompt-hash": "#ff5555",
   },
   "kali": {
     "prompt-user": "#2679F2",
@@ -669,58 +668,6 @@ export const RootPromptColors: Record<string, Record<string, string>> = {
   },
   "global": {}
 };
-
-/*const ObsidianPromptColors: Record<string, Record<string, string>> = {
-"bash": {
-    "prompt-user": "#5c99f5",
-    "prompt-host": "#b3b3b3",
-    "prompt-path": "#86b300",
-  },
-  "bashalt": {
-    "prompt-user": "#e63946",
-    "prompt-host": "#d19a66",
-    "prompt-path": "#56b6c2",
-    "prompt-hash": "#cb4b16",
-  },
-  "kali": {
-    "prompt-user": "#ff5555",
-    "prompt-host": "#ff79c6",
-    "prompt-path": "#8be9fd",
-    "prompt-kali-symbol": "#5c99f5",
-    "prompt-dollar": "#5c99f5",
-  },
-  "zshgit": {
-    "prompt-path": "#5c99f5",
-    "prompt-branch": "#c678dd",
-    "prompt-zsh-error": "#e06c75",
-    "prompt-zsh-symbol": "#86b300",
-  },
-  "ps": {
-    "prompt-path": "#5294e2",
-  },
-  "cmd": {
-    "prompt-path": "#3FC1FF",
-  },
-  "docker": {
-    "prompt-user": "#5c99f5",
-    "prompt-host": "#b3b3b3",
-    "prompt-path": "#86b300",
-  },
-  "postgres": {
-    "prompt-db": "#d19a66",
-  },
-  "global": {
-    "prompt-at": "#999999",
-    "prompt-colon": "#999999",
-    "prompt-dollar": "#aaaaaa",
-    "prompt-hash": "#aaaaaa",
-    "prompt-bracket-open": "#999999",
-    "prompt-bracket-close": "#999999",
-    "prompt-square-open": "#999999",
-    "prompt-square-close": "#999999",
-    "prompt-greater-than": "#999999",
-  }
-};*/
 
 // Solarized Theme
 const SolarizedLightPromptColors = structuredClone(ObsidianLightPromptPromptColors);

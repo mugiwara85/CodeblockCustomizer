@@ -137,8 +137,6 @@ export class GeneralSettings {
           await this.plugin.saveSettings();
         })
       );
-
-    //return generalDiv;
   }// display
 
   restoreThemes(themeName: string, cloneAll: boolean) {

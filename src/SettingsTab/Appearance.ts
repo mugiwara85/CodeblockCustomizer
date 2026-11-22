@@ -120,7 +120,6 @@ export class AppearanceSettings {
         .onChange(async (value: LineNumberSeparatorStyle) => {
           this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
           await this.plugin.saveSettings();
-          //this.plugin.renderReadingViews();
         })
       );
 
@@ -135,7 +134,6 @@ export class AppearanceSettings {
         .onChange(async (value: HiddenLinesStyle) => {
           this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle = value;
           await this.plugin.saveSettings();
-          //this.plugin.renderReadingViews();
         })
       );
 
@@ -581,7 +579,5 @@ export class AppearanceSettings {
         })
       )
     );
-
-    //return appearanceDiv;
   }// display
 }// AppearanceSettings

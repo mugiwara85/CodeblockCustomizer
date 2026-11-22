@@ -162,7 +162,6 @@ export function determineDefaultFoldState(parameters: CBCParameters, settings: C
 
   const canSemiFold = enableSemiFold && visibleContentLineCount >= visibleLines + fadeOutLineCount;
   const autoFold = isSpecificHeader && enableSemiFold && autoFoldLongCodeblocks && visibleContentLineCount >= longCodeBlockLines;
-  //const foldByDefault = parameters.fold || (inverseFold && !parameters.unfold && (!ignoreShortBlocksOnInverseFold || canSemiFold)) || autoFold;
 
   let doInverseFold = false;
   if (inverseFold && !parameters.unfold) {
@@ -238,9 +237,6 @@ export function getLanguageIcon(DisplayName: string) {
 
 export const BLOBS: Record<string, string> = {};
 export async function loadIcons(plugin: CodeBlockCustomizerPlugin) {
-  /*for (const [key, value] of Object.entries(Icons)) {
-    BLOBS[key.replace(/\s/g, "_")] = URL.createObjectURL(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">${value}</svg>`], { type: "image/svg+xml" }));
-  }*/
   for (const [key, value] of Object.entries(Icons)) {
     BLOBS[key.replace(/\s/g, "_")] = svgToDataUri(buildSvg(value));
   }
@@ -577,11 +573,6 @@ export function createCodeblockCollapse(defaultFold: boolean, style: CollapseIco
     setIcon(collapse, icons.collapsed);
   else
     setIcon(collapse, icons.uncollapsed);
-
-  /*if (defaultFold)
-    setIcon(collapse, "chevrons-down-up");
-  else
-    setIcon(collapse, "chevrons-up-down");*/
 
   return collapse;
 }// createCodeblockLang
@@ -1277,7 +1268,6 @@ function rgbOrRgbaToHex(color: string): string {
 
     return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
   } else {
-    //throw new Error('Invalid color format. Use "rgba(r, g, b, a)" or "rgb(r, g, b)".');
     return "";
   }
 }// rgbOrRgbaToHex
@@ -1286,7 +1276,6 @@ function hslOrHslaToHex(hslColor: string): string {
   const matchHSLA = hslColor.match(/^hsla?\((\d+),\s*(\d+)%,\s*(\d+)%,?\s*(\d*\.?\d+)?\)$/i);
 
   if (!matchHSLA) {
-    //throw new Error('Invalid HSL or HSLA color format. Use "hsl(h, s%, l%)" or "hsla(h, s%, l%, a)".');
     return "";
   }
 
@@ -1314,7 +1303,6 @@ function hslToHex(hslColor: string, alpha: number): string {
   const matchHSL = hslColor.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/i);
 
   if (!matchHSL) {
-    //throw new Error('Invalid HSL color format. Use "hsl(h, s%, l%)".');
     return "";
   }
 

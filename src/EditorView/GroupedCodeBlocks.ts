@@ -194,7 +194,6 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
 
   function addTabs(view: EditorView, container: HTMLElement, parameters: CBCParameters, groupMembers: CodeBlockPositions[]) {
     const tabsContainer = createDiv({ cls: "codeblock-customizer-header-group-tabs" });
-    //const activeStartPos = view.state.field(activeGroupTabStateField)[parameters.group];
     const activeGroup = view.state.field(activeGroupTabField, false) ?? {};
     const activeStartPos = activeGroup?.[parameters.group];
 

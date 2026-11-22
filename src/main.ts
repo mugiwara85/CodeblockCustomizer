@@ -770,7 +770,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         continue;
       }
 
-      //const sectionToRerender = renderer.sections.find((s: any) => s.lineStart === lineStart);
       let sectionToRerender: PreviewSection | undefined;
       for (const section of renderer.sections) {
         const sectionStartLine = section?.start?.line;

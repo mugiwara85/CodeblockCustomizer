@@ -435,7 +435,6 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
   function getCM5Tokens(code: string, modeSpec: string): CM5Token[] {
     const tokens: CM5Token[] = [];
-    //const mode = window.CodeMirror.getMode({}, modeSpec);
 
     type CM5WithFindMode = typeof window.CodeMirror & {
       findModeByName: (name: string) => { mime?: string } | undefined;

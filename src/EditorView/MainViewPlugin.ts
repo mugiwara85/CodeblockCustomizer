@@ -435,7 +435,6 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
               }
             }
           }
-          //lineNumber++;
         }
 
         // <pre> and </pre> lines outside of the <code> and </code> lines are styled like the fence lines

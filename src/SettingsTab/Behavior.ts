@@ -440,7 +440,5 @@ export class BehaviorSettings {
           await this.plugin.saveSettings();
         })
       );
-
-    //return behaviorDiv;
   }// display
 }// BehaviorSettings
