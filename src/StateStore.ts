@@ -160,4 +160,55 @@ export class StateStore<K extends string | number, V> {
     }
     return changed;
   }// remapValues
+
+  renamePath(oldPath: string, newPath: string): boolean {
+    let changed = false;
+    for (const [filePath, entries] of [...this.session.entries()]) {
+      const renamed = renamedPath(filePath, oldPath, newPath);
+      if (renamed !== null) {
+        this.session.delete(filePath);
+        this.session.set(renamed, entries);
+        changed = true;
+      }
+    }
+
+    for (const filePath of Object.keys(this.permanentData)) {
+      const renamed = renamedPath(filePath, oldPath, newPath);
+      if (renamed !== null) {
+        const entries = this.permanentData[filePath];
+        delete this.permanentData[filePath];
+        this.permanentData[renamed] = entries;
+        changed = true;
+      }
+    }
+
+    return changed;
+  }// renamePath
+
+  deletePath(path: string): boolean {
+    let changed = false;
+    for (const filePath of [...this.session.keys()]) {
+      if (isSameOrInside(filePath, path)) {
+        this.session.delete(filePath);
+        changed = true;
+      }
+    }
+
+    for (const filePath of Object.keys(this.permanentData)) {
+      if (isSameOrInside(filePath, path)) {
+        delete this.permanentData[filePath];
+        changed = true;
+      }
+    }
+
+    return changed;
+  }// deletePath
 }// StateStore
+
+function isSameOrInside(filePath: string, path: string): boolean {
+  return filePath === path || filePath.startsWith(path + '/');
+}// isSameOrInside
+
+function renamedPath(filePath: string, oldPath: string, newPath: string): string | null {
+  return isSameOrInside(filePath, oldPath) ? newPath + filePath.slice(oldPath.length) : null;
+}// renamedPath

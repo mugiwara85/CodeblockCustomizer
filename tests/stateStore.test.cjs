@@ -82,3 +82,52 @@ test('switching persistence keeps the two stores separate', () => {
   store.isPermanent = false;
   assert.equal(store.get('a.md', 1), true);
 });
+
+for (const isPermanent of [false, true]) {
+  const kind = isPermanent ? 'permanent' : 'session';
+
+  test(`${kind}: a renamed file or folder keeps its entries, other files are untouched`, () => {
+    const store = new StateStore(isPermanent, Number);
+    store.set('A.md', 1, 'a');
+    store.set('Dir/B.md', 2, 'b');
+    store.set('Dir/Sub/C.md', 3, 'c');
+    store.set('Dirt/D.md', 4, 'd');
+
+    assert.equal(store.renamePath('A.md', 'Renamed.md'), true);
+    assert.equal(store.get('A.md', 1), undefined);
+    assert.equal(store.get('Renamed.md', 1), 'a');
+
+    assert.equal(store.renamePath('Dir', 'Folder'), true, 'a folder rename moves every file inside it');
+    assert.equal(store.get('Folder/B.md', 2), 'b');
+    assert.equal(store.get('Folder/Sub/C.md', 3), 'c');
+    assert.equal(store.get('Dirt/D.md', 4), 'd', '"Dirt" only starts with "Dir", it is not inside it');
+
+    assert.equal(store.renamePath('Dir/B.md', 'Folder/B.md'), false, 'a later per-file event for the same rename finds nothing to move');
+    assert.equal(store.get('Folder/B.md', 2), 'b');
+  });
+
+  test(`${kind}: a deleted file or folder drops its entries`, () => {
+    const store = new StateStore(isPermanent, Number);
+    store.set('A.md', 1, 'a');
+    store.set('Dir/B.md', 2, 'b');
+    store.set('Dirt/D.md', 4, 'd');
+
+    assert.equal(store.deletePath('A.md'), true);
+    assert.equal(store.getAll('A.md'), undefined);
+    assert.equal(store.deletePath('Dir'), true);
+    assert.equal(store.getAll('Dir/B.md'), undefined);
+    assert.equal(store.get('Dirt/D.md', 4), 'd');
+    assert.equal(store.deletePath('Missing.md'), false);
+  });
+}
+
+test('rename and delete also update the store that is not active (session or permanent)', () => {
+  const store = new StateStore(false, Number);
+  store.set('A.md', 1, 'session');
+  store.isPermanent = true;
+  store.set('A.md', 1, 'permanent');
+  store.renamePath('A.md', 'B.md');
+  assert.equal(store.get('B.md', 1), 'permanent');
+  store.isPermanent = false;
+  assert.equal(store.get('B.md', 1), 'session');
+});

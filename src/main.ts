@@ -207,6 +207,17 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }
   }// remapTabs
 
+  private updateStoredPaths(update: (store: StateStore<string, number> | StateStore<number, FoldingState>) => boolean): void {
+    let changed = false;
+    for (const store of [this.foldStoreEditor, this.foldStoreReading, this.tabStoreEditor, this.tabStoreReading]) {
+      changed = update(store) || changed;
+    }
+
+    if (changed) {
+      this.requestSavePermanentData();
+    }
+  }// updateStoredPaths
+
   async clearAllFoldData(): Promise<void> {
     this.foldStoreEditor.clear();
     this.foldStoreReading.clear();
@@ -675,7 +686,13 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       updateSettingStyles(this.settings, this.app);
     }));
 
+    this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => {
+      this.updateStoredPaths(store => store.deletePath(file.path));
+    }, this));
+
     this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
+      this.updateStoredPaths(store => store.renamePath(oldPath, file.path));
+
       if (this.settings.pluginSettings.codeblock.enableLinks && this.settings.pluginSettings.codeblock.enableLinkUpdate) {
         void this.handleFileRename(file, oldPath); // until Obsidian doesn't adds code block links to metadatacache
       }
