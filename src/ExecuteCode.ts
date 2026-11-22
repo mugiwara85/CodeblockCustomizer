@@ -13,9 +13,9 @@ export function addAndObserveExecuteCodeButtons(frag: DocumentFragment, targetPr
 
   const parentContainer = targetPreElement?.parentElement;
   if (parentContainer && targetPreElement) {
-    if (plugin.executeCodeObservers.has(parentContainer)) {
-      plugin.executeCodeObservers.get(parentContainer)?.disconnect();
-      plugin.executeCodeObservers.delete(parentContainer);
+    if (plugin.executeCodeObservers.has(targetPreElement)) {
+      plugin.executeCodeObservers.get(targetPreElement)?.disconnect();
+      plugin.executeCodeObservers.delete(targetPreElement);
     }
     setupButtonRevealObserver(parentContainer, targetPreElement, executeButton);
     const observer = setupExecuteCodeObserver(targetPreElement, clearButton, parameters, plugin);
@@ -327,7 +327,9 @@ async function processExecuteCodeOutput(outputElement: HTMLElement, observer: Mu
     }
   } finally {
     outputElement.dataset.cbcProcessing = 'false';
-    observer.observe(parentContainer, { childList: true, subtree: true, characterData: true });
+    if (plugin.executeCodeObservers.get(parentContainer) === observer) {
+      observer.observe(parentContainer, { childList: true, subtree: true, characterData: true });
+    }
 
     // remove the separator when output was cleared
     if (!parentContainer.contains(outputElement)) {

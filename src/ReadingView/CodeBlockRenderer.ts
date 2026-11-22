@@ -448,11 +448,10 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     if (preElement.parentElement) {
       preElement.parentElement.classList.add(`codeblock-customizer-pre-parent`);
-      const parentContainer = preElement.parentElement;
-      if (this.plugin.executeCodeObservers.has(parentContainer)) {
-        this.plugin.executeCodeObservers.get(parentContainer)?.disconnect();
-        this.plugin.executeCodeObservers.delete(parentContainer);
-      }
+    }
+    if (this.plugin.executeCodeObservers.has(preElement)) {
+      this.plugin.executeCodeObservers.get(preElement)?.disconnect();
+      this.plugin.executeCodeObservers.delete(preElement);
     }
 
     // ignore callouts and admonitions (for now)

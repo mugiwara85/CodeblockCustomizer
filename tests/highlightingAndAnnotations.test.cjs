@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
 const helpersPromise = Promise.resolve(load('src/Utils.ts'));
-const { getAllParameters, createHighlightRules, filterOccurrences, findAllOccurrences, ANNOTATION_PATTERN, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/HighlightRules.ts', 'src/Utils.ts', 'src/Const.ts', 'src/Settings.ts');
+const { getAllParameters, createHighlightRules, createInlineHighlightRules, parseInlineCodeHighlightParams, filterOccurrences, findAllOccurrences, ANNOTATION_PATTERN, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/HighlightRules.ts', 'src/Utils.ts', 'src/Const.ts', 'src/Settings.ts');
 
 function rules(line) {
   const s = structuredClone(DEFAULT_SETTINGS);
@@ -31,6 +31,16 @@ test('highlight rules: text highlight words, text between, all words in line, al
   assert.deepEqual([...r.alternativeTextAllWordsInLine], [[3, 'info']]);
   assert.deepEqual(r.alternativeTextToHighlight.map(e => [e.colorName, e.words.map(w => w.text)]), [['info', ['z']]]);
   assert.deepEqual(r.alternativeTextLineSpecificBetween.get(4).map(t => [t.colorName, t.from, t.to]), [['info', 'E', 'F']]);
+});
+
+test('inline code highlight rules: the same rules as a code block with the same text highlight parameters', () => {
+  const s = structuredClone(DEFAULT_SETTINGS);
+  s.SelectedTheme.colors.dark.codeblock.alternateHighlightColors = { info: {}, warn: {} };
+  const params = 'hlt:x,A:B,7,2|y,2|C:D infot:3,z,4|E:F,5|v warnt:w,G:H';
+  const inline = createInlineHighlightRules(parseInlineCodeHighlightParams(params, s));
+  assert.deepEqual(inline, createHighlightRules(getAllParameters('```js ' + params, s)));
+  assert.deepEqual(inline.alternativeTextToHighlight.map(e => e.colorName), ['info', 'warn']);
+  assert.deepEqual([...inline.alternativeTextLineSpecificWords.keys()], [5]);
 });
 
 test('occurrences: positive from start, negative from end, 0 and out of range ignored, original order kept', () => {

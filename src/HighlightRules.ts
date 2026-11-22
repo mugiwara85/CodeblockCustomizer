@@ -1,4 +1,4 @@
-import { CBCParameters, HighlightedWord } from "./Parsing";
+import { CBCParameters, HighlightedWord, InlineCodeHighlightParameters } from "./Parsing";
 
 export interface TextBetweenRule {
   from: string;
@@ -35,7 +35,7 @@ export interface HighlightRules {
   alternativeTextAllWordsInLine: Map<number, string>;
 }
 
-export function createHighlightRules(parameters: CBCParameters): HighlightRules {
+export function createHighlightRules(parameters: Pick<CBCParameters, 'defaultLinesToHighlight' | 'defaultTextToHighlight' | 'alternativeLinesToHighlight' | 'alternativeTextToHighlight'>): HighlightRules {
   // default lines to highlight by linenumbers
   const defaultLinesToHighlight = new Set(parameters.defaultLinesToHighlight.lineNumbers);
 
@@ -166,3 +166,20 @@ export function createHighlightRules(parameters: CBCParameters): HighlightRules 
     alternativeTextToHighlight, alternativeTextLineSpecificWords, alternativeTextBetween, alternativeTextLineSpecificBetween, alternativeTextAllWordsInLine,
   };
 }// createHighlightRules
+
+export function createInlineHighlightRules(params: InlineCodeHighlightParameters): HighlightRules {
+  const alt = params.alternativeTextHighlights;
+  return createHighlightRules({
+    defaultLinesToHighlight: { lineNumbers: [], words: [], lineSpecificWords: [] },
+    defaultTextToHighlight: params.textHighlight,
+    alternativeLinesToHighlight: { lines: [], words: [], lineSpecificWords: [], outputLines: [], outputWords: [], outputLineSpecificWords: [] },
+    alternativeTextToHighlight: {
+      allWordsInLine: alt.map(a => ({ allWordsInLine: a.highlight.allWordsInLine, colorName: a.colorName })),
+      words: alt.map(a => ({ words: a.highlight.words, colorName: a.colorName })),
+      lineSpecificWords: alt.flatMap(a => a.highlight.lineSpecificWords.map(rule => ({ ...rule, colorName: a.colorName }))),
+      textBetween: alt.flatMap(a => a.highlight.textBetween.map(rule => ({ ...rule, colorName: a.colorName }))),
+      lineSpecificTextBetween: alt.flatMap(a => a.highlight.lineSpecificTextBetween.map(rule => ({ ...rule, colorName: a.colorName }))),
+      outputAllWordsInLine: [], outputWords: [], outputLineSpecificWords: [], outputTextBetween: [], outputLineSpecificTextBetween: [],
+    },
+  });
+}// createInlineHighlightRules

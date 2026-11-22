@@ -5,8 +5,8 @@ import CodeBlockCustomizerPlugin from "../main";
 import { INLINE_CODE_LANG_REGEX } from "../Const";
 import { InlineCodeModifierKeys } from "../Settings";
 import { getDisplayLanguageName } from "../Utils";
-import { parseInlineCodeHighlightParams, getInlineCodeBgClass, InlineCodeHighlightParameters, HighlightedWord } from "../Parsing";
-import { HighlightRules, TextBetweenRule, AltTextBetweenRule } from "../HighlightRules";
+import { parseInlineCodeHighlightParams, getInlineCodeBgClass, InlineCodeHighlightParameters } from "../Parsing";
+import { createInlineHighlightRules } from "../HighlightRules";
 import { applyHighlightsToElement } from "./ReadingViewUtils";
 import { combineInlineCodeParameters, getInlineCodeAttributeParameters } from "../HtmlCodeBlocks";
 
@@ -174,104 +174,10 @@ export class InlineCodeRenderer extends MarkdownRenderChild {
     }
 
     if (inlineParams && (inlineParams.textHighlight.words.length > 0 || inlineParams.textHighlight.textBetween.length > 0 || inlineParams.textHighlight.lineSpecificWords.length > 0 || inlineParams.textHighlight.allWordsInLine.length > 0 || inlineParams.alternativeTextHighlights.length > 0)) {
-      const rules = buildInlineHighlightRules(inlineParams);
+      const rules = createInlineHighlightRules(inlineParams);
       applyHighlightsToElement(codeContentSpan, rules, 1);
     }
 
     return codeContentSpan;
   }// createCodeContentSpan
 }
-
-function buildInlineHighlightRules(params: InlineCodeHighlightParameters): HighlightRules {
-  const defaultTextLineSpecificWords = new Map<number, { words: HighlightedWord[] }[]>();
-  for (const rule of params.textHighlight.lineSpecificWords) {
-    const entry = { words: rule.words };
-    const arr = defaultTextLineSpecificWords.get(rule.lineNumber);
-    if (arr) {
-      arr.push(entry); 
-    } else {
-      defaultTextLineSpecificWords.set(rule.lineNumber, [entry]);
-    }
-  }
-
-  const defaultTextLineSpecificBetween = new Map<number, TextBetweenRule[]>();
-  for (const rule of params.textHighlight.lineSpecificTextBetween) {
-    const entry: TextBetweenRule = { from: rule.from, to: rule.to, fromLower: rule.from.toLowerCase(), toLower: rule.to.toLowerCase(), occurrences: rule.occurrences };
-    const arr = defaultTextLineSpecificBetween.get(rule.lineNumber);
-    if (arr) {
-      arr.push(entry); 
-    } else {
-      defaultTextLineSpecificBetween.set(rule.lineNumber, [entry]);
-    }
-  }
-
-  const alternativeTextToHighlight = params.alternativeTextHighlights.map(a => ({ words: a.highlight.words, colorName: a.colorName }));
-
-  const alternativeTextLineSpecificWords = new Map<number, { words: HighlightedWord[]; colorName: string }[]>();
-  for (const a of params.alternativeTextHighlights) {
-    for (const rule of a.highlight.lineSpecificWords) {
-      const entry = { words: rule.words, colorName: a.colorName };
-      const arr = alternativeTextLineSpecificWords.get(rule.lineNumber);
-      if (arr) {
-        arr.push(entry);
-      } else {
-        alternativeTextLineSpecificWords.set(rule.lineNumber, [entry]);
-      }
-    }
-  }
-
-  const alternativeTextBetween: AltTextBetweenRule[] = params.alternativeTextHighlights.flatMap(a =>
-    a.highlight.textBetween.map(tb => ({
-      from: tb.from, to: tb.to,
-      fromLower: tb.from.toLowerCase(), toLower: tb.to.toLowerCase(),
-      colorName: a.colorName, occurrences: tb.occurrences
-    }))
-  );
-
-  const alternativeTextLineSpecificBetween = new Map<number, AltTextBetweenRule[]>();
-  for (const a of params.alternativeTextHighlights) {
-    for (const rule of a.highlight.lineSpecificTextBetween) {
-      const entry: AltTextBetweenRule = {
-        from: rule.from, to: rule.to,
-        fromLower: rule.from.toLowerCase(), toLower: rule.to.toLowerCase(),
-        colorName: a.colorName, occurrences: rule.occurrences
-      };
-      const arr = alternativeTextLineSpecificBetween.get(rule.lineNumber);
-      if (arr) {
-        arr.push(entry);
-      } else {
-        alternativeTextLineSpecificBetween.set(rule.lineNumber, [entry]);
-      }
-    }
-  }
-
-  const alternativeTextAllWordsInLine = new Map<number, string>();
-  for (const a of params.alternativeTextHighlights) {
-    for (const ln of a.highlight.allWordsInLine) {
-      alternativeTextAllWordsInLine.set(ln, a.colorName);
-    }
-  }
-
-  return {
-    defaultLinesToHighlight: new Set(),
-    defaultLinesToHighlightByWords: [],
-    defaultLineSpecificWords: new Map(),
-    defaultTextToHighlight: params.textHighlight.words,
-    defaultTextLineSpecificWords,
-    defaultTextBetween: params.textHighlight.textBetween.map(tb => ({
-      from: tb.from, to: tb.to,
-      fromLower: tb.from.toLowerCase(), toLower: tb.to.toLowerCase(),
-      occurrences: tb.occurrences
-    })),
-    defaultTextLineSpecificBetween,
-    defaultTextAllWordsInLine: new Set(params.textHighlight.allWordsInLine),
-    alternativeLinesToHighlight: new Map(),
-    alternativeLinesToHighlightByWords: [],
-    alternativeLineSpecificWords: new Map(),
-    alternativeTextToHighlight,
-    alternativeTextLineSpecificWords,
-    alternativeTextBetween,
-    alternativeTextLineSpecificBetween,
-    alternativeTextAllWordsInLine,
-  };
-}// buildInlineHighlightRules

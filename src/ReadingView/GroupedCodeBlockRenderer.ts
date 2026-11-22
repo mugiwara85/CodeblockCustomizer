@@ -207,11 +207,6 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private updateHeaderButtons(buttonsContainer: HTMLElement, parameters: CBCParameters, blockElement: HTMLPreElement) {
     buttonsContainer.empty();
 
-    if (this.activeExecuteCodeObserver) {
-      this.activeExecuteCodeObserver.disconnect();
-      this.activeExecuteCodeObserver = null;
-    }
-
     const { container: tempButtonsContainer, observer } = createButtons(parameters, undefined, this.plugin, blockElement);
     this.activeExecuteCodeObserver = observer;
     while (tempButtonsContainer.firstChild) {
