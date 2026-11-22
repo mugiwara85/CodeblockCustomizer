@@ -78,7 +78,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   tabStoreEditor: StateStore<string, number> = new StateStore(false, String);
   tabStoreReading: StateStore<string, number> = new StateStore(false, String);
   debounceTimer: number | null = null;
-  foldCommandTrigger: FoldCommand = FoldCommand.Default;
+  foldCommandTrigger: { command: FoldCommand; path: string } | null = null;
   rerenderQueue: Map<number, { content: string; count: number }> = new Map();
   rerenderDebounceTimers: Map<number, NodeJS.Timeout> = new Map();
   modifiedBlocks: Map<string, string> = new Map();
@@ -152,7 +152,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (markdownView) {
       const isGlobalCommandActive = (markdownView.getMode() === 'source' && markdownView.containerEl.classList.contains('codeblock-customizer-header-collapse-command')) ||
-        (markdownView.getMode() === 'preview' && this.foldCommandTrigger !== FoldCommand.Default);
+        (markdownView.getMode() === 'preview' && this.getFoldCommand(filePath) !== FoldCommand.Default);
 
       if (isGlobalCommandActive) {
         return;
@@ -610,21 +610,29 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
   renderReadingViews(): void {
     this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
       if (leaf.view instanceof MarkdownView && leaf.view.getMode() === "preview") {
-        const preview = leaf.view.previewMode;
-        if (!preview || !preview.getScroll || !preview.applyScroll) {
-          return;
-        }
-
-        const scrollState = preview.getScroll();
-
-        preview.rerender(true);
-
-        window.setTimeout(() => {
-          preview.applyScroll(scrollState);
-        }, 100);
+        this.renderReadingView(leaf.view);
       }
     });
   }// renderReadingViews
+
+  private renderReadingView(view: MarkdownView): void {
+    const preview = view.previewMode;
+    if (!preview || !preview.getScroll || !preview.applyScroll) {
+      return;
+    }
+
+    const scrollState = preview.getScroll();
+
+    preview.rerender(true);
+
+    window.setTimeout(() => {
+      preview.applyScroll(scrollState);
+    }, 100);
+  }// renderReadingView
+
+  getFoldCommand(path: string): FoldCommand {
+    return this.foldCommandTrigger?.path === path ? this.foldCommandTrigger.command : FoldCommand.Default;
+  }// getFoldCommand
 
   private executeFoldCommand(func: (view: EditorView) => void, foldCommand: FoldCommand, action: 'add' | 'remove'): void {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -637,8 +645,9 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (mode === 'source') {
       func((markdownView.editor as Editor & { cm: EditorView }).cm);
     } else if (mode === 'preview') {
-      this.foldCommandTrigger = foldCommand;
-      this.renderReadingViews();
+      const path = markdownView.file?.path;
+      this.foldCommandTrigger = path ? { command: foldCommand, path } : null;
+      this.renderReadingView(markdownView);
     }
   }// executeFoldCommand
 
@@ -778,9 +787,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
         return;
       }
       view.containerEl.classList.remove('codeblock-customizer-header-collapse-command');
-      if (this.foldCommandTrigger !== FoldCommand.Default) {
-        this.foldCommandTrigger = FoldCommand.Default;
-      }
+      this.foldCommandTrigger = null;
     }));
   }// registerEvents
 

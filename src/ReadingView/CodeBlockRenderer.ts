@@ -581,7 +581,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
 
     let foldByDefault: boolean;
     let useSemiFold = false;
-    const globalCommand = this.plugin.foldCommandTrigger;
+    const globalCommand = this.plugin.getFoldCommand(this.context.sourcePath);
 
     switch (globalCommand) {
       case FoldCommand.FoldAll:
