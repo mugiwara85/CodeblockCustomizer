@@ -40,6 +40,27 @@ for (const isPermanent of [false, true]) {
     store.remap('missing.md', insertAt(0, 'x', 1));
     assert.equal(store.getAll('missing.md'), undefined);
   });
+
+  test(`${kind}: remap reports whether anything moved, so unchanged notes don't trigger a save`, () => {
+    const store = new StateStore(isPermanent, Number);
+    assert.equal(store.remap('a.md', insertAt(0, 'x', 100)), false, 'no saved folds in this note');
+    store.set('a.md', 20, 'fold');
+    assert.equal(store.remap('a.md', insertAt(50, 'x', 100)), false, 'an edit after the block moves nothing');
+    assert.equal(store.remap('a.md', insertAt(0, 'x', 101)), true);
+    assert.deepEqual([...store.getAll('a.md')], [[21, 'fold']]);
+    assert.equal(store.remap('a.md', deleteRange(0, 1, 5)), true, 'a position past the end of the document is dropped (#144)');
+    assert.deepEqual([...store.getAll('a.md')], []);
+  });
+
+  test(`${kind}: remapValues shifts editor tab positions once per edit and drops out of range ones`, () => {
+    const store = new StateStore(isPermanent, String);
+    store.set('a.md', 'group1', 100);
+    store.set('a.md', 'group2', 999);
+    assert.equal(store.remapValues('a.md', insertAt(0, 'x', 200)), true);
+    assert.deepEqual([...store.getAll('a.md')], [['group1', 101]], 'shifted by exactly one, group2 was past the end (#144)');
+    assert.equal(store.remapValues('a.md', insertAt(150, 'x', 201)), false, 'an edit after the block moves nothing');
+    assert.equal(store.remapValues('b.md', insertAt(0, 'x', 10)), false, 'no saved tabs in this note');
+  });
 }
 
 test('permanent data is stored as a JSON-ready record and keys are parsed back', () => {
@@ -60,17 +81,4 @@ test('switching persistence keeps the two stores separate', () => {
   assert.equal(store.get('a.md', 1), undefined);
   store.isPermanent = false;
   assert.equal(store.get('a.md', 1), true);
-});
-
-test('remapValues remaps tab positions stored as values (permanent only)', () => {
-  const store = new StateStore(true, String);
-  store.set('a.md', 'group1', 10);
-  store.set('a.md', 'group2', 999);
-  store.remapValues('a.md', insertAt(0, 'abc', 50));
-  assert.deepEqual(store.permanentData, { 'a.md': { group1: 13 } });
-
-  const session = new StateStore(false, String);
-  session.set('a.md', 'group1', 10);
-  session.remapValues('a.md', insertAt(0, 'abc', 50));
-  assert.equal(session.get('a.md', 'group1'), 10, 'session tabs are remapped by the GroupedCodeBlocks state field');
 });

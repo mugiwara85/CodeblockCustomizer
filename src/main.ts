@@ -195,17 +195,19 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     if (!foldSettings.rememberFoldState)
       return;
 
-    this.foldStoreEditor.remap(filePath, changes);
-    this.foldStoreReading.remap(filePath, changes);
+    const editorChanged = this.foldStoreEditor.remap(filePath, changes);
+    const readingChanged = this.foldStoreReading.remap(filePath, changes);
 
-    if (this.foldStoreEditor.isPermanent) {
+    if (this.foldStoreEditor.isPermanent && (editorChanged || readingChanged)) {
       this.requestSavePermanentData();
     }
   }// remapFolds
 
   remapTabs(filePath: string, changes: ChangeSet): void {
-    this.tabStoreEditor.remapValues(filePath, changes);
-    this.tabStoreReading.remapValues(filePath, changes);
+    // the editor stores tab positions, reading view stores tab indexes, which an edit doesn't move
+    if (this.tabStoreEditor.remapValues(filePath, changes) && this.tabStoreEditor.isPermanent) {
+      this.requestSavePermanentData();
+    }
   }// remapTabs
 
   async clearAllFoldData(): Promise<void> {

@@ -81,24 +81,6 @@ export function groupedCodeBlocksExtension(plugin: CodeBlockCustomizerPlugin, se
       // on every document change immediately update the persistent storage
       if (transaction.docChanged && docPath) {
         plugin.remapTabs(docPath, transaction.changes);
-        const docStateMap = plugin.tabStoreEditor.getAll(docPath);
-        if (docStateMap && docStateMap.size > 0) {
-          const newDocStateMap = new Map<string, number>();
-          for (const [groupName, savedPos] of docStateMap.entries()) {
-            //fix for #144
-            if (savedPos > transaction.changes.length)
-              continue;
-
-            const newPos = transaction.changes.mapPos(savedPos);
-            if (newPos !== -1) {
-              newDocStateMap.set(groupName, newPos);
-            }
-          }
-
-          for (const [groupName, pos] of newDocStateMap.entries()) {
-            plugin.tabStoreEditor.set(docPath, groupName, pos);
-          }
-        }
       }
 
       // case 1: a tab was clicked => save

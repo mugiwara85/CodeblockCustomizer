@@ -95,12 +95,12 @@ export class StateStore<K extends string | number, V> {
     this._permanentData = {};
   }// clear
 
-  // remap all entries for "filePath" by mapping old positions through changes.mapPos()
-  remap(filePath: string, changes: ChangeSet): void {
+  remap(filePath: string, changes: ChangeSet): boolean {
+    let changed = false;
     if (this._isPermanent) {
       const record = this._permanentData[filePath];
       if (!record) {
-        return;
+        return false;
       }
 
       const newRecord: Record<string, V> = {};
@@ -108,10 +108,14 @@ export class StateStore<K extends string | number, V> {
         const oldPos = Number(oldKeyStr);
         // fix for #144
         if (oldPos > changes.length) {
+          changed = true;
           continue;
         }
 
         const newPos = changes.mapPos(oldPos);
+        if (newPos !== oldPos) {
+          changed = true;
+        }
         if (newPos !== -1) {
           newRecord[String(newPos)] = record[oldKeyStr];
         }
@@ -121,7 +125,7 @@ export class StateStore<K extends string | number, V> {
     } else {
       const map = this.session.get(filePath);
       if (!map) {
-        return;
+        return false;
       }
 
       const newMap = new Map<K, V>();
@@ -129,10 +133,14 @@ export class StateStore<K extends string | number, V> {
         const oldPos = Number(oldKey);
         // fix for #144
         if (oldPos > changes.length) {
+          changed = true;
           continue;
         }
 
         const newPos = changes.mapPos(oldPos);
+        if (newPos !== oldPos) {
+          changed = true;
+        }
         if (newPos !== -1) {
           newMap.set(this.keyParser(String(newPos)), value);
         }
@@ -140,33 +148,32 @@ export class StateStore<K extends string | number, V> {
 
       this.session.set(filePath, newMap);
     }
+    return changed;
   }// remap
 
-  // remap entries where the key is NOT a position but the VALUE is (used by tabs: key = groupName, value = charPos)
-  remapValues(filePath: string, changes: ChangeSet): void {
-    if (this._isPermanent) {
-      const record = this._permanentData[filePath];
-      if (!record) {
-        return;
-      }
-
-      const newRecord: Record<string, V> = {};
-      for (const key in record) {
-        const oldPos = Number(record[key]);
-        // fix for #144
-        if (oldPos > changes.length) {
-          continue;
-        }
-
-        const newPos = changes.mapPos(oldPos);
-        if (newPos !== -1) {
-          newRecord[key] = newPos as unknown as V;
-        }
-      }
-
-      this._permanentData[filePath] = newRecord;
-    } else {
-      // session tabs are remapped in the stateField update in GroupedCodeBlocks
+  // remap entries where the key is NOT a position but the VALUE is (editor tabs: key = groupName, value = charPos). returns whether anything moved or was dropped
+  remapValues(filePath: string, changes: ChangeSet): boolean {
+    const entries = this.getAll(filePath);
+    if (!entries) {
+      return false;
     }
+
+    let changed = false;
+    for (const [key, value] of Array.from(entries)) {
+      const oldPos = Number(value);
+      // fix for #144
+      if (oldPos > changes.length) {
+        this.delete(filePath, key);
+        changed = true;
+        continue;
+      }
+
+      const newPos = changes.mapPos(oldPos);
+      if (newPos !== oldPos) {
+        this.set(filePath, key, newPos as V);
+        changed = true;
+      }
+    }
+    return changed;
   }// remapValues
 }// StateStore
