@@ -104,7 +104,7 @@ function createCopyButton(displayLanguage: string) {
   return container;
 }// createCopyButton
 
-export function createButtons(parameters: CBCParameters, codeblockLines: string[] | undefined, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement) {
+export function createButtons(parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin, targetPreElement?: HTMLElement) {
   const container = createDiv({ cls: `codeblock-customizer-button-container` });
   const frag = createFragment();
   let observer: MutationObserver | null = null;
@@ -113,12 +113,12 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   copyButton.addEventListener("click", (event) => {
     const preEl = targetPreElement || (event.currentTarget as HTMLElement).parentNode?.parentNode as HTMLElement;
     if (preEl) {
-      copyCode(preEl, event, plugin, codeblockLines);
+      copyCode(preEl, event, plugin);
     }
   });
   frag.appendChild(copyButton);
 
-  const snapshotButton = createsnapshotButton(container, targetPreElement, parameters, plugin);
+  const snapshotButton = createsnapshotButton(targetPreElement, parameters, plugin);
   frag.appendChild(snapshotButton);
 
   const wrapCodeButton = createWrapCodeButton();
@@ -136,7 +136,7 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
       event.stopPropagation();
       const preEl = targetPreElement || (event.currentTarget as HTMLElement).closest('pre');
       if (preEl) {
-        rehideAllLines(preEl, parameters, plugin.settings.pluginSettings);
+        rehideAllLines(preEl, plugin.settings.pluginSettings);
       }
     });
     frag.appendChild(rehideButton);
@@ -150,7 +150,7 @@ export function createButtons(parameters: CBCParameters, codeblockLines: string[
   return { container, observer };
 }// createButtons
 
-function createsnapshotButton(container: HTMLDivElement, targetPreElement: HTMLElement | undefined, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin) {
+function createsnapshotButton(targetPreElement: HTMLElement | undefined, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin) {
   const snapshotButton = createEl("button");
   snapshotButton.classList.add("codeblock-customizer-snapshot-button");
   snapshotButton.setAttribute("aria-label", "Copy as image");
@@ -221,7 +221,7 @@ function createRehideButton() {
   return rehideButton;
 }// createRehideButton
 
-function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustomizerPlugin, codeblockLines?: string[]) {
+function copyCode(preElement: HTMLElement, event: Event, plugin: CodeBlockCustomizerPlugin) {
   event.stopPropagation();
 
   if (!preElement) {
@@ -1196,10 +1196,10 @@ function unhideLines(widget: HTMLElement, preCodeElm: HTMLElement, settings: Plu
   // hide widget
   parentWrapper.classList.add('unhidden-range');
 
-  reassignFadeOutClasses(preElement, preCodeElm, settings);
+  reassignFadeOutClasses(preElement, settings);
 }// unhideLines
 
-function rehideAllLines(preElement: HTMLElement, parameters: CBCParameters, settings?: PluginSettings) {
+function rehideAllLines(preElement: HTMLElement, settings?: PluginSettings) {
   const codeElement = preElement.querySelector<HTMLElement>('code:not(.language-output):not(.codeblock-customizer-hidden-code)');
   if (!codeElement) {
     return;
@@ -1229,11 +1229,11 @@ function rehideAllLines(preElement: HTMLElement, parameters: CBCParameters, sett
   }
 
   if (settings) {
-    reassignFadeOutClasses(preElement, codeElement, settings);
+    reassignFadeOutClasses(preElement, settings);
   }
 }// rehideAllLines
 
-export function reassignFadeOutClasses(preElement: HTMLElement, preCodeElm: HTMLElement, settings: PluginSettings) {
+export function reassignFadeOutClasses(preElement: HTMLElement, settings: PluginSettings) {
   const isFullyCollapsed = preElement.classList.contains('codeblock-customizer-codeblock-collapsed');
   const isSemiCollapsed = preElement.classList.contains('codeblock-customizer-codeblock-semi-collapsed');
 

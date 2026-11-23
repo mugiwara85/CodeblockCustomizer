@@ -71,7 +71,7 @@ function setupButtonRevealObserver(parentContainer: HTMLElement, targetPreElemen
 }// setupButtonRevealObserver
 
 function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElement, parameters: CBCParameters, plugin: CodeBlockCustomizerPlugin) {
-  const executionObserver = new MutationObserver((mutations) => {
+  const executionObserver = new MutationObserver(() => {
     const originalClearButton = preElement.querySelector('.clear-button');
     if (originalClearButton) {
       clearButton.classList.remove('codeblock-customizer-execute-code-clear-button-hidden');

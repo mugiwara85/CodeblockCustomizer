@@ -480,7 +480,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
         this.parameters.isSpecificNumber === other.parameters.isSpecificNumber && this.spanClass === other.spanClass;
     }
 
-    toDOM(view: EditorView): HTMLElement {
+    toDOM(): HTMLElement {
       const container = createSpan();
       container.classList.add("cbc-line-num");
       if (this.spanClass !== "")
@@ -531,7 +531,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       return this.output === other.output && this.className === other.className;
     }
 
-    toDOM(view: EditorView): HTMLElement {
+    toDOM(): HTMLElement {
       const span = createSpan({ cls: `${this.className}`, text: this.output });
       return span
     }
@@ -542,7 +542,7 @@ export function mainViewPluginExtension(plugin: CodeBlockCustomizerPlugin, setti
       super();
     }
 
-    eq(other: LineSeparatorWidget) {
+    eq() {
       return true;
     }
 

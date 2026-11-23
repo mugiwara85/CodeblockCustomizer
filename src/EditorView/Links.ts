@@ -64,7 +64,7 @@ export function linksExtension(plugin: CodeBlockCustomizerPlugin, settings: Code
       return this.link === other.link && this.sourcePath === other.sourcePath && this.plugin === other.plugin;
     }
 
-    toDOM(view: EditorView): HTMLElement {
+    toDOM(): HTMLElement {
       const span = createSpan({ cls: "codeblock-customizer-link" });
       this.component.load();
       void MarkdownRenderer.render(this.plugin.app, this.link, span, this.sourcePath, this.component);

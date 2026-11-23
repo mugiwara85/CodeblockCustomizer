@@ -207,7 +207,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
   private updateHeaderButtons(buttonsContainer: HTMLElement, parameters: CBCParameters, blockElement: HTMLPreElement) {
     buttonsContainer.empty();
 
-    const { container: tempButtonsContainer, observer } = createButtons(parameters, undefined, this.plugin, blockElement);
+    const { container: tempButtonsContainer, observer } = createButtons(parameters, this.plugin, blockElement);
     this.activeExecuteCodeObserver = observer;
     while (tempButtonsContainer.firstChild) {
       buttonsContainer.appendChild(tempButtonsContainer.firstChild);
@@ -606,7 +606,7 @@ export class GroupedCodeBlockRenderChild extends MarkdownRenderChild {
         header.classList.toggle("semi-collapsed");
       }
       if (activeBlock.classList.contains('codeblock-customizer-codeblock-semi-collapsed')) {
-        reassignFadeOutClasses(activeBlock, activeBlock.querySelector('code:not(.language-output):not(.codeblock-customizer-hidden-code)') as HTMLElement, this.plugin.settings.pluginSettings);
+        reassignFadeOutClasses(activeBlock, this.plugin.settings.pluginSettings);
       }
     } else {
       toggleFold(activeBlock, currentCollapseIcon, 'codeblock-customizer-codeblock-collapsed', collapseStyle);

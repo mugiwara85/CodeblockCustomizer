@@ -1449,7 +1449,7 @@ export function findAllOccurrences(mainString: string, substring: string): numbe
 export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const borderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors;
 
-  Object.entries(borderColors).forEach(([languageName, borderColor]) => {
+  Object.entries(borderColors).forEach(([languageName]) => {
     if (!settings.SelectedTheme.colors.light.languageSpecificColors[languageName]) {
       settings.SelectedTheme.colors.light.languageSpecificColors[languageName] = {};
     }

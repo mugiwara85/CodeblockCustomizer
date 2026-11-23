@@ -677,7 +677,7 @@ export class PromptSettings {
         onReset: isDefaultPrompt ? () => {
           return this.getDefaultPromptColor(selectedPromptId, partClass, editingRootColors);
         } : undefined,
-      }, pickerInstances, this.plugin);
+      }, pickerInstances);
 
       this.promptPickers.set(partClass, pickr);
     }

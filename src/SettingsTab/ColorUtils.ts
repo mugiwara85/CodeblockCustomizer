@@ -108,7 +108,7 @@ function addPopoutWindowListeners(pickr: Pickr): (() => void) | null {
   };
 }// addPopoutWindowListeners
 
-export function addPickerControlsToSetting(setting: Setting, options: PickerOptions, pickerInstances: Pickr[], plugin: CodeBlockCustomizerPlugin): Pickr {
+export function addPickerControlsToSetting(setting: Setting, options: PickerOptions, pickerInstances: Pickr[]): Pickr {
   let removePopoutWindowListeners: (() => void) | null = null;
   const pickr = Pickr.create({
     el: setting.controlEl.createDiv({ cls: 'picker' }),
@@ -134,7 +134,7 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
     },
     i18n: options.i18n ?? {},
   })
-    .on('show', (color: Pickr.HSVaColor, instance: Pickr) => {
+    .on('show', (_color: Pickr.HSVaColor, instance: Pickr) => {
       if (options.shouldShow && !options.shouldShow()) {
         instance.hide();
         return;
@@ -218,7 +218,7 @@ export function createPickrSetting(containerEl: HTMLElement, name: string, descr
       }
       return true;
     }
-  }, pickerInstances, plugin);
+  }, pickerInstances);
 
   return setting;
 }// createPickrSetting
@@ -251,7 +251,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
     },
     onReset: onResetBackground,
     i18n: { 'btn:toggle': 'select background color' }
-  }, pickerInstances, plugin);
+  }, pickerInstances);
 
   new Setting(containerEl)
     .setName('Use text color')
@@ -281,7 +281,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
       onChanged();
     },
     i18n: { 'btn:toggle': 'select text color' }
-  }, pickerInstances, plugin);
+  }, pickerInstances);
 
   new Setting(containerEl)
     .setName('Font family')
@@ -414,7 +414,7 @@ export function createAlternatePickr(containerEl: HTMLElement, colorContainer: H
       new Notice(`Removed color "${name}".`);
     },
     i18n: { 'btn:toggle': 'select color for light theme' }
-  }, pickerInstances, plugin);
+  }, pickerInstances);
 
   return setting;
 }// createAlternatePickr

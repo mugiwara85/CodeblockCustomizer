@@ -354,7 +354,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       {
         class: `codeblock-customizer-copy-code`,
         displayText: "Copy code",
-        action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
+        action: (view: EditorView, _container?: HTMLElement, event?: MouseEvent) => {
           const includeFences = getModifierState(event);
           if (htmlBlock) {
             const firstLineNumber = state.doc.lineAt(codeBlockStartPos).number;
@@ -430,7 +430,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       {
         class: `codeblock-customizer-select-code`,
         displayText: "Select code",
-        action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
+        action: (view: EditorView, _container?: HTMLElement, event?: MouseEvent) => {
           const includeFences = getModifierState(event);
           let from = includeFences ? codeBlockStartPos : state.doc.lineAt(codeBlockStartPos).to + 1;
           let to = includeFences ? codeBlockEndPos : state.doc.lineAt(codeBlockEndPos).from - 1;
@@ -472,7 +472,7 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
       {
         class: `codeblock-customizer-delete-code`,
         displayText: "Delete code block content",
-        action: (view: EditorView, container?: HTMLElement, event?: MouseEvent) => {
+        action: (view: EditorView, _container?: HTMLElement, event?: MouseEvent) => {
           const includeFences = getModifierState(event);
           if (htmlBlock) {
             // the code is replaced by a newline ==> the opening and closing tags stay on separate lines

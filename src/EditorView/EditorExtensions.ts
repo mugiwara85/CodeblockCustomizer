@@ -45,7 +45,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
   /* Extensions */
 
   const customBracketMatching = bracketMatching({
-    renderMatch: (match, state) => {
+    renderMatch: (match) => {
       const decorations: Range<Decoration>[] = [];
 
       if (!match.matched) {
@@ -98,7 +98,7 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     liveUpdateExtension(),
     forceRefreshListener,
     EditorView.domEventHandlers({
-      mousedown: (event, view) => {
+      mousedown: (event) => {
         const target = event.target as HTMLElement;
         if (target.closest('[class*="codeblock-customizer-fade-out-line"]')) {
           event.preventDefault();

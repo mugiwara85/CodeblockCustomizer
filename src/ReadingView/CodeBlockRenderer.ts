@@ -462,7 +462,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
     this.cleanupPreviousElements(preElement);
     const specificHeader = isSpecificHeader(parameters, this.plugin.settings, false, codeblockLines.length - 2, "reading");
     const header = this.HeaderWidget(preElement, parameters, this.plugin.settings, specificHeader, Math.max(1, codeblockLines.length - 2), charPos);
-    const { container: buttons, observer } = createButtons(parameters, codeblockLines, this.plugin, preElement);
+    const { container: buttons, observer } = createButtons(parameters, this.plugin, preElement);
     this.observer = observer;
 
     if (specificHeader || !isPrinting) {
@@ -703,7 +703,7 @@ export class CodeBlockRenderer extends MarkdownRenderChild {
           fileNameEl.textContent = this.plugin.settings.pluginSettings.header.collapsedCodeText || DEFAULT_COLLAPSE_TEXT;
         }
         if (useSemiFold) {
-          reassignFadeOutClasses(preElement, preElement.querySelector('code:not(.language-output):not(.codeblock-customizer-hidden-code)') as HTMLElement, settings.pluginSettings);
+          reassignFadeOutClasses(preElement, settings.pluginSettings);
         }
       }
 

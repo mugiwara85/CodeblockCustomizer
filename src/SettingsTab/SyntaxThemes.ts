@@ -345,7 +345,7 @@ export class SyntaxThemeSettingsUI {
               void this.plugin.saveSettings();
               this.rebuildTokenEditor();
             },
-          }, this.pickerInstances, this.plugin);
+          }, this.pickerInstances);
         } else {
           // token not defined => just show an "Add" button
           setting.addExtraButton(button => {

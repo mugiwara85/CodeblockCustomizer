@@ -749,7 +749,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
       }
     }));
 
-    this.registerEvent(this.app.workspace.on('file-open', (file) => {
+    this.registerEvent(this.app.workspace.on('file-open', () => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (!view) {
         return;

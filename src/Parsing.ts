@@ -239,7 +239,7 @@ export function getAllParameters(originalLineText: string, settings: CodeblockCu
   }
 
   // prompt
-  const prompt = getPromptLines(parsedParameters, "prompt", textSeparator, lineSeparator);
+  const prompt = getPromptLines(parsedParameters, "prompt", lineSeparator);
   prompt.values = prompt.values = {
     user: extractParameter(parsedParameters, "user"),
     host: extractParameter(parsedParameters, "host"),
@@ -1034,7 +1034,7 @@ function isExcluded(lineText: string, excludeLangs: string): boolean {
   return false;
 }// isExcluded
 
-function getPromptLines(parsedParameters: ParsedParams, parameter: string, textSeparator: string, lineSeparator: string) {
+function getPromptLines(parsedParameters: ParsedParams, parameter: string, lineSeparator: string) {
   const result: PromptLines = {
     lineNumbers: [],
     text: "",

@@ -44,7 +44,6 @@ export class SettingsTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.classList.add(`codeblock-customizer-settingspage`);
     updateSettingStyles(this.plugin.settings, this.app);
-    new Setting(containerEl).setName('Codeblock Customizer').setHeading();
 
     this.createFirstRowElements(containerEl);
 

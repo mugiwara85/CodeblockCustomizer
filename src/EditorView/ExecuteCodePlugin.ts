@@ -146,7 +146,7 @@ export function executeCodeExtension(plugin: CodeBlockCustomizerPlugin, settings
     }
 
     parameters.language = baseLanguage;
-    const { container: buttons } = createButtons(parameters, rawCodeLines, plugin, preElement);
+    const { container: buttons } = createButtons(parameters, plugin, preElement);
     const editButton = createExecuteCodeEditButton();
     buttons.appendChild(editButton);
     preElement.appendChild(buttons);

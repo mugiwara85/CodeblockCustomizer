@@ -376,7 +376,7 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
 
   function isBlockCurrentlyFoldedInSet(decorations: DecorationSet, startPos: number, endPos: number): boolean {
     let folded = false;
-    decorations.between(startPos, endPos, (decoFrom, decoTo, decoration) => {
+    decorations.between(startPos, endPos, (_from, _to, decoration) => {
       const spec = getSpec(decoration);
       if (spec.attributes?.['code-folded'] === 'true' || spec.block === true) {
         folded = true;
@@ -458,7 +458,7 @@ export function foldingExtension(plugin: CodeBlockCustomizerPlugin, settings: Co
     let isFullyFolded = false;
     let isSemiFolded = false;
 
-    decorations.between(startPos, endPos, (decoFrom, decoTo, decoration) => {
+    decorations.between(startPos, endPos, (_from, _to, decoration) => {
       const spec = getSpec(decoration);
       // check if it is fully folded
       if (spec.attributes?.['code-folded'] === 'true') {
