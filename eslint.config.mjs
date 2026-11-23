@@ -28,4 +28,11 @@ export default defineConfig([
       "@typescript-eslint/no-deprecated": ["warn", { allow: [] }],
     },
   },
+  {
+    // the dynamic settings CSS needs a <style> tag because PDF export ignores adoptedStyleSheets; to make CI passes it is kept as a warning
+    files: ["src/Utils.ts"],
+    rules: {
+      "obsidianmd/no-forbidden-elements": "warn",
+    },
+  },
 ]);

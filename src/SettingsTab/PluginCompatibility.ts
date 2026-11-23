@@ -92,8 +92,8 @@ export class PluginCompatibilitySettings {
         .addOption(ExecuteCodeSeparatorStyle.Dashed, 'Dashed')
         .addOption(ExecuteCodeSeparatorStyle.DoubleLine, 'Double Line')
         .setValue(this.plugin.settings.pluginSettings.plugins.executeCode.executeCodeSeparatorStyle)
-        .onChange(async (value: ExecuteCodeSeparatorStyle) => {
-          this.plugin.settings.pluginSettings.plugins.executeCode.executeCodeSeparatorStyle = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.plugins.executeCode.executeCodeSeparatorStyle = value as ExecuteCodeSeparatorStyle;
           await this.plugin.saveSettings();
         })
       );

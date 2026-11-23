@@ -85,12 +85,12 @@ export class BehaviorSettings {
           .addOption(TabPersistence.Session, 'Session Only')
           .addOption(TabPersistence.Permanent, 'Permanent')
           .setValue(this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence)
-          .onChange(async (value: TabPersistence) => {
+          .onChange(async (value: string) => {
             const oldValue = this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence;
             if (oldValue !== value) {
               await this.plugin.clearAllTabData();
             }
-            this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value;
+            this.plugin.settings.pluginSettings.groupedCodeBlocks.persistence = value as TabPersistence;
             this.plugin.configurePersistence();
             await this.plugin.saveSettings();
 
@@ -221,8 +221,8 @@ export class BehaviorSettings {
         .addOption(SemiFoldEffect.Blur, 'Blur only')
         .addOption(SemiFoldEffect.Both, 'Both')
         .setValue(this.plugin.settings.pluginSettings.semiFold.semifoldEffect)
-        .onChange(async (value: SemiFoldEffect) => {
-          this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.semiFold.semifoldEffect = value as SemiFoldEffect;
           await this.plugin.saveSettings();
         })
       );
@@ -291,8 +291,8 @@ export class BehaviorSettings {
           .addOption(FoldingScope.NoFoldSpecified, 'Respect "fold"')
           .addOption(FoldingScope.All, 'All code blocks')
           .setValue(this.plugin.settings.pluginSettings.codeblock.folding.scope)
-          .onChange(async (value: FoldingScope) => {
-            this.plugin.settings.pluginSettings.codeblock.folding.scope = value;
+          .onChange(async (value: string) => {
+            this.plugin.settings.pluginSettings.codeblock.folding.scope = value as FoldingScope;
             await this.plugin.saveSettings();
           });
       });
@@ -306,7 +306,7 @@ export class BehaviorSettings {
           .addOption(FoldingPersistence.Session, 'Session Only')
           .addOption(FoldingPersistence.Permanent, 'Permanent')
           .setValue(this.plugin.settings.pluginSettings.codeblock.folding.persistence)
-          .onChange(async (value: FoldingPersistence) => {
+          .onChange(async (value: string) => {
             const oldValue = this.plugin.settings.pluginSettings.codeblock.folding.persistence;
             if (oldValue !== value) {
               if (oldValue === FoldingPersistence.Permanent) {
@@ -319,7 +319,7 @@ export class BehaviorSettings {
                 new Notice("Cleared session fold data.");
               }
             }
-            this.plugin.settings.pluginSettings.codeblock.folding.persistence = value;
+            this.plugin.settings.pluginSettings.codeblock.folding.persistence = value as FoldingPersistence;
             this.plugin.configurePersistence();
             await this.plugin.saveSettings();
             clearFoldCache.settingEl.toggleClass('codeblock-customizer-setting-hidden', value !== FoldingPersistence.Permanent);
@@ -355,8 +355,8 @@ export class BehaviorSettings {
         .addOption(ButtonModifierKeys.ALT, Platform.isMacOS ? 'Option' : 'Alt')
         .addOption(ButtonModifierKeys.SHIFT, 'Shift')
         .setValue(this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey)
-        .onChange(async (value: ButtonModifierKeys) => {
-          this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.codeblock.buttons.modifierKey = value as ButtonModifierKeys;
           await this.plugin.saveSettings();
         })
       );

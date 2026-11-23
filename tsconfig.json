@@ -4,18 +4,19 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ES2018",
+    "target": "ES2021",
     "allowJs": true,
-    "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-	"strictNullChecks": true,
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "types": [],
     "lib": [
       "DOM",
-      "ES2020"
+      "ES2021"
     ]
   },
   "include": [

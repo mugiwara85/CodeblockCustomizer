@@ -117,8 +117,8 @@ export class AppearanceSettings {
         .addOption(LineNumberSeparatorStyle.Dashed, 'Dashed')
         .addOption(LineNumberSeparatorStyle.DoubleLine, 'Double Line')
         .setValue(this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle)
-        .onChange(async (value: LineNumberSeparatorStyle) => {
-          this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.codeblock.lineNumberSeparatorStyle = value as LineNumberSeparatorStyle;
           await this.plugin.saveSettings();
         })
       );
@@ -131,8 +131,8 @@ export class AppearanceSettings {
         .addOption(HiddenLinesStyle.Dashed, 'Dashed')
         .addOption(HiddenLinesStyle.DoubleLine, 'Double Line')
         .setValue(this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle)
-        .onChange(async (value: HiddenLinesStyle) => {
-          this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.codeblock.hiddenLinesStyle = value as HiddenLinesStyle;
           await this.plugin.saveSettings();
         })
       );
@@ -217,7 +217,7 @@ export class AppearanceSettings {
       .addDropdown((dropdown) => dropdown
         .addOptions({ "hide": "Hide", "middle": "Middle", "right": "Right" })
         .setValue(this.plugin.settings.pluginSettings.header.collapseIconPosition)
-        .onChange(async (value: "hide" | "middle" | "right") => {
+        .onChange(async (value: string) => {
           this.plugin.settings.pluginSettings.header.collapseIconPosition = value;
           await this.plugin.saveSettings();
           collapseIconStyle.settingEl.toggleClass('codeblock-customizer-setting-hidden', value === 'hide');
@@ -236,8 +236,8 @@ export class AppearanceSettings {
           [CollapseIconStyle.SquarePlusMinus]: "Square (+/-)"
         })
         .setValue(this.plugin.settings.pluginSettings.header.collapseIconStyle)
-        .onChange(async (value: CollapseIconStyle) => {
-          this.plugin.settings.pluginSettings.header.collapseIconStyle = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.header.collapseIconStyle = value as CollapseIconStyle;
           await this.plugin.saveSettings();
           this.plugin.renderReadingViews();
         })
@@ -458,8 +458,8 @@ export class AppearanceSettings {
         .addOption(InlineCodeModifierKeys.CTRL, Platform.isMacOS ? 'Cmd' : 'Ctrl')
         .addOption(InlineCodeModifierKeys.ALT, Platform.isMacOS ? 'Option' : 'Alt')
         .setValue(this.plugin.settings.pluginSettings.inlineCode.copyModifierKey)
-        .onChange(async (value: InlineCodeModifierKeys) => {
-          this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value;
+        .onChange(async (value: string) => {
+          this.plugin.settings.pluginSettings.inlineCode.copyModifierKey = value as InlineCodeModifierKeys;
           await this.plugin.saveSettings();
         })
       );

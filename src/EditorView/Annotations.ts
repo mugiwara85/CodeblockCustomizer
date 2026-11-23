@@ -24,14 +24,17 @@ export function annotationsExtension(plugin: CodeBlockCustomizerPlugin, settings
     }
 
     update(update: ViewUpdate) {
-      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(update.view.state))
-        return Decoration.none;
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(update.view.state)) {
+        this.decorations = Decoration.none;
+        return;
+      }
 
       const oldCursorLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
       const newCursorLine = update.state.doc.lineAt(update.state.selection.main.head).number;
       const settingChanged = this.prevConvertAllComments !== plugin.settings.pluginSettings.annotations.convertAllComments;
+      const leftSourceMode = !settings.pluginSettings.common.enableInSourceMode && isSourceMode(update.startState);
 
-      if (update.docChanged || update.viewportChanged || oldCursorLine !== newCursorLine || settingChanged) {
+      if (update.docChanged || update.viewportChanged || oldCursorLine !== newCursorLine || settingChanged || leftSourceMode) {
         this.decorations = this.buildDecorations(update.view);
         if (settingChanged) {
           this.prevConvertAllComments = plugin.settings.pluginSettings.annotations.convertAllComments;

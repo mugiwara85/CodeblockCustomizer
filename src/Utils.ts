@@ -1,4 +1,4 @@
-import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, MarkdownView, loadPrism, Component } from "obsidian";
+import { setIcon, editorLivePreviewField, Notice, MarkdownRenderer, App, TFile, CachedMetadata, EditorPosition, Editor, loadPrism, Component } from "obsidian";
 
 import { EditorState } from "@codemirror/state";
 
@@ -1554,7 +1554,7 @@ function findCodeBlockLinesInEditor(editor: Editor, line: number): { start: numb
   return null;
 }// findCodeBlockLinesInEditor
 
-async function changeCodeBlockIndentation(editor: Editor, view: MarkdownView, changeIndentation: (lines: string[]) => string[]) {
+async function changeCodeBlockIndentation(editor: Editor, changeIndentation: (lines: string[]) => string[]) {
   const block = findCodeBlockLinesInEditor(editor, editor.getCursor().line);
   if (!block) {
     return;
@@ -1568,15 +1568,14 @@ async function changeCodeBlockIndentation(editor: Editor, view: MarkdownView, ch
   const pos: EditorPosition = { line: block.start, ch: 0 };
   const endPos: EditorPosition = { line: block.end, ch: editor.getLine(block.end).length };
   editor.replaceRange(changeIndentation(codeBlockLines).join('\n'), pos, endPos);
-  await view.save();
 }// changeCodeBlockIndentation
 
-export async function indentCodeBlock(editor: Editor, view: MarkdownView) {
-  await changeCodeBlockIndentation(editor, view, addIndentation);
+export async function indentCodeBlock(editor: Editor) {
+  await changeCodeBlockIndentation(editor, addIndentation);
 }// indentCodeBlock
 
-export async function unIndentCodeBlock(editor: Editor, view: MarkdownView) {
-  await changeCodeBlockIndentation(editor, view, removeIndentation);
+export async function unIndentCodeBlock(editor: Editor) {
+  await changeCodeBlockIndentation(editor, removeIndentation);
 }// unIndentCodeBlock
 
 export function getInlineCodeIcon(displayLanguage: string, additionalClass?: string) {

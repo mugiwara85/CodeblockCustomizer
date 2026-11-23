@@ -127,8 +127,10 @@ export function prismHighlightExtension(plugin: CodeBlockCustomizerPlugin, setti
         return;
       }
 
-      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(update.state))
+      if (!settings.pluginSettings.common.enableInSourceMode && isSourceMode(update.state)) {
+        this.decorations = Decoration.none;
         return;
+      }
 
       const codeBlocksChanged = update.startState.field(codeBlockPositionsField, false) !== update.state.field(codeBlockPositionsField, false);
       if (update.docChanged || codeBlocksChanged || plugin.settingsUpdated) {

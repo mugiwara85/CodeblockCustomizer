@@ -57,12 +57,11 @@ interface PreviewRenderer {
 }
 
 export default class CodeBlockCustomizerPlugin extends Plugin {
-  settings: CodeblockCustomizerSettings;
+  settings!: CodeblockCustomizerSettings;
   settingsUpdated = false;
   resetFoldDecorations = false;
-  extensions: Extension[];
-  theme: string;
-  editorExtensions: {
+  extensions: Extension[] = [];
+  editorExtensions!: {
     extensions: (StateField<DecorationSet> | StateField<CodeBlockPositions[]> | Extension)[];
     foldAll: (view: EditorView) => void;
     unfoldAll: (view: EditorView) => void;
@@ -70,8 +69,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     customBracketMatching: Extension;
     selectionMatching: Extension;
   }
-  customLanguageConfig: customLanguageConfig | null;
-  groupedChildrenMap: Map<MarkdownView, GroupedCodeBlockRenderChild>;
+  customLanguageConfig: customLanguageConfig | null = null;
+  groupedChildrenMap = new Map<MarkdownView, GroupedCodeBlockRenderChild>();
   foldStoreEditor: StateStore<number, FoldingState> = new StateStore(false, Number);
   foldStoreReading: StateStore<number, FoldingState> = new StateStore(false, Number);
   tabStoreEditor: StateStore<string, number> = new StateStore(false, String);
@@ -93,11 +92,6 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.configurePersistence();
     await this.loadAllPermanentData();
     updateSettingStyles(this.settings, this.app);
-
-    this.extensions = [];
-    this.customLanguageConfig = null;
-
-    this.groupedChildrenMap = new Map<MarkdownView, GroupedCodeBlockRenderChild>();
 
     this.addCommands();
 
@@ -641,8 +635,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.addCommand({
       id: 'indent-codeblock',
       name: 'Indent code block by one level',
-      editorCallback: async (editor: Editor, view: MarkdownView) => {
-        await indentCodeBlock(editor, view);
+      editorCallback: async (editor: Editor) => {
+        await indentCodeBlock(editor);
       }
     });
 
@@ -650,8 +644,8 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     this.addCommand({
       id: 'unindent-codeblock',
       name: 'Unindent code block by one level',
-      editorCallback: async (editor: Editor, view: MarkdownView) => {
-        await unIndentCodeBlock(editor, view);
+      editorCallback: async (editor: Editor) => {
+        await unIndentCodeBlock(editor);
       }
     });
   }// addCommands
@@ -702,7 +696,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     }, this));
 
     // process new active leaves (e.g. note switches)
-    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf: WorkspaceLeaf) => {
+    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf: WorkspaceLeaf | null) => {
       if (leaf && leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
         this.registerGroupedRenderChildForView(leaf.view);
       }

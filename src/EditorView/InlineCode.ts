@@ -141,6 +141,7 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
               return false;
             }
+            return undefined;
           }
         });
 

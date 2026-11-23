@@ -122,9 +122,9 @@ function setupExecuteCodeObserver(preElement: HTMLElement, clearButton: HTMLElem
 
 export function verifyAndRevealExecuteButtons(scope?: HTMLElement) {
   const searchEl = scope || activeDocument;
-  const buttonsToVerify = searchEl.querySelectorAll('.codeblock-customizer-execute-code-button-pending-verification');
+  const buttonsToVerify = searchEl.querySelectorAll<HTMLElement>('.codeblock-customizer-execute-code-button-pending-verification');
 
-  buttonsToVerify.forEach((button: HTMLElement) => {
+  buttonsToVerify.forEach((button) => {
     const searchContainer = scope || button.closest('.codeblock-customizer-pre-parent');
     if (!searchContainer) {
       return;
