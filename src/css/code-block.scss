@@ -90,7 +90,7 @@
 }
 
 /* expand - editing mode */
-.is-readable-line-width .cm-editor:has(.cm-line.codeblock-customizer-expand) {
+.is-readable-line-width .cm-editor.codeblock-customizer-has-expand {
   // Blue Topaz targets .cm-contentContainer instead of .cm-sizer so it is also needed
   .cm-sizer,
   .cm-contentContainer,

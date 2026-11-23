@@ -97,6 +97,9 @@ export function extensions(plugin: CodeBlockCustomizerPlugin, settings: Codebloc
     scrollSyncPlugin,
     liveUpdateExtension(),
     forceRefreshListener,
+    // fix for #161 - state-driven class instead of CSS :has()
+    EditorView.editorAttributes.compute([codeBlockPositionsField], state =>
+      ({ class: state.field(codeBlockPositionsField).some(p => p.parameters.expand && !p.parameters.exclude) ? "codeblock-customizer-has-expand" : "" })),
     EditorView.domEventHandlers({
       mousedown: (event) => {
         const target = event.target as HTMLElement;
