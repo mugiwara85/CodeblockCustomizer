@@ -138,14 +138,14 @@ export class BehaviorSettings {
       const semiFoldEnabled = this.plugin.settings.pluginSettings.semiFold.enableSemiFold;
       const inverseFoldEnabled = this.plugin.settings.pluginSettings.codeblock.folding.inverseFold;
 
-      if (semiFoldLines)
+      if (semiFoldLines !== undefined)
         semiFoldLines.setDisabled(!semiFoldEnabled);
-      if (semiFoldShowButton)
+      if (semiFoldShowButton !== undefined)
         semiFoldShowButton.setDisabled(!semiFoldEnabled);
-      if (autoFold)
+      if (autoFold !== undefined)
         autoFold.settingEl.toggleClass('codeblock-customizer-setting-hidden', !semiFoldEnabled);
 
-      if (ignoreShortBlocks) {
+      if (ignoreShortBlocks !== undefined) {
         const showIgnoreShortBlocks = semiFoldEnabled && inverseFoldEnabled;
         ignoreShortBlocks.settingEl.toggleClass('codeblock-customizer-setting-hidden', !showIgnoreShortBlocks);
       }

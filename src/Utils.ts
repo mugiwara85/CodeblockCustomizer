@@ -461,6 +461,20 @@ export function getLanguageConfig(codeblockLanguage: string, plugin: CodeBlockCu
   );
 }// getLanguageConfig
 
+interface CM5Stream { start: number; pos: number; eol(): boolean; current(): string; }
+interface CM5Mode { name?: string; startState?: () => unknown; token(stream: CM5Stream, state: unknown): string | null; }
+interface CM5 {
+  defaults: object;
+  getMode(config: object, spec: string | undefined): CM5Mode;
+  findModeByName(name: string): { mime?: string } | undefined;
+  defineMode(name: string, factory: (config: object) => CM5Mode): void;
+  StringStream: new (text: string) => CM5Stream;
+}
+
+export function getCM5(): CM5 {
+  return (window as unknown as { CodeMirror: CM5 }).CodeMirror;
+}// getCM5
+
 function registerEditorSyntaxHighlightingForLanguage(codeblockLanguage: string, requiredSyntax: string, unload: boolean): void {
   if (!codeblockLanguage || codeblockLanguage.length === 0)
     return;
@@ -468,8 +482,9 @@ function registerEditorSyntaxHighlightingForLanguage(codeblockLanguage: string, 
   if (!unload && (!requiredSyntax || requiredSyntax.length === 0))
     return;
 
-  window.CodeMirror.defineMode(codeblockLanguage, config =>
-    window.CodeMirror.getMode(config, unload ? "null" : requiredSyntax)
+  const cm5 = getCM5();
+  cm5.defineMode(codeblockLanguage, config =>
+    cm5.getMode(config, unload ? "null" : requiredSyntax)
   );
 }// registerEditorSyntaxHighlightingForLanguage
 

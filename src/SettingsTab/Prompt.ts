@@ -325,7 +325,7 @@ export class PromptSettings {
           .onChange(async (value) => {
             const { def: data, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
             data.isWindowsShell = value;
-            if (value && rootStylingToggle) {
+            if (value && rootStylingToggle !== undefined) {
               data.supportsRootStyling = false;
               rootStylingToggle.setValue(false);
             }
@@ -344,7 +344,7 @@ export class PromptSettings {
           .onChange(async (value) => {
             const { def: data, isCustom } = getPromptDefinition(selectedPromptId, this.plugin.settings);
             data.supportsRootStyling = value;
-            if (value && windowsShellToggle) {
+            if (value && windowsShellToggle !== undefined) {
               data.isWindowsShell = false;
               windowsShellToggle.setValue(false);
             }

@@ -12,6 +12,7 @@
     "esModuleInterop": true,
     "isolatedModules": true,
 	"strictNullChecks": true,
+    "types": [],
     "lib": [
       "DOM",
       "ES2020"

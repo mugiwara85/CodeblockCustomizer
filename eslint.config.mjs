@@ -19,4 +19,13 @@ export default defineConfig([
       "@typescript-eslint/no-unused-vars": ["warn", { args: "all", argsIgnorePattern: "^_", caughtErrors: "all", caughtErrorsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_", ignoreRestSiblings: true }],
     },
   },
+  {
+    // the scanner (obsidianmd/obsidian-workflows) uses an older eslint-plugin-obsidianmd, which runs these two
+    // without the newer version's exceptions (Setting components counted as promises, display() below minAppVersion 1.13)
+    files: ["**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/no-deprecated": ["warn", { allow: [] }],
+    },
+  },
 ]);

@@ -4,7 +4,7 @@ import { EditorState, Range, RangeSet } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
-import { getLanguageIcon, isSourceMode, addTextToClipboard, getInlineCodeIcon, getDisplayLanguageName, escapeRegex } from "../Utils";
+import { getLanguageIcon, isSourceMode, addTextToClipboard, getInlineCodeIcon, getDisplayLanguageName, escapeRegex, getCM5 } from "../Utils";
 import { CodeblockCustomizerSettings, InlineCodeModifierKeys } from "../Settings";
 import { INLINE_CODE_LANG_REGEX } from "../Const";
 import CodeBlockCustomizerPlugin from "../main";
@@ -442,16 +442,14 @@ export function inlineCodeExtension(plugin: CodeBlockCustomizerPlugin, settings:
   function getCM5Tokens(code: string, modeSpec: string): CM5Token[] {
     const tokens: CM5Token[] = [];
 
-    type CM5WithFindMode = typeof window.CodeMirror & {
-      findModeByName: (name: string) => { mime?: string } | undefined;
-    };
-    const mode = window.CodeMirror.getMode(window.CodeMirror.defaults, (window.CodeMirror as CM5WithFindMode).findModeByName(modeSpec)?.mime as string);
+    const cm5 = getCM5();
+    const mode = cm5.getMode(cm5.defaults, cm5.findModeByName(modeSpec)?.mime);
     if (!mode || mode.name === 'null') {
       return [{ text: code, style: null }];
     }
 
     const state = mode.startState ? mode.startState() : null;
-    const stream = new window.CodeMirror.StringStream(code);
+    const stream = new cm5.StringStream(code);
     while (!stream.eol()) {
       const style = mode.token(stream, state);
       tokens.push({ text: stream.current(), style: style || null });
