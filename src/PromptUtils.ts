@@ -33,7 +33,7 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
       // regular prompt
       const resolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, mode, false);
       for (const [cls, color] of Object.entries(resolved)) {
-        const selector = promptId === "global" ? `.${cls}` : `.codeblock-customizer-prompt-${promptId} .${cls}`;
+        const selector = promptId === "global" ? `.${cls}` : `.${getPromptClass(promptId)} .${cls}`;
         const varName = selectorToVariable(selector);
         const css = `--${varName}: ${color};`;
         if (isLight)
@@ -46,7 +46,7 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
       // root prompt (if applicable)
       const rootResolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, mode, true);
       for (const [cls, color] of Object.entries(rootResolved)) {
-        const selector = promptId === "global" ? `.root .${cls}` : `.codeblock-customizer-prompt-${promptId}.is-root .${cls}`;
+        const selector = promptId === "global" ? `.root .${cls}` : `.${getPromptClass(promptId)}.is-root .${cls}`;
         const varName = selectorToVariable(selector);
         const css = `--${varName}: ${color};`;
         if (isLight)
@@ -70,6 +70,11 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
     }
   `.trim();
 }// generatePromptColorStyles
+
+// custom prompt names can contain spaces or symbols, which are not allowed in a CSS class
+export function getPromptClass(promptId: string): string {
+  return `codeblock-customizer-prompt-${promptId.replace(/[^\p{L}\p{N}_-]/gu, "-")}`;
+}// getPromptClass
 
 function selectorToVariable(selector: string): string {
   return selector
@@ -244,7 +249,7 @@ function getPromptDetails(promptType: string, settings: CodeblockCustomizerSetti
   if (isDefinedPrompt) {
     // predefined or saved custom
     const keyForClass = isCustom ? def.name : promptType.toLowerCase();
-    return { kind: PromptKind.Predefined, name: promptType, baseClass: `codeblock-customizer-prompt-${keyForClass}`, isCustom: isCustom };
+    return { kind: PromptKind.Predefined, name: promptType, baseClass: getPromptClass(keyForClass), isCustom: isCustom };
   }
 
   if (isCustomTemplate) {
@@ -302,16 +307,22 @@ function shouldSimplifyHomePath(promptDef: PromptDefinition | undefined): boolea
   return !(promptDef.isWindowsShell);
 }// shouldSimplifyHomePath
 
+function getModule(env: PromptEnvironment): string {
+  return [env.msfKeyword, env.msfModule].filter(Boolean).join("/");
+}// getModule
+
 export function replacePromptTemplate(promptKind: PromptKind, promptType: string, promptDef: PromptDefinition | undefined, env: PromptEnvironment): PromptReplacement {
   const simplify = shouldSimplifyHomePath(promptDef);
   const dir = env.dir ?? "~";
   const finalPath = simplify ? simplifyHomePath(dir, env.homeDir) : dir;
 
   if (promptDef?.name === 'Metasploit') {
+    // this prompt adds the module itself, so a {module} placeholder is dropped
+    const base = (promptDef.basePrompt ?? 'msf6 >').replace(/\s*\{module\}/, '').replace(/\s*>\s*$/, '');
     if (env.msfKeyword && env.msfModule) {
-      return `msf6 ${env.msfKeyword}(${env.msfModule}) >`;
+      return `${base} ${env.msfKeyword}(${env.msfModule}) >`;
     }
-    return 'msf6 >';
+    return `${base} >`;
   }
 
   if (promptKind === PromptKind.Predefined) {
@@ -322,7 +333,8 @@ export function replacePromptTemplate(promptKind: PromptKind, promptType: string
       .replace("{host}", env.host)
       .replace("{path}", finalPath)
       .replace("{db}", env.db)
-      .replace("{branch}", env.branch);
+      .replace("{branch}", env.branch)
+      .replace(/( ?)\{module\}/, (_, space: string) => getModule(env) ? space + getModule(env) : ""); // no module: no double space
 
     if (env.user === "root" && /[$%](?!\S)/.test(promptText)) {
       promptText = promptText
@@ -342,9 +354,12 @@ export function replacePromptTemplate(promptKind: PromptKind, promptType: string
       path: finalPath,
       db: env.db,
       branch: env.branch,
+      module: getModule(env),
     };
 
-    for (const token of parsePromptTemplate(promptType)) {
+    let template = env.user === "root" ? promptType.replace(/\$(?!\S)/, "#").replace(/%(?!\S)/, "#") : promptType;
+    template = template.replace(/ \{(\w+)\}/g, (match, name: string) => placeholderMap[name] === "" ? "" : match);
+    for (const token of parsePromptTemplate(template)) {
       if (token.isPlaceholder) {
         const value = placeholderMap[token.text] ?? `{${token.text}}`;
         parts.push({ text: value, class: resolvePromptClass(value, { type: "template", groupName: token.text }) });
@@ -427,6 +442,9 @@ export function getPromptDefinition(promptId: string, settings: CodeblockCustomi
       def.parsePromptRegex = undefined;
     }
   }
+  // custom prompts created by older versions stored the RegExp itself, which JSON turned into {}
+  if (!(def.parsePromptRegex instanceof RegExp))
+    delete def.parsePromptRegex;
 
   return { def, isCustom };
 }// getPromptDefinition
@@ -446,7 +464,7 @@ export function getPWD(env: PromptEnvironment) {
     path = env.originalHomeDir + path.slice(1);
   }
 
-  return path;
+  return path.replace(/([^\\/:])[\\/]+$/, "$1"); // no trailing separator, but keep "/" and "C:\"
 }// getPWD
 
 export function collectAllPromptClasses(settings: CodeblockCustomizerSettings): string[] {

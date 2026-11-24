@@ -37,6 +37,7 @@ test('auto-use prompt by language', () => {
   const s = settings({ customPrompts: custom('auto', { autoUsePrompt: true, autoUseLanguages: ['shell'] }) });
   assert.deepEqual([...manager('```shell', 2, s).promptLines], [1, 2]);
   assert.deepEqual([...manager('```bash', 2, s).promptLines], []);
+  assert.equal(manager('```shell', 1, s).getPromptAndOutputTextForLine('x').prompt, '$', 'a fresh manager draws the auto-used prompt');
   // case-insensitive, run- prefix ignored in Live Preview too
   assert.deepEqual([...manager('```Shell', 2, s).promptLines], [1, 2]);
   assert.deepEqual([...manager('```run-shell', 2, s).promptLines], [1, 2]);
@@ -51,12 +52,99 @@ test('bash: cd, cd -, pwd, su, whoami, exit, root prompt', () => {
     ['user@localhost:/tmp$', ['/tmp']],
     'user@localhost:/tmp$',
     'user@localhost:~/$',
-    ['root@localhost:~/#', ['root']],
-    'root@localhost:~/#',
+    ['root@localhost:/home/user#', ['root']], // plain su keeps the folder, which is not under root's home
+    'root@localhost:/home/user#',
     'user@localhost:~/$',
     'user@localhost:/$',
     'user@localhost:~/docs$',
   ]);
+});
+
+test('bash: sudo / cdk are not su / cd, su - goes home, exit returns to the folder, root home is /root', () => {
+  assert.deepEqual(session('```bash prompt:bash', ['sudo apt update', 'cdk deploy', 'su -', 'cd', 'pwd', 'exit', 'su -l', 'exit', 'su - bob', 'whoami', 'x']), [
+    'user@localhost:~/$',
+    'user@localhost:~/$',
+    'user@localhost:~/$',
+    'root@localhost:~#',
+    ['root@localhost:~#', ['/root']],
+    'root@localhost:~#',
+    'user@localhost:~/$',
+    'root@localhost:~#',
+    'user@localhost:~/$',
+    ['bob@localhost:~$', ['bob']],
+    'bob@localhost:~$',
+  ]);
+});
+
+test('su: plain su keeps the folder (kali), su -c does not switch user', () => {
+  assert.deepEqual(session('```bash prompt:kali', ['su', 'cd Desktop', 'pwd']), [
+    '(kali㉿kali)-[~]$',
+    '(root㉿kali)-[/home/kali]#',
+    ['(root㉿kali)-[/home/kali/Desktop]#', ['/home/kali/Desktop']],
+  ]);
+  assert.deepEqual(session('```bash prompt:bash', ['su -c "apt update"', 'su -c whoami bob', 'x']), ['user@localhost:~/$', 'user@localhost:~/$', 'user@localhost:~/$']);
+});
+
+test('cd with chained commands, git checkout -b / switch -c', () => {
+  assert.deepEqual(session('```bash prompt:bash', ['cd myapp && npm install', 'cd /tmp; ls', 'x']), ['user@localhost:~/$', 'user@localhost:~/myapp$', 'user@localhost:/tmp$']);
+  assert.deepEqual(session('```zsh prompt:zshgit', ['git checkout -b feature', 'git switch -c fix', 'git checkout -- file.txt', 'x']),
+    ['➜ ~/projects git:(main) ✗', '➜ ~/projects git:(feature) ✗', '➜ ~/projects git:(fix) ✗', '➜ ~/projects git:(fix) ✗']);
+});
+
+test('windows: bare drive, PowerShell goes there, CMD stays', () => {
+  assert.deepEqual(session('```powershell prompt:ps', ['cd D:', 'x']), ['PS C:\\Users\\Administrator>', 'PS D:\\>']);
+  assert.deepEqual(session('```bat prompt:cmd', ['cd D:', 'x']), ['C:\\Users\\Administrator>', 'C:\\Users\\Administrator>']);
+});
+
+test('metasploit: edited base prompt, {module} placeholder', () => {
+  assert.deepEqual(session('```msf prompt:msf', ['use exploit/x/y', 'x'], settings({ editedDefaults: { msf: { basePrompt: 'msf5 >' } } })),
+    ['msf5 exploit(multi/handler) >', 'msf5 exploit(x/y) >']);
+  const s = settings({ customPrompts: custom('mine', { basePrompt: 'msf6 {module} >' }) });
+  assert.deepEqual(session('```msf prompt:mine module:exploit/a/b', ['use exploit/x/y', 'x'], s), ['msf6 exploit/a/b >', 'msf6 exploit/x/y >']);
+  assert.deepEqual(session('```msf prompt:mine', ['use exploit/x/y', 'x'], s), ['msf6 >', 'msf6 exploit/x/y >'], 'no module yet: no double space');
+  assert.deepEqual(session('```msf prompt:"msf6 {module} >"', ['x']), ['msf6 >'], 'on-the-fly template too');
+  assert.deepEqual(session('```msf prompt:msf', ['back', 'x'], settings({ editedDefaults: { msf: { basePrompt: 'msf6 {module} >' } } })).slice(-1), ['msf6 >'], 'edited built-in uses the msf path');
+});
+
+test('custom prompt names with spaces get a CSS-safe class', () => {
+  const regex = '^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)[$#]\\s*';
+  const s = settings({ customPrompts: custom('My Shell', { basePrompt: '$', parsePromptRegexString: regex }) });
+  assert.equal(manager('```bash parse:"My Shell"', 1, s).renderLine('bob@srv:/tmp$ ls', 1).lineClassName, 'codeblock-customizer-prompt-My-Shell');
+});
+
+test('template prompts (custom and on-the-fly) switch $ to # for root', () => {
+  const s = settings({ customPrompts: custom('mine', { basePrompt: '{user}@{host}:{path}$' }) });
+  assert.deepEqual(session('```bash prompt:mine', ['su', 'x'], s), ['user@localhost:~$', 'root@localhost:/home/user#']);
+  assert.deepEqual(session('```bash prompt:"{user}@{host}:{path}$"', ['su', 'x']), ['user@localhost:~$', 'root@localhost:/home/user#']);
+});
+
+test('more shell commands: escaped space, su -c after the user, git checkout ., msf back, relative start folder, CMD bare cd', () => {
+  assert.deepEqual(session('```bash prompt:bash', ['cd My\\ Docs', 'pwd']), ['user@localhost:~/$', ['user@localhost:~/My Docs$', ['/home/user/My Docs']]]);
+  assert.deepEqual(session('```bash prompt:bash', ['su - postgres -c psql', 'su --command=ls bob', 'x']), ['user@localhost:~/$', 'user@localhost:~/$', 'user@localhost:~/$']);
+  assert.deepEqual(session('```zsh prompt:zshgit', ['git checkout .', 'x']), ['➜ ~/projects git:(main) ✗', '➜ ~/projects git:(main) ✗']);
+  assert.deepEqual(session('```msf prompt:msf', ['use exploit/multi/handler', 'back', 'x']), ['msf6 exploit(multi/handler) >', 'msf6 exploit(multi/handler) >', 'msf6 >']);
+  assert.deepEqual(session('```bash prompt:bash path:myproj', ['cd src', 'pwd']), ['user@localhost:myproj$', ['user@localhost:myproj/src$', ['myproj/src']]]);
+  assert.deepEqual(session('```bat prompt:cmd', ['cd D:\\x', 'cd', 'x']), ['C:\\Users\\Administrator>', 'D:\\x>', 'D:\\x>']);});
+
+test('cmd: cd /d changes drive and folder', () => {
+  assert.deepEqual(session('```bat prompt:cmd', ['cd /d D:\\work', 'cd /D "E:\\my dir"', 'x']), ['C:\\Users\\Administrator>', 'D:\\work>', 'E:\\my dir>']);
+  assert.deepEqual(session('```bash prompt:bash', ['cd /d', 'x']), ['user@localhost:~/$', 'user@localhost:/d$'], 'only Windows shells treat /d as a flag');
+});
+
+test('edited default branch is used, branch parameter wins', () => {
+  const s = settings({ editedDefaults: { zshgit: { defaultBranch: 'develop' } } });
+  assert.deepEqual(session('```zsh prompt:zshgit', ['x'], s), ['➜ ~/projects git:(develop) ✗']);
+  assert.deepEqual(session('```zsh prompt:zshgit branch:feat', ['x'], s), ['➜ ~/projects git:(feat) ✗']);
+});
+
+test('custom prompt: regex saved as {} by older versions is dropped, default regex string parses the prompt', () => {
+  const s = settings({ customPrompts: {
+    ...custom('old', { parsePromptRegex: {} }),
+    ...custom('mine', { basePrompt: '{user}@{host}:{path}$', parsePromptRegexString: '^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)[$#]\\s*' }),
+  } });
+  assert.equal(getPromptDefinition('old', s).def.parsePromptRegex, undefined);
+  assert.equal(manager('```bash parse:old', 1, s).renderLine('cat file', 1).matchedLength, 0, 'no crash, nothing matched');
+  assert.equal(manager('```bash parse:mine', 1, s).renderLine('bob@srv:/tmp$ ls -la', 1).matchedLength, 'bob@srv:/tmp$ '.length);
 });
 
 test('prompt values from parameters', () => {

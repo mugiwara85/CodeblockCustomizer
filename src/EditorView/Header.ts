@@ -387,14 +387,21 @@ export function headerExtension(plugin: CodeBlockCustomizerPlugin, settings: Cod
               const lastContentLineNum = state.doc.lineAt(to).number;
               const lineCount = lastContentLineNum - firstContentLineNum + 1;
               const promptManager = new PromptManager(parameters, lineCount, settings);
+              const jumps = (parameters.lineNumberJumps || []).filter(j => j.lineNumber > parameters.lineNumberOffset);
+              let jumpIdx = 0;
+              let displayedLineNumber = parameters.lineNumberOffset;
 
               for (let i = firstContentLineNum; i <= lastContentLineNum; i++) {
                 const line = state.doc.line(i);
-                const relativeLineNumber = i - firstContentLineNum + 1;
+                displayedLineNumber++;
+                if (jumpIdx < jumps.length && displayedLineNumber === jumps[jumpIdx].lineNumber) {
+                  displayedLineNumber = jumps[jumpIdx].newStartNumber;
+                  jumpIdx++;
+                }
 
-                if (promptManager.promptLines.has(relativeLineNumber)) {
+                if (promptManager.promptLines.has(displayedLineNumber)) {
                   const { prompt, output } = promptManager.getPromptAndOutputTextForLine(line.text);
-                  lines.push(`${prompt}${line.text}`);
+                  lines.push(`${prompt}${prompt.endsWith(" ") ? "" : " "}${line.text}`);
 
                   if (output.length > 0) {
                     lines.push(...output);

@@ -1,4 +1,4 @@
-import { addClassesToPrompt, getCachedHighlightMap, getMatchRanges, getPromptDefinition, getPromptType, getPWD, isPromptLanguage, replacePromptTemplate } from "./PromptUtils";
+import { addClassesToPrompt, getCachedHighlightMap, getMatchRanges, getPromptClass, getPromptDefinition, getPromptType, getPWD, isPromptLanguage, replacePromptTemplate } from "./PromptUtils";
 import { CodeblockCustomizerSettings } from "./Settings";
 import { CBCParameters } from "./Parsing";
 
@@ -12,7 +12,7 @@ export type PromptEnvironment = {
   host: string;
   db: string;
   branch: string;
-  userStack?: string[];
+  userStack?: { user: string; dir: string }[];
   homeDir: string;
   originalHomeDir: string;
   msfKeyword?: string;
@@ -347,6 +347,14 @@ interface CommandOutput {
   className: string;
 }
 
+function getHomeDir(user: string, isWindowsShell: boolean): string {
+  if (isWindowsShell) {
+    return `C:\\Users\\${user}`;
+  }
+
+  return user === "root" ? "/root" : `/home/${user}`;
+}// getHomeDir
+
 export class PromptManager {
   private settings: CodeblockCustomizerSettings;
   private context: PromptContext;
@@ -360,6 +368,7 @@ export class PromptManager {
   constructor(parameters: CBCParameters, totalLines: number, settings: CodeblockCustomizerSettings) {
     this.settings = settings;
     this.isParseMode = !!parameters.parsePromptId;
+    // must run before createPromptContext, because it fills parameters.prompt.text for auto-use prompts
     this.promptLines = this.computePromptLines(parameters, totalLines, settings);
     const { context, initialEnv } = this.createPromptContext(parameters, settings);
     this.context = context;
@@ -370,8 +379,6 @@ export class PromptManager {
     if (this.isParseMode) {
       this.parsePromptRegex = context.promptDef.parsePromptRegex;
       this.promptLines = new Set<number>();
-    } else {
-      this.promptLines = this.computePromptLines(parameters, totalLines, settings);
     }
   }
 
@@ -432,7 +439,7 @@ export class PromptManager {
       this.promptEnv = this.parsePromptCommands(commandText, this.context.promptDef, this.promptEnv);
 
       const promptClassKey = this.context.isCustom ? this.context.promptDef.name : this.context.promptType.toLowerCase();
-      const lineClassName = `codeblock-customizer-prompt-${promptClassKey}`;
+      const lineClassName = getPromptClass(promptClassKey);
 
       return { styledParts, output, matchedLength: matchedPromptText.length, lineClassName, isRoot };
     }
@@ -590,17 +597,37 @@ export class PromptManager {
         envCopy.msfModule = parts.slice(1).join('/');
       }
     }
+    if (/^\s*back\s*$/i.test(lineText)) {
+      envCopy.msfKeyword = undefined;
+      envCopy.msfModule = undefined;
+    }
 
     // cd
-    const cdMatch = lineText.match(/^\s*cd\s*(.*)$/i);
+    const cdMatch = lineText.match(/^\s*cd\b\s*(.*)$/i);
     if (cdMatch) {
       let cdTarget = cdMatch[1].trim();
+      cdTarget = cdTarget.split(/\s*(?:&&|\|\||;|\|)/)[0].trim(); // cd dir && cmd
+      let cmdStays = false;
+      if (isWindowsShell) {
+        const isCmd = promptDef?.name === "CMD";
+        cdTarget = cdTarget.replace(/^\/d\s+/i, ""); // cd /d D:\dir changes the drive too
+        if (/^[a-z]:$/i.test(cdTarget)) {
+          cmdStays = isCmd;
+          cdTarget += "\\";
+        } else if (cdTarget === "") {
+          cmdStays = isCmd;
+        }
+      } else {
+        cdTarget = cdTarget.replace(/\\(.)/g, "$1"); // cd My\ Docs
+      }
       if ((cdTarget.startsWith('"') && cdTarget.endsWith('"')) || (cdTarget.startsWith("'") && cdTarget.endsWith("'"))) {
         cdTarget = cdTarget.slice(1, -1);
       }
 
       let newDir: string;
-      if (cdTarget === "" || cdTarget === "~") {
+      if (cmdStays) {
+        newDir = env.dir;
+      } else if (cdTarget === "" || cdTarget === "~") {
         newDir = env.homeDir;
       } else if (cdTarget === "-") {
         const temp = env.dir;
@@ -619,31 +646,29 @@ export class PromptManager {
     }
 
     // su
-    const suMatch = lineText.match(/^\s*su\s*(\S*)/i);
-    if (suMatch) {
+    const suMatch = lineText.match(/^\s*su\b((?:\s+-\S*)*)(?:\s+(\S+))?/i);
+    const suFlags = suMatch?.[1] ?? "";
+    if (suMatch && !/\s(?:-c|--command)(?=[\s=]|$)/.test(lineText)) { // su -c only runs one command (before or after the user)
       if (envCopy.userStack.length < 5) {
-        envCopy.userStack.push(env.user);
+        envCopy.userStack.push({ user: env.user, dir: env.dir });
       }
 
-      envCopy.user = suMatch[1] || "root";
-      if (isWindowsShell) {
-        envCopy.homeDir = `C:\\Users\\${envCopy.user}`;
-      } else {
-        envCopy.homeDir = `/home/${envCopy.user}`;
+      envCopy.dir = getPWD(env);
+      envCopy.user = suMatch[2] || "root";
+      envCopy.homeDir = getHomeDir(envCopy.user, isWindowsShell);
+      if (/\s(?:-|-l|--login)(?=\s|$)/.test(suFlags)) {
+        envCopy.dir = envCopy.homeDir;
       }
     }
 
     // exit
     if (/^\s*exit\s*$/i.test(lineText)) {
       if (envCopy.userStack.length > 0) {
-        const prevUser = envCopy.userStack.pop();
-        if (prevUser !== undefined) {
-          envCopy.user = prevUser;
-          if (isWindowsShell) {
-            envCopy.homeDir = `C:\\Users\\${prevUser}`;
-          } else {
-            envCopy.homeDir = `/home/${prevUser}`;
-          }
+        const prev = envCopy.userStack.pop();
+        if (prev !== undefined) {
+          envCopy.user = prev.user;
+          envCopy.dir = prev.dir;
+          envCopy.homeDir = getHomeDir(prev.user, isWindowsShell);
         }
       }
     }
@@ -655,9 +680,9 @@ export class PromptManager {
     }
 
     // git branch switch
-    const gitCheckout = lineText.match(/^\s*git\s+(checkout|switch)\s+(\S+)/i);
+    const gitCheckout = lineText.match(/^\s*git\s+(?:checkout|switch)\s+(?:-[bc]\s+)?([^-.\s]\S*)/i); // branch names can't start with "-" or "."
     if (gitCheckout) {
-      envCopy.branch = gitCheckout[2];
+      envCopy.branch = gitCheckout[1];
     }
 
     return envCopy;
@@ -715,9 +740,9 @@ export class PromptManager {
     } else if (isWindows) { // Standard Windows Path
       prefix = path_to_process.substring(0, path_to_process.indexOf(separator) + 1); // C:\
       parts = path_to_process.substring(prefix.length).split(separator);
-    } else { // Linux Path
-      prefix = "/";
-      parts = path_to_process.substring(1).split(separator);
+    } else { // Linux Path (relative, e.g. path:myproj, keeps no leading "/")
+      prefix = path_to_process.startsWith("/") ? "/" : "";
+      parts = path_to_process.slice(prefix.length).split(separator);
     }
 
     if (isWindows && !path_to_process.startsWith("\\\\")) {
@@ -752,7 +777,7 @@ export class PromptManager {
     const actualPrompt = promptDef.basePrompt ?? promptType;
     const isWindowsShell = promptDef.isWindowsShell ?? false;
     const user = parameters.prompt.values?.user ?? promptDef.defaultUser ?? "user";
-    const homeDir = isWindowsShell ? `C:\\Users\\${user}` : `/home/${user}`;
+    const homeDir = getHomeDir(user, isWindowsShell);
     const defaultDir = parameters.prompt.values?.path ?? promptDef.defaultDir ?? homeDir;
 
     const defaultModule = parameters.prompt.values?.module ?? promptDef.defaultModule;
@@ -773,7 +798,7 @@ export class PromptManager {
       dir: defaultDir,
       previousDir: defaultDir,
       db: parameters.prompt.values?.db ?? promptDef.defaultDb ?? "postgres",
-      branch: parameters.prompt.values?.branch ?? "main",
+      branch: parameters.prompt.values?.branch ?? promptDef.defaultBranch ?? "main",
       homeDir,
       originalHomeDir: homeDir,
       userStack: [],
@@ -785,9 +810,9 @@ export class PromptManager {
   }// createPromptContext
 
   private renderPromptLine(lineText: string, snapshotEnv: PromptEnvironment, cache: PromptCache, ctx: PromptContext): PromptResult {
-    const shellCmdRegex = /^\s*(cd\b|su\b|exit\b|git\b|\\c|use\b)/;
+    const shellCmdRegex = /^\s*(cd\b|su\b|exit\b|git\b|\\c|use\b|back\b)/;
     // cache key
-    const key = `${ctx.actualPrompt}|${this.promptEnvKey(snapshotEnv)}`;
+    const key = `${ctx.isCustom ? ctx.promptDef.name : ctx.promptType}|${ctx.actualPrompt}|${this.promptEnvKey(snapshotEnv)}`;
 
     // re-render promptData
     const promptContent = replacePromptTemplate(ctx.promptKind, ctx.actualPrompt, ctx.promptDef, snapshotEnv);

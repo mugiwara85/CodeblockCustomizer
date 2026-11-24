@@ -138,7 +138,7 @@ export class PromptSettings {
             defaultUser: "user",
             defaultHost: "localhost",
             defaultDir: "~",
-            parsePromptRegex: /^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)$/,
+            parsePromptRegexString: "^(?<user>[^@]+)@(?<host>[^:]+):(?<path>.+?)[$#]\\s*",
             highlightGroups: {
               user: "user",
               host: "host",
