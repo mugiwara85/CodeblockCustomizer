@@ -6,7 +6,7 @@ import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORT
 import { buildSvg, svgToDataUri } from "./CustomSvg";
 import { generatePromptColorStyles } from "./PromptUtils";
 import { generateSyntaxThemeStyles } from "./SyntaxThemeUtils";
-import { CodeblockCustomizerSettings, Colors, HighlightStyle, LineNumberSeparatorStyle, PluginSettings, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
+import { CodeblockCustomizerSettings, ColorTheme, Colors, HighlightStyle, LineNumberSeparatorStyle, PluginSettings, SemiFoldEffect, CollapseIconStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -1016,217 +1016,62 @@ export function updateSettingClasses(settings: PluginSettings, app?: App) {
 }// updateSettingClasses
 
 function applySettingClassesToBody(body: HTMLElement, settings: PluginSettings) {
+  const { codeblock, header, gutter, inlineCode, semiFold, plugins } = settings;
+  const setClass = (name: string, enabled: boolean) => {
+    if (enabled) {
+      body.classList.add(`codeblock-customizer-${name}`);
+    } else {
+      body.classList.remove(`codeblock-customizer-${name}`);
+    }
+  };
+
   body.classList.add('codeblock-customizer');
-  body.classList.remove("codeblock-customizer-active-line-highlight", "codeblock-customizer-active-line-highlight-codeblock", "codeblock-customizer-active-line-highlight-editor")
-  if (settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
-    // Inside and outside of codeblocks with different colors
-    body.classList.add("codeblock-customizer-active-line-highlight");
-  } else if (settings.enableEditorActiveLineHighlight && !settings.codeblock.enableActiveLineHighlight) {
-    // Only outside codeblocks
-    body.classList.add("codeblock-customizer-active-line-highlight-editor");
-  } else if (!settings.enableEditorActiveLineHighlight && settings.codeblock.enableActiveLineHighlight) {
-    // Only inside codeblocks
-    body.classList.add("codeblock-customizer-active-line-highlight-codeblock");
+
+  // active line (inside and outside of code blocks with different colors, only outside, or only inside)
+  setClass('active-line-highlight', settings.enableEditorActiveLineHighlight && codeblock.enableActiveLineHighlight);
+  setClass('active-line-highlight-editor', settings.enableEditorActiveLineHighlight && !codeblock.enableActiveLineHighlight);
+  setClass('active-line-highlight-codeblock', !settings.enableEditorActiveLineHighlight && codeblock.enableActiveLineHighlight);
+
+  setClass('show-line-numbers', codeblock.enableLineNumbers);
+  setClass('show-langnames-always', header.displayCodeBlockLanguage && header.alwaysDisplayCodeblockLang);
+  setClass('show-langnames', header.displayCodeBlockLanguage && !header.alwaysDisplayCodeblockLang);
+  setClass('show-langicons-always', header.displayCodeBlockIcon && header.alwaysDisplayCodeblockIcon);
+  setClass('show-langicons', header.displayCodeBlockIcon && !header.alwaysDisplayCodeblockIcon);
+  setClass('gutter-highlight', gutter.enableHighlight);
+  setClass('gutter-active-line', gutter.highlightActiveLineNr);
+  setClass('collapseIconNone', header.collapseIconPosition === 'hide');
+  setClass('collapseIconMiddle', header.collapseIconPosition === 'middle');
+  setClass('collapseIconRight', header.collapseIconPosition === 'right');
+  setClass('style-inline-code', inlineCode.enableInlineCodeStyling);
+  setClass('show-inline-code-icons', inlineCode.showIcons);
+  setClass('style-codeblock-border-left', codeblock.codeBlockBorderStylingPosition === 'left');
+  setClass('style-codeblock-border-right', codeblock.codeBlockBorderStylingPosition === 'right');
+  setClass('show-indentation-lines', codeblock.showIndentationLines);
+
+  setClass('use-semifold', semiFold.enableSemiFold);
+  setClass('semifold-effect-opacity', semiFold.semifoldEffect !== SemiFoldEffect.Blur); // opacity or both
+  setClass('semifold-effect-blur', semiFold.semifoldEffect !== SemiFoldEffect.Opacity); // blur or both
+  setClass('show-uncollapse-code-button', semiFold.showAdditionalUncollapseButon);
+
+  setClass('show-delete-code-button', codeblock.buttons.enableDeleteCodeButton);
+  setClass('show-select-code-button', codeblock.buttons.enableSelectCodeButton);
+  setClass('show-wrap-code-button', codeblock.buttons.enableWrapCodeButton);
+  setClass('always-show-copy-code-button', codeblock.buttons.alwaysShowCopyCodeButton);
+  setClass('show-snapshot-code-button', codeblock.buttons.enableSnapshotButton);
+  setClass('show-grouped-add-remove-buttons', settings.groupedCodeBlocks.showAddRemoveButtons);
+
+  setClass('support-execute-code', plugins.executeCode.enabled);
+  setClass('style-execute-code-output', plugins.executeCode.styleOutput);
+
+  for (const style of Object.values(LineNumberSeparatorStyle)) {
+    const styleClass = style.replace('-', '');
+    setClass(`linenumberseparator-${styleClass}`, codeblock.lineNumberSeparatorStyle === style);
+    setClass(`hidden-lines-${styleClass}`, codeblock.hiddenLinesStyle === style);
+    setClass(`execute-code-separator-${styleClass}`, plugins.executeCode.executeCodeSeparatorStyle === style);
   }
 
-  if (settings.codeblock.enableLineNumbers) {
-    body.classList.add("codeblock-customizer-show-line-numbers");
-  } else {
-    body.classList.remove("codeblock-customizer-show-line-numbers");
-  }
-
-  body.classList.remove("codeblock-customizer-show-langnames", "codeblock-customizer-show-langnames-always");
-  if (settings.header.alwaysDisplayCodeblockLang && settings.header.displayCodeBlockLanguage) {
-    body.classList.add("codeblock-customizer-show-langnames-always");
-  } else if (settings.header.displayCodeBlockLanguage) {
-    body.classList.add("codeblock-customizer-show-langnames");
-  }
-
-  body.classList.remove("codeblock-customizer-show-langicons", "codeblock-customizer-show-langicons-always");
-  if (settings.header.alwaysDisplayCodeblockIcon && settings.header.displayCodeBlockIcon) {
-    body.classList.add("codeblock-customizer-show-langicons-always");
-  } else if (settings.header.displayCodeBlockIcon) {
-    body.classList.add("codeblock-customizer-show-langicons");
-  }
-
-  if (settings.gutter.enableHighlight) {
-    body.classList.add('codeblock-customizer-gutter-highlight');
-  } else {
-    body.classList.remove('codeblock-customizer-gutter-highlight');
-  }
-
-  if (settings.gutter.highlightActiveLineNr)
-    body.classList.add('codeblock-customizer-gutter-active-line');
-  else
-    body.classList.remove('codeblock-customizer-gutter-active-line');
-
-  if (settings.header.collapseIconPosition === "hide") {
-    body.classList.add('codeblock-customizer-collapseIconNone');
-    body.classList.remove('codeblock-customizer-collapseIconMiddle');
-    body.classList.remove('codeblock-customizer-collapseIconRight');
-  } else if (settings.header.collapseIconPosition === "middle") {
-    body.classList.remove('codeblock-customizer-collapseIconNone');
-    body.classList.remove('codeblock-customizer-collapseIconRight');
-    body.classList.add('codeblock-customizer-collapseIconMiddle');
-  } else if (settings.header.collapseIconPosition === "right") {
-    body.classList.remove('codeblock-customizer-collapseIconNone');
-    body.classList.remove('codeblock-customizer-collapseIconMiddle');
-    body.classList.add('codeblock-customizer-collapseIconRight');
-  }
-
-  if (settings.codeblock.buttons.enableDeleteCodeButton)
-    body.classList.add('codeblock-customizer-show-delete-code-button');
-  else
-    body.classList.remove('codeblock-customizer-show-delete-code-button');
-
-  if (settings.inlineCode.enableInlineCodeStyling) {
-    body.classList.add('codeblock-customizer-style-inline-code');
-  } else {
-    body.classList.remove('codeblock-customizer-style-inline-code');
-  }
-
-  if (settings.codeblock.codeBlockBorderStylingPosition === "disable") {
-    body.classList.remove('codeblock-customizer-style-codeblock-border-left');
-    body.classList.remove('codeblock-customizer-style-codeblock-border-right');
-  } else if (settings.codeblock.codeBlockBorderStylingPosition === "left") {
-    body.classList.remove('codeblock-customizer-style-codeblock-border-right');
-    body.classList.add('codeblock-customizer-style-codeblock-border-left');
-  } else if (settings.codeblock.codeBlockBorderStylingPosition === "right") {
-    body.classList.remove('codeblock-customizer-style-codeblock-border-left');
-    body.classList.add('codeblock-customizer-style-codeblock-border-right');
-  }
-
-  if (settings.semiFold.enableSemiFold) {
-    body.classList.add('codeblock-customizer-use-semifold');
-  } else {
-    body.classList.remove('codeblock-customizer-use-semifold');
-  }
-
-  body.classList.remove('codeblock-customizer-semifold-effect-opacity');
-  body.classList.remove('codeblock-customizer-semifold-effect-blur');
-  if (settings.semiFold.semifoldEffect === SemiFoldEffect.Opacity) {
-    body.classList.add('codeblock-customizer-semifold-effect-opacity');
-  } else if (settings.semiFold.semifoldEffect === SemiFoldEffect.Blur) {
-    body.classList.add('codeblock-customizer-semifold-effect-blur');
-  } else {
-    body.classList.add('codeblock-customizer-semifold-effect-opacity');
-    body.classList.add('codeblock-customizer-semifold-effect-blur');
-  }
-
-  if (settings.semiFold.showAdditionalUncollapseButon) {
-    body.classList.add('codeblock-customizer-show-uncollapse-code-button');
-  } else {
-    body.classList.remove('codeblock-customizer-show-uncollapse-code-button');
-  }
-
-  if (settings.codeblock.showIndentationLines) {
-    body.classList.add('codeblock-customizer-show-indentation-lines');
-  } else {
-    body.classList.remove('codeblock-customizer-show-indentation-lines');
-  }
-
-  if (settings.codeblock.buttons.enableSelectCodeButton) {
-    body.classList.add('codeblock-customizer-show-select-code-button');
-  } else {
-    body.classList.remove('codeblock-customizer-show-select-code-button');
-  }
-
-  if (settings.codeblock.buttons.enableWrapCodeButton) {
-    body.classList.add('codeblock-customizer-show-wrap-code-button');
-  } else {
-    body.classList.remove('codeblock-customizer-show-wrap-code-button');
-  }
-
-  if (settings.codeblock.buttons.alwaysShowCopyCodeButton) {
-    body.classList.add('codeblock-customizer-always-show-copy-code-button');
-  } else {
-    body.classList.remove('codeblock-customizer-always-show-copy-code-button');
-  }
-
-  if (settings.inlineCode.showIcons) {
-    body.classList.add('codeblock-customizer-show-inline-code-icons');
-  } else {
-    body.classList.remove('codeblock-customizer-show-inline-code-icons');
-  }
-
-  if (settings.plugins.executeCode.styleOutput) {
-    body.classList.add('codeblock-customizer-style-execute-code-output');
-  } else {
-    body.classList.remove('codeblock-customizer-style-execute-code-output');
-  }
-
-  if (settings.codeblock.buttons.enableSnapshotButton) {
-    body.classList.add('codeblock-customizer-show-snapshot-code-button');
-  } else {
-    body.classList.remove('codeblock-customizer-show-snapshot-code-button');
-  }
-
-  if (settings.groupedCodeBlocks.showAddRemoveButtons) {
-    body.classList.add('codeblock-customizer-show-grouped-add-remove-buttons');
-  } else {
-    body.classList.remove('codeblock-customizer-show-grouped-add-remove-buttons');
-  }
-
-  if (settings.plugins.executeCode.enabled) {
-    body.classList.add('codeblock-customizer-support-execute-code');
-  } else {
-    body.classList.remove('codeblock-customizer-support-execute-code');
-  }
-
-  if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Zigzag) {
-    body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
-    body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
-    body.classList.add('codeblock-customizer-linenumberseparator-zigzag');
-  } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.DoubleLine) {
-    body.classList.remove('codeblock-customizer-linenumberseparator-dashed');
-    body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
-    body.classList.add('codeblock-customizer-linenumberseparator-doubleline');
-  } else if (settings.codeblock.lineNumberSeparatorStyle === LineNumberSeparatorStyle.Dashed) {
-    body.classList.remove('codeblock-customizer-linenumberseparator-zigzag');
-    body.classList.remove('codeblock-customizer-linenumberseparator-doubleline');
-    body.classList.add('codeblock-customizer-linenumberseparator-dashed');
-  }
-
-  if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.Zigzag) {
-    body.classList.remove('codeblock-customizer-hidden-lines-dashed');
-    body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
-    body.classList.add('codeblock-customizer-hidden-lines-zigzag');
-  } else if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.DoubleLine) {
-    body.classList.remove('codeblock-customizer-hidden-lines-dashed');
-    body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
-    body.classList.add('codeblock-customizer-hidden-lines-doubleline');
-  } else if (settings.codeblock.hiddenLinesStyle === HiddenLinesStyle.Dashed) {
-    body.classList.remove('codeblock-customizer-hidden-lines-zigzag');
-    body.classList.remove('codeblock-customizer-hidden-lines-doubleline');
-    body.classList.add('codeblock-customizer-hidden-lines-dashed');
-  }
-
-  if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.Zigzag) {
-    body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
-    body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
-    body.classList.add('codeblock-customizer-execute-code-separator-zigzag');
-  } else if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.DoubleLine) {
-    body.classList.remove('codeblock-customizer-execute-code-separator-dashed');
-    body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
-    body.classList.add('codeblock-customizer-execute-code-separator-doubleline');
-  } else if (settings.plugins.executeCode.executeCodeSeparatorStyle === ExecuteCodeSeparatorStyle.Dashed) {
-    body.classList.remove('codeblock-customizer-execute-code-separator-zigzag');
-    body.classList.remove('codeblock-customizer-execute-code-separator-doubleline');
-    body.classList.add('codeblock-customizer-execute-code-separator-dashed');
-  }
-
-  if (settings.frontmatter.enableFrontmatterStyling) {
-    body.classList.add('codeblock-customizer-style-frontmatter');
-  } else {
-    body.classList.remove('codeblock-customizer-style-frontmatter');
-  }
-
-  if (settings.common.disableEditorSyntaxHighlight) {
-    body.classList.add('codeblock-customizer-disable-editor-syntax-highlight');
-  } else {
-    body.classList.remove('codeblock-customizer-disable-editor-syntax-highlight');
-  }
-
+  setClass('style-frontmatter', settings.frontmatter.enableFrontmatterStyling);
+  setClass('disable-editor-syntax-highlight', settings.common.disableEditorSyntaxHighlight);
 }// applySettingClassesToBody
 
 function formatStyles(colorsOfMode: (mode: 'light' | 'dark') => Colors, settings: PluginSettings) {
@@ -1274,27 +1119,19 @@ function cssVariableValue(name: string): string {
 
 export function getColorOfCssVariable(cssVariable: string) {
   const colorValue = cssVariableValue(cssVariable);
-
-  if (colorValue.startsWith("rgb"))
-    return rgbOrRgbaToHex(colorValue);
-  if (colorValue.startsWith("hsl"))
-    return hslOrHslaToHex(colorValue);
-  if (colorValue.startsWith("#"))
-    return colorValue;
-
-  return colorValue ? cssColorToHex(colorValue) : "";
+  return colorValue.startsWith("#") ? colorValue : cssColorToHex(colorValue);
 }// getColorOfCssVariable
 
 function cssColorToHex(color: string): string {
   const context = activeDocument.createElement('canvas').getContext('2d', { willReadFrequently: true });
-  if (!context) {
+  if (!context || !CSS.supports('color', color)) {
     return "";
   }
 
   context.fillStyle = color;
   context.fillRect(0, 0, 1, 1);
 
-  return '#' + Array.from(context.getImageData(0, 0, 1, 1).data, value => value.toString(16).padStart(2, '0')).join('');
+  return ('#' + Array.from(context.getImageData(0, 0, 1, 1).data, value => value.toString(16).padStart(2, '0')).join('')).replace(/ff$/, '');
 }// cssColorToHex
 
 const OBSIDIAN_CODE_COLOR_VARIABLES = ['--code-background', '--code-border-color', '--code-bracket-background', '--code-comment', '--code-function', '--code-important', '--code-keyword', '--code-normal', '--code-operator', '--code-property', '--code-punctuation', '--code-string', '--code-tag', '--code-value'];
@@ -1312,123 +1149,6 @@ function resolveCssVariables<T>(value: T): T {
   }
   return value;
 }// resolveCssVariables
-
-function rgbOrRgbaToHex(color: string): string {
-  const matchRGBA = color.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*\.?\d+)\s*\)$/);
-  const matchRGB = color.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
-
-  if (matchRGBA) {
-    const red = Number(matchRGBA[1]);
-    const green = Number(matchRGBA[2]);
-    const blue = Number(matchRGBA[3]);
-    const alpha = parseFloat(matchRGBA[4]); // Convert alpha to float
-
-    if (isNaN(alpha) || alpha < 0 || alpha > 1) {
-      throw new Error('Invalid alpha value in rgba format.');
-    }
-
-    const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
-    return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}${alphaHex}`;
-  } else if (matchRGB) {
-    const red = Number(matchRGB[1]);
-    const green = Number(matchRGB[2]);
-    const blue = Number(matchRGB[3]);
-
-    return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
-  } else {
-    return "";
-  }
-}// rgbOrRgbaToHex
-
-function hslOrHslaToHex(hslColor: string): string {
-  const matchHSLA = hslColor.match(/^hsla?\((\d+),\s*(\d+)%,\s*(\d+)%,?\s*(\d*\.?\d+)?\)$/i);
-
-  if (!matchHSLA) {
-    return "";
-  }
-
-  const h = Number(matchHSLA[1]);
-  const s = Number(matchHSLA[2]);
-  const l = Number(matchHSLA[3]);
-  const a = matchHSLA[4] !== undefined ? Number(matchHSLA[4]) : 1;
-
-  // Convert HSLA to HSL (remove alpha component)
-  const hsl = `hsl(${h}, ${s}%, ${l}%)`;
-
-  // Convert HSL to hex
-  const hexColor = hslToHex(hsl, a);
-
-  // Append the alpha value to the hex string if it's not fully opaque
-  if (a < 1) {
-    const alphaHex = Math.round(a * 255).toString(16).padStart(2, '0');
-    return `${hexColor}${alphaHex}`;
-  }
-
-  return hexColor;
-}//hslOrHslaToHex
-
-function hslToHex(hslColor: string, alpha: number): string {
-  const matchHSL = hslColor.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/i);
-
-  if (!matchHSL) {
-    return "";
-  }
-
-  const h = Number(matchHSL[1]);
-  const s = Number(matchHSL[2]);
-  const l = Number(matchHSL[3]);
-
-  // Convert the hue to a value between 0 and 360
-  const hue = (h % 360 + 360) % 360;
-
-  // Ensure the saturation and lightness values are within the valid range [0, 100]
-  const saturation = Math.max(0, Math.min(100, s));
-  const lightness = Math.max(0, Math.min(100, l));
-
-  // Convert the saturation and lightness values to the range [0, 1]
-  const normalizedSaturation = saturation / 100;
-  const normalizedLightness = lightness / 100;
-
-  // Calculate the chroma and intermediate values
-  const chroma = (1 - Math.abs(2 * normalizedLightness - 1)) * normalizedSaturation;
-  const hPrime = hue / 60;
-  const x = chroma * (1 - Math.abs((hPrime % 2) - 1));
-
-  // Calculate RGB values based on the hue value
-  let r, g, b;
-  if (0 <= hPrime && hPrime < 1) {
-    [r, g, b] = [chroma, x, 0];
-  } else if (1 <= hPrime && hPrime < 2) {
-    [r, g, b] = [x, chroma, 0];
-  } else if (2 <= hPrime && hPrime < 3) {
-    [r, g, b] = [0, chroma, x];
-  } else if (3 <= hPrime && hPrime < 4) {
-    [r, g, b] = [0, x, chroma];
-  } else if (4 <= hPrime && hPrime < 5) {
-    [r, g, b] = [x, 0, chroma];
-  } else {
-    [r, g, b] = [chroma, 0, x];
-  }
-
-  // Calculate m (brightness adjustment)
-  const m = normalizedLightness - chroma / 2;
-
-  // Scale the RGB values and convert them to the range [0, 255]
-  const red = Math.round((r + m) * 255);
-  const green = Math.round((g + m) * 255);
-  const blue = Math.round((b + m) * 255);
-
-  // Convert the RGB values to hexadecimal
-  const hexColor = `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
-
-  // Append the alpha value to the hex string if it's not fully opaque
-  if (alpha < 1) {
-    const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
-    return `${hexColor}${alphaHex}`;
-  }
-
-  return hexColor;
-}// hslToHex
 
 function addAltHighlightColors(alternateColors: Record<string, HighlightStyle>) {
   return Object.entries(alternateColors).reduce((result, [colorName, style]) => {
@@ -1509,6 +1229,32 @@ export function findAllOccurrences(mainString: string, substring: string): numbe
 
   return indices;
 }// findAllOccurrences
+
+export function dropDeletedColors(theme: ColorTheme, workingCopy: ColorTheme | undefined): void {
+  for (const mode of ['light', 'dark'] as const) {
+    const colors = theme.colors[mode];
+    const working = workingCopy?.colors?.[mode];
+    dropDeletedKeys(colors.codeblock.alternateHighlightColors, working?.codeblock?.alternateHighlightColors, 1);
+    dropDeletedKeys(colors.languageSpecificColors, working?.languageSpecificColors, 2);
+    dropDeletedKeys(colors.prompts?.editedPromptColors, working?.prompts?.editedPromptColors, 2);
+    dropDeletedKeys(colors.prompts?.editedRootPromptColors, working?.prompts?.editedRootPromptColors, 2);
+  }
+}// dropDeletedColors
+
+function dropDeletedKeys(merged: object | undefined, working: object | undefined, depth: number): void {
+  if (!merged || !working) {
+    return;
+  }
+  const target = merged as Record<string, unknown>;
+  const source = working as Record<string, unknown>;
+  for (const key of Object.keys(target)) {
+    if (!(key in source)) {
+      delete target[key];
+    } else if (depth > 1 && typeof target[key] === 'object' && typeof source[key] === 'object') {
+      dropDeletedKeys(target[key] as object, source[key] as object, depth - 1);
+    }
+  }
+}// dropDeletedKeys
 
 export function mergeBorderColorsToLanguageSpecificColors(app: CodeBlockCustomizerPlugin, settings: CodeblockCustomizerSettings) {
   const borderColors = settings.SelectedTheme.colors[getCurrentMode()].codeblock.languageBorderColors;

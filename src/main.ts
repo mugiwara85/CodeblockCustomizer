@@ -6,7 +6,7 @@ import { EditorView, DecorationSet } from "@codemirror/view";
 import { DEFAULT_SETTINGS, CodeblockCustomizerSettings, FoldingPersistence, TabPersistence, ColorTheme, PluginSettings, HighlightStyle } from './Settings';
 import { DEFAULT_SYNTAX_THEMES } from './SyntaxThemeDefaults';
 import { SettingsTab } from "./SettingsTab/SettingsTab";
-import { loadIcons, BLOBS, updateSettingStyles, clearSettingStyles, getTargetDocuments, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, getExecuteCodeLanguages, refreshCachedMode, parseCustomPrismLanguages, unloadCustomPrismLanguages, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount } from "./Utils";
+import { loadIcons, BLOBS, updateSettingStyles, clearSettingStyles, getTargetDocuments, mergeBorderColorsToLanguageSpecificColors, loadSyntaxHighlightForCustomLanguages, customLanguageConfig, getFileCacheAndContentLines, indentCodeBlock, unIndentCodeBlock, registerExecuteCodeSyntaxHighlighting, unregisterExecuteCodeSyntaxHighlighting, getExecuteCodeLanguages, refreshCachedMode, parseCustomPrismLanguages, unloadCustomPrismLanguages, isSpecificHeader, determineDefaultFoldState, getVisibleLineCount, dropDeletedColors } from "./Utils";
 import { extensions } from "./EditorView/EditorExtensions";
 import { CodeBlockPositions } from "./EditorView/CodeBlockPositions";
 import { GroupedCodeBlockRenderChild } from "./ReadingView/GroupedCodeBlockRenderer";
@@ -505,6 +505,7 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
     const workingCopyTheme = loadedData?.SelectedTheme;
     if (masterTheme) {
       this.settings.SelectedTheme = merge({}, masterTheme, workingCopyTheme);
+      dropDeletedColors(this.settings.SelectedTheme, workingCopyTheme);
     }
 
     // prevent bloating, remove unchnged colors

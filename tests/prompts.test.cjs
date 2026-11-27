@@ -4,7 +4,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
-const { getAllParameters, PromptManager, getPromptDefinition, getPromptType, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/PromptManager.ts', 'src/PromptUtils.ts', 'src/Settings.ts');
+const { getAllParameters, PromptManager, getPromptDefinition, getPromptType, generatePromptColorStyles, DEFAULT_SETTINGS } = load('src/Parsing.ts', 'src/PromptManager.ts', 'src/PromptUtils.ts', 'src/Settings.ts');
 
 function settings({ customPrompts = {}, editedDefaults = {} } = {}) {
   const s = structuredClone(DEFAULT_SETTINGS);
@@ -217,4 +217,17 @@ test('parse mode: prompt in raw output is styled, root detected, noparse lines s
 
   const user = manager('```bash parse:bash', 1).renderLine('user@srv:~$ ls', 1);
   assert.equal(user.isRoot, false);
+});
+
+test('prompt colors: "Update theme" on a built-in theme keeps the default prompt colors', () => {
+  const s = settings();
+  s.ThemeName = 'Obsidian';
+  s.SelectedTheme = structuredClone(s.Themes.Obsidian);
+  // on load the working copy keeps only the edited prompt colors, the defaults are read from the base theme
+  for (const mode of ['light', 'dark']) Object.assign(s.SelectedTheme.colors[mode].prompts, { promptColors: {}, rootPromptColors: {} });
+  const before = generatePromptColorStyles(s, 'dark');
+  assert.match(before, /--[\w-]*prompt-bash[\w-]*prompt-user[\w-]*: #/, 'bash user color is set');
+
+  s.Themes[s.ThemeName] = structuredClone(s.SelectedTheme); // "Update theme" button
+  assert.equal(generatePromptColorStyles(s, 'dark'), before);
 });

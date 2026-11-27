@@ -6,7 +6,7 @@ const { load } = require('./helpers/load.cjs');
 
 const {
   getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, mergeBorderColorsToLanguageSpecificColors,
-  getSnapshotColors, generateSyntaxThemeStyles, getCurrentMode, refreshCachedMode, getAllParameters, updateSettingStyles, DEFAULT_SETTINGS,
+  getSnapshotColors, generateSyntaxThemeStyles, getCurrentMode, refreshCachedMode, getAllParameters, updateSettingStyles, dropDeletedColors, DEFAULT_SETTINGS,
 } = load('src/Utils.ts', 'src/SyntaxThemeUtils.ts', 'src/Parsing.ts', 'src/Settings.ts');
 
 const settings = () => structuredClone(DEFAULT_SETTINGS);
@@ -126,6 +126,34 @@ test('border color by language and language specific property lookup use the cur
   assert.equal(getAllParameters('```JS', s).language, 'JS');
   assert.equal(getAllParameters('```js', s).hasLangBorderColor, true);
   assert.equal(getAllParameters('```py', s).hasLangBorderColor, false);
+});
+
+test('loading settings: colors deleted in the working copy stay deleted after merging it onto the saved theme', () => {
+  const { merge } = require('es-toolkit/compat');
+  const hl = (bg) => ({ backgroundColor: bg, useBackgroundColor: true });
+  const saved = settings().SelectedTheme;
+  const working = structuredClone(saved);
+  for (const mode of ['light', 'dark']) {
+    // saved theme ("Update theme" was clicked while these existed)
+    Object.assign(saved.colors[mode].codeblock.alternateHighlightColors, { info: hl('#1'), warn: hl('#2') });
+    saved.colors[mode].languageSpecificColors = { python: { 'codeblock.backgroundColor': '#3', 'codeblock.textColor': '#4' }, js: { 'codeblock.textColor': '#5' } };
+    saved.colors[mode].prompts.editedPromptColors = { bash: { 'prompt-user': '#6', 'prompt-host': '#7' }, zsh: { 'prompt-user': '#8' } };
+    // working copy: info, js and zsh deleted, python text color and bash host color reset
+    working.colors[mode].codeblock.alternateHighlightColors = { warn: hl('#2') };
+    working.colors[mode].languageSpecificColors = { python: { 'codeblock.backgroundColor': '#3' } };
+    working.colors[mode].prompts.editedPromptColors = { bash: { 'prompt-user': '#6' } };
+  }
+  delete working.colors.dark.prompts.editedRootPromptColors; // older data without it: nothing is dropped
+
+  const loaded = merge({}, saved, working);
+  dropDeletedColors(loaded, working);
+
+  for (const mode of ['light', 'dark']) {
+    assert.deepEqual(Object.keys(loaded.colors[mode].codeblock.alternateHighlightColors), ['warn']);
+    assert.deepEqual(loaded.colors[mode].languageSpecificColors, { python: { 'codeblock.backgroundColor': '#3' } });
+    assert.deepEqual(loaded.colors[mode].prompts.editedPromptColors, { bash: { 'prompt-user': '#6' } });
+  }
+  assert.deepEqual(loaded.colors.dark.prompts.editedRootPromptColors, saved.colors.dark.prompts.editedRootPromptColors);
 });
 
 test('old languageBorderColors are moved into language specific colors for both modes', () => {

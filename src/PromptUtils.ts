@@ -1,12 +1,15 @@
 import { defaultPrompts, PromptDefinition, PromptEnvironment, PromptKind, symbolClassMap } from "./PromptManager";
-import { CodeblockCustomizerSettings, ColorTheme } from "./Settings";
+import { CodeblockCustomizerSettings, ColorTheme, DEFAULT_THEMES } from "./Settings";
 
 const highlightMapCache = new WeakMap<PromptDefinition, Record<string, string>>();
 type PromptReplacement = string | { text: string; class?: string }[];
 
+export function getBasePromptTheme(settings: CodeblockCustomizerSettings): ColorTheme | undefined {
+  return (DEFAULT_THEMES as Record<string, ColorTheme>)[settings.SelectedTheme.baseTheme ?? 'Obsidian'];
+}// getBasePromptTheme
+
 export function generatePromptColorStyles(settings: CodeblockCustomizerSettings, currentMode: 'light' | 'dark') {
-  const baseThemeName = settings.SelectedTheme.baseTheme ?? 'Obsidian';
-  const baseTheme = settings.Themes[baseThemeName];
+  const baseTheme = getBasePromptTheme(settings)!;
 
   const allPromptIds = new Set<string>();
   const modes: ('light' | 'dark')[] = ['light', 'dark'];

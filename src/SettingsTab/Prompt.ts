@@ -3,7 +3,7 @@ import { DropdownComponent, ExtraButtonComponent, Notice, Setting, TextComponent
 import CodeBlockCustomizerPlugin from "src/main";
 import { createDetailsGroup, SettingsPage, SettingsPageData } from "./Common";
 import { DEFAULT_PROMPT_COLOR, defaultPrompts, promptClassDisplayNames, PromptDefinition, PromptEnvironment } from "src/PromptManager";
-import { addClassesToPrompt, collectAllPromptClasses, getPromptDefinition, getPromptType, isPromptLanguage, replacePromptTemplate } from "src/PromptUtils";
+import { addClassesToPrompt, collectAllPromptClasses, getBasePromptTheme, getPromptDefinition, getPromptType, isPromptLanguage, replacePromptTemplate } from "src/PromptUtils";
 import { getCurrentMode } from "src/Utils";
 import { addPickerControlsToSetting } from "./ColorUtils";
 
@@ -685,8 +685,7 @@ export class PromptSettings {
 
   getResolvedPromptColors(promptId: string, editingRoot: boolean): Record<string, string> {
     const mode = getCurrentMode();
-    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
-    const base = this.plugin.settings.Themes[baseThemeName]?.colors[mode].prompts;
+    const base = getBasePromptTheme(this.plugin.settings)?.colors[mode].prompts;
     const edited = editingRoot
       ? this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedRootPromptColors?.[promptId] ?? {}
       : this.plugin.settings.SelectedTheme.colors[getCurrentMode()].prompts.editedPromptColors?.[promptId] ?? {};
@@ -697,11 +696,10 @@ export class PromptSettings {
   }// getResolvedPromptColors
 
   restorePromptColor(promptId: string) {
-    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
-    const baseTheme = this.plugin.settings.Themes[baseThemeName];
+    const baseTheme = getBasePromptTheme(this.plugin.settings);
 
     if (!baseTheme) {
-      console.warn(`Base theme "${baseThemeName}" not found.`);
+      console.warn(`Base theme "${this.plugin.settings.SelectedTheme.baseTheme}" not found.`);
       return;
     }
 
@@ -732,8 +730,7 @@ export class PromptSettings {
   }// setPromptColorDiff
 
   getDefaultPromptColor(promptId: string, partClass: string, editingRootColors: boolean): string {
-    const baseThemeName = this.plugin.settings.SelectedTheme.baseTheme ?? 'Obsidian';
-    const defaultTheme = this.plugin.settings.Themes[baseThemeName];
+    const defaultTheme = getBasePromptTheme(this.plugin.settings);
     const mode = getCurrentMode();
 
     if (!defaultTheme) {
