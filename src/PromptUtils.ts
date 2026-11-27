@@ -4,7 +4,7 @@ import { CodeblockCustomizerSettings, ColorTheme } from "./Settings";
 const highlightMapCache = new WeakMap<PromptDefinition, Record<string, string>>();
 type PromptReplacement = string | { text: string; class?: string }[];
 
-export function generatePromptColorStyles(settings: CodeblockCustomizerSettings) {
+export function generatePromptColorStyles(settings: CodeblockCustomizerSettings, currentMode: 'light' | 'dark') {
   const baseThemeName = settings.SelectedTheme.baseTheme ?? 'Obsidian';
   const baseTheme = settings.Themes[baseThemeName];
 
@@ -29,9 +29,10 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
   for (const promptId of allPromptIds) {
     for (const mode of modes) {
       const isLight = mode === 'light';
+      const colorMode = settings.pluginSettings.printing.forceCurrentColorUse ? currentMode : mode;
 
       // regular prompt
-      const resolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, mode, false);
+      const resolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, colorMode, false);
       for (const [cls, color] of Object.entries(resolved)) {
         const selector = promptId === "global" ? `.${cls}` : `.${getPromptClass(promptId)} .${cls}`;
         const varName = selectorToVariable(selector);
@@ -44,7 +45,7 @@ export function generatePromptColorStyles(settings: CodeblockCustomizerSettings)
       }
 
       // root prompt (if applicable)
-      const rootResolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, mode, true);
+      const rootResolved = getResolvedPromptColorsForMode(settings, baseTheme, promptId, colorMode, true);
       for (const [cls, color] of Object.entries(rootResolved)) {
         const selector = promptId === "global" ? `.root .${cls}` : `.${getPromptClass(promptId)}.is-root .${cls}`;
         const varName = selectorToVariable(selector);

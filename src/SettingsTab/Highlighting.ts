@@ -37,7 +37,7 @@ export class HighlightingSettings {
     const hlStyleDetails = highlightingDiv.createEl('details', { cls: 'settings-group' });
     hlStyleDetails.createEl('summary', { text: 'Default highlight style (hl / hlt)' });
     createHighlightStyleControls(hlStyleDetails, this.pickerInstances, this.plugin, (mode) => this.plugin.settings.SelectedTheme.colors[mode].codeblock.highlightColor,
-      () => updateSettingStyles(this.plugin.settings, this.plugin.app), () => getColorFromPickrClass(this.plugin.settings.Themes[this.plugin.settings.ThemeName], getCurrentMode(), 'codeblock.highlightColor.backgroundColor', true).toString());
+      () => updateSettingStyles(this.plugin.settings, this.plugin.app), () => getColorFromPickrClass(this.plugin.settings.Themes[this.plugin.settings.ThemeName], getCurrentMode(), 'codeblock.highlightColor.backgroundColor', false).toString());
 
     // bracket highlight
     const bracketDetails = createDetailsGroup(highlightingDiv, 'Bracket Highlight & Selection Matching', 'bracketDetailsOpen', this, this.getSearchQuery);

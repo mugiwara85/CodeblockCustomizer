@@ -170,7 +170,7 @@ export function addPickerControlsToSetting(setting: Setting, options: PickerOpti
         .setTooltip('restore default color')
         .onClick(() => {
           const defaultColor = onResetCallback();
-          pickr?.setColor(defaultColor);
+          pickr?.setColor(defaultColor.startsWith('--') ? getColorOfCssVariable(defaultColor) : defaultColor);
           options.onSave(defaultColor);
         });
     });
@@ -205,7 +205,7 @@ export function createPickrSetting(containerEl: HTMLElement, name: string, descr
       }
     },
     onReset: () => {
-      return getColorFromPickrClass(plugin.settings.Themes[plugin.settings.ThemeName], getCurrentMode(), pickrClass, true).toString();
+      return getColorFromPickrClass(plugin.settings.Themes[plugin.settings.ThemeName], getCurrentMode(), pickrClass, false).toString();
     },
     shouldShow: () => {
       const settings = plugin.settings.pluginSettings;
@@ -243,7 +243,7 @@ export function createHighlightStyleControls(containerEl: HTMLElement, pickerIns
   bgPickrSetting.settingEl.classList.toggle('codeblock-customizer-setting-hidden', !style.useBackgroundColor);
   addPickerControlsToSetting(bgPickrSetting, {
     containerEl,
-    initialColor: style.backgroundColor,
+    initialColor: style.backgroundColor.startsWith('--') ? getColorOfCssVariable(style.backgroundColor) : style.backgroundColor,
     onSave: (color: string) => {
       getStyle(getCurrentMode()).backgroundColor = color;
       void plugin.saveSettings();

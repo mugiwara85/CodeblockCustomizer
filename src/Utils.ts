@@ -6,7 +6,7 @@ import { manualLang, Icons, SVG_FILE_PATH, SVG_FOLDER_PATH, EXECUTE_CODE_SUPPORT
 import { buildSvg, svgToDataUri } from "./CustomSvg";
 import { generatePromptColorStyles } from "./PromptUtils";
 import { generateSyntaxThemeStyles } from "./SyntaxThemeUtils";
-import { CodeblockCustomizerSettings, Colors, HighlightStyle, LineNumberSeparatorStyle, PluginSettings, ThemeColors, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
+import { CodeblockCustomizerSettings, Colors, HighlightStyle, LineNumberSeparatorStyle, PluginSettings, SemiFoldEffect, CollapseIconStyle, HiddenLinesStyle, ExecuteCodeSeparatorStyle } from "./Settings";
 import CodeBlockCustomizerPlugin from "./main";
 import { CBCParameters } from "./Parsing";
 
@@ -680,10 +680,12 @@ const stylesDict: StylesDict = {
 
 export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: App) {
   const currentMode = getCurrentMode();
-
-  const codeblockBackgroundColor = settings.SelectedTheme.colors[currentMode].codeblock.backgroundColor;
-  const codeblockBackgroundValue = codeblockBackgroundColor.startsWith('--') ? `var(${codeblockBackgroundColor})` : codeblockBackgroundColor;
-  const codeblockBackgroundFallback = `var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color, ${codeblockBackgroundValue}))`;
+  const forceCurrentColorUse = settings.pluginSettings.printing.forceCurrentColorUse;
+  const resolveForPdf = forceCurrentColorUse && currentMode === 'dark';
+  const pdfColors = resolveForPdf ? resolveCssVariables(settings.SelectedTheme.colors.dark) : null;
+  const modeColors = (mode: 'light' | 'dark') => (mode === 'light' && pdfColors) || settings.SelectedTheme.colors[forceCurrentColorUse ? currentMode : mode];
+  const darkValues = (names: string[]) => names.map(name => { const value = cssVariableValue(name); return value ? `${name}: ${value};` : ''; }).join(' ');
+  const pdfCodeColors = resolveForPdf ? `body.theme-light .print { ${darkValues(OBSIDIAN_CODE_COLOR_VARIABLES)} } body.theme-light .print .codeblock-customizer-pre-parent { ${darkValues(OBSIDIAN_UI_COLOR_VARIABLES)} }` : '';
 
   const getHighlightTextStyleProperties = (style: HighlightStyle): string => {
     const textDecorations: string[] = [];
@@ -704,29 +706,29 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   };
 
   // highlight of the whole inline code (e.g. `{cpp hl}code` or `{cpp imp}code`)
-  const buildInlineCodeHighlightRules = (bgClass: string, backgroundValue: string | null, textStyleProperties: string): string => {
+  const buildInlineCodeHighlightRules = (body: string, bgClass: string, backgroundValue: string | null, textStyleProperties: string): string => {
     let css = '';
 
     if (backgroundValue) {
       const backgroundSelectors = [
-        `.${bgClass}`,
-        `.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code.${bgClass}`,
-        `.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code:has(.${bgClass})`,
-        `.codeblock-customizer .cm-s-obsidian span.cm-inline-code.${bgClass}`,
-        `.codeblock-customizer .cm-s-obsidian span.cm-inline-code:has(.${bgClass})`,
+        `${body} .${bgClass}`,
+        `${body}.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code.${bgClass}`,
+        `${body}.codeblock-customizer.codeblock-customizer-style-inline-code .cm-s-obsidian span.cm-inline-code:has(.${bgClass})`,
+        `${body}.codeblock-customizer .cm-s-obsidian span.cm-inline-code.${bgClass}`,
+        `${body}.codeblock-customizer .cm-s-obsidian span.cm-inline-code:has(.${bgClass})`,
       ].join(', ');
       css += ` ${backgroundSelectors} { background-color: ${backgroundValue} !important; }`;
     }
 
     if (textStyleProperties) {
       const tokenSelectors = [
-        `.${bgClass}`,
-        `.markdown-source-view .${bgClass} [class^="cm-"]`,
-        `.markdown-source-view .${bgClass} [class*="token"]`,
-        `.markdown-rendered .${bgClass} .codeblock-customizer-inline-code-content`,
-        `.markdown-rendered .${bgClass} [class*="token"]`,
-        `.print .${bgClass} .codeblock-customizer-inline-code-content`,
-        `.print .${bgClass} [class*="token"]`,
+        `${body} .${bgClass}`,
+        `${body} .markdown-source-view .${bgClass} [class^="cm-"]`,
+        `${body} .markdown-source-view .${bgClass} [class*="token"]`,
+        `${body} .markdown-rendered .${bgClass} .codeblock-customizer-inline-code-content`,
+        `${body} .markdown-rendered .${bgClass} [class*="token"]`,
+        `${body} .print .${bgClass} .codeblock-customizer-inline-code-content`,
+        `${body} .print .${bgClass} [class*="token"]`,
       ].join(', ');
       css += ` ${tokenSelectors} { ${textStyleProperties}; }`;
     }
@@ -735,22 +737,22 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   };
 
   // highlighted lines in code blocks (hl:2) and highlighted text in code blocks and inline code (hlt:word)
-  const buildLineAndTextHighlightRules = (lineClass: string, textClass: string, lineBackgroundColor: string, textSpanBackgroundColor: string, style: HighlightStyle): string => {
+  const buildLineAndTextHighlightRules = (body: string, lineClass: string, textClass: string, lineBackgroundColor: string, textSpanBackgroundColor: string, style: HighlightStyle): string => {
     const textStyleProperties = getHighlightTextStyleProperties(style);
 
     // line wrapper background
-    let css = `.${lineClass} { ${lineBackgroundColor}; }`;
+    let css = `${body} .${lineClass} { ${lineBackgroundColor}; }`;
 
     if (textStyleProperties) {
       const tokenSelectors = [
-        `.markdown-source-view .${lineClass} [class^="cm-"]`,
-        `.markdown-source-view .${lineClass} [class*="token"]`,
-        `.markdown-reading-view .${lineClass} .codeblock-customizer-indentation-guide`,
-        `.markdown-reading-view .${lineClass} .codeblock-customizer-line-text`,
-        `.markdown-reading-view .${lineClass} [class*="token"]`,
-        `.print .${lineClass} .codeblock-customizer-indentation-guide`,
-        `.print .${lineClass} .codeblock-customizer-line-text`,
-        `.print .${lineClass} [class*="token"]`,
+        `${body} .markdown-source-view .${lineClass} [class^="cm-"]`,
+        `${body} .markdown-source-view .${lineClass} [class*="token"]`,
+        `${body} .markdown-reading-view .${lineClass} .codeblock-customizer-indentation-guide`,
+        `${body} .markdown-reading-view .${lineClass} .codeblock-customizer-line-text`,
+        `${body} .markdown-reading-view .${lineClass} [class*="token"]`,
+        `${body} .print .${lineClass} .codeblock-customizer-indentation-guide`,
+        `${body} .print .${lineClass} .codeblock-customizer-line-text`,
+        `${body} .print .${lineClass} [class*="token"]`,
       ].join(', ');
       css += ` ${tokenSelectors} { ${textStyleProperties}; }`;
     }
@@ -760,66 +762,82 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     if (style.subscript) {
       textSpanProperties += `; font-size: 0.8em !important; position: relative !important; top: 0.1em !important`;
     }
-    css += ` .${textClass} { ${textSpanProperties}; }`;
+    css += ` ${body} .${textClass} { ${textSpanProperties}; }`;
 
     return css;
   };
 
-  let altHighlightStyling = '';
-  for (const [colorName, style] of Object.entries(settings.SelectedTheme.colors[currentMode].codeblock.alternateHighlightColors || {})) {
-    const cssColorName = colorName.replace(/\s+/g, '-').toLowerCase();
-    const cssVariableName = `--codeblock-customizer-highlight-${cssColorName}-color`;
-    const backgroundValue = style.backgroundColor.startsWith('--') ? `var(${cssVariableName})` : `var(${cssVariableName}, ${style.backgroundColor})`;
-    const lineBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
-    const textSpanBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: transparent !important`;
+  // highlight and language-specific rules of one mode
+  const buildModeStyling = (mode: 'light' | 'dark'): string => {
+    const colors = modeColors(mode);
+    const body = `:where(body.theme-${mode})`;
 
-    altHighlightStyling += buildLineAndTextHighlightRules(
-      `codeblock-customizer-line-highlighted-${cssColorName}`,
-      `codeblock-customizer-highlighted-text-${cssColorName}`,
-      lineBackgroundColor,
-      textSpanBackgroundColor,
-      style
+    const codeblockBackgroundColor = colors.codeblock.backgroundColor;
+    const codeblockBackgroundValue = codeblockBackgroundColor.startsWith('--') ? cssVar(codeblockBackgroundColor) : codeblockBackgroundColor;
+    const codeblockBackgroundFallback = `var(--codeblock-background-color, var(--codeblock-customizer-codeblock-background-color, ${codeblockBackgroundValue}))`;
+
+    let altHighlightStyling = '';
+    for (const [colorName, style] of Object.entries(colors.codeblock.alternateHighlightColors || {})) {
+      const cssColorName = colorName.replace(/\s+/g, '-').toLowerCase();
+      const cssVariableName = `--codeblock-customizer-highlight-${cssColorName}-color`;
+      const backgroundValue = style.backgroundColor.startsWith('--') ? `var(${cssVariableName})` : `var(${cssVariableName}, ${style.backgroundColor})`;
+      const lineBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
+      const textSpanBackgroundColor = style.useBackgroundColor ? `background-color: ${backgroundValue} !important` : `background-color: transparent !important`;
+
+      altHighlightStyling += buildLineAndTextHighlightRules(
+        body,
+        `codeblock-customizer-line-highlighted-${cssColorName}`,
+        `codeblock-customizer-highlighted-text-${cssColorName}`,
+        lineBackgroundColor,
+        textSpanBackgroundColor,
+        style
+      );
+      altHighlightStyling += buildInlineCodeHighlightRules(
+        body,
+        `codeblock-customizer-inline-code-highlighted-${cssColorName}`,
+        style.useBackgroundColor ? backgroundValue : null,
+        getHighlightTextStyleProperties(style)
+      );
+    }
+
+    const mainHighlightStyle = colors.codeblock.highlightColor;
+    const mainBackgroundValue = 'var(--codeblock-customizer-codeblock-highlight-color)';
+    const mainLineBackgroundColor = mainHighlightStyle.useBackgroundColor ? `background-color: ${mainBackgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
+    const mainTextSpanBackgroundColor = mainHighlightStyle.useBackgroundColor ? `background-color: ${mainBackgroundValue} !important` : `background-color: transparent !important`;
+
+    let mainHighlightExtraRules = buildLineAndTextHighlightRules(
+      body,
+      'codeblock-customizer-line-highlighted',
+      'codeblock-customizer-highlighted-text',
+      mainLineBackgroundColor,
+      mainTextSpanBackgroundColor,
+      mainHighlightStyle
     );
-    altHighlightStyling += buildInlineCodeHighlightRules(
-      `codeblock-customizer-inline-code-highlighted-${cssColorName}`,
-      style.useBackgroundColor ? backgroundValue : null,
-      getHighlightTextStyleProperties(style)
+    mainHighlightExtraRules += buildInlineCodeHighlightRules(
+      body,
+      'codeblock-customizer-inline-code-highlighted',
+      mainHighlightStyle.useBackgroundColor ? mainBackgroundValue : null,
+      getHighlightTextStyleProperties(mainHighlightStyle)
     );
-  }
 
-  const mainHighlightStyle = settings.SelectedTheme.colors[currentMode].codeblock.highlightColor;
-  const mainBackgroundValue = 'var(--codeblock-customizer-codeblock-highlight-color)';
-  const mainLineBackgroundColor = mainHighlightStyle.useBackgroundColor ? `background-color: ${mainBackgroundValue} !important` : `background-color: ${codeblockBackgroundFallback} !important`;
-  const mainTextSpanBackgroundColor = mainHighlightStyle.useBackgroundColor ? `background-color: ${mainBackgroundValue} !important` : `background-color: transparent !important`;
+    return mainHighlightExtraRules + altHighlightStyling + buildLanguageSpecificStyling(colors, body);
+  };
 
-  let mainHighlightExtraRules = buildLineAndTextHighlightRules(
-    'codeblock-customizer-line-highlighted',
-    'codeblock-customizer-highlighted-text',
-    mainLineBackgroundColor,
-    mainTextSpanBackgroundColor,
-    mainHighlightStyle
-  );
-  mainHighlightExtraRules += buildInlineCodeHighlightRules(
-    'codeblock-customizer-inline-code-highlighted',
-    mainHighlightStyle.useBackgroundColor ? mainBackgroundValue : null,
-    getHighlightTextStyleProperties(mainHighlightStyle)
-  );
-
-  const languageSpecificStyling = Object.entries(settings.SelectedTheme.colors[currentMode].languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
+  const buildLanguageSpecificStyling = (colors: Colors, body: string): string => Object.entries(colors.languageSpecificColors || {}).reduce((styling, [language, attributes]) => {
     const languageStyling = Object.entries(attributes || {}).reduce((languageStyling, [attribute, hexValue]) => {
       const attributeName = attribute.toLowerCase().replace(/\./g, '-');
 
       const mappedAttributeName = stylesDict[attribute] || attributeName;
-      let selector = `.codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
-      //.markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()},
+      const languageClass = `codeblock-customizer-languageSpecific-${language.toLowerCase()}`;
+      let selector = `${body} .${languageClass}`;
       let style = `${mappedAttributeName}: ${hexValue}`;
       if (mappedAttributeName === "codeblock-textcolor") {
-        selector += `, 
-            .markdown-source-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} [class^="cm-"], 
-            .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .codeblock-customizer-line-text, 
-            .markdown-reading-view .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token,
-            .print .codeblock-customizer-languageSpecific-${language.toLowerCase()} .codeblock-customizer-line-text,
-            .print .codeblock-customizer-languageSpecific-${language.toLowerCase()} .token`;
+        selector += `,
+            ${body} .markdown-source-view .${languageClass} [class^="cm-"],
+            ${body} .markdown-reading-view .${languageClass} .codeblock-customizer-line-text,
+            ${body} .markdown-reading-view .${languageClass} .token,
+            ${body} .print .${languageClass} .codeblock-customizer-line-text,
+            ${body} .print .${languageClass} .token`;
         style = `color: ${hexValue} !important`;
       }
       if (mappedAttributeName === "codeblock-bracket-highlight-color-match" || mappedAttributeName === "codeblock-bracket-highlight-background-color-match") {
@@ -875,10 +893,10 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
     `;
   }
-  const promptColorStyles = generatePromptColorStyles(settings);
+  const promptColorStyles = generatePromptColorStyles(settings, currentMode);
 
   const annotationColors = settings.SelectedTheme.colors[currentMode].annotations?.colors || {};
-  const annotationVars = Object.entries(annotationColors).map(([type, hexValue]) => {
+  const annotationVars = (mode: 'light' | 'dark') => Object.entries(modeColors(mode).annotations?.colors || {}).map(([type, hexValue]) => {
     const varName = `--codeblock-customizer-annotations-${type}-color`;
     return `${varName}: ${hexValue};`;
   }).join(' ');
@@ -931,11 +949,11 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
   }
 
   const annotationStyling = `
-    body.codeblock-customizer.theme-${currentMode} {
-      ${annotationVars}
+    body.codeblock-customizer.theme-light {
+      ${annotationVars('light')}
     }
-    .print body {
-      ${annotationVars}
+    body.codeblock-customizer.theme-dark {
+      ${annotationVars('dark')}
     }
     ${annotationRules}
     ${defaultAnnotationCommentStyle}
@@ -969,7 +987,7 @@ export function updateSettingStyles(settings: CodeblockCustomizerSettings, app: 
     }
   }
 
-  const cssText = (formatStyles(settings.SelectedTheme.colors, settings.pluginSettings, settings.pluginSettings.printing.forceCurrentColorUse) + mainHighlightExtraRules + altHighlightStyling + languageSpecificStyling + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles + inlineCodeExtraRules).trim().replace(/[\r\n\s]+/g, ' ');
+  const cssText = (formatStyles(modeColors, settings.pluginSettings) + buildModeStyling('light') + buildModeStyling('dark') + groupedHeaderStyles + textSettingsStyles + minimalSpecificStyling + promptColorStyles + annotationStyling + syntaxThemeStyles + inlineCodeExtraRules + pdfCodeColors).trim().replace(/[\r\n\s]+/g, ' ');
 
   for (const doc of getTargetDocuments(app)) {
     let styleTag = doc.getElementById(SETTING_STYLE_ID);
@@ -1211,48 +1229,51 @@ function applySettingClassesToBody(body: HTMLElement, settings: PluginSettings) 
 
 }// applySettingClassesToBody
 
-function formatStyles(colors: ThemeColors, settings: PluginSettings, forceCurrentColorUse: boolean) {
+function formatStyles(colorsOfMode: (mode: 'light' | 'dark') => Colors, settings: PluginSettings) {
+  const modeVariables = (mode: 'light' | 'dark'): string => {
+    const modeColors = colorsOfMode(mode);
+    return Object.keys(stylesDict).reduce((variables, key) => {
+      let cssValue = accessSetting(key, modeColors);
+      if (cssValue == null) {
+        return variables;
+      }
+      if (cssValue.toString().startsWith("--")) {
+        cssValue = cssVar(cssValue);
+      }
+      return variables + `--codeblock-customizer-${stylesDict[key]}: ${cssValue};`;
+    }, addAltHighlightColors(modeColors.codeblock.alternateHighlightColors));
+  };
+
   return `
     body.codeblock-customizer {
       --wrap-code:${settings.codeblock.unwrapcode ? 'pre' : 'pre-wrap'}
     }
     body.codeblock-customizer.theme-light {
-      ${Object.keys(stylesDict).reduce((variables, key) => {
-    const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
-    let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.light);
-
-    if (cssValue != null) {
-      if (cssValue.toString().startsWith("--")) {
-        cssValue = "var(" + cssValue + ")";
-      }
-      return variables + `${cssVariable}: ${cssValue};`;
-    } else {
-      return variables;
+      ${modeVariables('light')}
     }
-  }, addAltHighlightColors(colors.light.codeblock.alternateHighlightColors))}
-    } 
     body.codeblock-customizer.theme-dark {
-      ${Object.keys(stylesDict).reduce((variables, key) => {
-    const cssVariable = `--codeblock-customizer-${stylesDict[key]}`;
-    let cssValue = accessSetting(key, forceCurrentColorUse ? colors[getCurrentMode()] : colors.dark);
-
-    if (cssValue != null) {
-      if (cssValue.toString().startsWith("--")) {
-        cssValue = "var(" + cssValue + ")";
-      }
-      return variables + `${cssVariable}: ${cssValue};`;
-    } else {
-      return variables;
-    }
-  }, addAltHighlightColors(colors.dark.codeblock.alternateHighlightColors))}
+      ${modeVariables('dark')}
     }
   `;
 }// formatStyles
 
-export function getColorOfCssVariable(cssVariable: string) {
+// Obsidian 1.14 replaced --text-highlight-bg with --highlight-background
+const CSS_VARIABLE_FALLBACKS: Record<string, string> = { '--text-highlight-bg': '--highlight-background' };
+
+function cssVar(name: string): string {
+  const fallback = CSS_VARIABLE_FALLBACKS[name];
+  return fallback ? `var(${name}, var(${fallback}))` : `var(${name})`;
+}// cssVar
+
+function cssVariableValue(name: string): string {
   const body = getTargetDocuments()[0]?.body ?? activeDocument.body;
   const computedStyle = (body.ownerDocument?.defaultView ?? window).getComputedStyle(body);
-  const colorValue = computedStyle.getPropertyValue(cssVariable).trim();
+  const fallback = CSS_VARIABLE_FALLBACKS[name];
+  return computedStyle.getPropertyValue(name).trim() || (fallback ? computedStyle.getPropertyValue(fallback).trim() : '');
+}// cssVariableValue
+
+export function getColorOfCssVariable(cssVariable: string) {
+  const colorValue = cssVariableValue(cssVariable);
 
   if (colorValue.startsWith("rgb"))
     return rgbOrRgbaToHex(colorValue);
@@ -1260,9 +1281,37 @@ export function getColorOfCssVariable(cssVariable: string) {
     return hslOrHslaToHex(colorValue);
   if (colorValue.startsWith("#"))
     return colorValue;
-  else
-    return "";
+
+  return colorValue ? cssColorToHex(colorValue) : "";
 }// getColorOfCssVariable
+
+function cssColorToHex(color: string): string {
+  const context = activeDocument.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  if (!context) {
+    return "";
+  }
+
+  context.fillStyle = color;
+  context.fillRect(0, 0, 1, 1);
+
+  return '#' + Array.from(context.getImageData(0, 0, 1, 1).data, value => value.toString(16).padStart(2, '0')).join('');
+}// cssColorToHex
+
+const OBSIDIAN_CODE_COLOR_VARIABLES = ['--code-background', '--code-border-color', '--code-bracket-background', '--code-comment', '--code-function', '--code-important', '--code-keyword', '--code-normal', '--code-operator', '--code-property', '--code-punctuation', '--code-string', '--code-tag', '--code-value'];
+const OBSIDIAN_UI_COLOR_VARIABLES = ['--text-normal', '--text-muted', '--text-faint', '--text-error', '--background-primary', '--background-secondary', '--background-modifier-border', '--interactive-accent', '--color-red'];
+
+function resolveCssVariables<T>(value: T): T {
+  if (typeof value === 'string') {
+    return (value.startsWith('--') ? cssVariableValue(value) || value : value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map(resolveCssVariables) as T;
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, resolveCssVariables(item)])) as T;
+  }
+  return value;
+}// resolveCssVariables
 
 function rgbOrRgbaToHex(color: string): string {
   const matchRGBA = color.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*\.?\d+)\s*\)$/);
@@ -1384,7 +1433,7 @@ function hslToHex(hslColor: string, alpha: number): string {
 function addAltHighlightColors(alternateColors: Record<string, HighlightStyle>) {
   return Object.entries(alternateColors).reduce((result, [colorName, style]) => {
     const cssName = colorName.replace(/\s+/g, '-').toLowerCase();
-    const backgroundColor = style.backgroundColor.startsWith('--') ? `var(${style.backgroundColor})` : style.backgroundColor;
+    const backgroundColor = style.backgroundColor.startsWith('--') ? cssVar(style.backgroundColor) : style.backgroundColor;
     return result + `--codeblock-customizer-highlight-${cssName}-color: ${backgroundColor};`;
   }, '');
 }// addAltHighlightColors

@@ -6,10 +6,83 @@ const { load } = require('./helpers/load.cjs');
 
 const {
   getBorderColorByLanguage, getLanguageSpecificColorClass, getPropertyFromLanguageSpecificColors, mergeBorderColorsToLanguageSpecificColors,
-  getSnapshotColors, generateSyntaxThemeStyles, getCurrentMode, refreshCachedMode, getAllParameters, DEFAULT_SETTINGS,
+  getSnapshotColors, generateSyntaxThemeStyles, getCurrentMode, refreshCachedMode, getAllParameters, updateSettingStyles, DEFAULT_SETTINGS,
 } = load('src/Utils.ts', 'src/SyntaxThemeUtils.ts', 'src/Parsing.ts', 'src/Settings.ts');
 
 const settings = () => structuredClone(DEFAULT_SETTINGS);
+
+// captures the CSS written into the <style> tag; getComputedStyle gives darkValues (the test environment is in dark mode)
+function stubDocument(darkValues = {}) {
+  const styleTag = { textContent: '' };
+  const body = { classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, ownerDocument: { defaultView: { getComputedStyle: () => ({ getPropertyValue: name => darkValues[name] ?? '' }) } } };
+  Object.assign(document, { getElementById: () => styleTag, head: {}, body });
+  return styleTag;
+}
+
+test('PDF colors: light rules (used by the PDF) take light colors, or the current mode colors with "Use current theme colours"', () => {
+  const styleTag = stubDocument();
+  const app = { vault: { getConfig: () => '' }, workspace: { iterateAllLeaves() {} } };
+  const css = (force) => {
+    const s = settings();
+    s.pluginSettings.printing.forceCurrentColorUse = force;
+    const hl = (bg, text) => ({ backgroundColor: bg, useBackgroundColor: true, textColor: text, useTextColor: true });
+    s.SelectedTheme.colors.light.codeblock.alternateHighlightColors = { red: hl('#lredbg', '#lredtext') };
+    s.SelectedTheme.colors.dark.codeblock.alternateHighlightColors = { red: hl('#dredbg', '#dredtext') };
+    s.SelectedTheme.colors.light.languageSpecificColors = { python: { 'codeblock.textColor': '#lpy' } };
+    s.SelectedTheme.colors.dark.languageSpecificColors = { python: { 'codeblock.textColor': '#dpy' } };
+    s.SelectedTheme.colors.light.annotations = { colors: { note: '#lann' } };
+    s.SelectedTheme.colors.dark.annotations = { colors: { note: '#dann' } };
+    updateSettingStyles(s, app);
+    return styleTag.textContent;
+  };
+  const rule = (text, mode, cls) => text.match(new RegExp(`:where\\(body\\.theme-${mode}\\) \\.${cls}[^{]*\\{([^}]*)\\}`))?.[1] ?? '';
+
+  const off = css(false);
+  assert.match(rule(off, 'light', 'codeblock-customizer-highlighted-text-red'), /#lredtext/);
+  assert.match(rule(off, 'dark', 'codeblock-customizer-highlighted-text-red'), /#dredtext/);
+  assert.match(rule(off, 'light', 'codeblock-customizer-languageSpecific-python'), /#lpy/);
+  assert.match(off, /theme-light \{[^}]*--codeblock-customizer-highlight-red-color: #lredbg/);
+  assert.match(off, /theme-light \{ --codeblock-customizer-annotations-note-color: #lann;/);
+  assert.doesNotMatch(off, /\.print body/);
+
+  const on = css(true);
+  assert.match(rule(on, 'light', 'codeblock-customizer-highlighted-text-red'), /#dredtext/);
+  assert.match(rule(on, 'light', 'codeblock-customizer-languageSpecific-python'), /#dpy/);
+  assert.match(on, /theme-light \{[^}]*--codeblock-customizer-highlight-red-color: #dredbg/);
+  assert.match(on, /theme-light \{ --codeblock-customizer-annotations-note-color: #dann;/);
+});
+
+test('PDF colors: "Use current theme colours" in dark mode writes the dark values of Obsidian colour variables into the PDF rules', () => {
+  // the dark values Obsidian gives its variables right now
+  const styleTag = stubDocument({ '--text-normal': 'rgb(221, 221, 221)', '--code-normal': '#eeeeee', '--text-muted': '#999999', '--highlight-background': 'color-mix(in oklch, rgb(224, 172, 0) 30%, transparent)' });
+  const app = { vault: { getConfig: () => '' }, workspace: { iterateAllLeaves() {} } };
+  const css = (force) => {
+    const s = settings();
+    s.pluginSettings.printing.forceCurrentColorUse = force;
+    s.SelectedTheme.colors.light.header.textColor = '--text-normal';
+    s.SelectedTheme.colors.dark.header.textColor = '--text-normal';
+    s.SelectedTheme.colors.dark.gutter.textColor = '--unknown-variable';
+    updateSettingStyles(s, app);
+    return styleTag.textContent;
+  };
+  const vars = (text, mode) => text.match(new RegExp(`body\\.codeblock-customizer\\.theme-${mode} \\{([^}]*)\\}`))?.[1] ?? '';
+  try {
+    const off = css(false);
+    assert.match(vars(off, 'light'), /--codeblock-customizer-header-text-color: var\(--text-normal\);/, 'setting off: the PDF uses the light value of the variable');
+    assert.match(vars(off, 'light'), /--codeblock-customizer-codeblock-highlight-color: var\(--text-highlight-bg, var\(--highlight-background\)\);/, 'Obsidian 1.14+ has no --text-highlight-bg: falls back to --highlight-background');
+    assert.doesNotMatch(off, /body\.theme-light \.print/);
+
+    const on = css(true);
+    assert.match(vars(on, 'light'), /--codeblock-customizer-header-text-color: rgb\(221, 221, 221\);/, 'setting on: the dark value is written in');
+    assert.match(vars(on, 'light'), /--codeblock-customizer-gutter-text-color: var\(--unknown-variable\);/, 'a variable without a value stays a variable');
+    assert.match(vars(on, 'dark'), /--codeblock-customizer-header-text-color: var\(--text-normal\);/, 'on screen, dark mode keeps the live variable');
+    assert.match(on, /body\.theme-light \.print \{ --code-normal: #eeeeee; \}/, "Obsidian's code colours in the PDF");
+    assert.match(on, /body\.theme-light \.print \.codeblock-customizer-pre-parent \{ --text-normal: rgb\(221, 221, 221\); --text-muted: #999999; \}/, 'UI colours only inside code blocks');
+    assert.match(vars(on, 'light'), /--codeblock-customizer-codeblock-highlight-color: color-mix\(in oklch, rgb\(224, 172, 0\) 30%, transparent\);/, 'the replacement variable gives the value, in any CSS colour format');
+  } finally {
+    delete document.body;
+  }
+});
 
 // switches the body theme class read by getCurrentMode()
 function withMode(mode, fn) {
@@ -93,7 +166,9 @@ test('syntax themes: global and language specific variables and token rules, not
 
   assert.match(css, /theme-light \{ --cbc-syntax-keyword: #l1; --cbc-syntax-python-string: #l2; \}/);
   assert.match(css, /theme-dark \{ --cbc-syntax-keyword: #d1; --cbc-syntax-python-string: #d2; \}/);
-  assert.match(css, /\.print body \{ --cbc-syntax-keyword: #d1; --cbc-syntax-python-string: #d2; \}/, 'print uses the current mode colors');
+  assert.doesNotMatch(css, /\.print body/, 'the PDF uses the light rule (Obsidian prints in light mode, .print is inside body)');
+  s.pluginSettings.printing.forceCurrentColorUse = true;
+  assert.match(generateSyntaxThemeStyles(s), /theme-light \{ --cbc-syntax-keyword: #d1; --cbc-syntax-python-string: #d2; \}/, '"Use current theme colours": the light (PDF) rule gets the current (dark) mode colors');
   assert.match(css, /\.codeblock-customizer-language-python \.codeblock-customizer-line-text \.token\.string/);
   assert.doesNotMatch(css, /--cbc-syntax-comment:|-go-/, 'empty colors and missing themes are skipped');
 });

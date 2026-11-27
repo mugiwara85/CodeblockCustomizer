@@ -4,31 +4,24 @@ import { getCurrentMode } from "./Utils";
 export function generateSyntaxThemeStyles(settings: CodeblockCustomizerSettings): string {
   const { globalSyntaxTheme, languageSpecificSyntaxThemes } = settings.pluginSettings.syntaxThemes;
   const currentMode = getCurrentMode();
+  const colorMode = (mode: "light" | "dark") => settings.pluginSettings.printing.forceCurrentColorUse ? currentMode : mode;
 
   const lightVars: string[] = [];
   const darkVars: string[] = [];
   const tokenRules: string[] = [];
-  const printVars: string[] = [];
 
   // global syntax theme
   if (globalSyntaxTheme && settings.SyntaxThemes[globalSyntaxTheme]) {
     const theme = settings.SyntaxThemes[globalSyntaxTheme];
 
-    for (const [token, color] of Object.entries(theme.colors.light)) {
+    for (const [token, color] of Object.entries(theme.colors[colorMode("light")])) {
       if (color) {
         lightVars.push(`--cbc-syntax-${token}: ${color};`);
       }
     }
-    for (const [token, color] of Object.entries(theme.colors.dark)) {
+    for (const [token, color] of Object.entries(theme.colors[colorMode("dark")])) {
       if (color) {
         darkVars.push(`--cbc-syntax-${token}: ${color};`);
-      }
-    }
-
-    const printColors = theme.colors[currentMode];
-    for (const [token, color] of Object.entries(printColors)) {
-      if (color) {
-        printVars.push(`--cbc-syntax-${token}: ${color};`);
       }
     }
 
@@ -53,21 +46,14 @@ export function generateSyntaxThemeStyles(settings: CodeblockCustomizerSettings)
 
     const langLower = language.toLowerCase();
 
-    for (const [token, color] of Object.entries(theme.colors.light)) {
+    for (const [token, color] of Object.entries(theme.colors[colorMode("light")])) {
       if (color) {
         lightVars.push(`--cbc-syntax-${langLower}-${token}: ${color};`);
       }
     }
-    for (const [token, color] of Object.entries(theme.colors.dark)) {
+    for (const [token, color] of Object.entries(theme.colors[colorMode("dark")])) {
       if (color) {
         darkVars.push(`--cbc-syntax-${langLower}-${token}: ${color};`);
-      }
-    }
-
-    const printColors = theme.colors[currentMode];
-    for (const [token, color] of Object.entries(printColors)) {
-      if (color) {
-        printVars.push(`--cbc-syntax-${langLower}-${token}: ${color};`);
       }
     }
 
@@ -89,7 +75,6 @@ export function generateSyntaxThemeStyles(settings: CodeblockCustomizerSettings)
   return `
     body.codeblock-customizer.theme-light { ${lightVars.join(' ')} }
     body.codeblock-customizer.theme-dark { ${darkVars.join(' ')} }
-    .print body { ${printVars.join(' ')} }
     ${tokenRules.join(' ')}
   `;
 }// generateSyntaxThemeStyles

@@ -463,6 +463,10 @@ export default class CodeBlockCustomizerPlugin extends Plugin {
           if (typeof codeblock.highlightColor === 'string') {
             codeblock.highlightColor = { useBackgroundColor: true, backgroundColor: codeblock.highlightColor };
           }
+          // the reset button saved an empty colour for the default --text-highlight-bg, which Obsidian 1.14+ no longer sets
+          if (codeblock.highlightColor?.backgroundColor === '') {
+            codeblock.highlightColor.backgroundColor = '--text-highlight-bg';
+          }
 
           for (const [key, value] of Object.entries(codeblock.alternateHighlightColors ?? {})) {
             if (typeof value === 'string' && codeblock.alternateHighlightColors) {
