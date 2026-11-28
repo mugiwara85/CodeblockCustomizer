@@ -29,10 +29,9 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
       for (const mutation of mutations) {
         for (const node of Array.from(mutation.addedNodes)) {
-          if (node.instanceOf(HTMLElement)) {
-            if (node.matches('.cm-preview-code-block, .admonition')) {
-              this.processAllAdmonitions(node, view);
-            }
+          if (node.instanceOf(HTMLElement) && (node.matches('.cm-preview-code-block, .admonition') || node.closest('.admonition'))) {
+            this.processAllAdmonitions(view.contentDOM, view);
+            return;
           }
         }
       }
@@ -43,14 +42,12 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
         return;
       }
 
-      const admonitions = container.querySelectorAll<HTMLElement>('.admonition:not([data-cbc-lp-processed])');
+      const admonitions = Array.from(container.querySelectorAll<HTMLElement>('.admonition:not([data-cbc-lp-processed])')).filter(el => !el.parentElement?.closest('.admonition'));
 
       admonitions.forEach(admonitionEl => {
         if (!admonitionEl.isConnected) {
           return;
         }
-
-        admonitionEl.setAttribute('data-cbc-lp-processed', 'true');
 
         const pos = view.posAtDOM(admonitionEl);
         if (pos === null) {
@@ -68,6 +65,7 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
 
         const innerCodeBlocks = extractCodeBlocksFromAdmonition(admonitionSourceLines);
         if (innerCodeBlocks.length === 0) {
+          admonitionEl.setAttribute('data-cbc-lp-processed', 'true');
           return;
         }
 
@@ -76,6 +74,7 @@ export function admonitionExtension(plugin: CodeBlockCustomizerPlugin, settings:
           return;
         }
 
+        admonitionEl.setAttribute('data-cbc-lp-processed', 'true');
         const fileContentLines = view.state.doc.toString().split('\n');
 
         for (const [index, preElement] of renderedPreElements.entries()) {

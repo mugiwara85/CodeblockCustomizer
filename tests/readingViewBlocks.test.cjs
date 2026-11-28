@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./helpers/load.cjs');
 
-const { extractCodeBlocksFromSection, getBlockLine, getHtmlCodeBlockData, findHtmlCodeBlocks, escapeHtml } = load('src/ReadingView/ReadingViewUtils.ts', 'src/HtmlCodeBlocks.ts');
+const { extractCodeBlocksFromSection, extractCodeBlocksFromAdmonition, getBlockLine, getHtmlCodeBlockData, findHtmlCodeBlocks, escapeHtml } = load('src/ReadingView/ReadingViewUtils.ts', 'src/HtmlCodeBlocks.ts');
 
 test('blocks of a list section get their own line, not the section start', () => {
   const section = [
@@ -68,4 +68,30 @@ test('escapeHtml: plain text (e.g. Execute Code output) stays text when parsed a
   assert.equal(escapeHtml('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
   assert.equal(escapeHtml('&lt;'), '&amp;lt;', 'an entity in the output is shown as typed');
   assert.equal(escapeHtml('a b'), 'a&nbsp;b');
+});
+
+test('code blocks inside a nested admonition are returned, not the nested admonition itself (#190)', () => {
+  const admonition = [
+    '`````ad-note',
+    'title: Outer',
+    '```js',
+    'a',
+    '```',
+    '````ad-tip',
+    'title: Nested',
+    '```sql',
+    'SELECT 1;',
+    '```',
+    '~~~ad-info',
+    '```py',
+    'x',
+    '```',
+    '~~~',
+    '````',
+    '`````',
+  ];
+  const blocks = extractCodeBlocksFromAdmonition(admonition);
+
+  assert.deepEqual(blocks.map(b => [b.firstLine, b.startLine, b.endLine]), [['```js', 2, 4], ['```sql', 7, 9], ['```py', 11, 13]]);
+  assert.deepEqual(blocks[1].contentLines, ['```sql', 'SELECT 1;', '```']);
 });

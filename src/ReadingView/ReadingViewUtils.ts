@@ -1772,7 +1772,10 @@ export function extractCodeBlocksFromCallout(lines: string[]): CodeBlockData[] {
 }// extractCodeBlocksFromCallout
 
 export function extractCodeBlocksFromAdmonition(lines: string[]): CodeBlockData[] {
-  return extractCodeBlocks(lines, { skipFirstLine: true, allowLongerClosingFence: true });
+  return extractCodeBlocks(lines, { skipFirstLine: true, allowLongerClosingFence: true }).flatMap(block =>
+    /^(?:`{3,}|~{3,})\s*ad-\S/.test(block.firstLine)
+      ? extractCodeBlocksFromAdmonition(block.contentLines).map(inner => ({ ...inner, startLine: inner.startLine + block.startLine, endLine: inner.endLine + block.startLine }))
+      : [block]);
 }// extractCodeBlocksFromAdmonition
 
 export function extractCodeBlocksFromSection(lines: string[]): CodeBlockData[] {
